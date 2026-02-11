@@ -1,25 +1,24 @@
 import os
 from dotenv import load_dotenv
-
-# 1. Load Environment Variables IMMEDIATELY
-# This ensures GEMINI_API_KEY is available before any other modules try to use it.
 load_dotenv()
 
 from fastapi import FastAPI
 from app.api.avatar import router as avatar_router
+from app.api.video import router as video_router
 
-# 2. Initialize FastAPI
+# 1. Initialize FastAPI FIRST
 app = FastAPI(
     title="AI Avatar Generator",
     description="An API to generate futuristic digital avatars using Gemini 2.5 Flash Image",
     version="1.0.0"
 )
 
-# 3. Include Routers
-# The prefix "/avatar" means your endpoint will be at http://127.0.0.1:8000/avatar/generate
+# 2. Include Routers AFTER app is defined
+# Note: I moved the video router down here with the avatar router
 app.include_router(avatar_router, prefix="/avatar", tags=["Avatar Generation"])
+app.include_router(video_router, prefix="/video", tags=["Video Generation"])
 
-# 4. Health Check / Root Endpoint
+# 3. Health Check / Root Endpoint
 @app.get("/", tags=["System"])
 async def root():
     return {
