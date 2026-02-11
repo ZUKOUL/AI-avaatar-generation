@@ -25,17 +25,20 @@ def get_supabase() -> Client:
     key = os.getenv("SUPABASE_KEY")
     return create_client(url, key)
 
-@router.post("/lock-identity")
-async def lock_identity(name: str = Form(...), files: List[UploadFile] = File(...)):
+@router.post("/Upload Reference")
+async def lock_identity(files: List[UploadFile] = File(...)):
     supabase = get_supabase()
-    char_id = str(uuid.uuid4()) 
-    logger.info(f"Creating new identity: {name} (UUID: {char_id})") # Log start
+    
+    # 1. Generate the UUID here (Backend Authority)
+    char_uuid = str(uuid.uuid4())
+    logger.info(f"Locking new anonymous identity: {char_uuid}")
 
     try:
         saved_paths = []
+        # 2. Upload files to a folder named after the UUID
         for i, file in enumerate(files):
             file_content = await file.read()
-            file_path = f"master_faces/{char_id}/ref_{i}.png"
+            file_path = f"master_faces/{char_uuid}/ref_{i}.png"
             
             supabase.storage.from_("avatars").upload(
                 path=file_path,
@@ -44,34 +47,48 @@ async def lock_identity(name: str = Form(...), files: List[UploadFile] = File(..
             )
             saved_paths.append(file_path)
 
-        supabase.table("characters").upsert({
-            "id": char_id,
-            "name": name,
-            "image_paths": saved_paths
-        }, on_conflict="name").execute()
+        # 3. Save to DB (Name is now Optional/None)
+        # We use the UUID as the primary key
+        data = {
+            "id": char_uuid,
+            "image_paths": saved_paths,
+            "name": None # Or you could set a default like f"User-{char_uuid[:4]}"
+        }
+        
+        supabase.table("characters").upsert(data).execute()
 
-        logger.info(f"Successfully locked identity for {name} with {len(saved_paths)} images.")
-        return {"status": "Success", "character_id": char_id, "name": name}
+        logger.info(f"Identity locked. UUID: {char_uuid}")
+        
+        # 4. Return the UUID to the Frontend
+        return {
+            "status": "Success", 
+            "character_id": char_uuid, 
+            "message": "Identity locked. Use this ID for generation."
+        }
+
     except Exception as e:
-        logger.error(f"Failed to lock identity for {name}: {str(e)}") # Log error
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Failed to lock identity: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-scene")
-async def generate_scene(character_name: str = Form(...), prompt: str = Form(...)):
+async def generate_scene(
+    character_id: str = Form(...), # <--- Receives UUID now, not Name
+    prompt: str = Form(...)
+):
     supabase = get_supabase()
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    logger.info(f"Generation request received for: {character_name}")
+    logger.info(f"Generation request for UUID: {character_id}")
 
     try:
-        res = supabase.table("characters").select("id, image_paths").eq("name", character_name).single().execute()
+        # 1. DIRECT FETCH by ID (Faster, no name lookup)
+        res = supabase.table("characters").select("image_paths").eq("id", character_id).single().execute()
+        
         if not res.data:
-            logger.warning(f"Generation failed: Character '{character_name}' not found.")
-            raise HTTPException(status_code=404, detail="Character not found.")
+            logger.warning(f"Character UUID '{character_id}' not found.")
+            raise HTTPException(status_code=404, detail="Identity not found. Please upload reference images first.")
         
-        char_uuid = res.data['id']
-        
-        # ... (Download Logic) ...
+        # 2. Download Images
         gemini_contents = []
         for path in res.data['image_paths']:
             img_bytes = supabase.storage.from_("avatars").download(path)
@@ -79,8 +96,8 @@ async def generate_scene(character_name: str = Form(...), prompt: str = Form(...
 
         gemini_contents.append(f"Maintain 1:1 facial identity. Scene: {prompt}")
 
-        logger.info(f"Sending request to Gemini for UUID: {char_uuid}")
-        
+        # 3. Call Gemini
+        logger.info(f"Sending to Gemini...")
         response = client.models.generate_content(
             model="gemini-2.5-flash-image",
             contents=gemini_contents,
@@ -90,24 +107,90 @@ async def generate_scene(character_name: str = Form(...), prompt: str = Form(...
             )
         )
 
+        # 4. Process & Save Result
         if response.candidates and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
                 if part.inline_data:
                     generated_bytes = part.inline_data.data
-
-                    try:
-                        filename = f"gen_{int(time.time())}.png"
-                        storage_path = f"generated_scenes/{char_uuid}/{filename}"
-                        supabase.storage.from_("avatars").upload(path=storage_path, file=generated_bytes)
-                        logger.info(f"Image saved to Supabase: {storage_path}")
-                    except Exception as storage_err:
-                        logger.error(f"Supabase Storage Error for {char_uuid}: {storage_err}")
-
+                    
+                    # Save result in a folder named after the UUID
+                    filename = f"gen_{int(time.time())}.png"
+                    storage_path = f"generated_scenes/{character_id}/{filename}"
+                    
+                    supabase.storage.from_("avatars").upload(path=storage_path, file=generated_bytes)
+                    
                     return StreamingResponse(io.BytesIO(generated_bytes), media_type="image/png")
         
-        logger.error("Gemini returned an empty response.")
-        raise HTTPException(status_code=500, detail="Generation failed.")
+        raise HTTPException(status_code=500, detail="Gemini returned empty response")
 
     except Exception as e:
-        logger.error(f"Unexpected error during generation for {character_name}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/characters")
+async def get_characters():
+    supabase = get_supabase()
+    try:
+        # Fetch all characters
+        res = supabase.table("characters").select("id, name, image_paths").execute()
+        
+        char_list = []
+        for char in res.data:
+            # 1. Get Thumbnail (First image in the array)
+            thumb_url = None
+            if char.get("image_paths") and len(char["image_paths"]) > 0:
+                thumb_url = supabase.storage.from_("avatars").get_public_url(char["image_paths"][0])
+            
+            # 2. Handle "Anonymous" characters
+            display_name = char["name"] if char["name"] else f"Session-{char['id'][:4]}"
+
+            char_list.append({
+                "id": char["id"],         # <--- FRONTEND USES THIS ID
+                "name": display_name,     # Label for the UI
+                "thumbnail": thumb_url    # Image for the circle/square
+            })
+            
+        return char_list
+    except Exception as e:
+        logger.error(f"Failed to fetch characters: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/history")
+async def get_history(character_id: str):
+    supabase = get_supabase()
+    try:
+        # 1. Validate ID exists (Optional, but good for safety)
+        # We assume the ID is valid if the frontend sends it.
+
+        # 2. List files in the specific UUID folder
+        folder_path = f"generated_scenes/{character_id}"
+        
+        files = supabase.storage.from_("avatars").list(folder_path, {
+            "limit": 50, 
+            "sortBy": {"column": "created_at", "order": "desc"}
+        })
+        
+        if not files:
+            return []
+
+        # 3. Convert to Public URLs
+        history_items = []
+        for f in files:
+            # Skip placeholders or empty names
+            if f['name'] == ".emptyFolderPlaceholder": 
+                continue
+
+            full_path = f"{folder_path}/{f['name']}"
+            public_url = supabase.storage.from_("avatars").get_public_url(full_path)
+            
+            history_items.append({
+                "filename": f['name'],
+                "url": public_url,
+                "created_at": f.get('created_at')
+            })
+            
+        return history_items
+
+    except Exception as e:
+        logger.error(f"Failed to fetch history for {character_id}: {e}")
+        return []

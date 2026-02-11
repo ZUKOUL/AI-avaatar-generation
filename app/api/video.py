@@ -21,27 +21,30 @@ def get_supabase() -> Client:
 @router.post("/animate-avatar")
 async def animate_avatar(
     background_tasks: BackgroundTasks,
-    character_name: str = Form(...), 
+    character_id: str = Form(...),  # <--- CHANGED: Accept ID directly
     motion_prompt: str = Form(...),
     engine_choice: str = Form("veo")
 ):
-    
     supabase = get_supabase()
     
     system_instruction = "Cinematic lighting, high resolution, 4k, natural movement, keep face consistent with reference."
     final_prompt = f"{system_instruction}. Action: {motion_prompt}"
     
-    # 1. Fetch character data
-    res = supabase.table("characters").select("id").eq("name", character_name).single().execute()
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Character not found")
-    char_uuid = res.data['id']
+    # 1. Validate ID exists (Optional but good safety)
+    # We can skip the DB lookup since we have the ID, just check storage.
+    char_uuid = character_id 
 
-    # 2. Get Image from Folder (The Scanner Fix)
+    # 2. Get Image from Folder
     folder_path = f"generated_scenes/{char_uuid}"
     files = supabase.storage.from_("avatars").list(folder_path, {"limit": 1, "sortBy": {"column": "created_at", "order": "desc"}})
-    if not files:
-        raise HTTPException(status_code=404, detail="No generated scenes found.")
+    
+    if not files or len(files) == 0:
+        # Fallback: Check if it's a "Stock" character (hardcoded ID)
+        if "stock" in char_uuid:
+             # You might want to handle stock characters differently or assume the ID *is* the URL
+             pass
+        else:
+             raise HTTPException(status_code=404, detail="No generated scenes found for this character. Please generate an image first.")
     
     latest_file_name = files[0]['name']
     full_storage_path = f"{folder_path}/{latest_file_name}"
@@ -62,7 +65,6 @@ async def animate_avatar(
             "motion_prompt": f"[{engine_choice.upper()}] {motion_prompt}"
         }).execute()
 
-        # FIX 1: Correct Argument Order (operation_id FIRST, then char_uuid)
         background_tasks.add_task(process_video_task, operation_id, char_uuid, engine_choice)
 
         return {"status": "Job Started", "operation_id": operation_id, "engine": engine_choice}
@@ -159,3 +161,36 @@ async def get_video_status(operation_id: str):
         return {"status": "completed", "video_url": job.data['video_url']}
     
     return {"status": job.data['status'], "message": "Processing..."}
+
+@router.get("/video-history")
+async def get_video_history(character_id: str):
+    supabase = get_supabase()
+    try:
+        folder_path = f"generated_videos/{character_id}"
+        
+        files = supabase.storage.from_("avatars").list(folder_path, {
+            "limit": 50, 
+            "sortBy": {"column": "created_at", "order": "desc"}
+        })
+        
+        if not files:
+            return []
+
+        video_items = []
+        for f in files:
+            if f['name'].startswith("."): continue # Skip system files
+
+            full_path = f"{folder_path}/{f['name']}"
+            public_url = supabase.storage.from_("avatars").get_public_url(full_path)
+            
+            video_items.append({
+                "filename": f['name'],
+                "url": public_url,
+                "created_at": f.get('created_at')
+            })
+            
+        return video_items
+
+    except Exception as e:
+        logger.error(f"Failed to fetch video history: {e}")
+        return []
