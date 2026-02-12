@@ -4,6 +4,9 @@ import logging
 import asyncio
 import requests
 import replicate
+from fastapi import APIRouter, Depends
+from app.auth import verify_api_key
+from google.genai import types
 from fastapi import APIRouter, Form, HTTPException, BackgroundTasks
 from supabase import create_client, Client
 from google import genai
@@ -12,8 +15,7 @@ from urllib3.util.retry import Retry
 from app.core.config import settings
 from app.services.video_engine import get_video_engine
 
-logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 def get_supabase() -> Client:
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
@@ -23,14 +25,26 @@ async def animate_avatar(
     background_tasks: BackgroundTasks,
     character_id: str = Form(...),  # <--- CHANGED: Accept ID directly
     motion_prompt: str = Form(...),
-    engine_choice: str = Form("veo")
+    engine_choice: str = Form("veo"),
+    with_audio: bool = Form(False),
+    user_id: str = Depends(verify_api_key)
 ):
     supabase = get_supabase()
     
     system_instruction = "Cinematic lighting, high resolution, 4k, natural movement, keep face consistent with reference."
     final_prompt = f"{system_instruction}. Action: {motion_prompt}"
-    
-    # 1. Validate ID exists (Optional but good safety)
+
+    model_version=None
+
+    if engine_choice == "kling":
+
+        if with_audio:
+            model_version = "kling-v2.6"
+            logger.info(f"Audio requested. Switching Kling to model: {model_version}")
+        
+        else:
+            model_version = "kling-v2.5-turbo-pro"
+
     # We can skip the DB lookup since we have the ID, just check storage.
     char_uuid = character_id 
 
@@ -81,19 +95,72 @@ async def process_video_task(operation_id: str, char_uuid: str, engine: str):
         final_video_url = None
         
         if engine == "veo":
-            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            api_key = os.getenv("GEMINI_API_KEY")
+            request_url = f"https://generativelanguage.googleapis.com/v1beta/{operation_id}?key={api_key}"
+            
             while True:
-                op = client.operations.get(operation_id)
-                if op.done:
-                    # Extract bytes from Veo
-                    video_bytes = op.response.generated_videos[0].video.data
-                    # Upload bytes to storage
-                    file_name = f"video_{int(time.time())}.mp4"
-                    path = f"generated_videos/{char_uuid}/{file_name}"
-                    supabase.storage.from_("avatars").upload(path, video_bytes, {"content-type": "video/mp4"})
-                    final_video_url = supabase.storage.from_("avatars").get_public_url(path)
-                    break
-                await asyncio.sleep(20)
+                # 1. Direct REST call
+                resp = requests.get(request_url)
+                if resp.status_code != 200:
+                    logger.error(f"Veo Polling Error {resp.status_code}: {resp.text}")
+                    raise Exception(f"Polling failed: {resp.text}")
+                    
+                data = resp.json()
+                
+                # 2. Check if job is done
+                if data.get("done"):
+                    # 🔍 DEBUG: PRINT THE FULL JSON TO CONSOLE
+                    logger.info(f"Veo Final Response: {data}") 
+                    
+                    # Check for explicit API errors
+                    if "error" in data:
+                        raise Exception(f"Veo API Error: {data['error']}")
+                        
+                    # 3. Extract Video URI
+                    # We look in 'response' -> 'generatedVideos'
+                    try:
+                        # Safety checks for different possible structures
+                        gen_response = response_dict.get("generateVideoResponse", {})
+                        samples = gen_response.get("generatedSamples", [])
+                        # Sometimes it returns result inside 'result' instead of 'response'
+                        if not samples:
+                            samples = response_dict.get("generatedVideos", [])
+
+                        if not samples:
+                            raise Exception("Response parsed, but no video samples found.")
+                             
+                        if not response_dict:
+                            # If we have no response dict, maybe it was a safety block?
+                            raise Exception(f"Job done but 'response' field missing. Full Data: {data}")
+
+                        generated_videos = response_dict.get("generatedVideos", [])
+                        if not generated_videos:
+                            raise Exception("Response exists but 'generatedVideos' list is empty.")
+                            
+                        video_uri = generated_videos[0].get("video", {}).get("uri")
+                        
+                        if not video_uri:
+                             raise Exception("No video URI found in video object")
+                             
+                        # 4. Download
+                        logger.info(f"Downloading video from: {video_uri}")
+                        video_resp = requests.get(video_uri)
+                        video_bytes = video_resp.content
+                        
+                        # 5. Upload to Supabase
+                        file_name = f"video_{int(time.time())}.mp4"
+                        path = f"generated_videos/{char_uuid}/{file_name}"
+                        supabase.storage.from_("avatars").upload(path, video_bytes, {"content-type": "video/mp4"})
+                        final_video_url = supabase.storage.from_("avatars").get_public_url(path)
+                        break
+                        
+                    except Exception as parse_err:
+                        logger.error(f"Parsing Failed. Data structure was: {data}")
+                        raise parse_err
+                
+                # Wait 10 seconds
+                logger.info(f"Veo Job still running... (Operation: {operation_id})")
+                await asyncio.sleep(10)
 
         elif engine == "kling":
             # 1. Wait for success
@@ -147,20 +214,22 @@ async def process_video_task(operation_id: str, char_uuid: str, engine: str):
 
 @router.get("/video-status/{operation_id:path}")
 async def get_video_status(operation_id: str):
-    """
-    Optional: If the user wants to check status manually via API
-    """
     supabase = get_supabase()
-    # Find the job to know which engine it used
-    job = supabase.table("video_jobs").select("*").eq("operation_id", operation_id).single().execute()
     
-    if not job.data:
-        raise HTTPException(status_code=404, detail="Job not found")
+    # 1. Fetch the list (limit=1) without forcing .single()
+    res = supabase.table("video_jobs").select("*").eq("operation_id", operation_id).limit(1).execute()
+    
+    # 2. Manually check if we got data
+    if not res.data or len(res.data) == 0:
+        raise HTTPException(status_code=404, detail="Job not found in database")
 
-    if job.data['status'] == "completed":
-        return {"status": "completed", "video_url": job.data['video_url']}
+    # 3. Get the first item safely
+    job_data = res.data[0]
+
+    if job_data['status'] == "completed":
+        return {"status": "completed", "video_url": job_data['video_url']}
     
-    return {"status": job.data['status'], "message": "Processing..."}
+    return {"status": job_data['status'], "message": "Processing..."}
 
 @router.get("/video-history")
 async def get_video_history(character_id: str):

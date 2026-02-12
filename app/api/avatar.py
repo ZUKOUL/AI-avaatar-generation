@@ -2,8 +2,10 @@ import os
 import io
 import uuid
 import time
-import logging  # 1. Import logging
+import logging
 from typing import List
+from fastapi import APIRouter, Depends
+from app.auth import verify_api_key
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from supabase import create_client, Client
@@ -18,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 def get_supabase() -> Client:
     url = os.getenv("SUPABASE_URL")
