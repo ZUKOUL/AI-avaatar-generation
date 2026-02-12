@@ -27,7 +27,7 @@ def get_supabase() -> Client:
     key = os.getenv("SUPABASE_KEY")
     return create_client(url, key)
 
-@router.post("/Upload Reference")
+@router.post("/Upload-Reference")
 async def lock_identity(files: List[UploadFile] = File(...)):
     supabase = get_supabase()
     
