@@ -2,10 +2,11 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.avatar import router as avatar_router
 from app.api.video import router as video_router
+from app.core.security import verify_api_key
 
 # 1. Initialize FastAPI FIRST
 app = FastAPI(
@@ -25,8 +26,18 @@ app.add_middleware(
 
 # 2. Include Routers AFTER app is defined
 # Note: I moved the video router down here with the avatar router
-app.include_router(avatar_router, prefix="/avatar", tags=["Avatar Generation"])
-app.include_router(video_router, prefix="/video", tags=["Video Generation"])
+app.include_router(
+    avatar_router, 
+    prefix="/avatar", 
+    tags=["Avatar Generation"],
+    dependencies=[Depends(verify_api_key)]
+)
+app.include_router(
+    video_router, 
+    prefix="/video", 
+    tags=["Video Generation"],
+    dependencies=[Depends(verify_api_key)]
+)
 
 # 3. Health Check / Root Endpoint
 @app.get("/", tags=["System"])

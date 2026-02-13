@@ -7,6 +7,7 @@ import replicate
 from fastapi import APIRouter, Form, HTTPException, BackgroundTasks
 from supabase import create_client, Client
 from google import genai
+from google.genai import types
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from app.core.config import settings
@@ -27,7 +28,7 @@ async def animate_avatar(
 ):
     supabase = get_supabase()
     
-    system_instruction = "Cinematic lighting, high resolution, 4k, natural movement, keep face consistent with reference."
+    system_instruction = "maintain exact facial identity and features from reference image, consistent"
     final_prompt = f"{system_instruction}. Action: {motion_prompt}"
     
     # 1. Validate ID exists (Optional but good safety)
@@ -83,10 +84,26 @@ async def process_video_task(operation_id: str, char_uuid: str, engine: str):
         if engine == "veo":
             client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
             while True:
-                op = client.operations.get(operation_id)
+                op = client.operations.get(types.GenerateVideosOperation(name=operation_id))
                 if op.done:
                     # Extract bytes from Veo
-                    video_bytes = op.response.generated_videos[0].video.data
+                    # It might return a URI or bytes directly
+                    video_obj = op.response.generated_videos[0].video
+                    
+                    if video_obj.uri:
+                        # Download from the URI
+                        # FIX: Add API Key to headers for authentication
+                        api_key = os.getenv("GEMINI_API_KEY")
+                        headers = {"x-goog-api-key": api_key} if api_key else {}
+                        
+                        resp = requests.get(video_obj.uri, headers=headers)
+                        resp.raise_for_status()
+                        video_bytes = resp.content
+                    elif hasattr(video_obj, 'video_bytes') and video_obj.video_bytes:
+                         video_bytes = video_obj.video_bytes
+                    else:
+                         # Fallback for some SDK versions or if attribute name differs
+                         raise ValueError(f"No video content found in response. Available attributes: {dir(video_obj)}")
                     # Upload bytes to storage
                     file_name = f"video_{int(time.time())}.mp4"
                     path = f"generated_videos/{char_uuid}/{file_name}"
@@ -141,6 +158,8 @@ async def process_video_task(operation_id: str, char_uuid: str, engine: str):
             }).eq("operation_id", operation_id).execute()
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"Background Task Failed: {e}")
         # Now 'supabase' is defined, so this line won't crash
         supabase.table("video_jobs").update({"status": "failed"}).eq("operation_id", operation_id).execute()
