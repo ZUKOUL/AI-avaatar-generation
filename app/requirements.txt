@@ -4,3 +4,5 @@ python-dotenv
 supabase
 pillow
 python-multipart
+replicate
+google-genai

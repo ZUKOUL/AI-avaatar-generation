@@ -156,41 +156,62 @@ async def get_characters():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/history")
-async def get_history(character_id: str):
+async def get_history(character_id: str = None):
     supabase = get_supabase()
     try:
-        # 1. Validate ID exists (Optional, but good for safety)
-        # We assume the ID is valid if the frontend sends it.
-
-        # 2. List files in the specific UUID folder
-        folder_path = f"generated_scenes/{character_id}"
-        
-        files = supabase.storage.from_("avatars").list(folder_path, {
-            "limit": 50, 
-            "sortBy": {"column": "created_at", "order": "desc"}
-        })
-        
-        if not files:
-            return []
-
-        # 3. Convert to Public URLs
         history_items = []
-        for f in files:
-            # Skip placeholders or empty names
-            if f['name'] == ".emptyFolderPlaceholder": 
-                continue
 
-            full_path = f"{folder_path}/{f['name']}"
-            public_url = supabase.storage.from_("avatars").get_public_url(full_path)
-            
-            history_items.append({
-                "filename": f['name'],
-                "url": public_url,
-                "created_at": f.get('created_at')
+        if character_id:
+            # Fetch history for a specific character
+            folder_path = f"generated_scenes/{character_id}"
+            files = supabase.storage.from_("avatars").list(folder_path, {
+                "limit": 50, 
+                "sortBy": {"column": "created_at", "order": "desc"}
             })
+            
+            if files:
+                for f in files:
+                    if f['name'] == ".emptyFolderPlaceholder": 
+                        continue
+                    full_path = f"{folder_path}/{f['name']}"
+                    public_url = supabase.storage.from_("avatars").get_public_url(full_path)
+                    history_items.append({
+                        "filename": f['name'],
+                        "url": public_url,
+                        "created_at": f.get('created_at')
+                    })
+        else:
+            # Fetch ALL history across all characters
+            folders = supabase.storage.from_("avatars").list("generated_scenes", {
+                "limit": 100
+            })
+            
+            if folders:
+                for folder in folders:
+                    if folder['name'] == ".emptyFolderPlaceholder":
+                        continue
+                    folder_path = f"generated_scenes/{folder['name']}"
+                    files = supabase.storage.from_("avatars").list(folder_path, {
+                        "limit": 50,
+                        "sortBy": {"column": "created_at", "order": "desc"}
+                    })
+                    if files:
+                        for f in files:
+                            if f['name'] == ".emptyFolderPlaceholder":
+                                continue
+                            full_path = f"{folder_path}/{f['name']}"
+                            public_url = supabase.storage.from_("avatars").get_public_url(full_path)
+                            history_items.append({
+                                "filename": f['name'],
+                                "url": public_url,
+                                "created_at": f.get('created_at')
+                            })
+            
+            # Sort all items by created_at descending
+            history_items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
             
         return history_items
 
     except Exception as e:
-        logger.error(f"Failed to fetch history for {character_id}: {e}")
+        logger.error(f"Failed to fetch history: {e}")
         return []

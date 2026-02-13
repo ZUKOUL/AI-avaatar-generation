@@ -163,32 +163,52 @@ async def get_video_status(operation_id: str):
     return {"status": job.data['status'], "message": "Processing..."}
 
 @router.get("/video-history")
-async def get_video_history(character_id: str):
+async def get_video_history(character_id: str = None):
     supabase = get_supabase()
     try:
-        folder_path = f"generated_videos/{character_id}"
-        
-        files = supabase.storage.from_("avatars").list(folder_path, {
-            "limit": 50, 
-            "sortBy": {"column": "created_at", "order": "desc"}
-        })
-        
-        if not files:
-            return []
-
         video_items = []
-        for f in files:
-            if f['name'].startswith("."): continue # Skip system files
 
-            full_path = f"{folder_path}/{f['name']}"
-            public_url = supabase.storage.from_("avatars").get_public_url(full_path)
-            
-            video_items.append({
-                "filename": f['name'],
-                "url": public_url,
-                "created_at": f.get('created_at')
+        if character_id:
+            folder_path = f"generated_videos/{character_id}"
+            files = supabase.storage.from_("avatars").list(folder_path, {
+                "limit": 50, 
+                "sortBy": {"column": "created_at", "order": "desc"}
             })
-            
+            if files:
+                for f in files:
+                    if f['name'].startswith("."): continue
+                    full_path = f"{folder_path}/{f['name']}"
+                    public_url = supabase.storage.from_("avatars").get_public_url(full_path)
+                    video_items.append({
+                        "filename": f['name'],
+                        "url": public_url,
+                        "created_at": f.get('created_at')
+                    })
+        else:
+            # Fetch ALL video history across all characters
+            folders = supabase.storage.from_("avatars").list("generated_videos", {
+                "limit": 100
+            })
+            if folders:
+                for folder in folders:
+                    if folder['name'].startswith("."): continue
+                    folder_path = f"generated_videos/{folder['name']}"
+                    files = supabase.storage.from_("avatars").list(folder_path, {
+                        "limit": 50,
+                        "sortBy": {"column": "created_at", "order": "desc"}
+                    })
+                    if files:
+                        for f in files:
+                            if f['name'].startswith("."): continue
+                            full_path = f"{folder_path}/{f['name']}"
+                            public_url = supabase.storage.from_("avatars").get_public_url(full_path)
+                            video_items.append({
+                                "filename": f['name'],
+                                "url": public_url,
+                                "created_at": f.get('created_at')
+                            })
+            video_items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+
         return video_items
 
     except Exception as e:
