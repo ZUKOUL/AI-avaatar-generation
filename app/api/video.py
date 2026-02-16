@@ -86,8 +86,13 @@ async def process_video_task(operation_id: str, char_uuid: str, engine: str):
             while True:
                 op = client.operations.get(types.GenerateVideosOperation(name=operation_id))
                 if op.done:
-                    # Extract bytes from Veo
-                    # It might return a URI or bytes directly
+                    # Check for errors first
+                    if hasattr(op, 'error') and op.error:
+                        raise Exception(f"Veo generation failed: {op.error}")
+                    
+                    if not op.response or not op.response.generated_videos:
+                        raise Exception(f"Veo returned no videos. Full response: {op.response}")
+                    
                     video_obj = op.response.generated_videos[0].video
                     
                     if video_obj.uri:
