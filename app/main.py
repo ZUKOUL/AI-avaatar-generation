@@ -12,16 +12,20 @@ from app.core.security import verify_api_key
 app = FastAPI(
     title="AI Avatar Generator",
     description="An API to generate futuristic digital avatars using Gemini 2.5 Flash Image",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None,
+
 )
 
 # 1.5 CORS — allow frontend to make requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app/"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app/","https://saa-s-frontend-six.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    
 )
 
 # 2. Include Routers AFTER app is defined
