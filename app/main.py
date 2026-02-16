@@ -13,8 +13,6 @@ app = FastAPI(
     title="AI Avatar Generator",
     description="An API to generate futuristic digital avatars using Gemini 2.5 Flash Image",
     version="1.0.0",
-    docs_url=None,
-    redoc_url=None,
 
 )
 

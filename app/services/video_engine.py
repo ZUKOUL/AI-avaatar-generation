@@ -17,21 +17,20 @@ class VeoProvider(VideoProvider):
         if response.status_code != 200:
             raise Exception(f"Failed to fetch image from URL: {image_url}")
             
-        img_bytes = response.content # This is the raw binary data Google needs
+        img_bytes = response.content
 
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
-        # 2. Construct the reference image using the binary bytes
-        reference_image = types.VideoGenerationReferenceImage(
-            image=types.Image(image_bytes=img_bytes, mime_type="image/png")
-        )
+        # 2. Use the image= parameter directly (matches AI Studio behavior)
+        image = types.Image(image_bytes=img_bytes, mime_type="image/png")
 
-        # 3. Start the generation
+        # 3. Start the generation with person_generation="allow_all"
         operation = client.models.generate_videos(
             model="veo-3.1-fast-generate-preview", 
             prompt=prompt,
+            image=image,
             config=types.GenerateVideosConfig(
-                reference_images=[reference_image],
+                person_generation="allow_all",
                 duration_seconds=8
             )
         )
