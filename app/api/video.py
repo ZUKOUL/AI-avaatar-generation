@@ -12,6 +12,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from app.core.config import settings
 from app.services.video_engine import get_video_engine
+from app.core.pricing import get_video_cost
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,7 +57,9 @@ async def animate_avatar(
     try:
         operation_id = await engine.generate(image_url, motion_prompt)
         
-        # 4. Insert Job
+        # 4. Calculate cost & Insert Job
+        estimated_cost = get_video_cost(engine_choice)
+        
         supabase.table("video_jobs").insert({
             "character_id": char_uuid,
             "operation_id": str(operation_id),
@@ -68,7 +71,12 @@ async def animate_avatar(
 
         background_tasks.add_task(process_video_task, operation_id, char_uuid, engine_choice)
 
-        return {"status": "Job Started", "operation_id": operation_id, "engine": engine_choice}
+        return {
+            "status": "Job Started", 
+            "operation_id": operation_id, 
+            "engine": engine_choice,
+            "estimated_cost_usd": estimated_cost
+        }
         
     except Exception as e:
         logger.error(f"Video Init Failed: {e}")
@@ -181,10 +189,23 @@ async def get_video_status(operation_id: str):
     if not job.data:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    if job.data['status'] == "completed":
-        return {"status": "completed", "video_url": job.data['video_url']}
+    engine = job.data.get('engine', 'veo')
+    cost = get_video_cost(engine)
     
-    return {"status": job.data['status'], "message": "Processing..."}
+    if job.data['status'] == "completed":
+        return {
+            "status": "completed", 
+            "video_url": job.data['video_url'],
+            "cost_usd": cost,
+            "engine": engine
+        }
+    
+    return {
+        "status": job.data['status'], 
+        "message": "Processing...",
+        "estimated_cost_usd": cost,
+        "engine": engine
+    }
 
 @router.get("/video-history")
 async def get_video_history(character_id: str = None):

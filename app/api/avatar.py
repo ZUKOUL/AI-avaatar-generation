@@ -6,6 +6,7 @@ import logging  # 1. Import logging
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
+from app.core.pricing import COST_GEMINI_FLASH_IMAGE
 from supabase import create_client, Client
 from google import genai
 from google.genai import types
@@ -18,6 +19,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Gemini 2.5 Flash Image works best with up to 3 reference images
+MAX_REFERENCE_IMAGES = 3
+
 router = APIRouter()
 
 def get_supabase() -> Client:
@@ -28,6 +32,13 @@ def get_supabase() -> Client:
 @router.post("/Upload Reference")
 async def lock_identity(files: List[UploadFile] = File(...)):
     supabase = get_supabase()
+    
+    # 0. Enforce reference image cap
+    if len(files) > MAX_REFERENCE_IMAGES:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Maximum {MAX_REFERENCE_IMAGES} reference images allowed. You uploaded {len(files)}."
+        )
     
     # 1. Generate the UUID here (Backend Authority)
     char_uuid = str(uuid.uuid4())
@@ -88,29 +99,39 @@ async def generate_scene(
             logger.warning(f"Character UUID '{character_id}' not found.")
             raise HTTPException(status_code=404, detail="Identity not found. Please upload reference images first.")
         
-        # 2. Download Images
+        # 2. Download reference images (cap to MAX_REFERENCE_IMAGES)
+        image_paths = res.data['image_paths'][:MAX_REFERENCE_IMAGES]
         gemini_contents = []
-        for path in res.data['image_paths']:
+        for path in image_paths:
             img_bytes = supabase.storage.from_("avatars").download(path)
             gemini_contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
 
-        gemini_contents.append(f"Maintain 1:1 facial identity. Scene: {prompt}")
+        # 3. Build a detailed, descriptive prompt for character consistency
+        #    Per Nano Banana docs: "Describe the scene, don't just list keywords"
+        #    and "Be Hyper-Specific" for best identity preservation
+        identity_prompt = (
+f"Maintain 1:1 facial identity. Scene: {prompt}"
+        )
+        gemini_contents.append(identity_prompt)
 
-        # 3. Call Gemini
-        logger.info(f"Sending to Gemini...")
+        # 4. Call Gemini with TEXT+IMAGE modalities for better reasoning
+        logger.info(f"Sending {len(image_paths)} reference(s) to Gemini...")
         response = client.models.generate_content(
             model="gemini-2.5-flash-image",
             contents=gemini_contents,
             config=types.GenerateContentConfig(
-                response_modalities=["IMAGE"],
+                response_modalities=["TEXT", "IMAGE"],
                 image_config=types.ImageConfig(aspect_ratio="9:16")
             )
         )
 
-        # 4. Process & Save Result
+        # 5. Process & Save Result (handle both TEXT and IMAGE parts)
         if response.candidates and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
-                if part.inline_data:
+                # Log any text reasoning the model returns
+                if part.text:
+                    logger.info(f"Gemini reasoning: {part.text[:200]}")
+                elif part.inline_data:
                     generated_bytes = part.inline_data.data
                     
                     # Save result in a folder named after the UUID
@@ -119,7 +140,15 @@ async def generate_scene(
                     
                     supabase.storage.from_("avatars").upload(path=storage_path, file=generated_bytes)
                     
-                    return StreamingResponse(io.BytesIO(generated_bytes), media_type="image/png")
+                    return StreamingResponse(
+                        io.BytesIO(generated_bytes), 
+                        media_type="image/png",
+                        headers={
+                            "X-Generation-Cost": str(COST_GEMINI_FLASH_IMAGE),
+                            "X-Generation-Engine": "gemini-2.5-flash-image",
+                            "X-Generation-Type": "image",
+                        }
+                    )
         
         raise HTTPException(status_code=500, detail="Gemini returned empty response")
 

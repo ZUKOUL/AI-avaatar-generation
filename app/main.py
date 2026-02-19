@@ -23,7 +23,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    
+    expose_headers=["X-Generation-Cost", "X-Generation-Engine", "X-Generation-Type"],
 )
 
 # 2. Include Routers AFTER app is defined
