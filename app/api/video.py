@@ -12,9 +12,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from app.core.auth import get_current_user
-from app.core.pricing import get_video_cost
+from app.core.pricing import get_video_cost, get_credit_cost
 from app.core.supabase import supabase
 from app.models.user import User
+from app.services.credit_service import deduct_credits, get_balance
 from app.services.video_engine import get_video_engine
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,17 @@ async def animate_avatar(
 
     # Kling with audio uses v2.6; store engine as "kling_audio" so cost and status use correct pricing
     engine_for_db = "kling_audio" if (engine_choice == "kling" and audio) else engine_choice
+
+    # Credit check
+    credit_cost = get_credit_cost(engine_for_db)
+    balance = get_balance(current_user["id"])
+    if balance < credit_cost:
+        raise HTTPException(
+            status_code=402,
+            detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {credit_cost} credit(s). Current balance: {balance}"},
+        )
+    deduct_credits(current_user["id"], credit_cost, "video_generation", f"{engine_for_db} video for character {character_id}")
+
     engine = get_video_engine(engine_choice)
     try:
         operation_id = await engine.generate(image_url, motion_prompt, audio=audio)

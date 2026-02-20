@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.avatar import router as avatar_router
 from app.api.video import router as video_router
 from app.api.auth import router as auth_router
+from app.api.payments import router as payments_router
+from app.api.credits import router as credits_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -26,6 +28,17 @@ app.add_middleware(
 
 # Auth: signup/login (no JWT required)
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+
+# Payments: checkout (JWT) + webhook (Stripe signature, no JWT)
+app.include_router(payments_router, prefix="/payments", tags=["Payments"])
+
+# Credits: balance + history (JWT required)
+app.include_router(
+    credits_router,
+    prefix="/credits",
+    tags=["Credits"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # Avatar and video: require JWT
 app.include_router(

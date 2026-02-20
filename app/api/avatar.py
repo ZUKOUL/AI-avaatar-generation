@@ -10,9 +10,10 @@ from fastapi.responses import StreamingResponse
 from google import genai
 from google.genai import types
 from app.core.auth import get_current_user
-from app.core.pricing import COST_GEMINI_FLASH_IMAGE
+from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
 from app.core.supabase import supabase
 from app.models.user import User
+from app.services.credit_service import deduct_credits, get_balance
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,8 +80,17 @@ async def generate_scene(
     character_id: str = Form(...),
     prompt: str = Form(...),
 ):
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     logger.info(f"Generation request for character {character_id} by user {current_user['id']}")
+
+    # Credit check
+    balance = get_balance(current_user["id"])
+    if balance < CREDIT_COST_IMAGE:
+        raise HTTPException(
+            status_code=402,
+            detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {CREDIT_COST_IMAGE} credit(s). Current balance: {balance}"},
+        )
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
     try:
         res = (
@@ -135,6 +145,9 @@ f"Maintain 1:1 facial identity. Scene: {prompt}"
                     storage_path = f"generated_scenes/{character_id}/{filename}"
                     
                     supabase.storage.from_("avatars").upload(path=storage_path, file=generated_bytes)
+
+                    # Deduct credits after successful generation
+                    deduct_credits(current_user["id"], CREDIT_COST_IMAGE, "image_generation", f"Scene generation for character {character_id}")
                     
                     return StreamingResponse(
                         io.BytesIO(generated_bytes), 

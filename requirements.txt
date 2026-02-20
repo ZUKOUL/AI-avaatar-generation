@@ -8,3 +8,4 @@ replicate
 google-genai
 PyJWT
 bcrypt
+stripe

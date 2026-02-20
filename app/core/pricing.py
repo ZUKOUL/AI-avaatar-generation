@@ -30,3 +30,25 @@ def get_video_cost(engine: str) -> float:
     if engine in ("kling", "replicate_kling"):
         return COST_KLING_VIDEO
     return COST_VEO_VIDEO
+
+
+# ─── Credit costs per generation type ───
+CREDIT_COST_IMAGE = 1        # credits per image generation
+CREDIT_COST_VEO_VIDEO = 2    # credits per Veo video
+CREDIT_COST_KLING_VIDEO = 1  # credits per Kling video (no audio)
+CREDIT_COST_KLING_AUDIO = 2  # credits per Kling video (with audio)
+
+# Default credits per purchase (tied to PRODUCT_PRICE_ID)
+CREDITS_PER_PURCHASE = 10
+
+
+def get_credit_cost(generation_type: str) -> int:
+    """Return the credit cost for a generation type."""
+    costs = {
+        "image": CREDIT_COST_IMAGE,
+        "veo": CREDIT_COST_VEO_VIDEO,
+        "kling": CREDIT_COST_KLING_VIDEO,
+        "kling_audio": CREDIT_COST_KLING_AUDIO,
+    }
+    return costs.get(generation_type, 1)
+
