@@ -32,14 +32,32 @@ def get_video_cost(engine: str) -> float:
     return COST_VEO_VIDEO
 
 
-# ─── Credit costs per generation type ───
-CREDIT_COST_IMAGE = 1        # credits per image generation
-CREDIT_COST_VEO_VIDEO = 2    # credits per Veo video
-CREDIT_COST_KLING_VIDEO = 1  # credits per Kling video (no audio)
-CREDIT_COST_KLING_AUDIO = 2  # credits per Kling video (with audio)
+# ─── Credit costs per generation type (high-margin plan) ───
+CREDIT_COST_IMAGE = 1         # credits per image generation       (~73% margin)
+CREDIT_COST_VEO_VIDEO = 15    # credits per Veo video              (~63% margin)
+CREDIT_COST_KLING_VIDEO = 8   # credits per Kling video (no audio) (~69% margin)
+CREDIT_COST_KLING_AUDIO = 12  # credits per Kling video (with audio)(~59% margin)
 
-# Default credits per purchase (tied to PRODUCT_PRICE_ID)
-CREDITS_PER_PURCHASE = 10
+
+# ─── Multi-tier pricing plans ───
+PRICING_TIERS = {
+    "starter": {
+        "credits": 50,
+        "price_usd": 9.99,
+        "stripe_env_key": "STRIPE_PRICE_ID_STARTER",
+    },
+    "standard": {
+        "credits": 100,
+        "price_usd": 15.00,
+        "stripe_env_key": "STRIPE_PRICE_ID_STANDARD",
+    },
+    "pro": {
+        "credits": 300,
+        "price_usd": 34.99,
+        "stripe_env_key": "STRIPE_PRICE_ID_PRO",
+    },
+}
+DEFAULT_TIER = "standard"
 
 
 def get_credit_cost(generation_type: str) -> int:
@@ -52,3 +70,19 @@ def get_credit_cost(generation_type: str) -> int:
     }
     return costs.get(generation_type, 1)
 
+
+def get_tier(tier_slug: str) -> dict:
+    """Return tier info dict or raise ValueError for unknown tiers."""
+    tier = PRICING_TIERS.get(tier_slug)
+    if not tier:
+        valid = ", ".join(PRICING_TIERS.keys())
+        raise ValueError(f"Unknown tier '{tier_slug}'. Valid tiers: {valid}")
+    return tier
+
+
+def get_available_tiers() -> list[dict]:
+    """Return list of tiers for the frontend pricing page."""
+    return [
+        {"slug": slug, "credits": t["credits"], "price_usd": t["price_usd"]}
+        for slug, t in PRICING_TIERS.items()
+    ]
