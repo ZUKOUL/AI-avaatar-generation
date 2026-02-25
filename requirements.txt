@@ -6,3 +6,6 @@ pillow
 python-multipart
 replicate
 google-genai
+PyJWT
+bcrypt
+stripe

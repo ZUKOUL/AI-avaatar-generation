@@ -6,39 +6,52 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.avatar import router as avatar_router
 from app.api.video import router as video_router
-from app.core.security import verify_api_key
+from app.api.auth import router as auth_router
+from app.api.payments import router as payments_router
+from app.api.credits import router as credits_router
+from app.core.auth import get_current_user
 
-# 1. Initialize FastAPI FIRST
 app = FastAPI(
     title="AI Avatar Generator",
     description="An API to generate futuristic digital avatars using Gemini 2.5 Flash Image",
     version="1.0.0",
-
 )
 
-# 1.5 CORS — allow frontend to make requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app/","https://saa-s-frontend-six.vercel.app"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app/", "https://saa-s-frontend-six.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Generation-Cost", "X-Generation-Engine", "X-Generation-Type"],
 )
 
-# 2. Include Routers AFTER app is defined
-# Note: I moved the video router down here with the avatar router
+# Auth: signup/login (no JWT required)
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+
+# Payments: checkout (JWT) + webhook (Stripe signature, no JWT)
+app.include_router(payments_router, prefix="/payments", tags=["Payments"])
+
+# Credits: balance + history (JWT required)
 app.include_router(
-    avatar_router, 
-    prefix="/avatar", 
+    credits_router,
+    prefix="/credits",
+    tags=["Credits"],
+    dependencies=[Depends(get_current_user)],
+)
+
+# Avatar and video: require JWT
+app.include_router(
+    avatar_router,
+    prefix="/avatar",
     tags=["Avatar Generation"],
-    dependencies=[Depends(verify_api_key)]
+    dependencies=[Depends(get_current_user)],
 )
 app.include_router(
-    video_router, 
-    prefix="/video", 
+    video_router,
+    prefix="/video",
     tags=["Video Generation"],
-    dependencies=[Depends(verify_api_key)]
+    dependencies=[Depends(get_current_user)],
 )
 
 # 3. Health Check / Root Endpoint

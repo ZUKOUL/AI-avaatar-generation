@@ -7,11 +7,11 @@ from app.core.config import settings
 
 
 class VideoProvider:
-    async def generate(self, image_url_or_bytes, prompt: str):
+    async def generate(self, image_url_or_bytes, prompt: str, *, audio: bool = False):
         raise NotImplementedError
 
 class VeoProvider(VideoProvider):
-    async def generate(self, image_url: str, prompt: str):
+    async def generate(self, image_url: str, prompt: str, *, audio: bool = False):
         # 1. Download the image from the Supabase URL
         response = requests.get(image_url)
         if response.status_code != 200:
@@ -40,17 +40,27 @@ class VeoProvider(VideoProvider):
         return operation.name
 
 class ReplicateKlingProvider(VideoProvider):
-    async def generate(self, image_url: str, prompt: str) -> str:
-        # We use .create() so we get the ID immediately
-        prediction = replicate.predictions.create(
-            model="kwaivgi/kling-v2.5-turbo-pro",
-            input={
-                "start_image": image_url,
-                "prompt": prompt,
-                "duration": 5
-            }
-        )
-        
+    async def generate(self, image_url: str, prompt: str, *, audio: bool = False) -> str:
+        if audio:
+            # v2.6 supports native audio; same image-to-video flow with audio enabled
+            prediction = replicate.predictions.create(
+                model="kwaivgi/kling-v2.6",
+                input={
+                    "start_image": image_url,
+                    "prompt": prompt,
+                    "duration": 5,
+                    "audio": True,
+                },
+            )
+        else:
+            prediction = replicate.predictions.create(
+                model="kwaivgi/kling-v2.5-turbo-pro",
+                input={
+                    "start_image": image_url,
+                    "prompt": prompt,
+                    "duration": 5,
+                },
+            )
         return prediction.id
     
 def get_video_engine(engine_type: str = None):
