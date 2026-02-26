@@ -4,7 +4,7 @@ import logging
 import asyncio
 import requests
 import replicate
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Form, HTTPException, BackgroundTasks
 from google import genai
 from google.genai import types
@@ -22,42 +22,75 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/animate-avatar")
-async def animate_avatar(
+@router.post("/animate")
+async def animate(
     current_user: Annotated[User, Depends(get_current_user)],
     background_tasks: BackgroundTasks,
-    character_id: str = Form(...),
-    motion_prompt: str = Form(...),
-    engine_choice: str = Form("veo"),
-    audio: bool = Form(False),
+    motion_prompt: str = Form(..., description="Describe the motion/action for the video"),
+    avatar_id: Optional[str] = Form(None, description="Use an avatar from your library"),
+    image_id: Optional[str] = Form(None, description="Use a generated image by its ID"),
+    engine_choice: str = Form("veo", description="Video engine: 'veo' or 'kling'"),
+    audio: bool = Form(False, description="Enable audio (Kling only)"),
 ):
-    # Ensure character belongs to user and has at least one generated scene
-    ch = (
-        supabase.table("characters")
-        .select("id")
-        .eq("id", character_id)
-        .eq("user_id", current_user["id"])
-        .single()
-        .execute()
-    )
-    if not ch.data:
-        raise HTTPException(status_code=404, detail="Character not found.")
+    """
+    Generate a video from an avatar or a generated image.
+    Provide ONE of:
+    - avatar_id → uses the avatar's portrait from your library
+    - image_id → uses a specific generated image
+    """
+    # Sanitize: Swagger may send placeholder text like "string"
+    if avatar_id and avatar_id.strip().lower() in ("string", "", "null", "none"):
+        avatar_id = None
+    if image_id and image_id.strip().lower() in ("string", "", "null", "none"):
+        image_id = None
 
-    folder_path = f"generated_scenes/{character_id}"
-    files = supabase.storage.from_("avatars").list(
-        folder_path, {"limit": 1, "sortBy": {"column": "created_at", "order": "desc"}}
-    )
-    if not files or len(files) == 0:
+    # Validate: at least one source must be provided
+    if not avatar_id and not image_id:
         raise HTTPException(
-            status_code=404,
-            detail="No generated scenes found for this character. Please generate an image first.",
+            status_code=400,
+            detail="You must provide either 'avatar_id' or 'image_id' as the source image.",
         )
 
-    latest_file_name = files[0]["name"]
-    full_storage_path = f"{folder_path}/{latest_file_name}"
-    image_url = supabase.storage.from_("avatars").get_public_url(full_storage_path)
+    # Resolve the source image URL
+    image_url = None
+    source_label = ""
 
-    # Kling with audio uses v2.6; store engine as "kling_audio" so cost and status use correct pricing
+    if image_id:
+        # Get image from generated_images table
+        img = (
+            supabase.table("generated_images")
+            .select("image_url, user_id")
+            .eq("id", image_id)
+            .single()
+            .execute()
+        )
+        if not img.data:
+            raise HTTPException(status_code=404, detail="Generated image not found.")
+        if str(img.data.get("user_id")) != current_user["id"]:
+            raise HTTPException(status_code=404, detail="Generated image not found.")
+        image_url = img.data["image_url"]
+        source_label = f"image {image_id}"
+
+    elif avatar_id:
+        # Get avatar from characters table
+        ch = (
+            supabase.table("characters")
+            .select("id, image_paths, user_id")
+            .eq("id", avatar_id)
+            .eq("user_id", current_user["id"])
+            .single()
+            .execute()
+        )
+        if not ch.data:
+            raise HTTPException(status_code=404, detail="Avatar not found.")
+        if not ch.data.get("image_paths") or len(ch.data["image_paths"]) == 0:
+            raise HTTPException(status_code=404, detail="Avatar has no image. Please regenerate it.")
+        image_url = supabase.storage.from_("avatars").get_public_url(ch.data["image_paths"][0])
+        source_label = f"avatar {avatar_id}"
+
+    logger.info(f"Video generation from {source_label} by user {current_user['id']}")
+
+    # Kling with audio uses v2.6
     engine_for_db = "kling_audio" if (engine_choice == "kling" and audio) else engine_choice
 
     # Credit check
@@ -68,15 +101,16 @@ async def animate_avatar(
             status_code=402,
             detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {credit_cost} credit(s). Current balance: {balance}"},
         )
-    deduct_credits(current_user["id"], credit_cost, "video_generation", f"{engine_for_db} video for character {character_id}")
+    deduct_credits(current_user["id"], credit_cost, "video_generation", f"{engine_for_db} video from {source_label}")
 
     engine = get_video_engine(engine_choice)
     try:
         operation_id = await engine.generate(image_url, motion_prompt, audio=audio)
         estimated_cost = get_video_cost(engine_for_db)
 
+        # Store the job — character_id references avatar if used
         supabase.table("video_jobs").insert({
-            "character_id": character_id,
+            "character_id": avatar_id,
             "user_id": current_user["id"],
             "operation_id": str(operation_id),
             "status": "processing",
@@ -85,11 +119,15 @@ async def animate_avatar(
             "motion_prompt": f"[{engine_choice.upper()}] {motion_prompt}",
         }).execute()
 
-        background_tasks.add_task(process_video_task, operation_id, character_id, engine_for_db)
+        # Use avatar_id or image_id as folder name for storage
+        folder_id = avatar_id or image_id or "standalone"
+        background_tasks.add_task(process_video_task, operation_id, folder_id, engine_for_db)
 
         return {
             "status": "Job Started",
             "operation_id": operation_id,
+            "avatar_id": avatar_id,
+            "image_id": image_id,
             "engine": engine_for_db,
             "estimated_cost_usd": estimated_cost,
             "audio": audio,
@@ -97,7 +135,6 @@ async def animate_avatar(
         
     except Exception as e:
         logger.error(f"Video Init Failed: {e}")
-        # Replicate 503/5xx: return 503 so clients know to retry; message is user-friendly
         err_msg = str(e)
         if "ReplicateError" in type(e).__name__ or "503" in err_msg or "Service Unavailable" in err_msg:
             raise HTTPException(
@@ -106,7 +143,8 @@ async def animate_avatar(
             )
         raise HTTPException(status_code=500, detail=err_msg)
 
-async def process_video_task(operation_id: str, character_id: str, engine: str):
+
+async def process_video_task(operation_id: str, folder_id: str, engine: str):
     
     try:
         final_video_url = None
@@ -127,7 +165,6 @@ async def process_video_task(operation_id: str, character_id: str, engine: str):
                     
                     if video_obj.uri:
                         # Download from the URI
-                        # FIX: Add API Key to headers for authentication
                         api_key = os.getenv("GEMINI_API_KEY")
                         headers = {"x-goog-api-key": api_key} if api_key else {}
                         
@@ -137,11 +174,10 @@ async def process_video_task(operation_id: str, character_id: str, engine: str):
                     elif hasattr(video_obj, 'video_bytes') and video_obj.video_bytes:
                          video_bytes = video_obj.video_bytes
                     else:
-                         # Fallback for some SDK versions or if attribute name differs
                          raise ValueError(f"No video content found in response. Available attributes: {dir(video_obj)}")
                     # Upload bytes to storage
                     file_name = f"video_{int(time.time())}.mp4"
-                    path = f"generated_videos/{character_id}/{file_name}"
+                    path = f"generated_videos/{folder_id}/{file_name}"
                     supabase.storage.from_("avatars").upload(path, video_bytes, {"content-type": "video/mp4"})
                     final_video_url = supabase.storage.from_("avatars").get_public_url(path)
                     break
@@ -158,18 +194,16 @@ async def process_video_task(operation_id: str, character_id: str, engine: str):
                 # Get the temporary URL
                 temp_url = prediction.output[0] if isinstance(prediction.output, list) else prediction.output
                 
-                # FIX: ROBUST DOWNLOADER
-                # Create a session with retry logic
+                # Robust downloader with retry logic
                 session = requests.Session()
                 retry_strategy = Retry(
-                    total=3,  # Try 3 times
-                    backoff_factor=1,  # Wait 1s, 2s, 4s between retries
+                    total=3,
+                    backoff_factor=1,
                     status_forcelist=[429, 500, 502, 503, 504]
                 )
                 session.mount("https://", HTTPAdapter(max_retries=retry_strategy))
                 
                 try:
-                    # Set a generous timeout (30 seconds to connect, 60 seconds to read)
                     response = session.get(temp_url, timeout=(30, 300), stream=True) 
                     response.raise_for_status()
                     video_bytes = response.content
@@ -178,7 +212,7 @@ async def process_video_task(operation_id: str, character_id: str, engine: str):
 
                 # 2. Upload to Supabase
                 file_name = f"video_{int(time.time())}.mp4"
-                path = f"generated_videos/{character_id}/{file_name}"
+                path = f"generated_videos/{folder_id}/{file_name}"
                 supabase.storage.from_("avatars").upload(path, video_bytes, {"content-type": "video/mp4"})
                 final_video_url = supabase.storage.from_("avatars").get_public_url(path)
                 
@@ -196,8 +230,8 @@ async def process_video_task(operation_id: str, character_id: str, engine: str):
         import traceback
         traceback.print_exc()
         logger.error(f"Background Task Failed: {e}")
-        # Now 'supabase' is defined, so this line won't crash
         supabase.table("video_jobs").update({"status": "failed"}).eq("operation_id", operation_id).execute()
+
 
 @router.get("/video-status/{operation_id:path}")
 async def get_video_status(
@@ -233,68 +267,51 @@ async def get_video_status(
         "engine": engine
     }
 
+
 @router.get("/video-history")
 async def get_video_history(
     current_user: Annotated[User, Depends(get_current_user)],
-    character_id: str | None = None,
+    avatar_id: Optional[str] = None,
+    limit: int = 50,
 ):
+    """
+    Get video generation history from the database.
+    - avatar_id (optional): Filter by avatar
+    - limit: Max results (default 50)
+    """
     try:
-        video_items = []
+        limit = min(limit, 100)
+        
+        query = (
+            supabase.table("video_jobs")
+            .select("id, character_id, operation_id, status, video_url, motion_prompt, engine, source_url, created_at")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(limit)
+        )
 
-        if character_id:
-            ch = (
-                supabase.table("characters")
-                .select("id")
-                .eq("id", character_id)
-                .eq("user_id", current_user["id"])
-                .single()
-                .execute()
-            )
-            if not ch.data:
-                return []
-            folder_path = f"generated_videos/{character_id}"
-            files = supabase.storage.from_("avatars").list(
-                folder_path, {"limit": 50, "sortBy": {"column": "created_at", "order": "desc"}}
-            )
-            if files:
-                for f in files:
-                    if f["name"].startswith("."):
-                        continue
-                    full_path = f"{folder_path}/{f['name']}"
-                    public_url = supabase.storage.from_("avatars").get_public_url(full_path)
-                    video_items.append({
-                        "filename": f["name"],
-                        "url": public_url,
-                        "created_at": f.get("created_at"),
-                    })
-        else:
-            res = (
-                supabase.table("characters")
-                .select("id")
-                .eq("user_id", current_user["id"])
-                .execute()
-            )
-            char_ids = [r["id"] for r in (res.data or [])]
-            for cid in char_ids:
-                folder_path = f"generated_videos/{cid}"
-                files = supabase.storage.from_("avatars").list(
-                    folder_path, {"limit": 50, "sortBy": {"column": "created_at", "order": "desc"}}
-                )
-                if files:
-                    for f in files:
-                        if f["name"].startswith("."):
-                            continue
-                        full_path = f"{folder_path}/{f['name']}"
-                        public_url = supabase.storage.from_("avatars").get_public_url(full_path)
-                        video_items.append({
-                            "filename": f["name"],
-                            "url": public_url,
-                            "created_at": f.get("created_at"),
-                        })
-            video_items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+        if avatar_id:
+            query = query.eq("character_id", avatar_id)
 
-        return video_items
+        res = query.execute()
+
+        return {
+            "videos": [
+                {
+                    "job_id": v["id"],
+                    "avatar_id": v.get("character_id"),
+                    "operation_id": v["operation_id"],
+                    "status": v["status"],
+                    "video_url": v.get("video_url"),
+                    "motion_prompt": v.get("motion_prompt"),
+                    "engine": v.get("engine"),
+                    "source_url": v.get("source_url"),
+                    "created_at": v.get("created_at"),
+                }
+                for v in (res.data or [])
+            ]
+        }
 
     except Exception as e:
         logger.error(f"Failed to fetch video history: {e}")
-        return []
+        raise HTTPException(status_code=500, detail=str(e))
