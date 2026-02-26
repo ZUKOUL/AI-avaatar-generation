@@ -8,6 +8,11 @@ from app.core.supabase import supabase
 logger = logging.getLogger(__name__)
 
 
+def is_admin(user: dict) -> bool:
+    """Return True if the user has the administrator role."""
+    return user.get("role") == "administrator"
+
+
 def get_balance(user_id: str) -> int:
     """Return current credit balance for the user."""
     res = supabase.table("users").select("credit_balance").eq("id", user_id).single().execute()

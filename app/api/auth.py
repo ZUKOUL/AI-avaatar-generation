@@ -2,22 +2,29 @@
 Signup and login: create account or issue JWT. No auth required to call these.
 """
 import re
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from app.core.auth import create_token
+from app.core.auth import create_token, get_current_user
+from app.core.supabase import supabase
+from app.models.user import User
 from app.services.auth_service import (
     create_user,
     get_user_by_email,
     hash_password,
     verify_password,
 )
+from app.services.credit_service import is_admin
 
 router = APIRouter()
 
 # Basic email format
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 MIN_PASSWORD_LEN = 8
+
+VALID_ROLES = ("user", "administrator")
 
 
 class SignupBody(BaseModel):
@@ -48,6 +55,10 @@ class LoginBody(BaseModel):
     @classmethod
     def email_format(cls, v: str) -> str:
         return v.strip().lower()
+
+
+class ChangeRoleBody(BaseModel):
+    role: Literal["user", "administrator"]
 
 
 @router.post("/signup")
@@ -84,4 +95,48 @@ async def login(body: LoginBody):
         "access_token": token,
         "token_type": "bearer",
         "user": user,
+    }
+
+
+@router.patch("/users/{user_id}/role")
+async def change_user_role(
+    user_id: str,
+    body: ChangeRoleBody,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    Change a user's role. Only administrators can call this endpoint.
+    Accepts: {"role": "user"} or {"role": "administrator"}
+    """
+    # Only admins can change roles
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Only administrators can change user roles."},
+        )
+
+    # Prevent admins from demoting themselves
+    if user_id == current_user["id"] and body.role != "administrator":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "SELF_DEMOTION", "message": "You cannot remove your own administrator role."},
+        )
+
+    # Verify target user exists
+    target = supabase.table("users").select("id, email, role").eq("id", user_id).limit(1).execute()
+    if not target.data or len(target.data) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "USER_NOT_FOUND", "message": "Target user not found."},
+        )
+
+    # Update role
+    supabase.table("users").update({"role": body.role}).eq("id", user_id).execute()
+
+    return {
+        "status": "Success",
+        "user_id": user_id,
+        "email": target.data[0]["email"],
+        "new_role": body.role,
+        "message": f"Role updated to '{body.role}' successfully.",
     }

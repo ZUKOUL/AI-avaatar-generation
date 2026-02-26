@@ -15,7 +15,7 @@ from app.core.auth import get_current_user
 from app.core.pricing import get_video_cost, get_credit_cost
 from app.core.supabase import supabase
 from app.models.user import User
-from app.services.credit_service import deduct_credits, get_balance
+from app.services.credit_service import deduct_credits, get_balance, is_admin
 from app.services.video_engine import get_video_engine
 
 logger = logging.getLogger(__name__)
@@ -93,15 +93,16 @@ async def animate(
     # Kling with audio uses v2.6
     engine_for_db = "kling_audio" if (engine_choice == "kling" and audio) else engine_choice
 
-    # Credit check
+    # Credit check (skip for administrators)
     credit_cost = get_credit_cost(engine_for_db)
-    balance = get_balance(current_user["id"])
-    if balance < credit_cost:
-        raise HTTPException(
-            status_code=402,
-            detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {credit_cost} credit(s). Current balance: {balance}"},
-        )
-    deduct_credits(current_user["id"], credit_cost, "video_generation", f"{engine_for_db} video from {source_label}")
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < credit_cost:
+            raise HTTPException(
+                status_code=402,
+                detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {credit_cost} credit(s). Current balance: {balance}"},
+            )
+        deduct_credits(current_user["id"], credit_cost, "video_generation", f"{engine_for_db} video from {source_label}")
 
     engine = get_video_engine(engine_choice)
     try:

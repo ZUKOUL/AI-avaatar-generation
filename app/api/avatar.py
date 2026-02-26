@@ -13,7 +13,7 @@ from app.core.auth import get_current_user
 from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
 from app.core.supabase import supabase
 from app.models.user import User
-from app.services.credit_service import deduct_credits, get_balance
+from app.services.credit_service import deduct_credits, get_balance, is_admin
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,13 +50,14 @@ async def generate_avatar(
             detail=f"Maximum {MAX_REFERENCE_IMAGES} reference images allowed. You uploaded {len(files)}.",
         )
 
-    # Credit check
-    balance = get_balance(current_user["id"])
-    if balance < CREDIT_COST_IMAGE:
-        raise HTTPException(
-            status_code=402,
-            detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {CREDIT_COST_IMAGE} credit(s). Current balance: {balance}"},
-        )
+    # Credit check (skip for administrators)
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < CREDIT_COST_IMAGE:
+            raise HTTPException(
+                status_code=402,
+                detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {CREDIT_COST_IMAGE} credit(s). Current balance: {balance}"},
+            )
 
     avatar_id = str(uuid.uuid4())
     logger.info(f"Generating avatar '{nickname}' for user {current_user['id']}: {avatar_id}")
@@ -154,8 +155,9 @@ async def generate_avatar(
                             )
                         raise
 
-                    # Deduct credits
-                    deduct_credits(current_user["id"], CREDIT_COST_IMAGE, "image_generation", f"Avatar generation: {nickname_clean}")
+                    # Deduct credits (skip for administrators)
+                    if not is_admin(current_user):
+                        deduct_credits(current_user["id"], CREDIT_COST_IMAGE, "image_generation", f"Avatar generation: {nickname_clean}")
 
                     logger.info(f"Avatar generated. ID: {avatar_id}, Nickname: {nickname_clean}")
 
@@ -214,13 +216,14 @@ async def generate_image(
             detail=f"Maximum {MAX_REFERENCE_IMAGES} reference images allowed. You uploaded {len(valid_files)}.",
         )
 
-    # Credit check
-    balance = get_balance(current_user["id"])
-    if balance < CREDIT_COST_IMAGE:
-        raise HTTPException(
-            status_code=402,
-            detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {CREDIT_COST_IMAGE} credit(s). Current balance: {balance}"},
-        )
+    # Credit check (skip for administrators)
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < CREDIT_COST_IMAGE:
+            raise HTTPException(
+                status_code=402,
+                detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {CREDIT_COST_IMAGE} credit(s). Current balance: {balance}"},
+            )
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -317,11 +320,12 @@ async def generate_image(
                         "storage_path": storage_path,
                     }).execute()
 
-                    # Deduct credits
-                    desc = f"Image generation"
-                    if avatar_id:
-                        desc += f" with avatar {avatar_id}"
-                    deduct_credits(current_user["id"], CREDIT_COST_IMAGE, "image_generation", desc)
+                    # Deduct credits (skip for administrators)
+                    if not is_admin(current_user):
+                        desc = f"Image generation"
+                        if avatar_id:
+                            desc += f" with avatar {avatar_id}"
+                        deduct_credits(current_user["id"], CREDIT_COST_IMAGE, "image_generation", desc)
 
                     logger.info(f"Image generated. ID: {image_id}, Avatar: {avatar_id or 'freestyle'}")
 

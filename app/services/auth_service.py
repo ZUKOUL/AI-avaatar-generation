@@ -35,11 +35,11 @@ def create_user(email: str, password_hash: str) -> User:
 
 def get_user_by_id(user_id: str) -> User | None:
     """Fetch user by id; return None if not found."""
-    res = supabase.table("users").select("id, email").eq("id", user_id).limit(1).execute()
+    res = supabase.table("users").select("id, email, role").eq("id", user_id).limit(1).execute()
     if not res.data or len(res.data) == 0:
         return None
     row = res.data[0]
-    return {"id": str(row["id"]), "email": row["email"]}
+    return {"id": str(row["id"]), "email": row["email"], "role": row.get("role", "user")}
 
 
 def get_user_by_email(email: str) -> dict | None:
