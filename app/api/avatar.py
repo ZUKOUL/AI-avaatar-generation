@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import StreamingResponse
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 from app.core.auth import get_current_user
 from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
 from app.core.supabase import supabase
@@ -110,18 +111,35 @@ async def generate_avatar(
         gemini_contents.append(avatar_prompt)
 
         # Call Gemini
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-image",
-            contents=gemini_contents,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"],
-                image_config=types.ImageConfig(aspect_ratio="1:1")
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=gemini_contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["TEXT", "IMAGE"],
+                    image_config=types.ImageConfig(aspect_ratio="1:1")
+                )
             )
-        )
+        except APIError as api_err:
+            logger.error(f"Gemini API Error: {api_err}")
+            raise HTTPException(status_code=400, detail=f"AI provider error: {api_err.message if hasattr(api_err, 'message') else str(api_err)}")
+        except Exception as e:
+            logger.error(f"Unexpected error calling Gemini: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to communicate with AI provider: {str(e)}")
 
         # Process response
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
+        if not response.candidates:
+            raise HTTPException(status_code=500, detail="Gemini returned no candidates.")
+            
+        candidate = response.candidates[0]
+        if not candidate.content or not candidate.content.parts:
+            finish_reason = getattr(candidate, "finish_reason", "UNKNOWN")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Image generation failed or was blocked by safety filters"
+            )
+            
+        for part in candidate.content.parts:
                 if part.text:
                     logger.info(f"Gemini reasoning: {part.text[:200]}")
                 elif part.inline_data:
@@ -200,6 +218,9 @@ async def generate_image(
     - files + prompt → uses uploaded images as references
     - avatar_id + files + prompt → uses both
     """
+    if avatar_id is not None and avatar_id.strip().lower() in ("string", "", "null", "none"):
+        avatar_id = None
+
     logger.info(f"Image generation request by user {current_user['id']}, avatar_id={avatar_id}")
 
     # Filter out empty file uploads (Swagger may send empty entries)
@@ -277,18 +298,35 @@ async def generate_image(
 
         # 4. Call Gemini
         logger.info(f"Sending {len(gemini_contents) - 1} reference(s) to Gemini...")
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-image",
-            contents=gemini_contents,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"],
-                image_config=types.ImageConfig(aspect_ratio="9:16")
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=gemini_contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["TEXT", "IMAGE"],
+                    image_config=types.ImageConfig(aspect_ratio="9:16")
+                )
             )
-        )
+        except APIError as api_err:
+            logger.error(f"Gemini API Error: {api_err}")
+            raise HTTPException(status_code=400, detail=f"AI provider error: {api_err.message if hasattr(api_err, 'message') else str(api_err)}")
+        except Exception as e:
+            logger.error(f"Unexpected error calling Gemini: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to communicate with AI provider: {str(e)}")
 
         # 5. Process & Save Result
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
+        if not response.candidates:
+            raise HTTPException(status_code=500, detail="Gemini returned no candidates.")
+            
+        candidate = response.candidates[0]
+        if not candidate.content or not candidate.content.parts:
+            finish_reason = getattr(candidate, "finish_reason", "UNKNOWN")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Image generation failed or was blocked by safety filters. Finish reason: {finish_reason}"
+            )
+            
+        for part in candidate.content.parts:
                 if part.text:
                     logger.info(f"Gemini reasoning: {part.text[:200]}")
                 elif part.inline_data:

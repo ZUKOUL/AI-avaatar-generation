@@ -79,8 +79,8 @@ async def create_checkout_session(
                 "credits": str(credits),
                 "tier": body.tier,
             },
-            success_url="https://saa-s-frontend-six.vercel.app/?payment=success&session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://saa-s-frontend-six.vercel.app/?payment=cancel",
+            success_url="https://saa-s-frontend-six.vercel.app/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://saa-s-frontend-six.vercel.app/dashboard?payment=cancel",
         )
         return {"url": session.url, "session_id": session.id}
 

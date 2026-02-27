@@ -39,9 +39,9 @@ async def animate(
     - image_id → uses a specific generated image
     """
     # Sanitize: Swagger may send placeholder text like "string"
-    if avatar_id and avatar_id.strip().lower() in ("string", "", "null", "none"):
+    if avatar_id is not None and avatar_id.strip().lower() in ("string", "", "null", "none"):
         avatar_id = None
-    if image_id and image_id.strip().lower() in ("string", "", "null", "none"):
+    if image_id is not None and image_id.strip().lower() in ("string", "", "null", "none"):
         image_id = None
 
     # Validate: at least one source must be provided
