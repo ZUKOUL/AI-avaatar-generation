@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-MAX_REFERENCE_IMAGES = 3
+MAX_REFERENCE_IMAGES = 5
 
 router = APIRouter()
 
@@ -113,11 +113,11 @@ async def generate_avatar(
         # Call Gemini
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash-image",
+                model="gemini-3-pro-image-preview",
                 contents=gemini_contents,
                 config=types.GenerateContentConfig(
                     response_modalities=["TEXT", "IMAGE"],
-                    image_config=types.ImageConfig(aspect_ratio="1:1")
+                    image_config=types.ImageConfig(aspect_ratio="1:1", image_size="1K")
                 )
             )
         except APIError as api_err:
@@ -188,7 +188,7 @@ async def generate_avatar(
                         "nickname": nickname_clean,
                         "image_url": image_url,
                         "cost_usd": COST_GEMINI_FLASH_IMAGE,
-                        "engine": "gemini-2.5-flash-image",
+                        "engine": "gemini-3-pro-image-preview",
                     }
 
         raise HTTPException(status_code=500, detail="Gemini returned empty response")
@@ -300,11 +300,11 @@ async def generate_image(
         logger.info(f"Sending {len(gemini_contents) - 1} reference(s) to Gemini...")
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash-image",
+                model="gemini-3-pro-image-preview",
                 contents=gemini_contents,
                 config=types.GenerateContentConfig(
                     response_modalities=["TEXT", "IMAGE"],
-                    image_config=types.ImageConfig(aspect_ratio="9:16")
+                    image_config=types.ImageConfig(aspect_ratio="9:16", image_size="1K")
                 )
             )
         except APIError as api_err:
@@ -374,7 +374,7 @@ async def generate_image(
                         "prompt": prompt,
                         "image_url": image_url,
                         "cost_usd": COST_GEMINI_FLASH_IMAGE,
-                        "engine": "gemini-2.5-flash-image",
+                        "engine": "gemini-3-pro-image-preview",
                     }
 
         raise HTTPException(status_code=500, detail="Gemini returned empty response")

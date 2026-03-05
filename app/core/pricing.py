@@ -6,7 +6,7 @@ Update these values if your API plan or provider pricing changes.
 
 # ─── Image Generation (Gemini 2.5 Flash Image / Nano Banana) ───
 # ~1,290 output tokens per 1024x1024 image × $30.00 / 1M tokens
-COST_GEMINI_FLASH_IMAGE = 0.039  # USD per generated image
+COST_GEMINI_FLASH_IMAGE = 0.134  # USD per generated image
 
 # ─── Video Generation: Veo 3.1 Fast (no audio) ───
 COST_VEO_PER_SECOND = 0.10       # USD per second of video
@@ -33,7 +33,7 @@ def get_video_cost(engine: str) -> float:
 
 
 # ─── Credit costs per generation type (high-margin plan) ───
-CREDIT_COST_IMAGE = 1         # credits per image generation       (~73% margin)
+CREDIT_COST_IMAGE = 4      # credits per image generation       (~73% margin)
 CREDIT_COST_VEO_VIDEO = 15    # credits per Veo video              (~63% margin)
 CREDIT_COST_KLING_VIDEO = 8   # credits per Kling video (no audio) (~69% margin)
 CREDIT_COST_KLING_AUDIO = 12  # credits per Kling video (with audio)(~59% margin)

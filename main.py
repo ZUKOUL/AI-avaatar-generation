@@ -13,7 +13,7 @@ from app.core.auth import get_current_user
 
 app = FastAPI(
     title="AI Avatar Generator",
-    description="An API to generate futuristic digital avatars using Gemini 2.5 Flash Image",
+    description="An API to generate futuristic digital avatars using Gemini 3 Pro Image (Nano Banana Pro)",
     version="1.0.0",
 )
 
@@ -60,7 +60,7 @@ async def root():
     return {
         "message": "AI Avatar API is Online",
         "status": "Ready",
-        "model_engine": "Gemini 2.5 Flash Image"
+        "model_engine": "Gemini 3 Pro Image (Nano Banana Pro)"
     }
 
 if __name__ == "__main__":
