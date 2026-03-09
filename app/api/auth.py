@@ -154,6 +154,7 @@ class ForgotPasswordBody(BaseModel):
 
 
 @router.post("/forgot-password")
+@router.post("/forgot-password/")
 async def forgot_password(body: ForgotPasswordBody):
     """Initiates the password reset flow by sending a token link via email."""
     user = get_user_by_email(body.email)
@@ -192,6 +193,7 @@ class ResetPasswordBody(BaseModel):
 
 
 @router.post("/reset-password")
+@router.post("/reset-password/")
 async def reset_password(body: ResetPasswordBody):
     """Processes the token and updates the user's password."""
     try:
