@@ -171,7 +171,7 @@ async def forgot_password(body: ForgotPasswordBody):
     # Construct the link leveraging FRONTEND_URL
     # Ensure no double slashes if frontend url has trailing slash
     base_url = settings.FRONTEND_URL.rstrip('/')
-    reset_link = f"{base_url}/reset-password?token={reset_token}"
+    reset_link = f"{base_url}/forgot-password?token={reset_token}"
     
     # Send email
     send_password_reset_email(to_email=body.email, reset_link=reset_link)
