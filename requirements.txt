@@ -9,4 +9,4 @@ bcrypt
 stripe
 fastapi==0.115.0
 python-multipart==0.0.12
-resend==2.1.0resend
+resend==2.23.0
