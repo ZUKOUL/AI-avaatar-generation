@@ -7,7 +7,8 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from app.core.auth import create_token, get_current_user
+from app.core.auth import create_token, get_current_user, create_password_reset_token, decode_token
+from app.core.config import settings
 from app.core.supabase import supabase
 from app.models.user import User
 from app.services.auth_service import (
@@ -17,6 +18,7 @@ from app.services.auth_service import (
     verify_password,
 )
 from app.services.credit_service import is_admin
+from app.services.email_service import send_password_reset_email
 
 router = APIRouter()
 
@@ -140,3 +142,78 @@ async def change_user_role(
         "new_role": body.role,
         "message": f"Role updated to '{body.role}' successfully.",
     }
+
+
+class ForgotPasswordBody(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def email_format(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordBody):
+    """Initiates the password reset flow by sending a token link via email."""
+    user = get_user_by_email(body.email)
+    
+    # Generic success message to prevent email enumeration
+    success_msg = {"message": "If an account with that email exists, a password reset link has been sent."}
+    
+    if not user:
+         return success_msg
+
+    # Generate the time-limited reset token
+    user_id = str(user["id"])
+    reset_token = create_password_reset_token(user_id, body.email)
+    
+    # Construct the link leveraging FRONTEND_URL
+    # Ensure no double slashes if frontend url has trailing slash
+    base_url = settings.FRONTEND_URL.rstrip('/')
+    reset_link = f"{base_url}/reset-password?token={reset_token}"
+    
+    # Send email
+    send_password_reset_email(to_email=body.email, reset_link=reset_link)
+
+    return success_msg
+
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length(cls, v: str) -> str:
+        if len(v) < MIN_PASSWORD_LEN:
+            raise ValueError(f"Password must be at least {MIN_PASSWORD_LEN} characters")
+        return v
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordBody):
+    """Processes the token and updates the user's password."""
+    try:
+        payload = decode_token(body.token)
+    except HTTPException:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "INVALID_TOKEN", "message": "Invalid or expired token"})
+
+    # Enforce token intent
+    if payload.get("intent") != "password_reset":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "INVALID_INTENT", "message": "Invalid token type"})
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "INVALID_TOKEN", "message": "Invalid token data"})
+
+    # Hash the new password
+    new_password_hash = hash_password(body.new_password)
+    
+    # Update Supabase users table directly
+    response = supabase.table("users").update({"password_hash": new_password_hash}).eq("id", user_id).execute()
+    
+    if not getattr(response, 'data', None) and not isinstance(response.data, list):
+        pass
+
+    return {"message": "Password has been reset successfully. You can now log in."}

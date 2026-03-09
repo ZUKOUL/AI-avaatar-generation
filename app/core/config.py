@@ -13,5 +13,7 @@ class Settings:
     STRIPE_PRICE_ID_STARTER  = os.getenv("STRIPE_PRICE_ID_STARTER", "")
     STRIPE_PRICE_ID_STANDARD = os.getenv("STRIPE_PRICE_ID_STANDARD", "")
     STRIPE_PRICE_ID_PRO      = os.getenv("STRIPE_PRICE_ID_PRO", "")
+    RESEND_API_KEY           = os.getenv("RESEND_API_KEY", "")
+    FRONTEND_URL             = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 settings = Settings()

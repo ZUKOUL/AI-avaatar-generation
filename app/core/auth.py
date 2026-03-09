@@ -36,6 +36,21 @@ def create_token(user_id: str, email: str) -> str:
     )
 
 
+def create_password_reset_token(user_id: str, email: str) -> str:
+    """Generate a 15-minute token for password resets."""
+    if not settings.JWT_SECRET:
+        raise ValueError("JWT_SECRET is not set")
+    now = int(time.time())
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "intent": "password_reset",
+        "iat": now,
+        "exp": now + 900,  # 15 minutes
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
 def decode_token(token: str) -> dict:
     """Decode and verify JWT; return payload or raise."""
     if not settings.JWT_SECRET:
