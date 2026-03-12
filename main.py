@@ -15,6 +15,7 @@ app = FastAPI(
     title="AI Avatar Generator",
     description="An API to generate futuristic digital avatars using Gemini 3 Pro Image (Nano Banana Pro)",
     version="1.0.0",
+    docs_url=None,  # TEMP: disabled to test CI/CD pipeline
 )
 
 app.add_middleware(
