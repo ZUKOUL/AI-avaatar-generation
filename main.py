@@ -19,7 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app/", "https://saa-s-frontend-six.vercel.app"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app", "https://horpen.ai", "https://www.horpen.ai"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
