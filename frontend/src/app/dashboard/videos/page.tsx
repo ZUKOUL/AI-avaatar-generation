@@ -7,6 +7,7 @@ import { avatarAPI, videoAPI } from "@/lib/api";
 import {
   Spinner,
   Video as VideoIcon,
+  VideoCamera,
   Upload,
   XIcon,
   CaretLeft,
@@ -127,7 +128,6 @@ export default function VideoGenerator() {
 
   const handleGenerate = async () => {
     if (!motionPrompt.trim()) return;
-    if (!startImageUrl) { setError("Please add a start image."); return; }
     setLoading(true); setError(""); setSuccess("");
     const formData = new FormData();
     formData.append("motion_prompt", motionPrompt);
@@ -168,8 +168,34 @@ export default function VideoGenerator() {
           {/* ═══ Left Panel ═══ */}
           <div className="split-panel-left w-full md:w-[380px] shrink-0 overflow-y-auto flex flex-col" style={{ background: "var(--bg-primary)" }}>
 
-            {/* Back + Title */}
+            {/* Tabs — Image | Video */}
             <div className="px-4 pt-4 pb-1">
+              <div className="flex items-center rounded-lg p-0.5" style={{ background: "var(--bg-secondary)" }}>
+                {([
+                  { href: "/dashboard/images", icon: ImageSquare, label: "Image", active: false },
+                  { href: "/dashboard/videos", icon: VideoCamera, label: "Video", active: true },
+                ]).map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <Link
+                      key={tab.label}
+                      href={tab.href}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[13px] font-medium transition-all"
+                      style={{
+                        background: tab.active ? "var(--bg-tertiary)" : "transparent",
+                        color: tab.active ? "var(--text-primary)" : "var(--text-muted)",
+                      }}
+                    >
+                      <Icon size={14} />
+                      {tab.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Back + Title */}
+            <div className="px-4 pt-3 pb-1">
               <Link href="/dashboard" className="inline-flex items-center gap-1 text-[12px] font-medium mb-1 transition-colors" style={{ color: "var(--text-muted)" }}>
                 <CaretLeft size={12} /> Tools
               </Link>

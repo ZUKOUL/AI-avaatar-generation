@@ -113,10 +113,7 @@ async def animate(
         source_label = f"avatar {avatar_id}"
 
     if not image_url:
-        raise HTTPException(
-            status_code=400,
-            detail="Please provide a source image: upload a file, select from gallery, or choose an avatar.",
-        )
+        source_label = "prompt only (no reference image)"
 
     logger.info(f"Video generation from {source_label} by user {current_user['id']}")
 
