@@ -313,13 +313,13 @@ export default function VideoGenerator() {
     const before = motionPrompt.slice(0, start);
     const cursor = textareaRef.current?.selectionStart || motionPrompt.length;
     const after = motionPrompt.slice(cursor);
-    setMotionPrompt(`${before}@${avatar.name} ${after}`);
+    setMotionPrompt(`${before}@${avatar.name}  ${after}`);
     setSelectedAvatar(avatar.avatar_id);
     setMentionQuery(null);
     mentionStartRef.current = null;
     setTimeout(() => {
       const ta = textareaRef.current;
-      if (ta) { const pos = before.length + avatar.name.length + 2; ta.focus(); ta.setSelectionRange(pos, pos); }
+      if (ta) { const pos = before.length + avatar.name.length + 3; ta.focus(); ta.setSelectionRange(pos, pos); }
     }, 0);
   };
 
@@ -359,8 +359,8 @@ export default function VideoGenerator() {
           return (
             <span
               key={i}
-              className="relative rounded-[5px] pointer-events-auto cursor-pointer select-none"
-              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", fontWeight: 600, padding: "1px 14px 1px 3px", marginRight: "-11px" }}
+              className="relative rounded-[4px] pointer-events-auto cursor-pointer select-none"
+              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", fontWeight: 600, padding: "2px 0", borderRadius: "4px" }}
               onClick={(e) => {
                 e.stopPropagation();
                 const r = e.currentTarget.getBoundingClientRect();
@@ -368,7 +368,7 @@ export default function VideoGenerator() {
               }}
             >
               {part}
-              <svg className="absolute top-1/2 -translate-y-1/2" style={{ right: 3 }} width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <svg className="absolute top-1/2 -translate-y-1/2 pointer-events-none" style={{ left: "calc(100% + 1px)" }} width="8" height="8" viewBox="0 0 8 8" fill="none">
                 <path d="M2 3L4 5L6 3" stroke="#3b82f6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
