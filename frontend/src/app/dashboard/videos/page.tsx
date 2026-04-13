@@ -359,18 +359,17 @@ export default function VideoGenerator() {
           return (
             <span
               key={i}
-              className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[13px] font-semibold pointer-events-auto cursor-pointer select-none align-baseline"
-              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", lineHeight: "inherit" }}
+              className="relative rounded-[5px] pointer-events-auto cursor-pointer select-none"
+              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", fontWeight: 600, padding: "1px 0" }}
               onClick={(e) => {
                 e.stopPropagation();
                 const r = e.currentTarget.getBoundingClientRect();
                 setChipDropdown({ avatarId: av.avatar_id, pos: { top: r.bottom + 4, left: r.left } });
               }}
             >
-              {av.thumbnail && <img src={av.thumbnail} className="w-4 h-4 rounded-full object-cover inline" />}
-              @{av.name}
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 1 }}>
-                <path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              {part}
+              <svg className="absolute -right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M2 3L4 5L6 3" stroke="#3b82f6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
           );
@@ -604,15 +603,16 @@ export default function VideoGenerator() {
                   value={motionPrompt}
                   onChange={handlePromptChange}
                   placeholder="Describe the motion — type @ to mention a character"
-                  className="relative z-10 w-full px-3 py-3 text-[14px] resize-none h-full min-h-[100px] bg-transparent border-none outline-none"
-                  style={{ color: "transparent", caretColor: "var(--text-primary)", lineHeight: "1.6" }}
+                  className="relative w-full px-3 py-3 text-[14px] resize-none h-full min-h-[100px] bg-transparent border-none outline-none"
+                  style={{ color: "transparent", caretColor: "var(--text-primary)", lineHeight: "1.6", zIndex: 1 }}
                   onKeyDown={handlePromptKeyDown}
                   onScroll={handleTextareaScroll}
                 />
+                {/* Overlay on top — pointer-events-none except on chips */}
                 <div
                   ref={overlayRef}
                   className="absolute inset-0 px-3 py-3 text-[14px] pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
-                  style={{ lineHeight: "1.6" }}
+                  style={{ lineHeight: "1.6", zIndex: 2 }}
                 >
                   {renderHighlightedPrompt(motionPrompt)}
                 </div>
