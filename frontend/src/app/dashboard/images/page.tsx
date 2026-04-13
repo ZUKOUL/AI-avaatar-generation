@@ -145,6 +145,17 @@ export default function ImageGenerator() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Drag & drop (hold-to-drag)
+  const [draggingUrl, setDraggingUrl] = useState<string | null>(null);
+  const [draggingThumb, setDraggingThumb] = useState<string | null>(null);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [dragOverZone, setDragOverZone] = useState<"ref" | "prompt" | null>(null);
+  const [describing, setDescribing] = useState(false);
+  const refZoneRef = useRef<HTMLDivElement>(null);
+  const promptZoneRef = useRef<HTMLDivElement>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+
   useEffect(() => { loadData(); }, []);
 
   // Close dropdowns on outside click
@@ -244,6 +255,82 @@ export default function ImageGenerator() {
     }
   };
 
+  /* ─── Hold-to-drag from gallery ─── */
+  const imgHitTest = (x: number, y: number): "ref" | "prompt" | null => {
+    for (const [ref, zone] of [[refZoneRef, "ref"], [promptZoneRef, "prompt"]] as const) {
+      const el = ref.current;
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return zone;
+    }
+    return null;
+  };
+
+  const onPointerDownGallery = (e: React.PointerEvent, url: string) => {
+    if (e.button !== 0) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    isDraggingRef.current = false;
+
+    const startDrag = () => {
+      isDraggingRef.current = true;
+      setDraggingUrl(url);
+      setDraggingThumb(url);
+      setDragPos({ x: startX, y: startY });
+      document.body.style.cursor = "grabbing";
+    };
+
+    holdTimerRef.current = setTimeout(startDrag, 150);
+
+    const onMove = (ev: PointerEvent) => {
+      if (!isDraggingRef.current && (Math.abs(ev.clientX - startX) > 5 || Math.abs(ev.clientY - startY) > 5)) {
+        if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+        startDrag();
+      }
+      if (isDraggingRef.current) {
+        setDragPos({ x: ev.clientX, y: ev.clientY });
+        setDragOverZone(imgHitTest(ev.clientX, ev.clientY));
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      document.body.style.cursor = "";
+      if (isDraggingRef.current) {
+        const zone = imgHitTest(ev.clientX, ev.clientY);
+        if (zone === "ref") {
+          // Add as reference file by fetching the image
+          fetch(url).then(r => r.blob()).then(blob => {
+            const file = new File([blob], "reference.png", { type: "image/png" });
+            const updated = [...files, file].slice(0, 3);
+            setFiles(updated);
+            setPreviews(updated.map(f => URL.createObjectURL(f)));
+          }).catch(() => {});
+        } else if (zone === "prompt") {
+          setDescribing(true);
+          avatarAPI.describeImage(url)
+            .then((res) => {
+              const desc = res.data.description || "";
+              setPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+            })
+            .catch(() => {
+              setPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
+            })
+            .finally(() => setDescribing(false));
+        }
+      }
+      setDraggingUrl(null);
+      setDraggingThumb(null);
+      setDragOverZone(null);
+      isDraggingRef.current = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   const selectedAvatarData = avatars.find((a) => a.avatar_id === selectedAvatar);
   const dateGroups = groupByDate(images);
   const currentModels = activeTab === "image" ? IMAGE_MODELS : VIDEO_MODELS;
@@ -332,8 +419,12 @@ export default function ImageGenerator() {
               </div>
             </div>
 
-            {/* References — Character + Add (no Style) */}
-            <div className="px-4 pb-3">
+            {/* References — Character + Add (drop zone) */}
+            <div
+              ref={refZoneRef}
+              className="px-4 pb-3 rounded-xl transition-colors"
+              style={dragOverZone === "ref" ? { border: "1.5px dashed #22c55e", background: "rgba(34,197,94,0.05)" } : {}}
+            >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>References</span>
                 <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{(selectedAvatar ? 1 : 0) + files.length}/14</span>
@@ -412,15 +503,17 @@ export default function ImageGenerator() {
               </div>
             )}
 
-            {/* Prompt */}
-            <div className="flex-1 px-4 pb-3 flex flex-col min-h-0">
-              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>Prompt</span>
+            {/* Prompt — drop zone */}
+            <div ref={promptZoneRef} className="flex-1 px-4 pb-3 flex flex-col min-h-0">
+              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
+                Prompt {describing && <span className="ml-1 text-[10px] normal-case" style={{ color: "#3b82f6" }}>— Describing image…</span>}
+              </span>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder={activeTab === "image" ? "Describe your image — try @ to add references" : "Describe the motion or action for your video..."}
-                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[120px]"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                placeholder={activeTab === "image" ? "Describe your image — or drag an image here" : "Describe the motion or action for your video..."}
+                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[120px] transition-colors"
+                style={{ background: "var(--bg-secondary)", border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`, color: "var(--text-primary)", boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none" }}
                 onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); } }}
               />
               <div className="flex items-center gap-2 mt-3">
@@ -566,8 +659,8 @@ export default function ImageGenerator() {
                   <span className="text-[12px] font-medium block mb-3" style={{ color: "var(--text-muted)" }}>{group.label}</span>
                   <div className={`grid gap-2 ${GRID_COLS[gridSize]}`}>
                     {group.items.map((img) => (
-                      <div key={img.image_id} className="rounded-xl overflow-hidden group relative cursor-pointer">
-                        <div className="aspect-square overflow-hidden"><img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]" /></div>
+                      <div key={img.image_id} className="rounded-xl overflow-hidden group relative cursor-pointer select-none" onPointerDown={(e) => onPointerDownGallery(e, img.image_url)}>
+                        <div className="aspect-square overflow-hidden"><img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03] pointer-events-none" draggable={false} /></div>
                         <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
                           <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>G</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>2K</span>
@@ -688,6 +781,23 @@ export default function ImageGenerator() {
           <button onClick={() => { setShowCharacterPanel(false); setShowNewCharacter(false); }} className="absolute top-4 right-4 p-2 rounded-lg transition-colors z-10" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
             <XIcon size={20} />
           </button>
+        </div>
+      )}
+
+      {/* ═══ Floating drag ghost ═══ */}
+      {draggingUrl && (
+        <div className="fixed z-[9999] pointer-events-none" style={{ left: dragPos.x, top: dragPos.y, transform: "translate(-50%, -110%)" }}>
+          <div className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl" style={{ background: "#22c55e", boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}>
+            {draggingThumb && <img src={draggingThumb} alt="" className="w-10 h-10 rounded-lg object-cover" draggable={false} />}
+            <span className="text-[13px] font-semibold text-white whitespace-nowrap">1 item</span>
+          </div>
+          {dragOverZone && (
+            <div className="text-center mt-1">
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>
+                {dragOverZone === "ref" ? "→ Add reference" : "→ Describe in prompt"}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </>

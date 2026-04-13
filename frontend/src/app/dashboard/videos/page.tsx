@@ -136,7 +136,10 @@ export default function VideoGenerator() {
     setPickingFor(null);
   };
 
-  /* ─── Custom drag system (pointer-based with ghost badge) ─── */
+  /* ─── Custom drag system: hold 150ms to start, normal click stays normal ─── */
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+
   const hitTest = (x: number, y: number): "start" | "end" | "prompt" | null => {
     for (const [ref, zone] of [[startZoneRef, "start"], [endZoneRef, "end"], [promptZoneRef, "prompt"]] as const) {
       const el = ref.current;
@@ -148,41 +151,66 @@ export default function VideoGenerator() {
   };
 
   const onPointerDownImage = (e: React.PointerEvent, url: string, thumb: string) => {
-    // Only left click
     if (e.button !== 0) return;
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setDraggingUrl(url);
-    setDraggingThumb(thumb);
-    setDragPos({ x: e.clientX, y: e.clientY });
+    const startX = e.clientX;
+    const startY = e.clientY;
+    isDraggingRef.current = false;
+
+    const startDrag = () => {
+      isDraggingRef.current = true;
+      setDraggingUrl(url);
+      setDraggingThumb(thumb);
+      setDragPos({ x: startX, y: startY });
+      document.body.style.cursor = "grabbing";
+    };
+
+    // Start drag after 150ms hold
+    holdTimerRef.current = setTimeout(startDrag, 150);
 
     const onMove = (ev: PointerEvent) => {
-      setDragPos({ x: ev.clientX, y: ev.clientY });
-      setDragOverZone(hitTest(ev.clientX, ev.clientY));
-    };
-    const onUp = (ev: PointerEvent) => {
-      const zone = hitTest(ev.clientX, ev.clientY);
-      if (zone === "start") { setStartImageUrl(url); setStartImageFile(null); }
-      else if (zone === "end") { setEndImageUrl(url); setEndImageFile(null); }
-      else if (zone === "prompt") {
-        // Describe image with AI
-        setDescribing(true);
-        avatarAPI.describeImage(url)
-          .then((res) => {
-            const desc = res.data.description || "";
-            setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
-          })
-          .catch(() => {
-            setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
-          })
-          .finally(() => setDescribing(false));
+      // If moved more than 5px before timer, start drag immediately
+      if (!isDraggingRef.current && (Math.abs(ev.clientX - startX) > 5 || Math.abs(ev.clientY - startY) > 5)) {
+        if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+        startDrag();
       }
+      if (isDraggingRef.current) {
+        setDragPos({ x: ev.clientX, y: ev.clientY });
+        setDragOverZone(hitTest(ev.clientX, ev.clientY));
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      document.body.style.cursor = "";
+
+      if (isDraggingRef.current) {
+        // Was dragging — drop on zone
+        const zone = hitTest(ev.clientX, ev.clientY);
+        if (zone === "start") { setStartImageUrl(url); setStartImageFile(null); }
+        else if (zone === "end") { setEndImageUrl(url); setEndImageFile(null); }
+        else if (zone === "prompt") {
+          setDescribing(true);
+          avatarAPI.describeImage(url)
+            .then((res) => {
+              const desc = res.data.description || "";
+              setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+            })
+            .catch(() => {
+              setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
+            })
+            .finally(() => setDescribing(false));
+        }
+      }
+      // else: was a quick click — do nothing (future: open image detail)
+
       setDraggingUrl(null);
       setDraggingThumb(null);
       setDragOverZone(null);
+      isDraggingRef.current = false;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   };
@@ -549,7 +577,7 @@ export default function VideoGenerator() {
                         <div
                           key={`img-${img.image_id}`}
                           onPointerDown={(e) => onPointerDownImage(e, img.image_url, img.image_url)}
-                          className={`rounded-xl overflow-hidden group relative cursor-grab active:cursor-grabbing select-none ${isPickable ? "ring-2 ring-transparent hover:ring-blue-500" : ""}`}
+                          className={`rounded-xl overflow-hidden group relative cursor-pointer select-none ${isPickable ? "ring-2 ring-transparent hover:ring-blue-500" : ""}`}
                           onClick={() => { if (isPickable) selectGalleryImage(img.image_url); }}
                         >
                           <div className="aspect-square overflow-hidden">
