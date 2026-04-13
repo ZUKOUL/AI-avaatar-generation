@@ -1,11 +1,12 @@
 import os
 import time
+import uuid
 import logging
 import asyncio
 import requests
 import replicate
-from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, Form, HTTPException, BackgroundTasks
+from typing import Annotated, Optional, List
+from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException, BackgroundTasks
 from google import genai
 from google.genai import types
 from requests.adapters import HTTPAdapter
@@ -29,12 +30,16 @@ async def animate(
     motion_prompt: str = Form(..., description="Describe the motion/action for the video"),
     avatar_id: Optional[str] = Form(None, description="Use an avatar from your library"),
     image_id: Optional[str] = Form(None, description="Use a generated image by its ID"),
+    start_image_url: Optional[str] = Form(None, description="Direct URL of a start image from gallery"),
     engine_choice: str = Form("veo", description="Video engine: 'veo' or 'kling'"),
     audio: bool = Form(False, description="Enable audio (Kling only)"),
+    files: List[UploadFile] = File(default=[], description="Upload image files directly (first = start image)"),
 ):
     """
-    Generate a video from an avatar or a generated image.
+    Generate a video from an image source.
     Provide ONE of:
+    - files → upload an image directly from your device
+    - start_image_url → use a gallery image URL
     - avatar_id → uses the avatar's portrait from your library
     - image_id → uses a specific generated image
     """
@@ -43,19 +48,38 @@ async def animate(
         avatar_id = None
     if image_id is not None and image_id.strip().lower() in ("string", "", "null", "none"):
         image_id = None
+    if start_image_url is not None and start_image_url.strip().lower() in ("string", "", "null", "none"):
+        start_image_url = None
 
-    # Validate: at least one source must be provided
-    if not avatar_id and not image_id:
-        raise HTTPException(
-            status_code=400,
-            detail="You must provide either 'avatar_id' or 'image_id' as the source image.",
-        )
+    # Filter out empty files (browsers may send empty file parts)
+    real_files = [f for f in files if f.filename and f.size and f.size > 0]
 
     # Resolve the source image URL
     image_url = None
     source_label = ""
 
-    if image_id:
+    # Priority: uploaded file > gallery URL > image_id > avatar_id
+    if real_files:
+        # Upload the first file to Supabase storage and get a public URL
+        file = real_files[0]
+        file_content = await file.read()
+        if not file_content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+        file_ext = (file.filename or "image.png").split(".")[-1] or "png"
+        storage_path = f"video_sources/{current_user['id']}/{uuid.uuid4()}.{file_ext}"
+
+        content_type = file.content_type or "image/png"
+        supabase.storage.from_("avatars").upload(storage_path, file_content, {"content-type": content_type})
+        image_url = supabase.storage.from_("avatars").get_public_url(storage_path)
+        source_label = f"uploaded file ({file.filename})"
+
+    elif start_image_url:
+        # Direct URL from gallery (already a public URL)
+        image_url = start_image_url
+        source_label = "gallery image"
+
+    elif image_id:
         # Get image from generated_images table
         img = (
             supabase.table("generated_images")
@@ -87,6 +111,12 @@ async def animate(
             raise HTTPException(status_code=404, detail="Avatar has no image. Please regenerate it.")
         image_url = supabase.storage.from_("avatars").get_public_url(ch.data["image_paths"][0])
         source_label = f"avatar {avatar_id}"
+
+    if not image_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a source image: upload a file, select from gallery, or choose an avatar.",
+        )
 
     logger.info(f"Video generation from {source_label} by user {current_user['id']}")
 
@@ -120,8 +150,8 @@ async def animate(
             "motion_prompt": f"[{engine_choice.upper()}] {motion_prompt}",
         }).execute()
 
-        # Use avatar_id or image_id as folder name for storage
-        folder_id = avatar_id or image_id or "standalone"
+        # Use avatar_id, image_id, or user_id as folder name for storage
+        folder_id = avatar_id or image_id or current_user["id"]
         background_tasks.add_task(process_video_task, operation_id, folder_id, engine_for_db)
 
         return {
