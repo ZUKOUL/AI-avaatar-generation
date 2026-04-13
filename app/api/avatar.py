@@ -560,34 +560,69 @@ async def describe_image(
     """
     import requests as req
 
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    gemini_contents = []
+    logger.info(f"describe-image called | image_url={image_url} | files={len(files)}")
 
-    # Get image bytes from file upload or URL
+    # 1. Get image bytes
+    img_bytes = None
     real_files = [f for f in files if f.filename and f.size and f.size > 0]
     if real_files:
-        file_content = await real_files[0].read()
-        gemini_contents.append(types.Part.from_bytes(data=file_content, mime_type="image/png"))
+        img_bytes = await real_files[0].read()
+        logger.info(f"Using uploaded file: {real_files[0].filename}, size={len(img_bytes)}")
     elif image_url:
-        resp = req.get(image_url)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=400, detail="Could not fetch image from URL.")
-        gemini_contents.append(types.Part.from_bytes(data=resp.content, mime_type="image/png"))
+        try:
+            resp = req.get(image_url, timeout=15)
+            logger.info(f"Fetched image URL: status={resp.status_code}, size={len(resp.content)}")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"Could not fetch image (HTTP {resp.status_code}).")
+            img_bytes = resp.content
+        except req.exceptions.RequestException as e:
+            logger.error(f"Failed to fetch image URL: {e}")
+            raise HTTPException(status_code=400, detail=f"Could not fetch image from URL: {str(e)}")
     else:
         raise HTTPException(status_code=400, detail="Provide an image URL or upload a file.")
 
-    gemini_contents.append(
-        "Describe this image in a short, vivid sentence suitable as a video generation prompt. "
-        "Focus on the subject, setting, mood, and any notable details. Keep it under 30 words."
+    if not img_bytes or len(img_bytes) < 100:
+        raise HTTPException(status_code=400, detail="Image data is empty or too small.")
+
+    # 2. Detect mime type
+    mime = "image/jpeg"
+    if img_bytes[:8].startswith(b'\x89PNG'):
+        mime = "image/png"
+    elif img_bytes[:4].startswith(b'RIFF'):
+        mime = "image/webp"
+    logger.info(f"Detected mime: {mime}, bytes: {len(img_bytes)}")
+
+    # 3. Call Gemini to describe
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        logger.error("GEMINI_API_KEY is not set!")
+        raise HTTPException(status_code=500, detail="AI service not configured.")
+
+    client = genai.Client(api_key=api_key)
+
+    prompt_text = (
+        "Describe what you see in this image in a short, vivid sentence (under 30 words). "
+        "Mention the person's appearance, age estimate, what they are doing, the setting, and mood. "
+        "Write it as a scene description suitable for video generation."
     )
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=gemini_contents,
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type=mime),
+                prompt_text,
+            ],
         )
-        description = response.text.strip() if response.text else "A person in the image."
+        description = ""
+        if response and response.text:
+            description = response.text.strip()
+        logger.info(f"Gemini description: {description[:100]}")
+
+        if not description:
+            description = "A person in the image."
+
         return {"description": description}
     except Exception as e:
-        logger.error(f"Describe image failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to describe image.")
+        logger.error(f"Describe image failed: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"AI description failed: {str(e)}")
