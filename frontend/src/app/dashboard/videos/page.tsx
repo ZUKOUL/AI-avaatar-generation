@@ -84,6 +84,12 @@ export default function VideoGenerator() {
   // Image picker from gallery
   const [pickingFor, setPickingFor] = useState<"start" | "end" | null>(null);
 
+  // Drag & drop
+  const [dragOverStart, setDragOverStart] = useState(false);
+  const [dragOverEnd, setDragOverEnd] = useState(false);
+  const [dragOverPrompt, setDragOverPrompt] = useState(false);
+  const [describing, setDescribing] = useState(false);
+
   useEffect(() => { loadData(); }, []);
 
   // Close dropdowns on outside click
@@ -124,6 +130,54 @@ export default function VideoGenerator() {
       setEndImageFile(null);
     }
     setPickingFor(null);
+  };
+
+  /* ─── Drag & Drop handlers ─── */
+  const onDragStartImage = (e: React.DragEvent, url: string) => {
+    e.dataTransfer.setData("text/plain", url);
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const onDropToRef = async (target: "start" | "end", e: React.DragEvent) => {
+    e.preventDefault();
+    const url = e.dataTransfer.getData("text/plain");
+    if (!url) return;
+    if (target === "start") { setStartImageUrl(url); setStartImageFile(null); setDragOverStart(false); }
+    else { setEndImageUrl(url); setEndImageFile(null); setDragOverEnd(false); }
+  };
+
+  const onDropToPrompt = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverPrompt(false);
+    const url = e.dataTransfer.getData("text/plain");
+    if (!url) return;
+    // Call AI to describe the image
+    setDescribing(true);
+    try {
+      const res = await avatarAPI.describeImage(url);
+      const desc = res.data.description || "";
+      setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+    } catch {
+      setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
+    } finally { setDescribing(false); }
+  };
+
+  /* ─── Download helper ─── */
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
   };
 
   const handleGenerate = async () => {
@@ -243,54 +297,62 @@ export default function VideoGenerator() {
             <div className="px-4 pb-3">
               <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>References</span>
               <div className="flex items-start gap-2">
-                {/* Start image */}
-                {startImageUrl ? (
-                  <div className="relative">
-                    <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
-                      <img src={startImageUrl} alt="Start" className="w-full h-full object-cover" />
+                {/* Start image — droppable */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOverStart(true); }}
+                  onDragLeave={() => setDragOverStart(false)}
+                  onDrop={(e) => onDropToRef("start", e)}
+                >
+                  {startImageUrl ? (
+                    <div className="relative">
+                      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
+                        <img src={startImageUrl} alt="Start" className="w-full h-full object-cover" />
+                      </div>
+                      <button onClick={() => { setStartImageUrl(null); setStartImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
+                        <XIcon size={10} />
+                      </button>
+                      <span className="block text-center text-[10px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>Start image</span>
                     </div>
-                    <button onClick={() => { setStartImageUrl(null); setStartImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
-                      <XIcon size={10} />
+                  ) : (
+                    <button
+                      onClick={() => startInputRef.current?.click()}
+                      className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
+                      style={{ border: `1.5px dashed ${dragOverStart ? "#3b82f6" : "var(--border-color)"}`, color: dragOverStart ? "#3b82f6" : "var(--text-muted)", background: dragOverStart ? "rgba(59,130,246,0.08)" : "transparent" }}
+                    >
+                      <Upload size={16} />
+                      <span className="text-[10px] mt-1">Start image</span>
                     </button>
-                    <span className="block text-center text-[10px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>Start image</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => startInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
-                    style={{ border: "1px dashed var(--border-color)", color: "var(--text-muted)", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--text-muted)"; e.currentTarget.style.background = "var(--bg-secondary)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <Upload size={16} />
-                    <span className="text-[10px] mt-1">Start image</span>
-                  </button>
-                )}
+                  )}
+                </div>
                 <input ref={startInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStartImage(f); }} />
 
-                {/* End image */}
-                {endImageUrl ? (
-                  <div className="relative">
-                    <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
-                      <img src={endImageUrl} alt="End" className="w-full h-full object-cover" />
+                {/* End image — droppable */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOverEnd(true); }}
+                  onDragLeave={() => setDragOverEnd(false)}
+                  onDrop={(e) => onDropToRef("end", e)}
+                >
+                  {endImageUrl ? (
+                    <div className="relative">
+                      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
+                        <img src={endImageUrl} alt="End" className="w-full h-full object-cover" />
+                      </div>
+                      <button onClick={() => { setEndImageUrl(null); setEndImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
+                        <XIcon size={10} />
+                      </button>
+                      <span className="block text-center text-[10px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>End image</span>
                     </div>
-                    <button onClick={() => { setEndImageUrl(null); setEndImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
-                      <XIcon size={10} />
+                  ) : (
+                    <button
+                      onClick={() => endInputRef.current?.click()}
+                      className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
+                      style={{ border: `1.5px dashed ${dragOverEnd ? "#3b82f6" : "var(--border-color)"}`, color: dragOverEnd ? "#3b82f6" : "var(--text-muted)", background: dragOverEnd ? "rgba(59,130,246,0.08)" : "transparent" }}
+                    >
+                      <Upload size={16} />
+                      <span className="text-[10px] mt-1">End image</span>
                     </button>
-                    <span className="block text-center text-[10px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>End image</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => endInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
-                    style={{ border: "1px dashed var(--border-color)", color: "var(--text-muted)", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--text-muted)"; e.currentTarget.style.background = "var(--bg-secondary)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <Upload size={16} />
-                    <span className="text-[10px] mt-1">End image</span>
-                  </button>
-                )}
+                  )}
+                </div>
                 <input ref={endInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEndImage(f); }} />
               </div>
 
@@ -333,15 +395,27 @@ export default function VideoGenerator() {
               </div>
             )}
 
-            {/* Prompt */}
-            <div className="flex-1 px-4 pb-3 flex flex-col min-h-0">
-              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>Shot</span>
+            {/* Prompt — droppable (auto-describes image) */}
+            <div
+              className="flex-1 px-4 pb-3 flex flex-col min-h-0"
+              onDragOver={(e) => { e.preventDefault(); setDragOverPrompt(true); }}
+              onDragLeave={() => setDragOverPrompt(false)}
+              onDrop={onDropToPrompt}
+            >
+              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
+                Shot {describing && <span className="ml-1 text-[10px] normal-case" style={{ color: "#3b82f6" }}>— Describing image…</span>}
+              </span>
               <textarea
                 value={motionPrompt}
                 onChange={(e) => setMotionPrompt(e.target.value)}
-                placeholder="Reference your video or images using @image 1"
-                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[100px]"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                placeholder="Describe the motion — or drag an image here to auto-describe it"
+                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[100px] transition-colors"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: `1.5px solid ${dragOverPrompt ? "#3b82f6" : "var(--border-color)"}`,
+                  color: "var(--text-primary)",
+                  boxShadow: dragOverPrompt ? "0 0 0 3px rgba(59,130,246,0.15)" : "none",
+                }}
                 onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); } }}
               />
             </div>
@@ -462,11 +536,13 @@ export default function VideoGenerator() {
                       return (
                         <div
                           key={`img-${img.image_id}`}
-                          className={`rounded-xl overflow-hidden group relative ${isPickable ? "cursor-pointer ring-2 ring-transparent hover:ring-blue-500" : "cursor-pointer"}`}
+                          draggable
+                          onDragStart={(e) => onDragStartImage(e, img.image_url)}
+                          className={`rounded-xl overflow-hidden group relative cursor-grab active:cursor-grabbing ${isPickable ? "ring-2 ring-transparent hover:ring-blue-500" : ""}`}
                           onClick={() => { if (isPickable) selectGalleryImage(img.image_url); }}
                         >
                           <div className="aspect-square overflow-hidden">
-                            <img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]" />
+                            <img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]" draggable={false} />
                           </div>
                           {/* Badges */}
                           <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
@@ -486,9 +562,9 @@ export default function VideoGenerator() {
                           {/* Download */}
                           {!isPickable && (
                             <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-all flex items-start justify-end p-2 opacity-0 group-hover:opacity-100">
-                              <a href={img.image_url} download target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => e.stopPropagation()}>
+                              <button className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => { e.stopPropagation(); handleDownload(img.image_url, `horpen-${img.image_id}.png`); }}>
                                 <Download size={14} />
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>

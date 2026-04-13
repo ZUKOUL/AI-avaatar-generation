@@ -227,6 +227,23 @@ export default function ImageGenerator() {
     finally { setCreatingChar(false); }
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
   const selectedAvatarData = avatars.find((a) => a.avatar_id === selectedAvatar);
   const dateGroups = groupByDate(images);
   const currentModels = activeTab === "image" ? IMAGE_MODELS : VIDEO_MODELS;
@@ -556,7 +573,7 @@ export default function ImageGenerator() {
                           <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>2K</span>
                         </div>
                         <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-all flex items-start justify-end p-2 opacity-0 group-hover:opacity-100">
-                          <a href={img.image_url} download target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => e.stopPropagation()}><Download size={14} /></a>
+                          <button className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => { e.stopPropagation(); handleDownload(img.image_url, `horpen-${img.image_id}.png`); }}><Download size={14} /></button>
                         </div>
                       </div>
                     ))}

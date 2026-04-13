@@ -546,3 +546,48 @@ async def get_image_by_id(
     except Exception as e:
         logger.error(f"Failed to fetch image: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/describe-image")
+async def describe_image(
+    current_user: Annotated[User, Depends(get_current_user)],
+    image_url: str = Form(None, description="URL of the image to describe"),
+    files: List[UploadFile] = File(default=[], description="Upload image to describe"),
+):
+    """
+    Describe an image using Gemini — returns a short text description.
+    Free endpoint (no credits deducted).
+    """
+    import requests as req
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    gemini_contents = []
+
+    # Get image bytes from file upload or URL
+    real_files = [f for f in files if f.filename and f.size and f.size > 0]
+    if real_files:
+        file_content = await real_files[0].read()
+        gemini_contents.append(types.Part.from_bytes(data=file_content, mime_type="image/png"))
+    elif image_url:
+        resp = req.get(image_url)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Could not fetch image from URL.")
+        gemini_contents.append(types.Part.from_bytes(data=resp.content, mime_type="image/png"))
+    else:
+        raise HTTPException(status_code=400, detail="Provide an image URL or upload a file.")
+
+    gemini_contents.append(
+        "Describe this image in a short, vivid sentence suitable as a video generation prompt. "
+        "Focus on the subject, setting, mood, and any notable details. Keep it under 30 words."
+    )
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=gemini_contents,
+        )
+        description = response.text.strip() if response.text else "A person in the image."
+        return {"description": description}
+    except Exception as e:
+        logger.error(f"Describe image failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to describe image.")
