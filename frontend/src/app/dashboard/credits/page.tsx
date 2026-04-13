@@ -69,7 +69,7 @@ export default function CreditsPage() {
               <p className="text-[13px] mb-4" style={{ color: "var(--text-secondary)" }}>{tier.credits} credits</p>
               <button onClick={() => handleCheckout(tier.slug)} disabled={checkoutLoading === tier.slug}
                 className="w-full py-2.5 rounded-lg font-medium text-[13px] flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-                style={{ background: "var(--text-primary)", color: "#000" }}
+                style={{ background: "#3b82f6", color: "#fff" }}
               >
                 {checkoutLoading === tier.slug ? <Spinner size={14} /> : "Purchase"}
               </button>

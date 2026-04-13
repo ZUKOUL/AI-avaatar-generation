@@ -71,7 +71,7 @@ export default function SignupPage() {
             {error && <div className="px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(239,68,68,0.1)", color: "var(--error)" }}>{error}</div>}
             <button type="submit" disabled={loading}
               className="w-full py-2.5 rounded-lg font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-              style={{ background: "var(--text-primary)", color: "#000" }}
+              style={{ background: "#3b82f6", color: "#fff" }}
             >
               {loading ? <Spinner size={16} /> : "Create account"}
             </button>

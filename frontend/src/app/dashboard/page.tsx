@@ -168,8 +168,8 @@ export default function DashboardHome() {
               <span
                 className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold"
                 style={{
-                  background: "var(--text-primary)",
-                  color: "var(--bg-primary)",
+                  background: "#3b82f6",
+                  color: "#fff",
                 }}
               >
                 H

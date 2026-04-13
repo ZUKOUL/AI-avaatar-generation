@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
                 />
                 <button type="submit" disabled={loading}
                   className="w-full py-2.5 rounded-lg font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-40"
-                  style={{ background: "var(--text-primary)", color: "#000" }}
+                  style={{ background: "#3b82f6", color: "#fff" }}
                 >
                   {loading ? <Spinner size={16} /> : "Send reset link"}
                 </button>

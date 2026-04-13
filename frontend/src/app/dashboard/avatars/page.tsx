@@ -76,8 +76,8 @@ export default function AvatarCreator() {
           <div className="split-panel-left w-full md:w-[380px] shrink-0 p-4 md:p-5 overflow-y-auto flex flex-col gap-5">
             {/* Model tag */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--bg-tertiary)" }}>
-              <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: "var(--text-primary)" }}>
-                <SparkleIcon size={12} color="#000" />
+              <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: "#3b82f6" }}>
+                <SparkleIcon size={12} color="#fff" />
               </div>
               <span className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>Gemini 3 Pro Image</span>
             </div>
@@ -141,7 +141,7 @@ export default function AvatarCreator() {
               onClick={handleGenerate}
               disabled={loading || !prompt.trim() || !nickname.trim()}
               className="w-full py-3 rounded-lg font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: "var(--text-primary)", color: "#000" }}
+              style={{ background: "#3b82f6", color: "#fff" }}
               onMouseEnter={(e) => { if (!loading) e.currentTarget.style.opacity = "0.9"; }}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
             >

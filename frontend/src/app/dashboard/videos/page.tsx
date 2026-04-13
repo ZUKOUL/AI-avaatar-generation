@@ -152,7 +152,7 @@ export default function VideoGenerator() {
 
             <button onClick={handleGenerate} disabled={loading || !motionPrompt.trim()}
               className="w-full py-3 rounded-lg font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: "var(--text-primary)", color: "#000" }}
+              style={{ background: "#3b82f6", color: "#fff" }}
             >
               {loading ? <><Spinner size={16} /> Starting...</> : <>Generate Video · {creditCost} credits</>}
             </button>
