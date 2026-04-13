@@ -19,6 +19,10 @@ import {
   Download,
   Grid,
   LayoutGrid,
+  CaretLeft,
+  Star,
+  ChevronDown,
+  SparkleIcon,
 } from "@/components/Icons";
 
 interface Avatar {
@@ -38,9 +42,9 @@ type AspectRatio = "1:1" | "16:9" | "9:16";
 type GridSize = "small" | "medium" | "large";
 
 const TABS = [
-  { href: "/dashboard/avatars", icon: UserCircle, label: "Avatar" },
   { href: "/dashboard/images", icon: ImageSquare, label: "Image" },
   { href: "/dashboard/videos", icon: VideoCamera, label: "Video" },
+  { href: "/dashboard/avatars", icon: UserCircle, label: "Avatar" },
 ];
 
 function groupByDate(images: GeneratedImage[]): { label: string; items: GeneratedImage[] }[] {
@@ -82,7 +86,7 @@ export default function ImageGenerator() {
   const [loadingImages, setLoadingImages] = useState(true);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
   const [imageCount, setImageCount] = useState(1);
-  const [aiPrompt, setAiPrompt] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState(true);
   const [gridSize, setGridSize] = useState<GridSize>("medium");
   const [showCharacterPicker, setShowCharacterPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,89 +172,115 @@ export default function ImageGenerator() {
             className="split-panel-left w-full md:w-[380px] shrink-0 overflow-y-auto flex flex-col"
             style={{ background: "var(--bg-primary)" }}
           >
-            {/* Tool tabs */}
-            <div
-              className="flex items-center gap-0.5 px-4 pt-4 pb-2"
-            >
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const active = pathname === tab.href;
-                return (
-                  <Link
-                    key={tab.href}
-                    href={tab.href}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all"
-                    style={{
-                      background: active ? "var(--bg-tertiary)" : "transparent",
-                      color: active ? "var(--text-primary)" : "var(--text-muted)",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) e.currentTarget.style.color = "var(--text-secondary)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) e.currentTarget.style.color = "var(--text-muted)";
-                    }}
-                  >
-                    <Icon size={14} />
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Model badge */}
-            <div className="px-4 pb-3">
+            {/* Tool tabs — segmented control like Freepik */}
+            <div className="px-4 pt-4 pb-1">
               <div
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-color)",
-                  color: "var(--text-secondary)",
-                }}
+                className="flex items-center rounded-lg p-0.5"
+                style={{ background: "var(--bg-secondary)" }}
               >
-                <div
-                  className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold"
-                  style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}
-                >
-                  G
-                </div>
-                Gemini 3 Pro Image
+                {TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const active = pathname === tab.href;
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[13px] font-medium transition-all"
+                      style={{
+                        background: active ? "var(--bg-tertiary)" : "transparent",
+                        color: active ? "var(--text-primary)" : "var(--text-muted)",
+                      }}
+                    >
+                      <Icon size={14} />
+                      {tab.label}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
-            {/* References section */}
-            <div className="px-4 pb-3">
+            {/* Back + Title like Freepik's "< Tools / Image Generator" */}
+            <div className="px-4 pt-3 pb-1">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1 text-[12px] font-medium mb-1 transition-colors"
+                style={{ color: "var(--text-muted)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+              >
+                <CaretLeft size={12} />
+                Tools
+              </Link>
+              <h2
+                className="text-[16px] font-semibold"
+                style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}
+              >
+                Image Generator
+              </h2>
+            </div>
+
+            {/* Model — full-width dropdown like Freepik "✨ Auto ▼" */}
+            <div className="px-4 pt-2 pb-3">
               <span
                 className="text-[11px] font-medium uppercase tracking-wider block mb-2"
                 style={{ color: "var(--text-muted)" }}
               >
-                References
+                Model
               </span>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Style reference */}
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-secondary)")}
+              >
+                <SparkleIcon size={14} style={{ color: "var(--text-muted)" }} />
+                <span className="flex-1 text-left">Gemini 3 Pro Image</span>
+                <ChevronDown size={14} style={{ color: "var(--text-muted)" }} />
+              </button>
+            </div>
+
+            {/* References — Freepik vertical square buttons */}
+            <div className="px-4 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span
+                  className="text-[11px] font-medium uppercase tracking-wider"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  References
+                </span>
+                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  {(styleFile ? 1 : 0) + (selectedAvatar ? 1 : 0) + files.length}/8
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                {/* Style square */}
                 {stylePreview ? (
-                  <div
-                    className="relative flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg"
-                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-                  >
-                    <img src={stylePreview} alt="Style" className="w-7 h-7 rounded object-cover" />
-                    <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>Style</span>
+                  <div className="relative">
+                    <div
+                      className="w-[72px] h-[72px] rounded-xl overflow-hidden"
+                      style={{ border: "1.5px solid var(--text-primary)" }}
+                    >
+                      <img src={stylePreview} alt="Style" className="w-full h-full object-cover" />
+                    </div>
                     <button
                       onClick={removeStyle}
-                      className="ml-1 rounded-full p-0.5 transition-colors"
-                      style={{ color: "var(--text-muted)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}
                     >
-                      <XIcon size={12} />
+                      <XIcon size={10} />
                     </button>
+                    <span className="block text-center text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>Style</span>
                   </div>
                 ) : (
                   <button
                     onClick={() => styleInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+                    className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
                     style={{
-                      border: "1px dashed var(--border-color)",
+                      border: "1px solid var(--border-color)",
                       color: "var(--text-muted)",
                       background: "transparent",
                     }}
@@ -263,44 +293,42 @@ export default function ImageGenerator() {
                       e.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <Brush size={13} />
-                    Style
+                    <Brush size={18} />
+                    <span className="text-[11px] mt-1">Style</span>
                   </button>
                 )}
                 <input ref={styleInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleStyleFile(e.target.files)} />
 
-                {/* Character reference */}
+                {/* Character square */}
                 {selectedAvatarData ? (
-                  <div
-                    className="relative flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg"
-                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-                  >
-                    {selectedAvatarData.thumbnail ? (
-                      <img src={selectedAvatarData.thumbnail} alt={selectedAvatarData.name} className="w-7 h-7 rounded object-cover" />
-                    ) : (
-                      <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: "var(--bg-tertiary)" }}>
-                        <UserCircle size={14} style={{ color: "var(--text-muted)" }} />
-                      </div>
-                    )}
-                    <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                      {selectedAvatarData.name}
-                    </span>
+                  <div className="relative">
+                    <div
+                      className="w-[72px] h-[72px] rounded-xl overflow-hidden"
+                      style={{ border: "1.5px solid var(--text-primary)" }}
+                    >
+                      {selectedAvatarData.thumbnail ? (
+                        <img src={selectedAvatarData.thumbnail} alt={selectedAvatarData.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--bg-tertiary)" }}>
+                          <UserCircle size={24} style={{ color: "var(--text-muted)" }} />
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() => setSelectedAvatar(null)}
-                      className="ml-1 rounded-full p-0.5 transition-colors"
-                      style={{ color: "var(--text-muted)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}
                     >
-                      <XIcon size={12} />
+                      <XIcon size={10} />
                     </button>
+                    <span className="block text-center text-[11px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>{selectedAvatarData.name}</span>
                   </div>
                 ) : (
                   <button
                     onClick={() => setShowCharacterPicker(!showCharacterPicker)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+                    className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
                     style={{
-                      border: "1px dashed var(--border-color)",
+                      border: "1px solid var(--border-color)",
                       color: "var(--text-muted)",
                       background: "transparent",
                     }}
@@ -313,17 +341,17 @@ export default function ImageGenerator() {
                       e.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <UserCircle size={13} />
-                    Character
+                    <UserCircle size={18} />
+                    <span className="text-[11px] mt-1">Character</span>
                   </button>
                 )}
 
-                {/* Add reference files */}
+                {/* Add square */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+                  className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
                   style={{
-                    border: "1px dashed var(--border-color)",
+                    border: "1px solid var(--border-color)",
                     color: "var(--text-muted)",
                     background: "transparent",
                   }}
@@ -336,7 +364,8 @@ export default function ImageGenerator() {
                     e.currentTarget.style.background = "transparent";
                   }}
                 >
-                  <Plus size={13} />
+                  <Plus size={18} />
+                  <span className="text-[11px] mt-1">Add</span>
                 </button>
                 <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
               </div>
@@ -344,7 +373,7 @@ export default function ImageGenerator() {
               {/* Character picker dropdown */}
               {showCharacterPicker && avatars.length > 0 && (
                 <div
-                  className="mt-2 p-2 rounded-lg"
+                  className="mt-2 p-2 rounded-xl"
                   style={{
                     background: "var(--bg-secondary)",
                     border: "1px solid var(--border-color)",
@@ -358,7 +387,7 @@ export default function ImageGenerator() {
                           setSelectedAvatar(a.avatar_id);
                           setShowCharacterPicker(false);
                         }}
-                        className="w-11 h-11 rounded-lg overflow-hidden transition-all"
+                        className="w-12 h-12 rounded-lg overflow-hidden transition-all"
                         style={{
                           border: `1.5px solid ${selectedAvatar === a.avatar_id ? "var(--text-primary)" : "var(--border-color)"}`,
                         }}
@@ -367,11 +396,8 @@ export default function ImageGenerator() {
                         {a.thumbnail ? (
                           <img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div
-                            className="w-full h-full flex items-center justify-center"
-                            style={{ background: "var(--bg-tertiary)" }}
-                          >
-                            <UserCircle size={14} style={{ color: "var(--text-muted)" }} />
+                          <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--bg-tertiary)" }}>
+                            <UserCircle size={16} style={{ color: "var(--text-muted)" }} />
                           </div>
                         )}
                       </button>
@@ -384,7 +410,7 @@ export default function ImageGenerator() {
               {previews.length > 0 && (
                 <div className="flex gap-2 mt-2 flex-wrap">
                   {previews.map((url, i) => (
-                    <div key={i} className="relative w-11 h-11 rounded-lg overflow-hidden group">
+                    <div key={i} className="relative w-12 h-12 rounded-lg overflow-hidden group">
                       <img src={url} alt="" className="w-full h-full object-cover" />
                       <button
                         onClick={() => removeFile(i)}
@@ -398,31 +424,19 @@ export default function ImageGenerator() {
               )}
             </div>
 
-            {/* Prompt area */}
-            <div className="flex-1 px-4 pb-3 flex flex-col">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                  Prompt
-                </span>
-                <button
-                  onClick={() => setAiPrompt(!aiPrompt)}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all"
-                  style={{
-                    background: aiPrompt ? "rgba(139,92,246,0.15)" : "transparent",
-                    color: aiPrompt ? "#a78bfa" : "var(--text-muted)",
-                    border: `1px solid ${aiPrompt ? "rgba(139,92,246,0.3)" : "var(--border-color)"}`,
-                  }}
-                >
-                  <MagicWand size={11} />
-                  AI prompt
-                </button>
-              </div>
+            {/* Prompt area — expands to fill remaining space like Freepik */}
+            <div className="flex-1 px-4 pb-3 flex flex-col min-h-0">
+              <span
+                className="text-[11px] font-medium uppercase tracking-wider block mb-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Prompt
+              </span>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe the image you want to create..."
-                rows={4}
-                className="w-full px-3 py-2.5 rounded-lg text-[14px] resize-none flex-1 min-h-[100px]"
+                placeholder="Describe your image — try @ to add references"
+                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[140px]"
                 style={{
                   background: "var(--bg-secondary)",
                   border: "1px solid var(--border-color)",
@@ -435,6 +449,28 @@ export default function ImageGenerator() {
                   }
                 }}
               />
+              {/* AI prompt toggle — real toggle switch like Freepik */}
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={() => setAiPrompt(!aiPrompt)}
+                  className="relative w-9 h-5 rounded-full transition-colors shrink-0"
+                  style={{
+                    background: aiPrompt ? "#3b82f6" : "var(--bg-tertiary)",
+                  }}
+                >
+                  <span
+                    className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+                    style={{
+                      background: "#fff",
+                      left: aiPrompt ? "18px" : "2px",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }}
+                  />
+                </button>
+                <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  AI prompt
+                </span>
+              </div>
             </div>
 
             {/* Error */}
@@ -444,99 +480,99 @@ export default function ImageGenerator() {
               </div>
             )}
 
-            {/* Bottom controls */}
-            <div
-              className="px-4 py-3 flex items-center gap-3 flex-wrap"
-              style={{ borderTop: "1px solid var(--border-color)" }}
-            >
-              {/* Image count */}
+            {/* Bottom controls — pinned at bottom like Freepik */}
+            <div className="shrink-0">
               <div
-                className="flex items-center rounded-lg overflow-hidden"
-                style={{ border: "1px solid var(--border-color)" }}
+                className="px-4 py-3 flex items-center gap-2.5 flex-wrap"
+                style={{ borderTop: "1px solid var(--border-color)" }}
               >
-                <button
-                  onClick={() => setImageCount(Math.max(1, imageCount - 1))}
-                  className="px-2 py-1.5 transition-colors"
-                  style={{ color: "var(--text-muted)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  disabled={imageCount <= 1}
+                {/* Image count: - N + */}
+                <div
+                  className="flex items-center rounded-lg overflow-hidden"
+                  style={{ border: "1px solid var(--border-color)" }}
                 >
-                  <Minus size={13} />
-                </button>
-                <span
-                  className="px-2.5 py-1.5 text-[12px] font-medium min-w-[28px] text-center"
-                  style={{ color: "var(--text-primary)", borderLeft: "1px solid var(--border-color)", borderRight: "1px solid var(--border-color)" }}
-                >
-                  {imageCount}
-                </span>
-                <button
-                  onClick={() => setImageCount(Math.min(4, imageCount + 1))}
-                  className="px-2 py-1.5 transition-colors"
-                  style={{ color: "var(--text-muted)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  disabled={imageCount >= 4}
-                >
-                  <Plus size={13} />
-                </button>
-              </div>
-
-              {/* Aspect ratio */}
-              <div
-                className="flex items-center rounded-lg overflow-hidden"
-                style={{ border: "1px solid var(--border-color)" }}
-              >
-                {(["1:1", "16:9", "9:16"] as AspectRatio[]).map((ratio) => (
                   <button
-                    key={ratio}
-                    onClick={() => setAspectRatio(ratio)}
-                    className="px-2.5 py-1.5 text-[11px] font-medium transition-colors"
-                    style={{
-                      background: aspectRatio === ratio ? "var(--bg-tertiary)" : "transparent",
-                      color: aspectRatio === ratio ? "var(--text-primary)" : "var(--text-muted)",
-                      borderRight: ratio !== "9:16" ? "1px solid var(--border-color)" : undefined,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (aspectRatio !== ratio) e.currentTarget.style.background = "var(--bg-hover)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (aspectRatio !== ratio) e.currentTarget.style.background = "transparent";
-                    }}
+                    onClick={() => setImageCount(Math.max(1, imageCount - 1))}
+                    className="px-2 py-1.5 transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    disabled={imageCount <= 1}
                   >
-                    {ratio}
+                    <Minus size={13} />
                   </button>
-                ))}
+                  <span
+                    className="px-2 py-1.5 text-[12px] font-medium min-w-[24px] text-center"
+                    style={{ color: "var(--text-primary)", borderLeft: "1px solid var(--border-color)", borderRight: "1px solid var(--border-color)" }}
+                  >
+                    {imageCount}
+                  </span>
+                  <button
+                    onClick={() => setImageCount(Math.min(4, imageCount + 1))}
+                    className="px-2 py-1.5 transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    disabled={imageCount >= 4}
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+
+                {/* Aspect ratio — single button with icon like Freepik */}
+                <button
+                  onClick={() => {
+                    const ratios: AspectRatio[] = ["1:1", "16:9", "9:16"];
+                    const idx = ratios.indexOf(aspectRatio);
+                    setAspectRatio(ratios[(idx + 1) % ratios.length]);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                  style={{
+                    border: "1px solid var(--border-color)",
+                    color: "var(--text-primary)",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                  </svg>
+                  {aspectRatio}
+                </button>
+
+                {/* Seamless toggle like Freepik's "∞ ON" */}
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                  style={{
+                    border: "1px solid var(--border-color)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <span className="text-[14px]">∞</span>
+                  ON
+                </div>
               </div>
 
-              {/* Quality badge */}
-              <div
-                className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium"
-                style={{
-                  border: "1px solid var(--border-color)",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                2K
+              {/* Generate button */}
+              <div className="px-4 pb-4 pt-1">
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading || !prompt.trim()}
+                  className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}
+                >
+                  {loading ? (
+                    <>
+                      <Spinner size={16} /> Generating...
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-center">Generate</span>
+                      <SparkleIcon size={16} />
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-
-            {/* Generate button */}
-            <div className="px-4 pb-4 pt-1">
-              <button
-                onClick={handleGenerate}
-                disabled={loading || !prompt.trim()}
-                className="w-full py-2.5 rounded-lg font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}
-              >
-                {loading ? (
-                  <>
-                    <Spinner size={16} /> Generating...
-                  </>
-                ) : (
-                  <>Generate &middot; 4 credits</>
-                )}
-              </button>
             </div>
           </div>
 
@@ -551,36 +587,47 @@ export default function ImageGenerator() {
               }}
             >
               <span className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                {images.length} image{images.length !== 1 ? "s" : ""}
+                {images.length > 0 ? `${images.length} image${images.length !== 1 ? "s" : ""}` : "Gallery"}
               </span>
-              <div
-                className="flex items-center rounded-lg overflow-hidden"
-                style={{ border: "1px solid var(--border-color)" }}
-              >
-                {([
-                  { key: "small" as GridSize, icon: <Grid size={13} /> },
-                  { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> },
-                  { key: "large" as GridSize, icon: <ImageSquare size={13} /> },
-                ]).map(({ key, icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => setGridSize(key)}
-                    className="px-2 py-1.5 transition-colors"
-                    style={{
-                      background: gridSize === key ? "var(--bg-tertiary)" : "transparent",
-                      color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)",
-                      borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (gridSize !== key) e.currentTarget.style.background = "var(--bg-hover)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (gridSize !== key) e.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    {icon}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                {/* Images dropdown like Freepik */}
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <ImageSquare size={14} />
+                  Images
+                </div>
+                {/* Grid size toggle */}
+                <div
+                  className="flex items-center rounded-lg overflow-hidden"
+                  style={{ border: "1px solid var(--border-color)" }}
+                >
+                  {([
+                    { key: "small" as GridSize, icon: <Grid size={13} /> },
+                    { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> },
+                    { key: "large" as GridSize, icon: <ImageSquare size={13} /> },
+                  ]).map(({ key, icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setGridSize(key)}
+                      className="px-2 py-1.5 transition-colors"
+                      style={{
+                        background: gridSize === key ? "var(--bg-tertiary)" : "transparent",
+                        color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)",
+                        borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (gridSize !== key) e.currentTarget.style.background = "var(--bg-hover)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (gridSize !== key) e.currentTarget.style.background = "transparent";
+                      }}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -608,55 +655,51 @@ export default function ImageGenerator() {
                 dateGroups.map((group) => (
                   <div key={group.label} className="mb-6">
                     <span
-                      className="text-[11px] font-medium uppercase tracking-wider block mb-3"
+                      className="text-[12px] font-medium block mb-3"
                       style={{ color: "var(--text-muted)" }}
                     >
                       {group.label}
                     </span>
-                    <div className={`grid gap-2.5 ${GRID_COLS[gridSize]}`}>
+                    <div className={`grid gap-2 ${GRID_COLS[gridSize]}`}>
                       {group.items.map((img) => (
                         <div
                           key={img.image_id}
-                          className="rounded-xl overflow-hidden group relative cursor-pointer transition-all"
-                          style={{
-                            background: "var(--bg-secondary)",
-                            border: "1px solid var(--border-color)",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--text-muted)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                          className="rounded-xl overflow-hidden group relative cursor-pointer"
                         >
                           <div className="aspect-square overflow-hidden">
                             <img
                               src={img.image_url}
                               alt={img.prompt}
-                              className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]"
                             />
                           </div>
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end justify-between p-2 opacity-0 group-hover:opacity-100">
+                          {/* Bottom badges — always visible like Freepik */}
+                          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
                             <span
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white font-medium"
+                              className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                              style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                            >
+                              G
+                            </span>
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                              style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
                             >
                               2K
                             </span>
-                            <div className="flex items-center gap-1">
-                              <a
-                                href={img.image_url}
-                                download
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Download size={13} />
-                              </a>
-                            </div>
                           </div>
-                          {/* Prompt label below image */}
-                          <div className="px-2.5 py-2">
-                            <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
-                              {img.prompt}
-                            </p>
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-all flex items-start justify-end p-2 opacity-0 group-hover:opacity-100">
+                            <a
+                              href={img.image_url}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Download size={14} />
+                            </a>
                           </div>
                         </div>
                       ))}
