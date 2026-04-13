@@ -89,10 +89,12 @@ export default function VideoGenerator() {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionPos, setMentionPos] = useState<{ top: number; left: number } | null>(null);
   const mentionStartRef = useRef<number | null>(null);
+  const [chipDropdown, setChipDropdown] = useState<{ avatarId: string; pos: { top: number; left: number } } | null>(null);
 
   const mentionFiltered = mentionQuery !== null
     ? avatars.filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
@@ -258,7 +260,25 @@ export default function VideoGenerator() {
     }
   };
 
-  /* ─── @mention handlers ─── */
+  /* ─── @mention system ─── */
+  // Sync selectedAvatar when @mention is deleted from prompt
+  useEffect(() => {
+    if (selectedAvatar) {
+      const av = avatars.find((a) => a.avatar_id === selectedAvatar);
+      if (av && !motionPrompt.match(new RegExp(`@${av.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`, "i"))) {
+        setSelectedAvatar(null);
+      }
+    }
+  }, [motionPrompt, avatars, selectedAvatar]);
+
+  // Close chip dropdown on outside click
+  useEffect(() => {
+    if (!chipDropdown) return;
+    const handler = () => setChipDropdown(null);
+    setTimeout(() => document.addEventListener("click", handler, { once: true }), 0);
+    return () => document.removeEventListener("click", handler);
+  }, [chipDropdown]);
+
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     const cursor = e.target.selectionStart || 0;
@@ -276,11 +296,9 @@ export default function VideoGenerator() {
         const lines = textBefore.split("\n");
         const lineHeight = 20;
         const charWidth = 8;
-        const currentLine = lines.length - 1;
-        const currentCol = lines[lines.length - 1].length;
         setMentionPos({
-          top: rect.top + Math.min(currentLine * lineHeight, rect.height - 10) + lineHeight + 4,
-          left: rect.left + Math.min(currentCol * charWidth, rect.width - 200) + 12,
+          top: rect.top + Math.min((lines.length - 1) * lineHeight, rect.height - 10) + lineHeight + 4,
+          left: rect.left + Math.min(lines[lines.length - 1].length * charWidth, rect.width - 200) + 12,
         });
       }
     } else {
@@ -295,19 +313,22 @@ export default function VideoGenerator() {
     const before = motionPrompt.slice(0, start);
     const cursor = textareaRef.current?.selectionStart || motionPrompt.length;
     const after = motionPrompt.slice(cursor);
-    const newPrompt = `${before}@${avatar.name} ${after}`;
-    setMotionPrompt(newPrompt);
+    setMotionPrompt(`${before}@${avatar.name} ${after}`);
     setSelectedAvatar(avatar.avatar_id);
     setMentionQuery(null);
     mentionStartRef.current = null;
     setTimeout(() => {
       const ta = textareaRef.current;
-      if (ta) {
-        const pos = before.length + avatar.name.length + 2;
-        ta.focus();
-        ta.setSelectionRange(pos, pos);
-      }
+      if (ta) { const pos = before.length + avatar.name.length + 2; ta.focus(); ta.setSelectionRange(pos, pos); }
     }, 0);
+  };
+
+  const switchMention = (oldId: string, newAvatar: Avatar) => {
+    const old = avatars.find((a) => a.avatar_id === oldId);
+    if (!old) return;
+    setMotionPrompt((p) => p.replace(new RegExp(`@${old.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"), `@${newAvatar.name}`));
+    setSelectedAvatar(newAvatar.avatar_id);
+    setChipDropdown(null);
   };
 
   const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -318,6 +339,45 @@ export default function VideoGenerator() {
       if (e.key === "Escape") { e.preventDefault(); setMentionQuery(null); return; }
     }
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); }
+  };
+
+  const handleTextareaScroll = () => {
+    if (textareaRef.current && overlayRef.current) overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+  };
+
+  const renderHighlightedPrompt = (text: string) => {
+    if (!text) return null;
+    const names = avatars.map((a) => a.name).sort((a, b) => b.length - a.length);
+    if (!names.length) return <span style={{ color: "var(--text-primary)" }}>{text}</span>;
+    const pattern = new RegExp(`(@(?:${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}))(?=\\s|$)`, "gi");
+    const parts = text.split(pattern);
+    return parts.map((part, i) => {
+      const m = part.match(/^@(.+)$/);
+      if (m) {
+        const av = avatars.find((a) => a.name.toLowerCase() === m[1].toLowerCase());
+        if (av) {
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[13px] font-semibold pointer-events-auto cursor-pointer select-none align-baseline"
+              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", lineHeight: "inherit" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                setChipDropdown({ avatarId: av.avatar_id, pos: { top: r.bottom + 4, left: r.left } });
+              }}
+            >
+              {av.thumbnail && <img src={av.thumbnail} className="w-4 h-4 rounded-full object-cover inline" />}
+              @{av.name}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 1 }}>
+                <path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          );
+        }
+      }
+      return <span key={i} style={{ color: "var(--text-primary)" }}>{part}</span>;
+    });
   };
 
   const selectedAvatarData = avatars.find((a) => a.avatar_id === selectedAvatar);
@@ -535,26 +595,32 @@ export default function VideoGenerator() {
               <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
                 Shot {describing && <span className="ml-1 text-[10px] normal-case" style={{ color: "#3b82f6" }}>— Describing image…</span>}
               </span>
-              <div className="relative flex-1 min-h-0">
+              <div
+                className="relative flex-1 min-h-0 rounded-xl overflow-hidden transition-colors"
+                style={{ border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`, background: "var(--bg-secondary)", boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none" }}
+              >
                 <textarea
                   ref={textareaRef}
                   value={motionPrompt}
                   onChange={handlePromptChange}
-                  placeholder="Describe the motion — type @character to mention"
-                  className="w-full px-3 py-3 rounded-xl text-[14px] resize-none h-full min-h-[100px] transition-colors"
-                  style={{
-                    background: "var(--bg-secondary)",
-                    border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`,
-                    color: "var(--text-primary)",
-                    boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none",
-                  }}
+                  placeholder="Describe the motion — type @ to mention a character"
+                  className="relative z-10 w-full px-3 py-3 text-[14px] resize-none h-full min-h-[100px] bg-transparent border-none outline-none"
+                  style={{ color: "transparent", caretColor: "var(--text-primary)", lineHeight: "1.6" }}
                   onKeyDown={handlePromptKeyDown}
+                  onScroll={handleTextareaScroll}
                 />
-                {/* @mention dropdown */}
+                <div
+                  ref={overlayRef}
+                  className="absolute inset-0 px-3 py-3 text-[14px] pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
+                  style={{ lineHeight: "1.6" }}
+                >
+                  {renderHighlightedPrompt(motionPrompt)}
+                </div>
+                {/* @mention autocomplete dropdown */}
                 {mentionQuery !== null && mentionFiltered.length > 0 && mentionPos && (
                   <div
                     className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
-                    style={{ top: mentionPos.top, left: mentionPos.left, background: "var(--bg-primary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.25)", minWidth: 200, maxWidth: 280 }}
+                    style={{ top: mentionPos.top, left: mentionPos.left, background: "var(--bg-primary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.25)", minWidth: 220, maxWidth: 300 }}
                   >
                     {mentionFiltered.map((a, i) => (
                       <button
@@ -577,6 +643,36 @@ export default function VideoGenerator() {
                   </div>
                 )}
               </div>
+              {/* Chip switch dropdown */}
+              {chipDropdown && (
+                <div
+                  className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
+                  style={{ top: chipDropdown.pos.top, left: chipDropdown.pos.left, background: "var(--bg-primary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.25)", minWidth: 220, maxWidth: 300 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Switch character</div>
+                  {avatars.map((a) => (
+                    <button
+                      key={a.avatar_id}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                      style={{ background: a.avatar_id === chipDropdown.avatarId ? "var(--bg-tertiary)" : "transparent" }}
+                      onClick={() => switchMention(chipDropdown.avatarId, a)}
+                    >
+                      {a.thumbnail ? (
+                        <img src={a.thumbnail} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold" style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}>
+                          {a.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>{a.name}</span>
+                      {a.avatar_id === chipDropdown.avatarId && (
+                        <svg className="ml-auto shrink-0" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {error && <div className="mx-4 mb-3 px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(239,68,68,0.1)", color: "var(--error)" }}>{error}</div>}
