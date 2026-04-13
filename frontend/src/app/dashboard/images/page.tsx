@@ -19,8 +19,8 @@ import {
   LayoutGrid,
   CaretLeft,
   ChevronDown,
-  SparkleIcon,
   Search,
+  Maximize,
 } from "@/components/Icons";
 
 /* ─── Types ─── */
@@ -487,7 +487,7 @@ export default function ImageGenerator() {
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
                       style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2" /><path d="M2 12h20" /></svg>
+                      <Maximize size={14} />
                       {quality}
                     </button>
                     {showQualityDropdown && (
@@ -511,16 +511,12 @@ export default function ImageGenerator() {
                   </div>
                 )}
 
-                {/* Seamless toggle */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-                  <span className="text-[14px]">∞</span> ON
-                </div>
               </div>
 
               {/* Generate */}
               <div className="px-4 pb-4 pt-1">
                 <button onClick={handleGenerate} disabled={loading || !prompt.trim()} className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
-                  {loading ? <><Spinner size={16} /> Generating...</> : <><span className="flex-1 text-center">Generate</span><SparkleIcon size={16} /></>}
+                  {loading ? <><Spinner size={16} /> Generating...</> : "Generate"}
                 </button>
               </div>
             </div>
