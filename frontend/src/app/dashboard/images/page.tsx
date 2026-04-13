@@ -144,6 +144,82 @@ export default function ImageGenerator() {
   const newCharInputRef = useRef<HTMLInputElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // @mention system
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number } | null>(null);
+  const mentionStartRef = useRef<number | null>(null);
+
+  const mentionFiltered = mentionQuery !== null
+    ? avatars.filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart || 0;
+    setPrompt(val);
+
+    // Detect @mention
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@([^\s@]*)$/);
+    if (atMatch) {
+      mentionStartRef.current = cursor - atMatch[1].length - 1;
+      setMentionQuery(atMatch[1]);
+      setMentionIndex(0);
+      // Position dropdown near cursor
+      const ta = textareaRef.current;
+      if (ta) {
+        const rect = ta.getBoundingClientRect();
+        // Rough estimate of cursor position
+        const lines = textBefore.split("\n");
+        const lineHeight = 20;
+        const charWidth = 8;
+        const currentLine = lines.length - 1;
+        const currentCol = lines[lines.length - 1].length;
+        setMentionPos({
+          top: rect.top + Math.min(currentLine * lineHeight, rect.height - 10) + lineHeight + 4,
+          left: rect.left + Math.min(currentCol * charWidth, rect.width - 200) + 12,
+        });
+      }
+    } else {
+      setMentionQuery(null);
+      mentionStartRef.current = null;
+    }
+  };
+
+  const selectMention = (avatar: Avatar) => {
+    const start = mentionStartRef.current;
+    if (start === null) return;
+    const before = prompt.slice(0, start);
+    const cursor = textareaRef.current?.selectionStart || prompt.length;
+    const after = prompt.slice(cursor);
+    const newPrompt = `${before}@${avatar.name} ${after}`;
+    setPrompt(newPrompt);
+    setSelectedAvatar(avatar.avatar_id);
+    setMentionQuery(null);
+    mentionStartRef.current = null;
+    // Restore focus
+    setTimeout(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        const pos = before.length + avatar.name.length + 2;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
+
+  const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && mentionFiltered.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex((i) => Math.min(i + 1, mentionFiltered.length - 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex((i) => Math.max(i - 1, 0)); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(mentionFiltered[mentionIndex]); return; }
+      if (e.key === "Escape") { e.preventDefault(); setMentionQuery(null); return; }
+    }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); }
+  };
 
   // Drag & drop (hold-to-drag)
   const [draggingUrl, setDraggingUrl] = useState<string | null>(null);
@@ -514,14 +590,46 @@ export default function ImageGenerator() {
               <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
                 Prompt {describing && <span className="ml-1 text-[10px] normal-case" style={{ color: "#3b82f6" }}>— Describing image…</span>}
               </span>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={activeTab === "image" ? "Describe your image — or drag an image here" : "Describe the motion or action for your video..."}
-                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[120px] transition-colors"
-                style={{ background: "var(--bg-secondary)", border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`, color: "var(--text-primary)", boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none" }}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); } }}
-              />
+              <div className="relative flex-1 min-h-0">
+                <textarea
+                  ref={textareaRef}
+                  value={prompt}
+                  onChange={handlePromptChange}
+                  placeholder={activeTab === "image" ? "Describe your image — type @character to mention" : "Describe the motion — type @character to mention"}
+                  className="w-full px-3 py-3 rounded-xl text-[14px] resize-none h-full min-h-[120px] transition-colors"
+                  style={{ background: "var(--bg-secondary)", border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`, color: "var(--text-primary)", boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none" }}
+                  onKeyDown={handlePromptKeyDown}
+                />
+                {/* @mention dropdown */}
+                {mentionQuery !== null && mentionFiltered.length > 0 && mentionPos && (
+                  <div
+                    className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
+                    style={{ top: mentionPos.top, left: mentionPos.left, background: "var(--bg-primary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.25)", minWidth: 200, maxWidth: 280 }}
+                  >
+                    {mentionFiltered.map((a, i) => (
+                      <button
+                        key={a.avatar_id}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                        style={{ background: i === mentionIndex ? "var(--bg-tertiary)" : "transparent" }}
+                        onMouseEnter={() => setMentionIndex(i)}
+                        onMouseDown={(e) => { e.preventDefault(); selectMention(a); }}
+                      >
+                        {a.thumbnail ? (
+                          <img src={a.thumbnail} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold" style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}>
+                            {a.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>{a.name}</span>
+                      </button>
+                    ))}
+                    {mentionFiltered.length === 0 && (
+                      <div className="px-3 py-2 text-[12px]" style={{ color: "var(--text-muted)" }}>No characters found</div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2 mt-3">
                 <button onClick={() => setAiPrompt(!aiPrompt)} className="relative w-9 h-5 rounded-full transition-colors shrink-0" style={{ background: aiPrompt ? "#3b82f6" : "var(--bg-tertiary)" }}>
                   <span className="absolute top-0.5 w-4 h-4 rounded-full transition-all" style={{ background: "#fff", left: aiPrompt ? "18px" : "2px", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />

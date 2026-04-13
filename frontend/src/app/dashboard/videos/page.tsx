@@ -23,6 +23,7 @@ import {
 interface GeneratedImage { image_id: string; image_url: string; prompt: string; created_at: string; }
 interface VideoJob { job_id: string; avatar_id?: string; operation_id: string; status: string; video_url?: string; motion_prompt?: string; engine?: string; created_at: string; }
 
+interface Avatar { avatar_id: string; name: string; thumbnail: string; }
 type GridSize = "small" | "medium" | "large";
 type GalleryFilter = "all" | "images" | "videos";
 
@@ -84,6 +85,19 @@ export default function VideoGenerator() {
   // Image picker from gallery
   const [pickingFor, setPickingFor] = useState<"start" | "end" | null>(null);
 
+  // Avatars for @mention
+  const [avatars, setAvatars] = useState<Avatar[]>([]);
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number } | null>(null);
+  const mentionStartRef = useRef<number | null>(null);
+
+  const mentionFiltered = mentionQuery !== null
+    ? avatars.filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+
   // Drag & drop (custom pointer-based, not HTML5 drag)
   const [draggingUrl, setDraggingUrl] = useState<string | null>(null);
   const [draggingThumb, setDraggingThumb] = useState<string | null>(null);
@@ -106,9 +120,14 @@ export default function VideoGenerator() {
 
   const loadData = async () => {
     try {
-      const [imageRes, videoRes] = await Promise.all([avatarAPI.getImages(undefined, 50), videoAPI.history()]);
+      const [imageRes, videoRes, avatarRes] = await Promise.all([
+        avatarAPI.getImages(undefined, 50),
+        videoAPI.history(),
+        avatarAPI.list(),
+      ]);
       setImages(imageRes.data.images || []);
       setVideos(videoRes.data.videos || []);
+      setAvatars(avatarRes.data.avatars || []);
     } catch { /* silently fail */ }
     finally { setLoadingGallery(false); }
   };
@@ -239,6 +258,70 @@ export default function VideoGenerator() {
     }
   };
 
+  /* ─── @mention handlers ─── */
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart || 0;
+    setMotionPrompt(val);
+
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@([^\s@]*)$/);
+    if (atMatch) {
+      mentionStartRef.current = cursor - atMatch[1].length - 1;
+      setMentionQuery(atMatch[1]);
+      setMentionIndex(0);
+      const ta = textareaRef.current;
+      if (ta) {
+        const rect = ta.getBoundingClientRect();
+        const lines = textBefore.split("\n");
+        const lineHeight = 20;
+        const charWidth = 8;
+        const currentLine = lines.length - 1;
+        const currentCol = lines[lines.length - 1].length;
+        setMentionPos({
+          top: rect.top + Math.min(currentLine * lineHeight, rect.height - 10) + lineHeight + 4,
+          left: rect.left + Math.min(currentCol * charWidth, rect.width - 200) + 12,
+        });
+      }
+    } else {
+      setMentionQuery(null);
+      mentionStartRef.current = null;
+    }
+  };
+
+  const selectMention = (avatar: Avatar) => {
+    const start = mentionStartRef.current;
+    if (start === null) return;
+    const before = motionPrompt.slice(0, start);
+    const cursor = textareaRef.current?.selectionStart || motionPrompt.length;
+    const after = motionPrompt.slice(cursor);
+    const newPrompt = `${before}@${avatar.name} ${after}`;
+    setMotionPrompt(newPrompt);
+    setSelectedAvatar(avatar.avatar_id);
+    setMentionQuery(null);
+    mentionStartRef.current = null;
+    setTimeout(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        const pos = before.length + avatar.name.length + 2;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
+
+  const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && mentionFiltered.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex((i) => Math.min(i + 1, mentionFiltered.length - 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex((i) => Math.max(i - 1, 0)); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(mentionFiltered[mentionIndex]); return; }
+      if (e.key === "Escape") { e.preventDefault(); setMentionQuery(null); return; }
+    }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); }
+  };
+
+  const selectedAvatarData = avatars.find((a) => a.avatar_id === selectedAvatar);
+
   const handleGenerate = async () => {
     if (!motionPrompt.trim()) return;
     setLoading(true); setError(""); setSuccess("");
@@ -246,6 +329,7 @@ export default function VideoGenerator() {
     formData.append("motion_prompt", motionPrompt);
     formData.append("engine_choice", engine);
     formData.append("audio", audio.toString());
+    if (selectedAvatar) formData.append("avatar_id", selectedAvatar);
     if (startImageFile) formData.append("files", startImageFile);
     if (endImageFile) formData.append("files", endImageFile);
     // If using gallery image URL (no file), pass as param
@@ -451,19 +535,48 @@ export default function VideoGenerator() {
               <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
                 Shot {describing && <span className="ml-1 text-[10px] normal-case" style={{ color: "#3b82f6" }}>— Describing image…</span>}
               </span>
-              <textarea
-                value={motionPrompt}
-                onChange={(e) => setMotionPrompt(e.target.value)}
-                placeholder="Describe the motion — or drag an image here to auto-describe it"
-                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[100px] transition-colors"
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`,
-                  color: "var(--text-primary)",
-                  boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none",
-                }}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); } }}
-              />
+              <div className="relative flex-1 min-h-0">
+                <textarea
+                  ref={textareaRef}
+                  value={motionPrompt}
+                  onChange={handlePromptChange}
+                  placeholder="Describe the motion — type @character to mention"
+                  className="w-full px-3 py-3 rounded-xl text-[14px] resize-none h-full min-h-[100px] transition-colors"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`,
+                    color: "var(--text-primary)",
+                    boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none",
+                  }}
+                  onKeyDown={handlePromptKeyDown}
+                />
+                {/* @mention dropdown */}
+                {mentionQuery !== null && mentionFiltered.length > 0 && mentionPos && (
+                  <div
+                    className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
+                    style={{ top: mentionPos.top, left: mentionPos.left, background: "var(--bg-primary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.25)", minWidth: 200, maxWidth: 280 }}
+                  >
+                    {mentionFiltered.map((a, i) => (
+                      <button
+                        key={a.avatar_id}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                        style={{ background: i === mentionIndex ? "var(--bg-tertiary)" : "transparent" }}
+                        onMouseEnter={() => setMentionIndex(i)}
+                        onMouseDown={(e) => { e.preventDefault(); selectMention(a); }}
+                      >
+                        {a.thumbnail ? (
+                          <img src={a.thumbnail} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold" style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}>
+                            {a.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>{a.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && <div className="mx-4 mb-3 px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(239,68,68,0.1)", color: "var(--error)" }}>{error}</div>}
