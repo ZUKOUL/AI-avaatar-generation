@@ -289,7 +289,7 @@ export default function ImageGenerator() {
                   className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
                   style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
                 >
-                  <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
+                  <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "#3b82f6", color: "#fff" }}>
                     {currentModels.find((m) => m.id === currentModelId)?.icon || "G"}
                   </span>
                   <span className="flex-1 text-left">{currentModelName}</span>
@@ -306,7 +306,7 @@ export default function ImageGenerator() {
                         onMouseEnter={(e) => { if (currentModelId !== m.id) e.currentTarget.style.background = "var(--bg-hover)"; }}
                         onMouseLeave={(e) => { if (currentModelId !== m.id) e.currentTarget.style.background = "transparent"; }}
                       >
-                        <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>{m.icon}</span>
+                        <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "#3b82f6", color: "#fff" }}>{m.icon}</span>
                         {m.name}
                       </button>
                     ))}
@@ -515,7 +515,7 @@ export default function ImageGenerator() {
 
               {/* Generate */}
               <div className="px-4 pb-4 pt-1">
-                <button onClick={handleGenerate} disabled={loading || !prompt.trim()} className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
+                <button onClick={handleGenerate} disabled={loading || !prompt.trim()} className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{ background: "#3b82f6", color: "#fff" }}>
                   {loading ? <><Spinner size={16} /> Generating...</> : "Generate"}
                 </button>
               </div>
