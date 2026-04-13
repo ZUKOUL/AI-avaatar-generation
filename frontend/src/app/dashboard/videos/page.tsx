@@ -426,7 +426,7 @@ export default function VideoGenerator() {
 
             {/* Tabs — Image | Video */}
             <div className="px-4 pt-4 pb-1">
-              <div className="flex items-center rounded-lg p-0.5" style={{ background: "var(--bg-secondary)" }}>
+              <div className="flex items-center rounded-xl p-1" style={{ background: "var(--bg-secondary)", boxShadow: "var(--shadow-segment-inset)" }}>
                 {([
                   { href: "/dashboard/images", icon: ImageSquare, label: "Image", active: false },
                   { href: "/dashboard/videos", icon: VideoCamera, label: "Video", active: true },
@@ -436,10 +436,11 @@ export default function VideoGenerator() {
                     <Link
                       key={tab.label}
                       href={tab.href}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[13px] font-medium transition-all"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium transition-all"
                       style={{
-                        background: tab.active ? "var(--bg-tertiary)" : "transparent",
+                        background: tab.active ? "var(--bg-primary)" : "transparent",
                         color: tab.active ? "var(--text-primary)" : "var(--text-muted)",
+                        boxShadow: tab.active ? "var(--shadow-segment-active)" : "none",
                       }}
                     >
                       <Icon size={14} />
@@ -741,13 +742,13 @@ export default function VideoGenerator() {
           <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-primary)" }}>
             {/* Gallery header */}
             <div className="flex items-center justify-between px-4 md:px-6 py-3 sticky top-0 z-10" style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color)" }}>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "var(--bg-secondary)", boxShadow: "var(--shadow-segment-inset)" }}>
                 {(["all", "images", "videos"] as GalleryFilter[]).map((f) => (
                   <button
                     key={f}
                     onClick={() => setGalleryFilter(f)}
-                    className="text-[13px] font-medium transition-colors capitalize"
-                    style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)" }}
+                    className="text-[13px] font-medium transition-all capitalize px-3 py-1 rounded-md"
+                    style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)", background: galleryFilter === f ? "var(--bg-primary)" : "transparent", boxShadow: galleryFilter === f ? "var(--shadow-segment-active)" : "none" }}
                   >
                     {f === "all" ? "All" : f === "images" ? "Images" : "Videos"}
                   </button>
@@ -760,9 +761,9 @@ export default function VideoGenerator() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>{galleryItems.length} items</span>
-                <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+                <div className="flex items-center rounded-lg overflow-hidden p-0.5" style={{ background: "var(--bg-secondary)", boxShadow: "var(--shadow-segment-inset)" }}>
                   {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                    <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 transition-colors" style={{ background: gridSize === key ? "var(--bg-tertiary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined }}>
+                    <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 rounded-md transition-all" style={{ background: gridSize === key ? "var(--bg-primary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", boxShadow: gridSize === key ? "var(--shadow-segment-active)" : "none" }}>
                       {icon}
                     </button>
                   ))}

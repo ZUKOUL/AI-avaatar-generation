@@ -217,3 +217,86 @@ async def reset_password(body: ResetPasswordBody):
         pass
 
     return {"message": "Password has been reset successfully. You can now log in."}
+
+
+# ── Profile endpoints ──
+
+
+@router.get("/profile")
+async def get_profile(current_user: Annotated[User, Depends(get_current_user)]):
+    """Get the current user's profile."""
+    try:
+        res = supabase.table("users").select("id, email, role, username").eq("id", current_user["id"]).limit(1).execute()
+    except Exception:
+        # Fallback if username column doesn't exist yet
+        res = supabase.table("users").select("id, email, role").eq("id", current_user["id"]).limit(1).execute()
+    if not res.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    row = res.data[0]
+    return {
+        "id": str(row["id"]),
+        "email": row["email"],
+        "username": row.get("username", ""),
+        "role": row.get("role", "user"),
+    }
+
+
+class UpdateProfileBody(BaseModel):
+    username: str | None = None
+
+
+@router.patch("/profile")
+async def update_profile(
+    body: UpdateProfileBody,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Update the current user's profile (username)."""
+    update_data = {}
+    if body.username is not None:
+        update_data["username"] = body.username.strip()[:50]  # max 50 chars
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+    supabase.table("users").update(update_data).eq("id", current_user["id"]).execute()
+    return {"message": "Profile updated successfully", **update_data}
+
+
+class ChangePasswordBody(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length(cls, v: str) -> str:
+        if len(v) < MIN_PASSWORD_LEN:
+            raise ValueError(f"Password must be at least {MIN_PASSWORD_LEN} characters")
+        return v
+
+
+@router.post("/change-password")
+async def change_password(
+    body: ChangePasswordBody,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Change the current user's password (requires current password)."""
+    res = (
+        supabase.table("users")
+        .select("password_hash")
+        .eq("id", current_user["id"])
+        .limit(1)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not verify_password(body.current_password, res.data[0]["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "WRONG_PASSWORD", "message": "Current password is incorrect"},
+        )
+
+    new_hash = hash_password(body.new_password)
+    supabase.table("users").update({"password_hash": new_hash}).eq("id", current_user["id"]).execute()
+    return {"message": "Password changed successfully"}

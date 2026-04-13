@@ -24,6 +24,8 @@
   --scrollbar-thumb: #333;
   --scrollbar-hover: #555;
   --focus-border: #555;
+  --shadow-segment-inset: inset 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 2px rgba(0,0,0,0.15);
+  --shadow-segment-active: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* ===== LIGHT THEME ===== */
@@ -48,6 +50,8 @@
   --scrollbar-thumb: #ccc;
   --scrollbar-hover: #aaa;
   --focus-border: #999;
+  --shadow-segment-inset: inset 0 2px 4px rgba(0,0,0,0.07), inset 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-segment-active: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
 }
 
 @theme inline {

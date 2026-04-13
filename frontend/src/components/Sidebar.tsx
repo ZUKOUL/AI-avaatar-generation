@@ -11,6 +11,7 @@ import {
   ImageSquare,
   VideoCamera,
   CreditCard,
+  Settings,
   SignOut,
   Sun,
   Moon,
@@ -29,6 +30,7 @@ const NAV_TOOLS = [
 
 const NAV_ACCOUNT = [
   { href: "/dashboard/credits", label: "Credits", icon: CreditCard },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {

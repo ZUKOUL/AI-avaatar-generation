@@ -93,4 +93,16 @@ export const paymentsAPI = {
     api.post("/payments/create-checkout-session", { tier }),
 };
 
+// ── User / Profile ──
+export const userAPI = {
+  getProfile: () => api.get("/auth/profile"),
+  updateProfile: (data: { username?: string }) =>
+    api.patch("/auth/profile", data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post("/auth/change-password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+};
+
 export default api;

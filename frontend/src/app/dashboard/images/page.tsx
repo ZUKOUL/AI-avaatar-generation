@@ -525,7 +525,7 @@ export default function ImageGenerator() {
 
             {/* Tabs — Image | Video (stay on same page) */}
             <div className="px-4 pt-4 pb-1">
-              <div className="flex items-center rounded-lg p-0.5" style={{ background: "var(--bg-secondary)" }}>
+              <div className="flex items-center rounded-xl p-1" style={{ background: "var(--bg-secondary)", boxShadow: "var(--shadow-segment-inset)" }}>
                 {([
                   { key: "image" as ActiveTab, icon: ImageSquare, label: "Image" },
                   { key: "video" as ActiveTab, icon: VideoCamera, label: "Video" },
@@ -536,10 +536,11 @@ export default function ImageGenerator() {
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[13px] font-medium transition-all"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium transition-all"
                       style={{
-                        background: active ? "var(--bg-tertiary)" : "transparent",
+                        background: active ? "var(--bg-primary)" : "transparent",
                         color: active ? "var(--text-primary)" : "var(--text-muted)",
+                        boxShadow: active ? "var(--shadow-segment-active)" : "none",
                       }}
                     >
                       <Icon size={14} />
@@ -934,9 +935,9 @@ export default function ImageGenerator() {
                 ) : (
                   <>
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}><ImageSquare size={14} /> Images</div>
-                    <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+                    <div className="flex items-center rounded-lg overflow-hidden p-0.5" style={{ background: "var(--bg-secondary)", boxShadow: "var(--shadow-segment-inset)" }}>
                       {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                        <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 transition-colors" style={{ background: gridSize === key ? "var(--bg-tertiary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined }}>
+                        <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 rounded-md transition-all" style={{ background: gridSize === key ? "var(--bg-primary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", boxShadow: gridSize === key ? "var(--shadow-segment-active)" : "none" }}>
                           {icon}
                         </button>
                       ))}

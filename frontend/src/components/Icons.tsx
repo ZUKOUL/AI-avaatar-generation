@@ -49,6 +49,12 @@ export { AlertCircle as Info } from "@untitledui/icons/AlertCircle";
 export { RefreshCw01 as RefreshCw } from "@untitledui/icons/RefreshCw01";
 export { CheckSquare as CheckSquareIcon } from "@untitledui/icons/CheckSquare";
 export { FolderPlus as FolderPlus } from "@untitledui/icons/FolderPlus";
+export { Settings01 as Settings } from "@untitledui/icons/Settings01";
+export { Shield01 as Shield } from "@untitledui/icons/Shield01";
+export { Globe01 as Globe } from "@untitledui/icons/Globe01";
+export { Lock01 as Lock } from "@untitledui/icons/Lock01";
+export { Check as Check } from "@untitledui/icons/Check";
+export { ChevronRight } from "@untitledui/icons/ChevronRight";
 
 // Custom Spinner (Untitled UI has no animated spinner)
 export const Spinner: React.FC<{ size?: number; color?: string; className?: string }> = ({
