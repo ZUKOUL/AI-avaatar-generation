@@ -360,7 +360,7 @@ export default function VideoGenerator() {
             <span
               key={i}
               className="relative rounded-[5px] pointer-events-auto cursor-pointer select-none"
-              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", fontWeight: 600, padding: "1px 0" }}
+              style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", fontWeight: 600, padding: "1px 14px 1px 3px", marginRight: "-11px" }}
               onClick={(e) => {
                 e.stopPropagation();
                 const r = e.currentTarget.getBoundingClientRect();
@@ -368,7 +368,7 @@ export default function VideoGenerator() {
               }}
             >
               {part}
-              <svg className="absolute -right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <svg className="absolute top-1/2 -translate-y-1/2" style={{ right: 3 }} width="8" height="8" viewBox="0 0 8 8" fill="none">
                 <path d="M2 3L4 5L6 3" stroke="#3b82f6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
