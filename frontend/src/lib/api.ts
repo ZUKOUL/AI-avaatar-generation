@@ -103,6 +103,8 @@ export const userAPI = {
       current_password: currentPassword,
       new_password: newPassword,
     }),
+  adminAddCredits: (amount: number) =>
+    api.post("/credits/admin/add", { amount, description: "Admin self-grant" }),
 };
 
 export default api;

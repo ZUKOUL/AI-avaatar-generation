@@ -19,11 +19,47 @@ import {
 /* ─── Types ─── */
 type SettingsTab = "general" | "security" | "subscription";
 
-interface Tier {
-  slug: string;
-  credits: number;
-  price_usd: number;
+type BillingCycle = "monthly" | "yearly";
+
+interface PlanFeature { text: string; }
+interface PlanDef {
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  features: PlanFeature[];
+  highlighted?: boolean;
+  current?: boolean;
+  cta: string;
+  tier: string;
 }
+
+const PLAN_DEFS: PlanDef[] = [
+  {
+    name: "Free", description: "Perfect for hobbyists, students, or early-stage creators.",
+    monthlyPrice: 0, yearlyPrice: 0, tier: "free", cta: "Current Plan", current: true,
+    features: [
+      { text: "Access to basic AI models" }, { text: "5 image generations per day" },
+      { text: "Generate up to 10 avatars" }, { text: "Watermarked exports" }, { text: "Standard quality output" },
+    ],
+  },
+  {
+    name: "Creator", description: "For indie creators, and startups who need high-quality output",
+    monthlyPrice: 20, yearlyPrice: 192, tier: "standard", cta: "Get Creator", highlighted: true,
+    features: [
+      { text: "Everything in Free" }, { text: "Unlimited image generation" },
+      { text: "Premium AI models access" }, { text: "HD exports without watermark" }, { text: "Video generation up to 30s" },
+    ],
+  },
+  {
+    name: "Studio", description: "For teams and studios that need power, speed.",
+    monthlyPrice: 40, yearlyPrice: 384, tier: "pro", cta: "Get Studio",
+    features: [
+      { text: "Everything in Creator" }, { text: "Unlimited video generation" },
+      { text: "4K export quality" }, { text: "Priority processing" }, { text: "API access" },
+    ],
+  },
+];
 
 const TABS: { key: SettingsTab; label: string; icon: React.FC<{ size?: number }> }[] = [
   { key: "general", label: "General", icon: Settings },
@@ -62,13 +98,16 @@ export default function SettingsPage() {
   const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Subscription state
-  const [balance, setBalance] = useState<number | null>(null);
-  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [billing, setBilling] = useState<BillingCycle>("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
+  // Admin state
+  const [userRole, setUserRole] = useState("");
+  const [creditAmount, setCreditAmount] = useState(120);
+  const [addingCredits, setAddingCredits] = useState(false);
 
   useEffect(() => {
     loadProfile();
-    loadSubscription();
   }, []);
 
   const loadProfile = async () => {
@@ -76,6 +115,7 @@ export default function SettingsPage() {
       const res = await userAPI.getProfile();
       setUsername(res.data.username || "");
       setEmail(res.data.email || "");
+      setUserRole(res.data.role || "user");
     } catch {
       /* silently fail */
     } finally {
@@ -83,16 +123,16 @@ export default function SettingsPage() {
     }
   };
 
-  const loadSubscription = async () => {
+  const handleSubCheckout = async (tier: string) => {
+    if (tier === "free") return;
+    setCheckoutLoading(tier);
     try {
-      const [balRes, tierRes] = await Promise.all([
-        creditsAPI.balance(),
-        paymentsAPI.tiers(),
-      ]);
-      setBalance(balRes.data.balance ?? balRes.data.credit_balance ?? 0);
-      setTiers(tierRes.data.tiers || []);
+      const res = await paymentsAPI.checkout(tier);
+      if (res.data.url) window.location.href = res.data.url;
     } catch {
-      /* silently fail */
+      alert("Failed to start checkout. Please try again.");
+    } finally {
+      setCheckoutLoading(null);
     }
   };
 
@@ -178,7 +218,7 @@ export default function SettingsPage() {
               <div
                 className="flex md:flex-col gap-1 rounded-xl p-1"
                 style={{
-                  background: "var(--bg-secondary)",
+                  background: "var(--segment-bg)",
                   boxShadow: "var(--shadow-segment-inset)",
                 }}
               >
@@ -191,7 +231,7 @@ export default function SettingsPage() {
                       onClick={() => setActiveTab(tab.key)}
                       className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all flex-1 md:flex-initial"
                       style={{
-                        background: active ? "var(--bg-primary)" : "transparent",
+                        background: active ? "var(--segment-active-bg)" : "transparent",
                         color: active ? "var(--text-primary)" : "var(--text-muted)",
                         boxShadow: active ? "var(--shadow-segment-active)" : "none",
                       }}
@@ -302,6 +342,44 @@ export default function SettingsPage() {
                         >
                           {profileMsg.type === "success" && <Check size={14} />}
                           {profileMsg.text}
+                        </div>
+                      )}
+
+                      {/* Admin: Add Credits */}
+                      {userRole === "administrator" && (
+                        <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
+                          <label className="text-[12px] font-medium block mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                            Admin — Add Credits
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              value={creditAmount}
+                              onChange={(e) => setCreditAmount(Number(e.target.value))}
+                              min={1}
+                              max={10000}
+                              className="w-24 px-3 py-2.5 rounded-lg text-[13px]"
+                              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                            />
+                            <button
+                              onClick={async () => {
+                                setAddingCredits(true);
+                                try {
+                                  const res = await userAPI.adminAddCredits(creditAmount);
+                                  setProfileMsg({ type: "success", text: `Added ${creditAmount} credits. New balance: ${res.data.new_balance}` });
+                                  setTimeout(() => setProfileMsg(null), 4000);
+                                } catch {
+                                  setProfileMsg({ type: "error", text: "Failed to add credits" });
+                                }
+                                setAddingCredits(false);
+                              }}
+                              disabled={addingCredits}
+                              className="px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all disabled:opacity-50"
+                              style={{ background: "#22c55e", color: "#fff" }}
+                            >
+                              {addingCredits ? <Spinner size={14} /> : `+ ${creditAmount} credits`}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -420,69 +498,91 @@ export default function SettingsPage() {
               {/* ─── Subscription Tab ─── */}
               {activeTab === "subscription" && (
                 <div className="animate-fadeIn">
-                  <h2 className="text-[18px] font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Subscription</h2>
-                  <p className="text-[13px] mb-6" style={{ color: "var(--text-muted)" }}>Manage your plan and credits</p>
+                  <h2 className="text-[18px] font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Choose your plan</h2>
+                  <p className="text-[13px] mb-6" style={{ color: "var(--text-muted)" }}>Manage your subscription</p>
 
-                  {/* Current balance */}
-                  <div
-                    className="rounded-xl p-5 mb-6"
-                    style={{
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <p className="text-[12px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>Current Balance</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.03em" }}>
-                        {balance !== null ? balance : "..."}
-                      </span>
-                      <span className="text-[14px]" style={{ color: "var(--text-secondary)" }}>credits</span>
+                  {/* Billing toggle */}
+                  <div className="flex mb-6">
+                    <div
+                      className="inline-flex items-center rounded-xl p-1"
+                      style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}
+                    >
+                      {(["monthly", "yearly"] as BillingCycle[]).map((cycle) => {
+                        const active = billing === cycle;
+                        return (
+                          <button
+                            key={cycle}
+                            onClick={() => setBilling(cycle)}
+                            className="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all"
+                            style={{
+                              background: active ? "var(--segment-active-bg)" : "transparent",
+                              color: active ? "var(--text-primary)" : "var(--text-muted)",
+                              boxShadow: active ? "var(--shadow-segment-active)" : "none",
+                            }}
+                          >
+                            {cycle === "monthly" ? "Pay monthly" : "Pay yearly"}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Credit tiers */}
-                  <span className="text-[11px] font-medium uppercase tracking-wider block mb-3" style={{ color: "var(--text-muted)" }}>
-                    Buy Credits
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {tiers.map((tier, i) => (
-                      <div
-                        key={tier.slug}
-                        className="rounded-xl p-4 transition-all hover:-translate-y-0.5"
-                        style={{
-                          background: "var(--bg-secondary)",
-                          border: i === 1 ? "2px solid #3b82f6" : "1px solid var(--border-color)",
-                        }}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <Zap size={16} style={{ color: i === 1 ? "#3b82f6" : "var(--text-primary)" }} />
-                          <span className="font-semibold capitalize text-[14px]" style={{ color: "var(--text-primary)" }}>
-                            {tier.slug}
-                          </span>
-                          {i === 1 && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6" }}>
-                              Popular
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-baseline gap-1 mb-0.5">
-                          <span className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>${tier.price_usd}</span>
-                        </div>
-                        <p className="text-[12px] mb-3" style={{ color: "var(--text-secondary)" }}>{tier.credits} credits</p>
-                        <button
-                          onClick={() => handleCheckout(tier.slug)}
-                          disabled={checkoutLoading === tier.slug}
-                          className="w-full py-2 rounded-lg font-medium text-[12px] flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                  {/* Plan cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {PLAN_DEFS.map((plan) => {
+                      const perMonth = billing === "yearly" && plan.monthlyPrice > 0
+                        ? Math.round(plan.yearlyPrice / 12)
+                        : plan.monthlyPrice;
+                      return (
+                        <div
+                          key={plan.name}
+                          className="relative rounded-2xl overflow-hidden flex flex-col"
                           style={{
-                            background: i === 1 ? "#3b82f6" : "var(--bg-tertiary)",
-                            color: i === 1 ? "#fff" : "var(--text-primary)",
-                            border: i === 1 ? "none" : "1px solid var(--border-color)",
+                            background: "var(--bg-secondary)",
+                            border: plan.highlighted ? "2px solid var(--text-primary)" : "1px solid var(--border-color)",
                           }}
                         >
-                          {checkoutLoading === tier.slug ? <Spinner size={14} /> : "Purchase"}
-                        </button>
-                      </div>
-                    ))}
+                          {plan.highlighted && (
+                            <div className="absolute top-0 right-0 w-20 h-20 overflow-hidden" style={{ pointerEvents: "none" }}>
+                              <div className="absolute -top-1 -right-1 w-24 h-24 rounded-bl-[100%]" style={{ background: "linear-gradient(135deg, rgba(120,120,120,0.3), rgba(80,80,80,0.15))" }} />
+                            </div>
+                          )}
+                          <div className="p-5 flex flex-col flex-1">
+                            <h3 className="text-[16px] font-semibold mb-1.5" style={{ color: "var(--text-primary)" }}>{plan.name}</h3>
+                            <p className="text-[12px] leading-relaxed mb-4" style={{ color: "var(--text-secondary)", minHeight: "32px" }}>{plan.description}</p>
+                            <div className="flex items-baseline gap-1 mb-1">
+                              <span className="text-[28px] font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.03em" }}>${perMonth}</span>
+                              <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>USD / month</span>
+                            </div>
+                            {billing === "yearly" && plan.monthlyPrice > 0 && (
+                              <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>${plan.yearlyPrice} billed yearly</p>
+                            )}
+                            {(billing === "monthly" || plan.monthlyPrice === 0) && <div className="mb-3" />}
+                            <button
+                              onClick={() => handleSubCheckout(plan.tier)}
+                              disabled={plan.current || checkoutLoading === plan.tier}
+                              className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed mb-4"
+                              style={{
+                                background: plan.current ? "var(--bg-tertiary)" : plan.highlighted ? "var(--bg-tertiary)" : "var(--text-primary)",
+                                color: plan.current ? "var(--text-muted)" : plan.highlighted ? "var(--text-primary)" : "var(--bg-primary)",
+                                border: plan.highlighted ? "1px solid var(--border-color)" : "none",
+                                opacity: plan.current ? 0.6 : 1,
+                              }}
+                            >
+                              {checkoutLoading === plan.tier ? <Spinner size={14} /> : plan.current ? "Current Plan" : plan.cta}
+                            </button>
+                            <div className="space-y-2.5">
+                              {plan.features.map((f, i) => (
+                                <div key={i} className="flex items-start gap-2">
+                                  <div className="mt-0.5 shrink-0"><Check size={14} style={{ color: "var(--text-primary)" }} /></div>
+                                  <span className="text-[12px] leading-snug" style={{ color: "var(--text-secondary)" }}>{f.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
