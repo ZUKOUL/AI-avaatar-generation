@@ -46,6 +46,9 @@ export { Stars01 as SparkleIcon } from "@untitledui/icons/Stars01";
 export { Coins01 as Coins } from "@untitledui/icons/Coins01";
 export { Film01 as Video } from "@untitledui/icons/Film01";
 export { AlertCircle as Info } from "@untitledui/icons/AlertCircle";
+export { RefreshCw01 as RefreshCw } from "@untitledui/icons/RefreshCw01";
+export { CheckSquare as CheckSquareIcon } from "@untitledui/icons/CheckSquare";
+export { FolderPlus as FolderPlus } from "@untitledui/icons/FolderPlus";
 
 // Custom Spinner (Untitled UI has no animated spinner)
 export const Spinner: React.FC<{ size?: number; color?: string; className?: string }> = ({

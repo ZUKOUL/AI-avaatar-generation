@@ -21,6 +21,9 @@ import {
   ChevronDown,
   Search,
   Maximize,
+  Trash,
+  RefreshCw,
+  Copy,
 } from "@/components/Icons";
 
 /* ─── Types ─── */
@@ -120,6 +123,7 @@ export default function ImageGenerator() {
   const [imageModel, setImageModel] = useState(IMAGE_MODELS[0].id);
   const [videoModel, setVideoModel] = useState(VIDEO_MODELS[0].id);
   const [gridSize, setGridSize] = useState<GridSize>("medium");
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
 
   // Video-specific
   const [videoRefPreview, setVideoRefPreview] = useState<string | null>(null);
@@ -276,6 +280,39 @@ export default function ImageGenerator() {
       }
       return <span key={i} style={{ color: "var(--text-primary)" }}>{part}</span>;
     });
+  };
+
+  // ── Image selection ──
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedImages((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleReusePrompt = () => {
+    const img = images.find((i) => selectedImages.has(i.image_id));
+    if (img?.prompt) {
+      setPrompt(img.prompt);
+      if (img.avatar_id) setSelectedAvatar(img.avatar_id);
+    }
+    setSelectedImages(new Set());
+  };
+
+  const handleDownloadSelected = async () => {
+    for (const id of selectedImages) {
+      const img = images.find((i) => i.image_id === id);
+      if (img) await handleDownload(img.image_url, `horpen-${img.image_id}.png`);
+    }
+    setSelectedImages(new Set());
+  };
+
+  const handleDeleteSelected = async () => {
+    // TODO: hook up to backend delete endpoint when available
+    setSelectedImages(new Set());
   };
 
   // Drag & drop (hold-to-drag)
@@ -843,18 +880,69 @@ export default function ImageGenerator() {
           </div>
 
           {/* ═══ Right Panel (Gallery) ═══ */}
-          <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-primary)" }}>
+          <div className="flex-1 overflow-y-auto relative" style={{ background: "var(--bg-primary)" }}>
             <div className="flex items-center justify-between px-4 md:px-6 py-3 sticky top-0 z-10" style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color)" }}>
-              <span className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>{images.length > 0 ? `${images.length} image${images.length !== 1 ? "s" : ""}` : "Gallery"}</span>
+              <span className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                {selectedImages.size > 0
+                  ? `${selectedImages.size} selected`
+                  : images.length > 0 ? `${images.length} image${images.length !== 1 ? "s" : ""}` : "Gallery"}
+              </span>
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}><ImageSquare size={14} /> Images</div>
-                <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
-                  {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                    <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 transition-colors" style={{ background: gridSize === key ? "var(--bg-tertiary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined }}>
-                      {icon}
+                {selectedImages.size > 0 ? (
+                  <>
+                    <button
+                      onClick={handleReusePrompt}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                      style={{ color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      title="Reuse prompt"
+                    >
+                      <RefreshCw size={13} /> Reuse
                     </button>
-                  ))}
-                </div>
+                    <button
+                      onClick={handleDownloadSelected}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                      style={{ color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      title="Download"
+                    >
+                      <Download size={13} /> Download
+                    </button>
+                    <button
+                      onClick={handleDeleteSelected}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                      style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239,68,68,0.1)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      title="Delete"
+                    >
+                      <Trash size={13} /> Delete
+                    </button>
+                    <button
+                      onClick={() => setSelectedImages(new Set())}
+                      className="p-1.5 rounded-lg transition-colors"
+                      style={{ color: "var(--text-muted)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      title="Clear selection"
+                    >
+                      <XIcon size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}><ImageSquare size={14} /> Images</div>
+                    <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+                      {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
+                        <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 transition-colors" style={{ background: gridSize === key ? "var(--bg-tertiary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined }}>
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="px-4 md:px-6 py-4">
@@ -868,18 +956,35 @@ export default function ImageGenerator() {
                 <div key={group.label} className="mb-6">
                   <span className="text-[12px] font-medium block mb-3" style={{ color: "var(--text-muted)" }}>{group.label}</span>
                   <div className={`grid gap-2 ${GRID_COLS[gridSize]}`}>
-                    {group.items.map((img) => (
-                      <div key={img.image_id} className="rounded-xl overflow-hidden group relative cursor-pointer select-none" onPointerDown={(e) => onPointerDownGallery(e, img.image_url)}>
-                        <div className="aspect-square overflow-hidden"><img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03] pointer-events-none" draggable={false} /></div>
-                        <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
-                          <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>G</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>2K</span>
+                    {group.items.map((img) => {
+                      const isSelected = selectedImages.has(img.image_id);
+                      return (
+                        <div key={img.image_id} className="rounded-xl overflow-hidden group relative cursor-pointer select-none" style={isSelected ? { outline: "2px solid #3b82f6", outlineOffset: "-2px", borderRadius: "12px" } : {}} onPointerDown={(e) => onPointerDownGallery(e, img.image_url)}>
+                          <div className="aspect-square overflow-hidden"><img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03] pointer-events-none" draggable={false} /></div>
+                          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
+                            <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>G</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>2K</span>
+                          </div>
+                          {/* Checkbox — top left */}
+                          <button
+                            className={`absolute top-2 left-2 w-5 h-5 rounded flex items-center justify-center transition-all ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                            style={{ background: isSelected ? "#3b82f6" : "rgba(0,0,0,0.5)", border: isSelected ? "none" : "1.5px solid rgba(255,255,255,0.6)" }}
+                            onClick={(e) => toggleSelect(img.image_id, e)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            {isSelected && (
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            )}
+                          </button>
+                          {/* Download — top right */}
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => { e.stopPropagation(); handleDownload(img.image_url, `horpen-${img.image_id}.png`); }} onPointerDown={(e) => e.stopPropagation()}><Download size={14} /></button>
+                          </div>
+                          {/* Hover overlay */}
+                          {!isSelected && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all pointer-events-none" />}
                         </div>
-                        <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-all flex items-start justify-end p-2 opacity-0 group-hover:opacity-100">
-                          <button className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => { e.stopPropagation(); handleDownload(img.image_url, `horpen-${img.image_id}.png`); }}><Download size={14} /></button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
