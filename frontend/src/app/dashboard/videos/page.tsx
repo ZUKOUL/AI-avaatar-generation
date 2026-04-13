@@ -75,9 +75,9 @@ export default function VideoGenerator() {
                   <button key={e} onClick={() => { setEngine(e); if (e === "veo") setAudio(false); }}
                     className="flex-1 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all"
                     style={{
-                      background: engine === e ? "var(--text-primary)" : "var(--bg-tertiary)",
-                      color: engine === e ? "#000" : "var(--text-secondary)",
-                      border: `1px solid ${engine === e ? "var(--text-primary)" : "var(--border-color)"}`,
+                      background: engine === e ? "#3b82f6" : "var(--bg-tertiary)",
+                      color: engine === e ? "#fff" : "var(--text-secondary)",
+                      border: `1px solid ${engine === e ? "#3b82f6" : "var(--border-color)"}`,
                     }}
                   >
                     {e === "veo" ? "Veo 3.1 · 8s" : "Kling · 5s"}
@@ -101,7 +101,7 @@ export default function VideoGenerator() {
                     style={{
                       background: sourceType === s ? "var(--bg-hover)" : "var(--bg-tertiary)",
                       color: sourceType === s ? "var(--text-primary)" : "var(--text-secondary)",
-                      border: `1px solid ${sourceType === s ? "var(--text-primary)" : "var(--border-color)"}`,
+                      border: `1px solid ${sourceType === s ? "#3b82f6" : "var(--border-color)"}`,
                     }}
                   >
                     {s === "avatar" ? "From Avatar" : "From Image"}
