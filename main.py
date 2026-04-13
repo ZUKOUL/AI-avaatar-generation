@@ -54,6 +54,34 @@ app.include_router(
     dependencies=[Depends(get_current_user)],
 )
 
+# ── One-time startup migration ──
+@app.on_event("startup")
+async def startup_migration():
+    """Ensure admin account is set up properly."""
+    import logging
+    logger = logging.getLogger("startup")
+    try:
+        from app.core.supabase import supabase
+        from app.services.credit_service import add_credits, get_balance
+
+        ADMIN_EMAIL = "anskoju@gmail.com"
+        res = supabase.table("users").select("id, email, role, credit_balance").eq("email", ADMIN_EMAIL).limit(1).execute()
+        if res.data and len(res.data) > 0:
+            user = res.data[0]
+            user_id = str(user["id"])
+            # Set admin role if not already
+            if user.get("role") != "administrator":
+                supabase.table("users").update({"role": "administrator"}).eq("id", user_id).execute()
+                logger.info(f"Set {ADMIN_EMAIL} as administrator")
+            # Add 120 credits if balance is low
+            balance = user.get("credit_balance", 0) or 0
+            if balance < 50:
+                add_credits(user_id, 120, "admin_grant", "Startup admin credit grant")
+                logger.info(f"Added 120 credits to {ADMIN_EMAIL}. Old balance: {balance}")
+    except Exception as e:
+        logger.warning(f"Startup migration skipped: {e}")
+
+
 # 3. Health Check / Root Endpoint
 @app.get("/", tags=["System"])
 async def root():
