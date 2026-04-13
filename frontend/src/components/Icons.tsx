@@ -16,6 +16,16 @@ export { Plus } from "@untitledui/icons/Plus";
 export { Zap } from "@untitledui/icons/Zap";
 export { Sun } from "@untitledui/icons/Sun";
 export { Clock } from "@untitledui/icons/Clock";
+export { Minus } from "@untitledui/icons/Minus";
+export { MagicWand02 as MagicWand } from "@untitledui/icons/MagicWand02";
+export { Brush01 as Brush } from "@untitledui/icons/Brush01";
+export { ChevronDown } from "@untitledui/icons/ChevronDown";
+export { Download01 as Download } from "@untitledui/icons/Download01";
+export { Trash01 as Trash } from "@untitledui/icons/Trash01";
+export { Copy01 as Copy } from "@untitledui/icons/Copy01";
+export { LayoutGrid02 as LayoutGrid } from "@untitledui/icons/LayoutGrid02";
+export { Grid01 as Grid } from "@untitledui/icons/Grid01";
+export { Maximize01 as Maximize } from "@untitledui/icons/Maximize01";
 
 // Renamed re-exports
 export { Home01 as House } from "@untitledui/icons/Home01";
