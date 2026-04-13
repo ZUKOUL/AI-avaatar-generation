@@ -11,7 +11,6 @@ import {
   VideoCamera,
   ArrowRight,
   Plus,
-  SparkleIcon,
   Clock,
 } from "@/components/Icons";
 
@@ -231,18 +230,6 @@ export default function DashboardHome() {
                 </button>
               </div>
               <div className="flex items-center gap-1">
-                <button
-                  className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: "var(--text-muted)" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "var(--bg-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <SparkleIcon size={18} />
-                </button>
                 <button
                   onClick={handlePromptSubmit}
                   className="p-1.5 rounded-lg transition-colors"
