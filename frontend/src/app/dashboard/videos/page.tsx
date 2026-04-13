@@ -84,11 +84,15 @@ export default function VideoGenerator() {
   // Image picker from gallery
   const [pickingFor, setPickingFor] = useState<"start" | "end" | null>(null);
 
-  // Drag & drop
-  const [dragOverStart, setDragOverStart] = useState(false);
-  const [dragOverEnd, setDragOverEnd] = useState(false);
-  const [dragOverPrompt, setDragOverPrompt] = useState(false);
+  // Drag & drop (custom pointer-based, not HTML5 drag)
+  const [draggingUrl, setDraggingUrl] = useState<string | null>(null);
+  const [draggingThumb, setDraggingThumb] = useState<string | null>(null);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [dragOverZone, setDragOverZone] = useState<"start" | "end" | "prompt" | null>(null);
   const [describing, setDescribing] = useState(false);
+  const startZoneRef = useRef<HTMLDivElement>(null);
+  const endZoneRef = useRef<HTMLDivElement>(null);
+  const promptZoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -132,34 +136,55 @@ export default function VideoGenerator() {
     setPickingFor(null);
   };
 
-  /* ─── Drag & Drop handlers ─── */
-  const onDragStartImage = (e: React.DragEvent, url: string) => {
-    e.dataTransfer.setData("text/plain", url);
-    e.dataTransfer.effectAllowed = "copy";
+  /* ─── Custom drag system (pointer-based with ghost badge) ─── */
+  const hitTest = (x: number, y: number): "start" | "end" | "prompt" | null => {
+    for (const [ref, zone] of [[startZoneRef, "start"], [endZoneRef, "end"], [promptZoneRef, "prompt"]] as const) {
+      const el = ref.current;
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return zone;
+    }
+    return null;
   };
 
-  const onDropToRef = async (target: "start" | "end", e: React.DragEvent) => {
+  const onPointerDownImage = (e: React.PointerEvent, url: string, thumb: string) => {
+    // Only left click
+    if (e.button !== 0) return;
     e.preventDefault();
-    const url = e.dataTransfer.getData("text/plain");
-    if (!url) return;
-    if (target === "start") { setStartImageUrl(url); setStartImageFile(null); setDragOverStart(false); }
-    else { setEndImageUrl(url); setEndImageFile(null); setDragOverEnd(false); }
-  };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDraggingUrl(url);
+    setDraggingThumb(thumb);
+    setDragPos({ x: e.clientX, y: e.clientY });
 
-  const onDropToPrompt = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverPrompt(false);
-    const url = e.dataTransfer.getData("text/plain");
-    if (!url) return;
-    // Call AI to describe the image
-    setDescribing(true);
-    try {
-      const res = await avatarAPI.describeImage(url);
-      const desc = res.data.description || "";
-      setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
-    } catch {
-      setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
-    } finally { setDescribing(false); }
+    const onMove = (ev: PointerEvent) => {
+      setDragPos({ x: ev.clientX, y: ev.clientY });
+      setDragOverZone(hitTest(ev.clientX, ev.clientY));
+    };
+    const onUp = (ev: PointerEvent) => {
+      const zone = hitTest(ev.clientX, ev.clientY);
+      if (zone === "start") { setStartImageUrl(url); setStartImageFile(null); }
+      else if (zone === "end") { setEndImageUrl(url); setEndImageFile(null); }
+      else if (zone === "prompt") {
+        // Describe image with AI
+        setDescribing(true);
+        avatarAPI.describeImage(url)
+          .then((res) => {
+            const desc = res.data.description || "";
+            setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+          })
+          .catch(() => {
+            setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
+          })
+          .finally(() => setDescribing(false));
+      }
+      setDraggingUrl(null);
+      setDraggingThumb(null);
+      setDragOverZone(null);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   };
 
   /* ─── Download helper ─── */
@@ -297,15 +322,11 @@ export default function VideoGenerator() {
             <div className="px-4 pb-3">
               <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>References</span>
               <div className="flex items-start gap-2">
-                {/* Start image — droppable */}
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setDragOverStart(true); }}
-                  onDragLeave={() => setDragOverStart(false)}
-                  onDrop={(e) => onDropToRef("start", e)}
-                >
+                {/* Start image — drop zone */}
+                <div ref={startZoneRef}>
                   {startImageUrl ? (
                     <div className="relative">
-                      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
+                      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: `1.5px solid ${dragOverZone === "start" ? "#22c55e" : "#3b82f6"}`, boxShadow: dragOverZone === "start" ? "0 0 0 3px rgba(34,197,94,0.2)" : "none" }}>
                         <img src={startImageUrl} alt="Start" className="w-full h-full object-cover" />
                       </div>
                       <button onClick={() => { setStartImageUrl(null); setStartImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
@@ -317,7 +338,7 @@ export default function VideoGenerator() {
                     <button
                       onClick={() => startInputRef.current?.click()}
                       className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
-                      style={{ border: `1.5px dashed ${dragOverStart ? "#3b82f6" : "var(--border-color)"}`, color: dragOverStart ? "#3b82f6" : "var(--text-muted)", background: dragOverStart ? "rgba(59,130,246,0.08)" : "transparent" }}
+                      style={{ border: `1.5px dashed ${dragOverZone === "start" ? "#22c55e" : "var(--border-color)"}`, color: dragOverZone === "start" ? "#22c55e" : "var(--text-muted)", background: dragOverZone === "start" ? "rgba(34,197,94,0.08)" : "transparent" }}
                     >
                       <Upload size={16} />
                       <span className="text-[10px] mt-1">Start image</span>
@@ -326,15 +347,11 @@ export default function VideoGenerator() {
                 </div>
                 <input ref={startInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStartImage(f); }} />
 
-                {/* End image — droppable */}
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setDragOverEnd(true); }}
-                  onDragLeave={() => setDragOverEnd(false)}
-                  onDrop={(e) => onDropToRef("end", e)}
-                >
+                {/* End image — drop zone */}
+                <div ref={endZoneRef}>
                   {endImageUrl ? (
                     <div className="relative">
-                      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
+                      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: `1.5px solid ${dragOverZone === "end" ? "#22c55e" : "#3b82f6"}`, boxShadow: dragOverZone === "end" ? "0 0 0 3px rgba(34,197,94,0.2)" : "none" }}>
                         <img src={endImageUrl} alt="End" className="w-full h-full object-cover" />
                       </div>
                       <button onClick={() => { setEndImageUrl(null); setEndImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
@@ -346,7 +363,7 @@ export default function VideoGenerator() {
                     <button
                       onClick={() => endInputRef.current?.click()}
                       className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
-                      style={{ border: `1.5px dashed ${dragOverEnd ? "#3b82f6" : "var(--border-color)"}`, color: dragOverEnd ? "#3b82f6" : "var(--text-muted)", background: dragOverEnd ? "rgba(59,130,246,0.08)" : "transparent" }}
+                      style={{ border: `1.5px dashed ${dragOverZone === "end" ? "#22c55e" : "var(--border-color)"}`, color: dragOverZone === "end" ? "#22c55e" : "var(--text-muted)", background: dragOverZone === "end" ? "rgba(34,197,94,0.08)" : "transparent" }}
                     >
                       <Upload size={16} />
                       <span className="text-[10px] mt-1">End image</span>
@@ -395,13 +412,8 @@ export default function VideoGenerator() {
               </div>
             )}
 
-            {/* Prompt — droppable (auto-describes image) */}
-            <div
-              className="flex-1 px-4 pb-3 flex flex-col min-h-0"
-              onDragOver={(e) => { e.preventDefault(); setDragOverPrompt(true); }}
-              onDragLeave={() => setDragOverPrompt(false)}
-              onDrop={onDropToPrompt}
-            >
+            {/* Prompt — drop zone (auto-describes image) */}
+            <div ref={promptZoneRef} className="flex-1 px-4 pb-3 flex flex-col min-h-0">
               <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
                 Shot {describing && <span className="ml-1 text-[10px] normal-case" style={{ color: "#3b82f6" }}>— Describing image…</span>}
               </span>
@@ -412,9 +424,9 @@ export default function VideoGenerator() {
                 className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[100px] transition-colors"
                 style={{
                   background: "var(--bg-secondary)",
-                  border: `1.5px solid ${dragOverPrompt ? "#3b82f6" : "var(--border-color)"}`,
+                  border: `1.5px solid ${dragOverZone === "prompt" ? "#3b82f6" : "var(--border-color)"}`,
                   color: "var(--text-primary)",
-                  boxShadow: dragOverPrompt ? "0 0 0 3px rgba(59,130,246,0.15)" : "none",
+                  boxShadow: dragOverZone === "prompt" ? "0 0 0 3px rgba(59,130,246,0.15)" : "none",
                 }}
                 onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); } }}
               />
@@ -536,13 +548,12 @@ export default function VideoGenerator() {
                       return (
                         <div
                           key={`img-${img.image_id}`}
-                          draggable
-                          onDragStart={(e) => onDragStartImage(e, img.image_url)}
-                          className={`rounded-xl overflow-hidden group relative cursor-grab active:cursor-grabbing ${isPickable ? "ring-2 ring-transparent hover:ring-blue-500" : ""}`}
+                          onPointerDown={(e) => onPointerDownImage(e, img.image_url, img.image_url)}
+                          className={`rounded-xl overflow-hidden group relative cursor-grab active:cursor-grabbing select-none ${isPickable ? "ring-2 ring-transparent hover:ring-blue-500" : ""}`}
                           onClick={() => { if (isPickable) selectGalleryImage(img.image_url); }}
                         >
                           <div className="aspect-square overflow-hidden">
-                            <img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]" draggable={false} />
+                            <img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03] pointer-events-none" draggable={false} />
                           </div>
                           {/* Badges */}
                           <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
@@ -608,6 +619,29 @@ export default function VideoGenerator() {
           </div>
         </div>
       </div>
+
+      {/* ═══ Floating drag ghost — "1 item" badge like Freepik ═══ */}
+      {draggingUrl && (
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{ left: dragPos.x, top: dragPos.y, transform: "translate(-50%, -110%)" }}
+        >
+          <div className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl" style={{ background: "#22c55e", boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}>
+            {draggingThumb && (
+              <img src={draggingThumb} alt="" className="w-10 h-10 rounded-lg object-cover" draggable={false} />
+            )}
+            <span className="text-[13px] font-semibold text-white whitespace-nowrap">1 item</span>
+          </div>
+          {/* Zone indicator */}
+          {dragOverZone && (
+            <div className="text-center mt-1">
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>
+                {dragOverZone === "start" ? "→ Start image" : dragOverZone === "end" ? "→ End image" : "→ Describe in prompt"}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
