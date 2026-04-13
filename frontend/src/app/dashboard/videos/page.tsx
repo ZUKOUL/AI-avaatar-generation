@@ -1,58 +1,148 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import Header from "@/components/Header";
 import { avatarAPI, videoAPI } from "@/lib/api";
-import { SparkleIcon, Spinner, Video as VideoIcon, UserCircle, Play } from "@/components/Icons";
+import {
+  Spinner,
+  Video as VideoIcon,
+  Upload,
+  XIcon,
+  CaretLeft,
+  ChevronDown,
+  ImageSquare,
+  Play,
+  Grid,
+  LayoutGrid,
+  Download,
+} from "@/components/Icons";
 
-interface Avatar { avatar_id: string; name: string; thumbnail: string; }
-interface GeneratedImage { image_id: string; image_url: string; prompt: string; }
+/* ─── Types ─── */
+interface GeneratedImage { image_id: string; image_url: string; prompt: string; created_at: string; }
 interface VideoJob { job_id: string; avatar_id?: string; operation_id: string; status: string; video_url?: string; motion_prompt?: string; engine?: string; created_at: string; }
 
+type GridSize = "small" | "medium" | "large";
+type GalleryFilter = "all" | "images" | "videos";
+
+const VIDEO_MODELS = [
+  { id: "veo", name: "Veo 3.1", duration: "8s", icon: "V" },
+  { id: "kling", name: "Kling", duration: "5s", icon: "K" },
+];
+
+const ASPECT_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
+
+const GRID_COLS: Record<GridSize, string> = {
+  small: "grid-cols-3 sm:grid-cols-4 md:grid-cols-5",
+  medium: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
+  large: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3",
+};
+
+/* ─── RatioIcon ─── */
+function RatioIcon({ ratio }: { ratio: string }) {
+  const dims: Record<string, [number, number]> = {
+    "16:9": [16, 9], "9:16": [9, 16], "1:1": [12, 12], "4:3": [14, 10], "3:4": [10, 14],
+  };
+  const [w, h] = dims[ratio] || [12, 12];
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+      <rect x={(18 - w) / 2} y={(18 - h) / 2} width={w} height={h} rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+    </svg>
+  );
+}
+
 export default function VideoGenerator() {
+  /* ─── State ─── */
   const [motionPrompt, setMotionPrompt] = useState("");
-  const [engine, setEngine] = useState<"veo" | "kling">("veo");
+  const [engine, setEngine] = useState(VIDEO_MODELS[0].id);
   const [audio, setAudio] = useState(false);
-  const [sourceType, setSourceType] = useState<"avatar" | "image">("avatar");
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState("16:9");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [avatars, setAvatars] = useState<Avatar[]>([]);
+
+  // Start / End image refs
+  const [startImageUrl, setStartImageUrl] = useState<string | null>(null);
+  const [startImageFile, setStartImageFile] = useState<File | null>(null);
+  const [endImageUrl, setEndImageUrl] = useState<string | null>(null);
+  const [endImageFile, setEndImageFile] = useState<File | null>(null);
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
+
+  // Gallery data
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [videos, setVideos] = useState<VideoJob[]>([]);
-  const [loadingVideos, setLoadingVideos] = useState(true);
+  const [loadingGallery, setLoadingGallery] = useState(true);
+  const [galleryFilter, setGalleryFilter] = useState<GalleryFilter>("all");
+  const [gridSize, setGridSize] = useState<GridSize>("medium");
+
+  // Dropdowns
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [showRatioDropdown, setShowRatioDropdown] = useState(false);
+
+  // Image picker from gallery
+  const [pickingFor, setPickingFor] = useState<"start" | "end" | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = () => { setShowModelDropdown(false); setShowRatioDropdown(false); };
+    if (showModelDropdown || showRatioDropdown) {
+      setTimeout(() => document.addEventListener("click", handler, { once: true }), 0);
+    }
+  }, [showModelDropdown, showRatioDropdown]);
+
   const loadData = async () => {
     try {
-      const [avatarRes, imageRes, videoRes] = await Promise.all([avatarAPI.list(), avatarAPI.getImages(undefined, 20), videoAPI.history()]);
-      setAvatars(avatarRes.data.avatars || []);
+      const [imageRes, videoRes] = await Promise.all([avatarAPI.getImages(undefined, 50), videoAPI.history()]);
       setImages(imageRes.data.images || []);
       setVideos(videoRes.data.videos || []);
     } catch { /* silently fail */ }
-    finally { setLoadingVideos(false); }
+    finally { setLoadingGallery(false); }
   };
 
+  const currentModel = VIDEO_MODELS.find((m) => m.id === engine) || VIDEO_MODELS[0];
   const creditCost = engine === "kling" ? (audio ? 12 : 8) : 15;
+
+  const handleStartImage = (file: File) => {
+    setStartImageFile(file);
+    setStartImageUrl(URL.createObjectURL(file));
+  };
+  const handleEndImage = (file: File) => {
+    setEndImageFile(file);
+    setEndImageUrl(URL.createObjectURL(file));
+  };
+
+  const selectGalleryImage = (url: string) => {
+    if (pickingFor === "start") {
+      setStartImageUrl(url);
+      setStartImageFile(null); // URL from gallery, no file
+    } else if (pickingFor === "end") {
+      setEndImageUrl(url);
+      setEndImageFile(null);
+    }
+    setPickingFor(null);
+  };
 
   const handleGenerate = async () => {
     if (!motionPrompt.trim()) return;
-    if (sourceType === "avatar" && !selectedAvatar) { setError("Please select an avatar."); return; }
-    if (sourceType === "image" && !selectedImage) { setError("Please select an image."); return; }
+    if (!startImageUrl) { setError("Please add a start image."); return; }
     setLoading(true); setError(""); setSuccess("");
     const formData = new FormData();
     formData.append("motion_prompt", motionPrompt);
     formData.append("engine_choice", engine);
     formData.append("audio", audio.toString());
-    if (sourceType === "avatar" && selectedAvatar) formData.append("avatar_id", selectedAvatar);
-    if (sourceType === "image" && selectedImage) formData.append("image_id", selectedImage);
+    if (startImageFile) formData.append("files", startImageFile);
+    if (endImageFile) formData.append("files", endImageFile);
+    // If using gallery image URL (no file), pass as param
+    if (startImageUrl && !startImageFile) formData.append("start_image_url", startImageUrl);
+    if (endImageUrl && !endImageFile) formData.append("end_image_url", endImageUrl);
     try {
       const res = await videoAPI.animate(formData);
-      setSuccess(`Video generation started! Operation: ${res.data.operation_id}. It may take 1-3 minutes.`);
-      setMotionPrompt(""); loadData();
+      setSuccess(`Video generation started! Operation: ${res.data.operation_id}`);
+      setMotionPrompt("");
+      loadData();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string | { message?: string } } } };
       const detail = e.response?.data?.detail;
@@ -62,140 +152,357 @@ export default function VideoGenerator() {
     } finally { setLoading(false); }
   };
 
+  /* ─── Gallery items ─── */
+  type GalleryItem = { type: "image"; data: GeneratedImage } | { type: "video"; data: VideoJob };
+  const galleryItems: GalleryItem[] = [
+    ...(galleryFilter !== "videos" ? images.map((img) => ({ type: "image" as const, data: img })) : []),
+    ...(galleryFilter !== "images" ? videos.map((v) => ({ type: "video" as const, data: v })) : []),
+  ].sort((a, b) => new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime());
+
   return (
     <>
-      <Header title="Video Generator" subtitle="Animate your avatars into videos" />
-      <div className="flex-1 overflow-y-auto">
+      <Header title="Video Generator" />
+      <div className="flex-1 overflow-hidden">
         <div className="flex flex-col md:flex-row h-full">
-          <div className="split-panel-left w-full md:w-[380px] shrink-0 p-4 md:p-5 overflow-y-auto flex flex-col gap-5">
-            <div>
-              <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>Engine</label>
-              <div className="flex gap-2">
-                {(["veo", "kling"] as const).map((e) => (
-                  <button key={e} onClick={() => { setEngine(e); if (e === "veo") setAudio(false); }}
-                    className="flex-1 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all"
-                    style={{
-                      background: engine === e ? "#3b82f6" : "var(--bg-tertiary)",
-                      color: engine === e ? "#fff" : "var(--text-secondary)",
-                      border: `1px solid ${engine === e ? "#3b82f6" : "var(--border-color)"}`,
-                    }}
-                  >
-                    {e === "veo" ? "Veo 3.1 · 8s" : "Kling · 5s"}
-                  </button>
-                ))}
-              </div>
-              {engine === "kling" && (
-                <label className="flex items-center gap-2 mt-3 cursor-pointer">
-                  <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} className="accent-white w-4 h-4" />
-                  <span className="text-[13px]" style={{ color: "var(--text-secondary)" }}>Enable audio (v2.6, +4 credits)</span>
-                </label>
-              )}
+
+          {/* ═══ Left Panel ═══ */}
+          <div className="split-panel-left w-full md:w-[380px] shrink-0 overflow-y-auto flex flex-col" style={{ background: "var(--bg-primary)" }}>
+
+            {/* Back + Title */}
+            <div className="px-4 pt-4 pb-1">
+              <Link href="/dashboard" className="inline-flex items-center gap-1 text-[12px] font-medium mb-1 transition-colors" style={{ color: "var(--text-muted)" }}>
+                <CaretLeft size={12} /> Tools
+              </Link>
+              <h2 className="text-[16px] font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
+                Video Generator
+              </h2>
             </div>
 
-            <div>
-              <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>Source</label>
-              <div className="flex gap-2">
-                {(["avatar", "image"] as const).map((s) => (
-                  <button key={s} onClick={() => setSourceType(s)}
-                    className="flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all"
-                    style={{
-                      background: sourceType === s ? "var(--bg-hover)" : "var(--bg-tertiary)",
-                      color: sourceType === s ? "var(--text-primary)" : "var(--text-secondary)",
-                      border: `1px solid ${sourceType === s ? "#3b82f6" : "var(--border-color)"}`,
-                    }}
-                  >
-                    {s === "avatar" ? "From Avatar" : "From Image"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>{sourceType === "avatar" ? "Select Avatar" : "Select Image"}</label>
-              <div className="flex gap-2 flex-wrap max-h-32 overflow-y-auto">
-                {sourceType === "avatar"
-                  ? avatars.map((a) => (
-                      <button key={a.avatar_id} onClick={() => setSelectedAvatar(a.avatar_id)}
-                        className="w-12 h-12 rounded-lg overflow-hidden transition-all"
-                        style={{ border: `1.5px solid ${selectedAvatar === a.avatar_id ? "var(--text-primary)" : "var(--border-color)"}` }}
-                        title={a.name}
+            {/* Model dropdown */}
+            <div className="px-4 pt-3 pb-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>Model</span>
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowModelDropdown(!showModelDropdown); setShowRatioDropdown(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                >
+                  <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "#3b82f6", color: "#fff" }}>
+                    {currentModel.icon}
+                  </span>
+                  <span className="flex-1 text-left">{currentModel.name} · {currentModel.duration}</span>
+                  <ChevronDown size={14} style={{ color: "var(--text-muted)" }} />
+                </button>
+                {showModelDropdown && (
+                  <div className="absolute left-0 right-0 top-full mt-1 rounded-xl overflow-hidden z-30" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
+                    {VIDEO_MODELS.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => { setEngine(m.id); setShowModelDropdown(false); if (m.id === "veo") setAudio(false); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium transition-colors text-left"
+                        style={{ background: engine === m.id ? "var(--bg-tertiary)" : "transparent", color: "var(--text-primary)" }}
+                        onMouseEnter={(e) => { if (engine !== m.id) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                        onMouseLeave={(e) => { if (engine !== m.id) e.currentTarget.style.background = "transparent"; }}
                       >
-                        {a.thumbnail ? <img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover" /> : (
-                          <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--bg-tertiary)" }}>
-                            <UserCircle size={16} style={{ color: "var(--text-muted)" }} />
-                          </div>
-                        )}
-                      </button>
-                    ))
-                  : images.map((img) => (
-                      <button key={img.image_id} onClick={() => setSelectedImage(img.image_id)}
-                        className="w-12 h-12 rounded-lg overflow-hidden transition-all"
-                        style={{ border: `1.5px solid ${selectedImage === img.image_id ? "var(--text-primary)" : "var(--border-color)"}` }}
-                      >
-                        <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                        <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "#3b82f6", color: "#fff" }}>{m.icon}</span>
+                        {m.name} · {m.duration}
                       </button>
                     ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex-1">
-              <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>Motion Prompt</label>
-              <textarea value={motionPrompt} onChange={(e) => setMotionPrompt(e.target.value)}
-                placeholder="Describe the action... e.g. The person turns to the camera and smiles"
-                rows={4} className="w-full px-3 py-2.5 rounded-lg text-[14px] resize-none transition-colors"
-                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+            {/* References — Start image + End image */}
+            <div className="px-4 pb-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>References</span>
+              <div className="flex items-start gap-2">
+                {/* Start image */}
+                {startImageUrl ? (
+                  <div className="relative">
+                    <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
+                      <img src={startImageUrl} alt="Start" className="w-full h-full object-cover" />
+                    </div>
+                    <button onClick={() => { setStartImageUrl(null); setStartImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
+                      <XIcon size={10} />
+                    </button>
+                    <span className="block text-center text-[10px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>Start image</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => startInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
+                    style={{ border: "1px dashed var(--border-color)", color: "var(--text-muted)", background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--text-muted)"; e.currentTarget.style.background = "var(--bg-secondary)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <Upload size={16} />
+                    <span className="text-[10px] mt-1">Start image</span>
+                  </button>
+                )}
+                <input ref={startInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStartImage(f); }} />
+
+                {/* End image */}
+                {endImageUrl ? (
+                  <div className="relative">
+                    <div className="w-[72px] h-[72px] rounded-xl overflow-hidden" style={{ border: "1.5px solid #3b82f6" }}>
+                      <img src={endImageUrl} alt="End" className="w-full h-full object-cover" />
+                    </div>
+                    <button onClick={() => { setEndImageUrl(null); setEndImageFile(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}>
+                      <XIcon size={10} />
+                    </button>
+                    <span className="block text-center text-[10px] mt-1 truncate w-[72px]" style={{ color: "var(--text-muted)" }}>End image</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => endInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center w-[72px] h-[72px] rounded-xl transition-all"
+                    style={{ border: "1px dashed var(--border-color)", color: "var(--text-muted)", background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--text-muted)"; e.currentTarget.style.background = "var(--bg-secondary)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <Upload size={16} />
+                    <span className="text-[10px] mt-1">End image</span>
+                  </button>
+                )}
+                <input ref={endInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEndImage(f); }} />
+              </div>
+
+              {/* Pick from gallery buttons */}
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => setPickingFor(pickingFor === "start" ? null : "start")}
+                  className="text-[11px] font-medium px-2 py-1 rounded-md transition-colors"
+                  style={{
+                    background: pickingFor === "start" ? "#3b82f6" : "var(--bg-secondary)",
+                    color: pickingFor === "start" ? "#fff" : "var(--text-muted)",
+                    border: `1px solid ${pickingFor === "start" ? "#3b82f6" : "var(--border-color)"}`,
+                  }}
+                >
+                  {pickingFor === "start" ? "Picking start…" : "Gallery → Start"}
+                </button>
+                <button
+                  onClick={() => setPickingFor(pickingFor === "end" ? null : "end")}
+                  className="text-[11px] font-medium px-2 py-1 rounded-md transition-colors"
+                  style={{
+                    background: pickingFor === "end" ? "#3b82f6" : "var(--bg-secondary)",
+                    color: pickingFor === "end" ? "#fff" : "var(--text-muted)",
+                    border: `1px solid ${pickingFor === "end" ? "#3b82f6" : "var(--border-color)"}`,
+                  }}
+                >
+                  {pickingFor === "end" ? "Picking end…" : "Gallery → End"}
+                </button>
+              </div>
+            </div>
+
+            {/* Audio toggle (kling only) */}
+            {engine === "kling" && (
+              <div className="px-4 pb-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <button onClick={() => setAudio(!audio)} className="relative w-9 h-5 rounded-full transition-colors shrink-0" style={{ background: audio ? "#3b82f6" : "var(--bg-tertiary)" }}>
+                    <span className="absolute top-0.5 w-4 h-4 rounded-full transition-all" style={{ background: "#fff", left: audio ? "18px" : "2px", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  </button>
+                  <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>Audio (v2.6, +4 credits)</span>
+                </label>
+              </div>
+            )}
+
+            {/* Prompt */}
+            <div className="flex-1 px-4 pb-3 flex flex-col min-h-0">
+              <span className="text-[11px] font-medium uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>Shot</span>
+              <textarea
+                value={motionPrompt}
+                onChange={(e) => setMotionPrompt(e.target.value)}
+                placeholder="Reference your video or images using @image 1"
+                className="w-full px-3 py-3 rounded-xl text-[14px] resize-none flex-1 min-h-[100px]"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleGenerate(); } }}
               />
             </div>
 
-            {error && <div className="px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(239,68,68,0.1)", color: "var(--error)" }}>{error}</div>}
-            {success && <div className="px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)" }}>{success}</div>}
+            {error && <div className="mx-4 mb-3 px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(239,68,68,0.1)", color: "var(--error)" }}>{error}</div>}
+            {success && <div className="mx-4 mb-3 px-3 py-2 rounded-lg text-[13px]" style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)" }}>{success}</div>}
 
-            <button onClick={handleGenerate} disabled={loading || !motionPrompt.trim()}
-              className="w-full py-3 rounded-lg font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: "#3b82f6", color: "#fff" }}
-            >
-              {loading ? <><Spinner size={16} /> Starting...</> : <>Generate Video · {creditCost} credits</>}
-            </button>
+            {/* Bottom controls */}
+            <div className="shrink-0">
+              <div className="px-4 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid var(--border-color)" }}>
+                {/* Duration */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                  {currentModel.duration}
+                </div>
+
+                {/* Aspect ratio dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowRatioDropdown(!showRatioDropdown); setShowModelDropdown(false); }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                    style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                  >
+                    <RatioIcon ratio={aspectRatio} />
+                    {aspectRatio}
+                  </button>
+                  {showRatioDropdown && (
+                    <div className="absolute bottom-full mb-1 left-0 w-[160px] rounded-xl overflow-hidden z-30" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
+                      {ASPECT_RATIOS.map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => { setAspectRatio(r); setShowRatioDropdown(false); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors text-left"
+                          style={{ background: aspectRatio === r ? "var(--bg-tertiary)" : "transparent", color: "var(--text-primary)" }}
+                          onMouseEnter={(e) => { if (aspectRatio !== r) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                          onMouseLeave={(e) => { if (aspectRatio !== r) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          <RatioIcon ratio={r} />
+                          <span className="font-medium">{r}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Audio indicator */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />{audio ? <><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></> : <line x1="23" y1="9" x2="17" y2="15" />}</svg>
+                  {audio ? "ON" : "OFF"}
+                </div>
+              </div>
+
+              {/* Generate */}
+              <div className="px-4 pb-4 pt-1">
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading || !motionPrompt.trim()}
+                  className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: "#3b82f6", color: "#fff" }}
+                >
+                  {loading ? <><Spinner size={16} /> Generating...</> : `Generate · ${creditCost} credits`}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-            <span className="text-[11px] font-medium uppercase tracking-wider block mb-3" style={{ color: "var(--text-muted)" }}>Your Videos</span>
-            {loadingVideos ? (
-              <div className="flex items-center justify-center py-12"><div className="spinner" /></div>
-            ) : videos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                  <VideoIcon size={24} style={{ color: "var(--text-muted)" }} />
-                </div>
-                <p className="font-medium text-[14px] mb-1" style={{ color: "var(--text-secondary)" }}>No videos yet</p>
-                <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>Generate your first video using the panel on the left</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {videos.map((v) => (
-                  <div key={v.job_id} className="rounded-xl overflow-hidden" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                    {v.status === "completed" && v.video_url ? (
-                      <video src={v.video_url} controls className="w-full aspect-video" />
-                    ) : (
-                      <div className="w-full aspect-video flex flex-col items-center justify-center gap-2" style={{ background: "var(--bg-tertiary)" }}>
-                        {v.status === "processing" ? <><div className="spinner" /><span className="text-[12px]" style={{ color: "var(--text-muted)" }}>Processing...</span></> : <span className="text-[12px]" style={{ color: "var(--error)" }}>Failed</span>}
-                      </div>
-                    )}
-                    <div className="px-3 py-2 flex items-center justify-between">
-                      <p className="text-[12px] truncate flex-1" style={{ color: "var(--text-secondary)" }}>{v.motion_prompt}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full ml-2 shrink-0"
-                        style={{
-                          background: v.status === "completed" ? "rgba(34,197,94,0.1)" : v.status === "processing" ? "rgba(255,255,255,0.05)" : "rgba(239,68,68,0.1)",
-                          color: v.status === "completed" ? "var(--success)" : v.status === "processing" ? "var(--text-muted)" : "var(--error)",
-                        }}
-                      >
-                        {v.engine} · {v.status}
-                      </span>
-                    </div>
-                  </div>
+          {/* ═══ Right Panel (Gallery — Images + Videos) ═══ */}
+          <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-primary)" }}>
+            {/* Gallery header */}
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 sticky top-0 z-10" style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color)" }}>
+              <div className="flex items-center gap-3">
+                {(["all", "images", "videos"] as GalleryFilter[]).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setGalleryFilter(f)}
+                    className="text-[13px] font-medium transition-colors capitalize"
+                    style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)" }}
+                  >
+                    {f === "all" ? "All" : f === "images" ? "Images" : "Videos"}
+                  </button>
                 ))}
+                {pickingFor && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#3b82f6", color: "#fff" }}>
+                    Click an image to set as {pickingFor} image
+                  </span>
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>{galleryItems.length} items</span>
+                <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+                  {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
+                    <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 transition-colors" style={{ background: gridSize === key ? "var(--bg-tertiary)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", borderRight: key !== "large" ? "1px solid var(--border-color)" : undefined }}>
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Gallery grid */}
+            <div className="px-4 md:px-6 py-4">
+              {loadingGallery ? (
+                <div className="flex items-center justify-center py-16"><div className="spinner" /></div>
+              ) : galleryItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                    <VideoIcon size={24} style={{ color: "var(--text-muted)" }} />
+                  </div>
+                  <p className="font-medium text-[14px] mb-1" style={{ color: "var(--text-secondary)" }}>No content yet</p>
+                  <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>Generate images or videos to see them here</p>
+                </div>
+              ) : (
+                <div className={`grid gap-2 ${GRID_COLS[gridSize]}`}>
+                  {galleryItems.map((item) => {
+                    if (item.type === "image") {
+                      const img = item.data;
+                      const isPickable = pickingFor !== null;
+                      return (
+                        <div
+                          key={`img-${img.image_id}`}
+                          className={`rounded-xl overflow-hidden group relative ${isPickable ? "cursor-pointer ring-2 ring-transparent hover:ring-blue-500" : "cursor-pointer"}`}
+                          onClick={() => { if (isPickable) selectGalleryImage(img.image_url); }}
+                        >
+                          <div className="aspect-square overflow-hidden">
+                            <img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]" />
+                          </div>
+                          {/* Badges */}
+                          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
+                            <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>G</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>
+                              <ImageSquare size={10} /> 2K
+                            </span>
+                          </div>
+                          {/* Pick overlay */}
+                          {isPickable && (
+                            <div className="absolute inset-0 bg-blue-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="px-3 py-1.5 rounded-lg text-[12px] font-medium" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>
+                                Use as {pickingFor} image
+                              </span>
+                            </div>
+                          )}
+                          {/* Download */}
+                          {!isPickable && (
+                            <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-all flex items-start justify-end p-2 opacity-0 group-hover:opacity-100">
+                              <a href={img.image_url} download target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-black/60 text-white transition-colors hover:bg-black/80" onClick={(e) => e.stopPropagation()}>
+                                <Download size={14} />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } else {
+                      const v = item.data;
+                      return (
+                        <div key={`vid-${v.job_id}`} className="rounded-xl overflow-hidden group relative cursor-pointer">
+                          {v.status === "completed" && v.video_url ? (
+                            <div className="aspect-square overflow-hidden relative">
+                              <video src={v.video_url} className="w-full h-full object-cover" muted />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50 text-white group-hover:bg-black/70 transition-colors">
+                                  <Play size={18} />
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="aspect-square flex flex-col items-center justify-center gap-2" style={{ background: "var(--bg-secondary)" }}>
+                              {v.status === "processing" ? (
+                                <><Spinner size={20} /><span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Processing...</span></>
+                              ) : (
+                                <span className="text-[11px]" style={{ color: "var(--error)" }}>Failed</span>
+                              )}
+                            </div>
+                          )}
+                          {/* Badges */}
+                          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
+                            <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>{(v.engine || "V")[0].toUpperCase()}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>
+                              <Play size={8} /> {v.engine === "kling" ? "0:05" : "0:08"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
