@@ -551,7 +551,7 @@ async def get_image_by_id(
 @router.post("/describe-image")
 async def describe_image(
     current_user: Annotated[User, Depends(get_current_user)],
-    image_url: str = Form(None, description="URL of the image to describe"),
+    image_url: Optional[str] = Form(None, description="URL of the image to describe"),
     files: List[UploadFile] = File(default=[], description="Upload image to describe"),
 ):
     """

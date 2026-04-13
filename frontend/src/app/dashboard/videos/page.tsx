@@ -192,10 +192,16 @@ export default function VideoGenerator() {
           setDescribing(true);
           avatarAPI.describeImage(url)
             .then((res) => {
-              const desc = res.data.description || "";
-              setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+              const desc = res.data?.description || "";
+              if (desc) {
+                setMotionPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+              } else {
+                console.warn("describe-image returned empty description", res.data);
+                setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
+              }
             })
-            .catch(() => {
+            .catch((err) => {
+              console.error("describe-image failed:", err?.response?.status, err?.response?.data || err.message);
               setMotionPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
             })
             .finally(() => setDescribing(false));

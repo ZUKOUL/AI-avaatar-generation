@@ -310,10 +310,16 @@ export default function ImageGenerator() {
           setDescribing(true);
           avatarAPI.describeImage(url)
             .then((res) => {
-              const desc = res.data.description || "";
-              setPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+              const desc = res.data?.description || "";
+              if (desc) {
+                setPrompt((prev) => prev ? `${prev}\n${desc}` : desc);
+              } else {
+                console.warn("describe-image returned empty description", res.data);
+                setPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
+              }
             })
-            .catch(() => {
+            .catch((err) => {
+              console.error("describe-image failed:", err?.response?.status, err?.response?.data || err.message);
               setPrompt((prev) => prev ? `${prev}\n[Image reference]` : "[Image reference]");
             })
             .finally(() => setDescribing(false));
