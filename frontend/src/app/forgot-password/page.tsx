@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { authAPI } from "@/lib/api";
 import { Spinner, ArrowLeft, Mail } from "@/components/Icons";
+import Logo from "@/components/Logo";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -21,9 +22,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "var(--bg-primary)" }}>
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#fff" }}>
-            <span className="text-black text-[13px] font-bold">H</span>
-          </div>
+          <Logo size={32} variant="light" />
           <span className="text-xl font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>Horpen.ai</span>
         </div>
 

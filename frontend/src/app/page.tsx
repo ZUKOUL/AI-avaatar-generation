@@ -20,6 +20,7 @@ import {
   Shield,
   Download,
 } from "@/components/Icons";
+import Logo from "@/components/Logo";
 
 /* ─── Plan data (mirrors credits page) ─── */
 const PLANS = [
@@ -156,12 +157,7 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto px-5 md:px-8 h-[64px] flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 no-underline">
-            <div
-              className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-[13px] font-bold"
-              style={{ background: "#fafafa", color: "#09090b" }}
-            >
-              H
-            </div>
+            <Logo size={30} variant="light" />
             <span className="text-[16px] font-semibold" style={{ color: "#fafafa" }}>
               Horpen
             </span>
@@ -345,9 +341,7 @@ export default function Home() {
                 style={{ borderRight: "1px solid rgba(255,255,255,0.06)" }}
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold" style={{ background: "#fafafa", color: "#09090b" }}>
-                    H
-                  </div>
+                  <Logo size={24} variant="light" />
                   <span className="text-[12px] font-medium" style={{ color: "#a1a1aa" }}>Horpen.ai</span>
                 </div>
                 {["Home", "Avatars", "Images", "Videos", "Settings"].map((item, i) => (
@@ -737,12 +731,7 @@ export default function Home() {
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2.5 mb-4">
-                <div
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-[12px] font-bold"
-                  style={{ background: "#fafafa", color: "#09090b" }}
-                >
-                  H
-                </div>
+                <Logo size={28} variant="light" />
                 <span className="text-[15px] font-semibold">Horpen</span>
               </div>
               <p className="text-[13px] leading-relaxed" style={{ color: "#52525b" }}>

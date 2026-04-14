@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clearAuth, getStoredUser } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import Logo from "@/components/Logo";
 import {
   House,
   UserCircle,
@@ -175,17 +176,7 @@ export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: (
         style={{ borderBottom: "1px solid var(--border-color)" }}
       >
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: theme === "dark" ? "#fff" : "#1a1a1a" }}
-          >
-            <span
-              className="text-[12px] font-bold"
-              style={{ color: theme === "dark" ? "#000" : "#fff" }}
-            >
-              H
-            </span>
-          </div>
+          <Logo size={28} />
           <span className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
             Horpen.ai
           </span>

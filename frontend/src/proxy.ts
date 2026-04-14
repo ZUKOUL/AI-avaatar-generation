@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Edge middleware runs before routing and cache, so it intercepts every
-// request — including prerendered pages served from the Vercel edge cache.
-// Use it to 308-redirect the non-canonical .com host to horpen.ai.
-export function middleware(req: NextRequest) {
+// Next.js 16 "proxy" (formerly middleware) runs at the edge before routing
+// and cache, so it intercepts every request — including prerendered pages
+// served from the Vercel edge cache. Use it to 308-redirect the non-canonical
+// .com host to horpen.ai.
+export function proxy(req: NextRequest) {
   const host = req.headers.get("host") ?? "";
   if (host === "horpen.com" || host === "www.horpen.com") {
     const url = new URL(req.url);

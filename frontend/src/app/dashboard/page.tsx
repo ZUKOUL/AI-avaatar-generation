@@ -13,6 +13,7 @@ import {
   Plus,
   Clock,
 } from "@/components/Icons";
+import Logo from "@/components/Logo";
 
 interface Avatar {
   avatar_id: string;
@@ -165,15 +166,7 @@ export default function DashboardHome() {
               className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg"
               style={{ background: "var(--bg-tertiary)" }}
             >
-              <span
-                className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold"
-                style={{
-                  background: "#3b82f6",
-                  color: "#fff",
-                }}
-              >
-                H
-              </span>
+              <Logo size={20} />
               Horpen
             </span>
           </h1>
