@@ -550,7 +550,6 @@ export default function SettingsPage() {
                         { key: "monthly", label: "Pay monthly" },
                         { key: "yearly", label: "Pay yearly" },
                       ]}
-                      className="px-2"
                     />
                   </div>
 

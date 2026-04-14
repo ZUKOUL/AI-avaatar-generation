@@ -114,7 +114,6 @@ export default function CreditsPage() {
                 { key: "monthly", label: "Pay monthly" },
                 { key: "yearly", label: "Pay yearly" },
               ]}
-              className="px-3"
             />
           </div>
 
