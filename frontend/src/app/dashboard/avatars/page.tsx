@@ -499,13 +499,15 @@ export default function AvatarCreator() {
                   </a>
                 </div>
               ) : (
-                <div className="relative w-full h-full flex items-center justify-center">
-                  {/* Chrome mannequin placeholder */}
+                <div className="relative w-full h-full flex items-end justify-center overflow-hidden">
+                  {/* Chrome mannequin placeholder — sits on the bottom line
+                      so the bust crops cleanly against the container edge
+                      instead of floating centered with a half-cut chest. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/avatar-mannequin.png"
                     alt=""
-                    className="max-h-[80%] w-auto object-contain"
+                    className="max-h-[95%] w-auto object-contain"
                     style={{ filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.35))" }}
                   />
                 </div>
