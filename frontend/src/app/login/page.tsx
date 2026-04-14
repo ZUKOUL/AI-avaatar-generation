@@ -38,7 +38,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <Logo size={32} variant="light" />
           <span className="text-xl font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
-            Horpen.ai
+            Horpen
           </span>
         </div>
 

@@ -37,7 +37,7 @@ export default function SignupPage() {
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <Logo size={32} variant="light" />
-          <span className="text-xl font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>Horpen.ai</span>
+          <span className="text-xl font-semibold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>Horpen</span>
         </div>
 
         <div className="rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>

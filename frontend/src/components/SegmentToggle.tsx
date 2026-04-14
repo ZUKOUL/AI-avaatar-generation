@@ -137,8 +137,8 @@ export default function SegmentToggle({
     : "absolute rounded-lg pointer-events-none";
 
   const baseBtn = isSm
-    ? "relative z-[1] flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[12px] font-medium text-center"
-    : "relative z-[1] flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium text-center";
+    ? "relative z-[1] flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[12px] font-medium text-center whitespace-nowrap"
+    : "relative z-[1] flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-center whitespace-nowrap";
 
   const btnCls = capitalize ? `${baseBtn} capitalize` : baseBtn;
 

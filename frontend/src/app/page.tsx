@@ -342,7 +342,7 @@ export default function Home() {
               >
                 <div className="flex items-center gap-2 mb-4">
                   <Logo size={24} variant="light" />
-                  <span className="text-[12px] font-medium" style={{ color: "#a1a1aa" }}>Horpen.ai</span>
+                  <span className="text-[12px] font-medium" style={{ color: "#a1a1aa" }}>Horpen</span>
                 </div>
                 {["Home", "Avatars", "Images", "Videos", "Settings"].map((item, i) => (
                   <div

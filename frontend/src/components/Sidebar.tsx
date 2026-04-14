@@ -178,7 +178,7 @@ export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: (
         <div className="flex items-center gap-2.5">
           <Logo size={28} />
           <span className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-            Horpen.ai
+            Horpen
           </span>
         </div>
         {isMobile && onClose && (

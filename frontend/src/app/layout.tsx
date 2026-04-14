@@ -10,7 +10,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Horpen.ai — AI Avatar & Ad Generator",
+  title: "Horpen — AI Avatar & Ad Generator",
   description: "Create stunning AI avatars, images, and videos for your ads with Horpen.ai",
 };
 
