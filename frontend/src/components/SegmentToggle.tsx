@@ -128,17 +128,21 @@ export default function SegmentToggle({
     };
   }, [animate]);
 
+  // Grid (not flex) so each column is exactly 1fr — without grid, flex-1 with
+  // basis:0 lets one button keep its min-content width (e.g. "Pay monthly" at
+  // 97px) while the other shrinks to the leftover space (~83px), and the
+  // sliding pill ends up centered on an asymmetric cell.
   const containerCls = isSm
-    ? "relative flex items-center rounded-lg p-0.5"
-    : "relative flex items-center rounded-xl p-1";
+    ? "relative grid items-center rounded-lg p-0.5"
+    : "relative grid items-center rounded-xl p-1";
 
   const indicatorCls = isSm
     ? "absolute rounded-md pointer-events-none"
     : "absolute rounded-lg pointer-events-none";
 
   const baseBtn = isSm
-    ? "relative z-[1] flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[12px] font-medium text-center whitespace-nowrap"
-    : "relative z-[1] flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-center whitespace-nowrap";
+    ? "relative z-[1] flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[12px] font-medium text-center whitespace-nowrap"
+    : "relative z-[1] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-center whitespace-nowrap";
 
   const btnCls = capitalize ? `${baseBtn} capitalize` : baseBtn;
 
@@ -151,6 +155,7 @@ export default function SegmentToggle({
       style={{
         background: "var(--segment-bg)",
         boxShadow: "var(--shadow-segment-inset)",
+        gridTemplateColumns: `repeat(${items.length}, 1fr)`,
       }}
     >
       <div
