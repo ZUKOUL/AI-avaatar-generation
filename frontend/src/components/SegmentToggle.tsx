@@ -56,6 +56,10 @@ export default function SegmentToggle({
     width: number;
     visible: boolean;
   }>({ left: 0, width: 0, visible: false });
+  // Transitions stay off until after the initial measured position has
+  // painted — otherwise the pill animates from left:0 on mount (every client
+  // nav to this page would look like it "slides in from the left").
+  const [animate, setAnimate] = useState(false);
 
   const rawIdx = items.findIndex((i) => i.key === selected);
   const activeIdx = rawIdx < 0 ? 0 : rawIdx;
@@ -86,6 +90,21 @@ export default function SegmentToggle({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx, rawIdx, items.length, size]);
+
+  // Enable transitions only after the initial paint with the measured
+  // position. Double rAF guarantees the first frame with the correct left/
+  // width has already been committed and painted before `transition` turns on.
+  useEffect(() => {
+    if (animate) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setAnimate(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [animate]);
 
   const containerCls = isSm
     ? "relative flex items-center rounded-lg p-0.5"
@@ -121,8 +140,9 @@ export default function SegmentToggle({
           bottom: indicatorInset,
           background: "var(--segment-active-bg)",
           boxShadow: "var(--shadow-segment-active)",
-          transition:
-            "left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease",
+          transition: animate
+            ? "left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease"
+            : "none",
           opacity: indicator.visible ? 1 : 0,
         }}
       />
