@@ -500,38 +500,14 @@ export default function AvatarCreator() {
                 </div>
               ) : (
                 <div className="relative w-full h-full flex items-center justify-center">
-                  {/* Faceless human silhouette */}
-                  <svg
-                    viewBox="0 0 400 600"
-                    fill="none"
-                    className="max-h-[80%] w-auto opacity-40"
-                    style={{ filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.2))" }}
-                  >
-                    {/* Head */}
-                    <ellipse cx="200" cy="115" rx="65" ry="75" fill="var(--text-muted)" opacity="0.35" />
-                    {/* Neck */}
-                    <rect x="175" y="185" width="50" height="40" rx="10" fill="var(--text-muted)" opacity="0.3" />
-                    {/* Shoulders & Torso */}
-                    <path
-                      d="M90 280 C90 240, 140 220, 175 220 L225 220 C260 220, 310 240, 310 280 L320 420 C320 440, 300 450, 280 450 L120 450 C100 450, 80 440, 80 420 Z"
-                      fill="var(--text-muted)" opacity="0.25"
-                    />
-                    {/* Left arm */}
-                    <path
-                      d="M90 280 C60 290, 40 340, 45 400 C48 430, 55 460, 65 480"
-                      stroke="var(--text-muted)" strokeWidth="35" strokeLinecap="round" opacity="0.22"
-                    />
-                    {/* Right arm */}
-                    <path
-                      d="M310 280 C340 290, 360 340, 355 400 C352 430, 345 460, 335 480"
-                      stroke="var(--text-muted)" strokeWidth="35" strokeLinecap="round" opacity="0.22"
-                    />
-                    {/* Collar / neckline detail */}
-                    <path
-                      d="M160 230 L200 260 L240 230"
-                      stroke="var(--text-muted)" strokeWidth="2" opacity="0.15" fill="none"
-                    />
-                  </svg>
+                  {/* Chrome mannequin placeholder */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/avatar-mannequin.png"
+                    alt=""
+                    className="max-h-[80%] w-auto object-contain"
+                    style={{ filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.35))" }}
+                  />
                   {/* Overlay text */}
                   <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-center">
                     <p className="text-[13px] font-medium mb-0.5" style={{ color: "var(--text-secondary)" }}>Design your avatar</p>
