@@ -122,7 +122,7 @@ export default function AvatarCreator() {
   const [style, setStyle] = useState("photorealistic");
   const [outfit, setOutfit] = useState("Smart casual");
   const [expression, setExpression] = useState("Confident");
-  const [background, setBackground] = useState("studio-gray");
+  const [background, setBackground] = useState("studio-white");
 
   /* ─── Core state ─── */
   const [customPrompt, setCustomPrompt] = useState("");
@@ -170,10 +170,18 @@ export default function AvatarCreator() {
     const styleLabel = STYLES.find((s) => s.value === style)?.desc || style;
     const bgLabel = BACKGROUNDS.find((b) => b.value === background)?.label || background;
 
+    // ID-card / passport-style phrasing for studio-white — pure white,
+    // uniform, no shadows on the backdrop. Gemini 3 Pro Image obeys very
+    // specific language here; "pure white (#FFFFFF)" is the trick.
+    const bgPhrase =
+      background === "studio-white"
+        ? "Pure white studio background (#FFFFFF), seamless, evenly lit, no shadows on the backdrop, passport-photo / ID-card style isolation"
+        : `Background: ${bgLabel.toLowerCase()}`;
+
     let prompt = `${styleLabel} portrait of a ${gender} in their ${age}, ${ethnicity} heritage. `;
     prompt += `${hairStyle} ${hairColor.toLowerCase()} hair, ${skinLabel.toLowerCase()} skin tone, ${bodyType.toLowerCase()} build. `;
     prompt += `Wearing ${outfit.toLowerCase()}. Expression: ${expression.toLowerCase()}. `;
-    prompt += `Background: ${bgLabel.toLowerCase()}. `;
+    prompt += `${bgPhrase}. `;
     prompt += `Shot on 85mm f/1.4 lens, shallow depth of field, natural lighting, ultra high detail, 8K quality.`;
 
     if (customPrompt.trim()) {
