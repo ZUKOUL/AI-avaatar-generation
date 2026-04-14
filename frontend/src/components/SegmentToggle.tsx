@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ReactNode,
   useEffect,
@@ -60,8 +61,29 @@ export default function SegmentToggle({
   // painted — otherwise the pill animates from left:0 on mount (every client
   // nav to this page would look like it "slides in from the left").
   const [animate, setAnimate] = useState(false);
+  // Optimistic selection used for positioning the pill. When a user clicks a
+  // href-based item we flip this immediately so the pill slides, then fire
+  // router.push after the animation completes — makes cross-page nav look
+  // like a normal in-page tab switch.
+  const [displaySelected, setDisplaySelected] = useState(selected);
+  const router = useRouter();
+  const pendingNavRef = useRef<number | null>(null);
 
-  const rawIdx = items.findIndex((i) => i.key === selected);
+  // Sync with prop changes (e.g. route change landing on a new page resets
+  // selected via a fresh mount, but this also covers parent-driven updates).
+  useEffect(() => {
+    setDisplaySelected(selected);
+  }, [selected]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingNavRef.current !== null) {
+        window.clearTimeout(pendingNavRef.current);
+      }
+    };
+  }, []);
+
+  const rawIdx = items.findIndex((i) => i.key === displaySelected);
   const activeIdx = rawIdx < 0 ? 0 : rawIdx;
   const isSm = size === "sm";
 
@@ -147,7 +169,7 @@ export default function SegmentToggle({
         }}
       />
       {items.map((item, i) => {
-        const active = item.key === selected;
+        const active = item.key === displaySelected;
         const inner = (
           <>
             {item.icon}
@@ -159,16 +181,44 @@ export default function SegmentToggle({
           transition: "color 0.25s ease",
         };
         if (item.href) {
+          const href = item.href;
           return (
             <Link
               key={item.key}
               ref={(el) => {
                 itemRefs.current[i] = (el as unknown as HTMLElement) ?? null;
               }}
-              href={item.href}
+              href={href}
               className={btnCls}
               style={style}
-              onClick={() => onSelect?.(item.key)}
+              onClick={(e) => {
+                // Let modifier-clicks (new tab / window) fall through to the
+                // browser's default behavior.
+                if (
+                  e.metaKey ||
+                  e.ctrlKey ||
+                  e.shiftKey ||
+                  e.altKey ||
+                  (e.button !== undefined && e.button !== 0)
+                ) {
+                  onSelect?.(item.key);
+                  return;
+                }
+                if (item.key === displaySelected) {
+                  onSelect?.(item.key);
+                  return;
+                }
+                e.preventDefault();
+                setDisplaySelected(item.key);
+                onSelect?.(item.key);
+                if (pendingNavRef.current !== null) {
+                  window.clearTimeout(pendingNavRef.current);
+                }
+                pendingNavRef.current = window.setTimeout(() => {
+                  pendingNavRef.current = null;
+                  router.push(href);
+                }, 300);
+              }}
             >
               {inner}
             </Link>
