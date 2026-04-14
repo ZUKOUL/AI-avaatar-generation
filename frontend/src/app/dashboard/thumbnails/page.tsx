@@ -10,29 +10,38 @@
  *   • Edit      – upload an existing thumbnail and modify it.
  *   • Title     – generate with baked-in title text overlay.
  *
- * All modes accept optional character reference images so the subject stays
- * recognizable across remixes. Generated thumbnails stream into a history
- * grid grouped by date (same pattern as the Image Generator).
+ * Characters can be "mentioned" with @name or added via the corner picker —
+ * the picker exposes both the user's avatar library and an inline upload
+ * path so a new face can be injected without leaving the page.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
-import { thumbnailAPI } from "@/lib/api";
+import { avatarAPI, thumbnailAPI } from "@/lib/api";
 import {
   Download,
   LinkIcon,
   MagicWand,
   PlaySquare,
   Pencil,
+  Plus,
+  Search,
   Spinner,
   Type,
   Upload,
+  UserCircle,
   XIcon,
 } from "@/components/Icons";
 
 type Mode = "prompt" | "recreate" | "edit" | "title";
 type AspectRatio = "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
+
+interface Avatar {
+  avatar_id: string;
+  name: string;
+  thumbnail: string;
+}
 
 interface GeneratedThumbnail {
   thumbnail_id: string;
@@ -40,7 +49,7 @@ interface GeneratedThumbnail {
   mode: Mode;
   aspect_ratio: AspectRatio;
   prompt: string;
-  created_at: string; // local ISO; history is session-scoped for now
+  created_at: string;
   source_thumbnail_url?: string | null;
   youtube_video_id?: string | null;
 }
@@ -52,12 +61,12 @@ const MODE_ITEMS: { key: Mode; label: string; Icon: React.FC<{ size?: number }> 
   { key: "title", label: "Title", Icon: Type },
 ];
 
-const ASPECT_RATIOS: { value: AspectRatio; label: string }[] = [
-  { value: "16:9", label: "YouTube" },
-  { value: "9:16", label: "Shorts" },
-  { value: "1:1", label: "Square" },
-  { value: "4:3", label: "Classic" },
-  { value: "3:4", label: "Portrait" },
+const ASPECT_ITEMS: { key: AspectRatio; label: string }[] = [
+  { key: "16:9", label: "16:9" },
+  { key: "9:16", label: "9:16" },
+  { key: "1:1", label: "1:1" },
+  { key: "4:3", label: "4:3" },
+  { key: "3:4", label: "3:4" },
 ];
 
 const SAMPLE_PROMPTS: Record<Mode, string[]> = {
@@ -79,7 +88,7 @@ const SAMPLE_PROMPTS: Record<Mode, string[]> = {
   title: [
     "MrBeast-style giant text with a shocked reaction",
     "Minimal serif title, subject centered, soft lighting",
-    "Bold 3D-looking text with a drop shadow — clean layout",
+    "Bold text with a drop shadow — clean layout",
   ],
 };
 
@@ -98,24 +107,75 @@ export default function ThumbnailStudio() {
   const [history, setHistory] = useState<GeneratedThumbnail[]>([]);
   const [lightbox, setLightbox] = useState<GeneratedThumbnail | null>(null);
 
-  // YouTube preview (lives behind a URL input — shown as soon as we detect a
-  // valid video ID; we let <img onerror> cascade through the quality tiers).
+  /* ─── Avatars library + @mentions ─── */
+  const [avatars, setAvatars] = useState<Avatar[]>([]);
+  // IDs of avatars currently attached (from @mentions or the picker). These
+  // get resolved to File objects at submit time by downloading the thumbnail.
+  const [mentionedAvatarIds, setMentionedAvatarIds] = useState<string[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number } | null>(null);
+  const mentionStartRef = useRef<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  /* ─── "Add character" popover ─── */
+  const [charPickerOpen, setCharPickerOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<"library" | "upload">("library");
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [newCharName, setNewCharName] = useState("");
+  const [newCharFiles, setNewCharFiles] = useState<File[]>([]);
+  const [newCharPreviews, setNewCharPreviews] = useState<string[]>([]);
+  const [creatingChar, setCreatingChar] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const newCharInputRef = useRef<HTMLInputElement>(null);
+
+  // YouTube preview (debounced)
   const [ytPreview, setYtPreview] = useState<{ videoId: string; url: string } | null>(null);
   const ytDebounceRef = useRef<number | null>(null);
 
   const refInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
 
-  /* ─── Character reference images ─── */
+  const mentionFiltered =
+    mentionQuery !== null
+      ? avatars
+          .filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+          .slice(0, 6)
+      : [];
+
+  /* ─── Load avatars on mount ─── */
+  useEffect(() => {
+    avatarAPI
+      .list()
+      .then((res) => setAvatars(res.data.avatars || []))
+      .catch(() => setAvatars([]));
+  }, []);
+
+  /* ─── Close picker on outside click ─── */
+  useEffect(() => {
+    if (!charPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setCharPickerOpen(false);
+      }
+    };
+    // defer so the opening click doesn't immediately close it
+    const t = window.setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [charPickerOpen]);
+
+  /* ─── Reference images (manual upload) ─── */
   const handleRefFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).slice(0, 5 - refs.length);
     if (arr.length === 0) return;
-    const newPreviews: string[] = [];
-    arr.forEach((f) => newPreviews.push(URL.createObjectURL(f)));
+    const newPreviews: string[] = arr.map((f) => URL.createObjectURL(f));
     setRefs((prev) => [...prev, ...arr]);
     setRefPreviews((prev) => [...prev, ...newPreviews]);
   };
-
   const removeRef = (i: number) => {
     setRefs((prev) => prev.filter((_, idx) => idx !== i));
     setRefPreviews((prev) => {
@@ -131,14 +191,156 @@ export default function ThumbnailStudio() {
     setSourceFile(file);
     setSourcePreview(URL.createObjectURL(file));
   };
-
   const clearSource = () => {
     if (sourcePreview) URL.revokeObjectURL(sourcePreview);
     setSourceFile(null);
     setSourcePreview(null);
   };
 
-  /* ─── YouTube URL preview (debounced client-side validation) ─── */
+  /* ─── @mention system ─── */
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart || 0;
+    setPrompt(val);
+
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@([^\s@]*)$/);
+    if (atMatch) {
+      mentionStartRef.current = cursor - atMatch[1].length - 1;
+      setMentionQuery(atMatch[1]);
+      setMentionIndex(0);
+      const ta = textareaRef.current;
+      if (ta) {
+        const rect = ta.getBoundingClientRect();
+        const lines = textBefore.split("\n");
+        const lineHeight = 22;
+        const charWidth = 7.5;
+        setMentionPos({
+          top: rect.top + Math.min((lines.length - 1) * lineHeight, rect.height - 12) + lineHeight + 6,
+          left: rect.left + Math.min(lines[lines.length - 1].length * charWidth, rect.width - 220) + 12,
+        });
+      }
+    } else {
+      setMentionQuery(null);
+      mentionStartRef.current = null;
+    }
+  };
+
+  const selectMention = (avatar: Avatar) => {
+    const start = mentionStartRef.current;
+    if (start === null) return;
+    const before = prompt.slice(0, start);
+    const cursor = textareaRef.current?.selectionStart || prompt.length;
+    const after = prompt.slice(cursor);
+    setPrompt(`${before}@${avatar.name}  ${after}`);
+    // Track the mentioned avatar so we can attach its photo at submit time.
+    setMentionedAvatarIds((prev) =>
+      prev.includes(avatar.avatar_id) ? prev : [...prev, avatar.avatar_id],
+    );
+    setMentionQuery(null);
+    mentionStartRef.current = null;
+    setTimeout(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        const pos = before.length + avatar.name.length + 3;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
+
+  // Keep mentionedAvatarIds in sync when user deletes @mention from prompt.
+  useEffect(() => {
+    setMentionedAvatarIds((ids) =>
+      ids.filter((id) => {
+        const av = avatars.find((a) => a.avatar_id === id);
+        if (!av) return false;
+        const re = new RegExp(
+          `@${av.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`,
+          "i",
+        );
+        return re.test(prompt);
+      }),
+    );
+  }, [prompt, avatars]);
+
+  const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && mentionFiltered.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => Math.min(i + 1, mentionFiltered.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectMention(mentionFiltered[mentionIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleGenerate();
+    }
+  };
+
+  const handleTextareaScroll = () => {
+    if (textareaRef.current && overlayRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  // Render prompt with highlighted @name chips as an overlay. The raw text
+  // layer above (textarea) stays transparent, caret preserved.
+  const renderHighlightedPrompt = (text: string) => {
+    if (!text) return null;
+    const names = avatars.map((a) => a.name).sort((a, b) => b.length - a.length);
+    if (!names.length) return <span style={{ color: "var(--text-primary)" }}>{text}</span>;
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(
+      `(@(?:${names.map(esc).join("|")}))(?=\\s|$)`,
+      "gi",
+    );
+    const parts = text.split(pattern);
+    return parts.map((part, i) => {
+      const m = part.match(/^@(.+)$/);
+      if (m) {
+        const av = avatars.find((a) => a.name.toLowerCase() === m[1].toLowerCase());
+        if (av) {
+          return (
+            <span
+              key={i}
+              className="rounded-[4px] select-none"
+              style={{
+                background: "rgba(59,130,246,0.15)",
+                color: "#3b82f6",
+                fontWeight: 600,
+                padding: "2px 0",
+              }}
+            >
+              {part}
+            </span>
+          );
+        }
+      }
+      return (
+        <span key={i} style={{ color: "var(--text-primary)" }}>
+          {part}
+        </span>
+      );
+    });
+  };
+
+  /* ─── YouTube URL preview ─── */
   useEffect(() => {
     if (mode !== "recreate") {
       setYtPreview(null);
@@ -170,6 +372,7 @@ export default function ThumbnailStudio() {
   useEffect(() => {
     return () => {
       refPreviews.forEach((url) => URL.revokeObjectURL(url));
+      newCharPreviews.forEach((url) => URL.revokeObjectURL(url));
       if (sourcePreview) URL.revokeObjectURL(sourcePreview);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,11 +384,81 @@ export default function ThumbnailStudio() {
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) handleSourceFile(file);
   };
-
   const onDropRefs = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
     if (files.length > 0) handleRefFiles(files);
+  };
+
+  /* ─── Character picker actions ─── */
+  const pickFromLibrary = (avatar: Avatar) => {
+    // Insert @mention into prompt (at caret or end). Also track the ID.
+    const at = `@${avatar.name} `;
+    // If textarea has focus, insert at caret; otherwise append.
+    const ta = textareaRef.current;
+    if (ta && document.activeElement === ta) {
+      const cursor = ta.selectionStart || prompt.length;
+      const before = prompt.slice(0, cursor);
+      const after = prompt.slice(cursor);
+      // Insert a leading space if we're not at start-of-word
+      const sep = before.length > 0 && !/\s$/.test(before) ? " " : "";
+      const next = `${before}${sep}${at}${after}`;
+      setPrompt(next);
+      setTimeout(() => {
+        ta.focus();
+        const pos = before.length + sep.length + at.length;
+        ta.setSelectionRange(pos, pos);
+      }, 0);
+    } else {
+      const sep = prompt.length > 0 && !/\s$/.test(prompt) ? " " : "";
+      setPrompt(`${prompt}${sep}${at}`);
+    }
+    setMentionedAvatarIds((prev) =>
+      prev.includes(avatar.avatar_id) ? prev : [...prev, avatar.avatar_id],
+    );
+    setCharPickerOpen(false);
+  };
+
+  const handleNewCharFiles = (files: FileList | null) => {
+    if (!files) return;
+    const arr = Array.from(files).slice(0, 4 - newCharFiles.length);
+    const next = [...newCharFiles, ...arr];
+    // revoke old previews, then recompute
+    newCharPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setNewCharFiles(next);
+    setNewCharPreviews(next.map((f) => URL.createObjectURL(f)));
+  };
+
+  const createCharacter = async () => {
+    if (!newCharName.trim() || newCharFiles.length === 0) return;
+    setCreatingChar(true);
+    try {
+      const fd = new FormData();
+      fd.append("nickname", newCharName.trim());
+      fd.append("prompt", `A person named ${newCharName.trim()}`);
+      newCharFiles.forEach((f) => fd.append("files", f));
+      const res = await avatarAPI.generate(fd);
+      const created: Avatar | undefined = res.data?.avatar;
+      // Re-fetch list to get fresh thumbnails and canonical IDs.
+      const listRes = await avatarAPI.list();
+      const list: Avatar[] = listRes.data.avatars || [];
+      setAvatars(list);
+      // Prefer the just-created avatar; fall back to matching by nickname.
+      const picked =
+        (created && list.find((a) => a.avatar_id === created.avatar_id)) ||
+        list.find((a) => a.name.toLowerCase() === newCharName.trim().toLowerCase());
+      if (picked) pickFromLibrary(picked);
+      // Reset upload form
+      setNewCharName("");
+      newCharPreviews.forEach((u) => URL.revokeObjectURL(u));
+      setNewCharFiles([]);
+      setNewCharPreviews([]);
+      setPickerTab("library");
+    } catch {
+      setError("Failed to create character.");
+    } finally {
+      setCreatingChar(false);
+    }
   };
 
   /* ─── Generate ─── */
@@ -197,14 +470,12 @@ export default function ThumbnailStudio() {
     return true;
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
       const form = new FormData();
       form.append("mode", mode);
-      // Recreate allows an empty prompt (user may just want a faithful remix of
-      // a URL). We still require something so Gemini has instructions.
       form.append("prompt", prompt.trim() || "Recreate with the same theme but a fresh take.");
       form.append("aspect_ratio", aspectRatio);
       if (mode === "recreate" && youtubeUrl.trim()) {
@@ -213,10 +484,30 @@ export default function ThumbnailStudio() {
       if (mode === "title") {
         form.append("title_text", titleText.trim());
       }
-      // Edit mode: source file goes as the FIRST ref so the backend prompt
-      // logic keys off of position ("first uploaded image is the source").
       if (mode === "edit" && sourceFile) form.append("files", sourceFile);
       refs.forEach((f) => form.append("files", f));
+
+      // Resolve mentioned avatars → download each thumbnail and attach as ref.
+      // Runs in parallel. Failures per-avatar are swallowed so one broken URL
+      // doesn't kill the whole generate call.
+      if (mentionedAvatarIds.length > 0) {
+        const mentioned = mentionedAvatarIds
+          .map((id) => avatars.find((a) => a.avatar_id === id))
+          .filter((a): a is Avatar => !!a);
+        const blobs = await Promise.all(
+          mentioned.map(async (a) => {
+            try {
+              const r = await fetch(a.thumbnail);
+              if (!r.ok) return null;
+              const b = await r.blob();
+              return new File([b], `${a.name}.png`, { type: b.type || "image/png" });
+            } catch {
+              return null;
+            }
+          }),
+        );
+        blobs.forEach((f) => f && form.append("files", f));
+      }
 
       const res = await thumbnailAPI.generate(form);
       const data = res.data;
@@ -240,7 +531,7 @@ export default function ThumbnailStudio() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mode, prompt, aspectRatio, youtubeUrl, titleText, sourceFile, refs, mentionedAvatarIds, avatars]);
 
   const handleDownload = async (t: GeneratedThumbnail) => {
     try {
@@ -255,10 +546,17 @@ export default function ThumbnailStudio() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      // fallback: open in new tab
       window.open(t.image_url, "_blank");
     }
   };
+
+  /* ─── Derived UI values ─── */
+  const filteredLibrary = avatars.filter((a) =>
+    a.name.toLowerCase().includes(librarySearch.toLowerCase()),
+  );
+  const mentionedAvatars = mentionedAvatarIds
+    .map((id) => avatars.find((a) => a.avatar_id === id))
+    .filter((a): a is Avatar => !!a);
 
   return (
     <>
@@ -302,9 +600,9 @@ export default function ThumbnailStudio() {
             />
           </div>
 
-          {/* Mode-specific input card */}
+          {/* Input card */}
           <div
-            className="rounded-2xl mb-5"
+            className="rounded-2xl mb-5 relative"
             style={{
               background: "var(--bg-secondary)",
               border: "1px solid var(--border-color)",
@@ -312,10 +610,7 @@ export default function ThumbnailStudio() {
           >
             {mode === "recreate" && (
               <div className="p-5 pb-0">
-                <label
-                  className="text-[12px] font-medium mb-2 block"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
                   YouTube URL
                 </label>
                 <div
@@ -347,7 +642,6 @@ export default function ThumbnailStudio() {
                     </button>
                   )}
                 </div>
-                {/* Live 16:9 preview */}
                 {ytPreview && (
                   <div className="mt-4">
                     <div
@@ -383,10 +677,7 @@ export default function ThumbnailStudio() {
 
             {mode === "edit" && (
               <div className="p-5 pb-0">
-                <label
-                  className="text-[12px] font-medium mb-2 block"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
                   Source thumbnail
                 </label>
                 {sourcePreview ? (
@@ -399,11 +690,7 @@ export default function ThumbnailStudio() {
                     }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={sourcePreview}
-                      alt="Source thumbnail"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={sourcePreview} alt="Source thumbnail" className="w-full h-full object-cover" />
                     <button
                       onClick={clearSource}
                       className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center"
@@ -453,10 +740,7 @@ export default function ThumbnailStudio() {
 
             {mode === "title" && (
               <div className="p-5 pb-0">
-                <label
-                  className="text-[12px] font-medium mb-2 block"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
                   Title to bake into the image
                   <span className="ml-1" style={{ color: "var(--text-muted)" }}>
                     (optional — we&apos;ll write one if left empty)
@@ -486,36 +770,139 @@ export default function ThumbnailStudio() {
               </div>
             )}
 
-            {/* Prompt textarea — present in every mode */}
+            {/* Prompt textarea + overlay */}
             <div className="p-5">
-              <label
-                className="text-[12px] font-medium mb-2 block"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
                 {mode === "recreate"
                   ? "What should we change?"
                   : mode === "edit"
                     ? "Edit instructions"
                     : "Thumbnail concept"}
+                {avatars.length > 0 && (
+                  <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                    — type <span style={{ fontFamily: "monospace" }}>@</span> to mention a character
+                  </span>
+                )}
               </label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={
-                  mode === "recreate"
-                    ? "Make it more dramatic, add neon lighting…"
-                    : mode === "edit"
-                      ? "Remove the logo, brighten the subject…"
-                      : "Describe the thumbnail you want to create…"
-                }
-                rows={3}
-                className="w-full rounded-xl px-4 py-3 text-[13.5px] resize-none outline-none"
+              <div
+                className="relative rounded-xl overflow-hidden"
                 style={{
                   background: "var(--bg-primary)",
                   border: "1px solid var(--border-color)",
-                  color: "var(--text-primary)",
                 }}
-              />
+              >
+                <textarea
+                  ref={textareaRef}
+                  value={prompt}
+                  onChange={handlePromptChange}
+                  onKeyDown={handlePromptKeyDown}
+                  onScroll={handleTextareaScroll}
+                  placeholder={
+                    mode === "recreate"
+                      ? "Make it more dramatic, add neon lighting…"
+                      : mode === "edit"
+                        ? "Remove the logo, brighten the subject…"
+                        : "Describe the thumbnail you want to create…"
+                  }
+                  rows={3}
+                  className="relative w-full px-4 py-3 text-[13.5px] resize-none outline-none bg-transparent border-0 min-h-[96px]"
+                  style={{
+                    color: "transparent",
+                    caretColor: "var(--text-primary)",
+                    lineHeight: "1.6",
+                    zIndex: 1,
+                  }}
+                />
+                <div
+                  ref={overlayRef}
+                  className="absolute inset-0 px-4 py-3 text-[13.5px] pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
+                  style={{ lineHeight: "1.6", zIndex: 2 }}
+                >
+                  {renderHighlightedPrompt(prompt)}
+                </div>
+
+                {/* Mention autocomplete */}
+                {mentionQuery !== null && mentionFiltered.length > 0 && mentionPos && (
+                  <div
+                    className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
+                    style={{
+                      top: mentionPos.top,
+                      left: mentionPos.left,
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-color)",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                      minWidth: 220,
+                      maxWidth: 300,
+                    }}
+                  >
+                    {mentionFiltered.map((a, i) => (
+                      <button
+                        key={a.avatar_id}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
+                        style={{
+                          background: i === mentionIndex ? "var(--bg-tertiary)" : "transparent",
+                        }}
+                        onMouseEnter={() => setMentionIndex(i)}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectMention(a);
+                        }}
+                      >
+                        {a.thumbnail ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={a.thumbnail}
+                            alt={a.name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div
+                            className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold"
+                            style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}
+                          >
+                            {a.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span
+                          className="text-[13px] font-medium truncate"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {a.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Mentioned chips summary */}
+              {mentionedAvatars.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+                  <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    Characters in prompt:
+                  </span>
+                  {mentionedAvatars.map((a) => (
+                    <div
+                      key={a.avatar_id}
+                      className="flex items-center gap-1.5 rounded-full pr-2 pl-0.5 py-0.5"
+                      style={{
+                        background: "rgba(59,130,246,0.12)",
+                        border: "1px solid rgba(59,130,246,0.3)",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={a.thumbnail}
+                        alt={a.name}
+                        className="w-5 h-5 rounded-full object-cover"
+                      />
+                      <span className="text-[11.5px] font-medium" style={{ color: "#3b82f6" }}>
+                        @{a.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Sample prompts */}
               <div className="flex flex-wrap gap-1.5 mt-3">
@@ -539,60 +926,39 @@ export default function ThumbnailStudio() {
 
             {/* Controls row */}
             <div
-              className="flex flex-wrap items-center gap-3 px-5 py-3"
+              className="flex flex-wrap items-center gap-4 px-5 py-3"
               style={{ borderTop: "1px solid var(--border-color)" }}
             >
-              {/* Aspect ratio picker */}
+              {/* Aspect ratio with animated sliding pill */}
               <div className="flex items-center gap-2">
                 <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
                   Aspect
                 </span>
-                <div
-                  className="flex rounded-lg p-0.5"
-                  style={{
-                    background: "var(--segment-bg)",
-                    boxShadow: "var(--shadow-segment-inset)",
-                  }}
-                >
-                  {ASPECT_RATIOS.map((r) => {
-                    const active = aspectRatio === r.value;
-                    return (
-                      <button
-                        key={r.value}
-                        type="button"
-                        onClick={() => setAspectRatio(r.value)}
-                        className="px-2.5 py-1 rounded-md text-[11.5px] font-medium whitespace-nowrap"
-                        style={{
-                          background: active ? "var(--segment-active-bg)" : "transparent",
-                          boxShadow: active ? "var(--shadow-segment-active)" : "none",
-                          color: active ? "var(--text-primary)" : "var(--text-muted)",
-                          transition: "color 0.2s ease, background 0.2s ease",
-                        }}
-                      >
-                        {r.value}
-                      </button>
-                    );
-                  })}
-                </div>
+                <SegmentToggle
+                  size="sm"
+                  selected={aspectRatio}
+                  onSelect={(k) => setAspectRatio(k as AspectRatio)}
+                  items={ASPECT_ITEMS}
+                />
               </div>
 
-              {/* Reference images — compact row */}
-              <div className="flex items-center gap-2 ml-auto">
+              {/* Reference images (manual upload, still supported) */}
+              <div className="flex items-center gap-2">
                 <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-                  Character refs
+                  Refs
                 </span>
                 <div className="flex items-center gap-1.5">
                   {refPreviews.map((src, i) => (
                     <div
                       key={i}
-                      className="relative w-8 h-8 rounded-md overflow-hidden"
+                      className="relative w-8 h-8 rounded-md overflow-hidden group"
                       style={{ border: "1px solid var(--border-color)" }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="w-full h-full object-cover" />
                       <button
                         onClick={() => removeRef(i)}
-                        className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100"
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
                         style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
                         aria-label="Remove reference"
                       >
@@ -629,6 +995,264 @@ export default function ThumbnailStudio() {
                     e.target.value = "";
                   }}
                 />
+              </div>
+
+              {/* "Add character" button — bottom-right */}
+              <div className="relative ml-auto" ref={pickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setCharPickerOpen((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12.5px] font-medium"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  <UserCircle size={14} />
+                  Add character
+                  <Plus size={13} />
+                </button>
+
+                {charPickerOpen && (
+                  <div
+                    className="absolute right-0 bottom-full mb-2 w-[340px] rounded-xl overflow-hidden"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-color)",
+                      boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+                      zIndex: 50,
+                    }}
+                  >
+                    {/* Picker tabs */}
+                    <div
+                      className="flex p-1 gap-1"
+                      style={{ borderBottom: "1px solid var(--border-color)" }}
+                    >
+                      <SegmentToggle
+                        size="sm"
+                        className="w-full"
+                        selected={pickerTab}
+                        onSelect={(k) => setPickerTab(k as "library" | "upload")}
+                        items={[
+                          { key: "library", label: "My library" },
+                          { key: "upload", label: "Upload new" },
+                        ]}
+                      />
+                    </div>
+
+                    {pickerTab === "library" && (
+                      <div className="p-3">
+                        <div
+                          className="flex items-center gap-2 rounded-lg px-2.5 mb-2.5"
+                          style={{
+                            background: "var(--bg-secondary)",
+                            border: "1px solid var(--border-color)",
+                          }}
+                        >
+                          <Search size={13} />
+                          <input
+                            type="text"
+                            placeholder="Search characters…"
+                            value={librarySearch}
+                            onChange={(e) => setLibrarySearch(e.target.value)}
+                            className="flex-1 bg-transparent outline-none py-2 text-[12.5px]"
+                            style={{ color: "var(--text-primary)" }}
+                          />
+                        </div>
+                        <div className="max-h-[260px] overflow-y-auto">
+                          {filteredLibrary.length === 0 ? (
+                            <p
+                              className="text-[12px] text-center py-6"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {avatars.length === 0
+                                ? "No characters yet — upload one on the right."
+                                : "No matches."}
+                            </p>
+                          ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                              {filteredLibrary.map((a) => {
+                                const selected = mentionedAvatarIds.includes(a.avatar_id);
+                                return (
+                                  <button
+                                    key={a.avatar_id}
+                                    type="button"
+                                    onClick={() => pickFromLibrary(a)}
+                                    className="group relative rounded-lg overflow-hidden"
+                                    style={{
+                                      border: selected
+                                        ? "2px solid #3b82f6"
+                                        : "1px solid var(--border-color)",
+                                      aspectRatio: "1 / 1",
+                                      background: "var(--bg-secondary)",
+                                    }}
+                                  >
+                                    {a.thumbnail ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={a.thumbnail}
+                                        alt={a.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div
+                                        className="w-full h-full flex items-center justify-center text-[16px] font-semibold"
+                                        style={{
+                                          background: "var(--bg-tertiary)",
+                                          color: "var(--text-muted)",
+                                        }}
+                                      >
+                                        {a.name.charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <div
+                                      className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10.5px] font-medium truncate"
+                                      style={{
+                                        background:
+                                          "linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0))",
+                                        color: "#fff",
+                                      }}
+                                    >
+                                      {a.name}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {pickerTab === "upload" && (
+                      <div className="p-3">
+                        <label
+                          className="text-[11px] font-medium mb-1.5 block"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newCharName}
+                          onChange={(e) => setNewCharName(e.target.value)}
+                          placeholder="e.g. Nathan"
+                          maxLength={40}
+                          className="w-full rounded-lg px-3 py-2 text-[12.5px] outline-none mb-3"
+                          style={{
+                            background: "var(--bg-secondary)",
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                          }}
+                        />
+
+                        <label
+                          className="text-[11px] font-medium mb-1.5 block"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Photos <span style={{ color: "var(--text-muted)" }}>(1–4)</span>
+                        </label>
+                        <div className="grid grid-cols-4 gap-1.5 mb-3">
+                          {newCharPreviews.map((src, i) => (
+                            <div
+                              key={i}
+                              className="relative rounded-md overflow-hidden"
+                              style={{
+                                aspectRatio: "1 / 1",
+                                border: "1px solid var(--border-color)",
+                              }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={src} alt="" className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => {
+                                  const url = newCharPreviews[i];
+                                  if (url) URL.revokeObjectURL(url);
+                                  setNewCharFiles((fs) => fs.filter((_, idx) => idx !== i));
+                                  setNewCharPreviews((ps) => ps.filter((_, idx) => idx !== i));
+                                }}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                                style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                                aria-label="Remove"
+                              >
+                                <XIcon size={10} />
+                              </button>
+                            </div>
+                          ))}
+                          {newCharFiles.length < 4 && (
+                            <button
+                              type="button"
+                              onClick={() => newCharInputRef.current?.click()}
+                              className="rounded-md flex items-center justify-center"
+                              style={{
+                                aspectRatio: "1 / 1",
+                                background: "var(--bg-secondary)",
+                                border: "1px dashed var(--border-color)",
+                                color: "var(--text-muted)",
+                              }}
+                              aria-label="Add photo"
+                            >
+                              <Upload size={13} />
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          ref={newCharInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          hidden
+                          onChange={(e) => {
+                            handleNewCharFiles(e.target.files);
+                            e.target.value = "";
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          disabled={
+                            !newCharName.trim() || newCharFiles.length === 0 || creatingChar
+                          }
+                          onClick={createCharacter}
+                          className="w-full py-2 rounded-lg text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:cursor-not-allowed"
+                          style={{
+                            background:
+                              newCharName.trim() && newCharFiles.length > 0 && !creatingChar
+                                ? "var(--text-primary)"
+                                : "var(--bg-tertiary)",
+                            color:
+                              newCharName.trim() && newCharFiles.length > 0 && !creatingChar
+                                ? "var(--bg-primary)"
+                                : "var(--text-muted)",
+                            opacity:
+                              newCharName.trim() && newCharFiles.length > 0 && !creatingChar
+                                ? 1
+                                : 0.6,
+                          }}
+                        >
+                          {creatingChar ? (
+                            <>
+                              <Spinner size={13} />
+                              Creating…
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={13} />
+                              Create & add
+                            </>
+                          )}
+                        </button>
+                        <p
+                          className="text-[10.5px] mt-2 leading-snug"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          New character will be saved to your library and inserted into the prompt.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -679,7 +1303,7 @@ export default function ThumbnailStudio() {
             </button>
           </div>
 
-          {/* History grid */}
+          {/* History */}
           {history.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-3">
@@ -718,11 +1342,7 @@ export default function ThumbnailStudio() {
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={t.image_url}
-                        alt={t.prompt}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={t.image_url} alt={t.prompt} className="w-full h-full object-cover" />
                       <div
                         className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10.5px] font-medium uppercase tracking-wide"
                         style={{
