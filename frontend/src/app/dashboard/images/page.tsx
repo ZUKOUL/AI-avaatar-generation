@@ -106,7 +106,7 @@ function RatioIcon({ ratio }: { ratio: string }) {
 
 export default function ImageGenerator() {
   /* ─── State ─── */
-  const [activeTab, setActiveTab] = useState<ActiveTab>("image");
+  const activeTab: ActiveTab = "image";
   const [prompt, setPrompt] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -547,14 +547,13 @@ export default function ImageGenerator() {
           {/* ═══ Left Panel ═══ */}
           <div className="split-panel-left w-full md:w-[380px] shrink-0 overflow-y-auto flex flex-col" style={{ background: "var(--bg-primary)" }}>
 
-            {/* Tabs — Image | Video (stay on same page) */}
+            {/* Tabs — Image | Video (navigate to the matching page) */}
             <div className="px-4 pt-4 pb-1">
               <SegmentToggle
-                selected={activeTab}
-                onSelect={(k) => setActiveTab(k as ActiveTab)}
+                selected="image"
                 items={[
-                  { key: "image", icon: <ImageSquare size={14} />, label: "Image" },
-                  { key: "video", icon: <VideoCamera size={14} />, label: "Video" },
+                  { key: "image", href: "/dashboard/images", icon: <ImageSquare size={14} />, label: "Image" },
+                  { key: "video", href: "/dashboard/videos", icon: <VideoCamera size={14} />, label: "Video" },
                 ]}
               />
             </div>
