@@ -60,6 +60,13 @@ export { Edit01 as Pencil } from "@untitledui/icons/Edit01";
 export { Share01 as Share } from "@untitledui/icons/Share01";
 export { Save01 as Save } from "@untitledui/icons/Save01";
 export { DotsHorizontal } from "@untitledui/icons/DotsHorizontal";
+export { Calendar } from "@untitledui/icons/Calendar";
+export { Palette } from "@untitledui/icons/Palette";
+export { Scissors01 as Scissors } from "@untitledui/icons/Scissors01";
+export { Droplets01 as Droplets } from "@untitledui/icons/Droplets01";
+export { User01 as User } from "@untitledui/icons/User01";
+export { FaceSmile } from "@untitledui/icons/FaceSmile";
+export { Camera01 as Camera } from "@untitledui/icons/Camera01";
 
 // Custom Spinner (Untitled UI has no animated spinner)
 export const Spinner: React.FC<{ size?: number; color?: string; className?: string }> = ({

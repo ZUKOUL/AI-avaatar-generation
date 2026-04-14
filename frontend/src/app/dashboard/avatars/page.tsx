@@ -34,8 +34,6 @@ import {
   Spinner,
   UserCircle,
   ChevronDown,
-  CaretLeft,
-  CaretRight,
   Plus,
   Download,
   MagicWand,
@@ -43,7 +41,21 @@ import {
   RefreshCw,
   Check,
   Upload,
+  Globe,
+  Palette,
+  Eye,
+  Scissors,
+  Droplets,
+  Brush,
+  Calendar,
+  User,
+  FaceSmile,
+  ImageSquare,
+  Camera,
+  Heart,
 } from "@/components/Icons";
+
+type IconComp = React.ComponentType<{ size?: number; color?: string; style?: React.CSSProperties }>;
 
 /* ═══════════════════════════════════════════════════════════════════
    Option catalogues
@@ -64,10 +76,11 @@ interface IconTile {
   glyph: string; // Unicode or short symbol
 }
 
-interface GradientTile {
+interface PortraitTile {
   value: string;
   label: string;
-  gradient: string; // Linear-gradient CSS value for the tile background
+  imageUrl: string; // Unsplash portrait URL
+  gradient: string; // Fallback gradient if image fails to load
 }
 
 interface SwatchTile {
@@ -94,17 +107,55 @@ const AGE_RANGES: IconTile[] = [
   { value: "60s+", label: "60s+", glyph: "" },
 ];
 
-// Gradient tiles used where we'd otherwise need a generated reference image.
-// The gradient is tuned per-ethnicity for a calm, recognizable feel; the
-// label is big and centered so the tile reads as a visual selector, not text.
-const ETHNICITIES: GradientTile[] = [
-  { value: "African", label: "African", gradient: "linear-gradient(135deg, #5a3a1f, #8b5a2b)" },
-  { value: "Asian", label: "Asian", gradient: "linear-gradient(135deg, #e8c79a, #c69b6d)" },
-  { value: "European", label: "European", gradient: "linear-gradient(135deg, #f2d3a6, #d9b07e)" },
-  { value: "Hispanic", label: "Hispanic", gradient: "linear-gradient(135deg, #c48a4c, #9a6a36)" },
-  { value: "Middle Eastern", label: "Middle Eastern", gradient: "linear-gradient(135deg, #b07b45, #7c5128)" },
-  { value: "South Asian", label: "South Asian", gradient: "linear-gradient(135deg, #a56a34, #6f4720)" },
-  { value: "Mixed", label: "Mixed", gradient: "linear-gradient(135deg, #c68a5c, #7d4f2b)" },
+// Portrait reference tiles — Higgsfield-style. Each ethnicity shows a real
+// portrait photo as a visual anchor (Unsplash stock photography, free license).
+// The gradient is a fallback for the brief load window or if an image fails.
+const UNSPLASH = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?w=300&h=400&fit=crop&auto=format&q=75`;
+
+const ETHNICITIES: PortraitTile[] = [
+  {
+    value: "African",
+    label: "African",
+    imageUrl: UNSPLASH("1531123897727-8f129e1688ce"),
+    gradient: "linear-gradient(135deg, #5a3a1f, #8b5a2b)",
+  },
+  {
+    value: "Asian",
+    label: "Asian",
+    imageUrl: UNSPLASH("1507003211169-0a1dd7228f2d"),
+    gradient: "linear-gradient(135deg, #e8c79a, #c69b6d)",
+  },
+  {
+    value: "European",
+    label: "European",
+    imageUrl: UNSPLASH("1494790108377-be9c29b29330"),
+    gradient: "linear-gradient(135deg, #f2d3a6, #d9b07e)",
+  },
+  {
+    value: "Hispanic",
+    label: "Hispanic",
+    imageUrl: UNSPLASH("1617922001439-4a2e6562f328"),
+    gradient: "linear-gradient(135deg, #c48a4c, #9a6a36)",
+  },
+  {
+    value: "Middle Eastern",
+    label: "Middle Eastern",
+    imageUrl: UNSPLASH("1544005313-94ddf0286df2"),
+    gradient: "linear-gradient(135deg, #b07b45, #7c5128)",
+  },
+  {
+    value: "South Asian",
+    label: "South Asian",
+    imageUrl: UNSPLASH("1592621385612-4d7129426394"),
+    gradient: "linear-gradient(135deg, #a56a34, #6f4720)",
+  },
+  {
+    value: "Mixed",
+    label: "Mixed",
+    imageUrl: UNSPLASH("1524504388940-b1c1722653e1"),
+    gradient: "linear-gradient(135deg, #c68a5c, #7d4f2b)",
+  },
 ];
 
 const SKIN_TONES: SwatchTile[] = [
@@ -226,10 +277,11 @@ export default function AvatarCreator() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [generatedAvatars, setGeneratedAvatars] = useState<
-    { image_url: string; nickname: string }[]
-  >([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Single preview slot — clicking a library card or generating REPLACES it;
+  // there's no queue/carousel. Set to null to return to the empty canvas.
+  const [previewAvatar, setPreviewAvatar] = useState<
+    { image_url: string; nickname: string } | null
+  >(null);
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [model, setModel] = useState("gemini-3-pro");
@@ -299,9 +351,7 @@ export default function AvatarCreator() {
     files.forEach((f) => formData.append("files", f));
     try {
       const res = await avatarAPI.generate(formData);
-      const newAvatar = { image_url: res.data.image_url, nickname: res.data.nickname };
-      setGeneratedAvatars((prev) => [newAvatar, ...prev]);
-      setCurrentIndex(0);
+      setPreviewAvatar({ image_url: res.data.image_url, nickname: res.data.nickname });
       setNickname("");
       loadAvatars();
     } catch (err: unknown) {
@@ -323,8 +373,6 @@ export default function AvatarCreator() {
     }
   };
 
-  const currentAvatar = generatedAvatars[currentIndex] || null;
-
   // Tag chips summarize the current selection for the canvas footer.
   const tagChips = [
     CHARACTER_TYPES.find((c) => c.value === characterType)?.label,
@@ -344,14 +392,10 @@ export default function AvatarCreator() {
           <LibraryPanel
             avatars={avatars}
             loading={loadingAvatars}
-            currentAvatar={currentAvatar}
+            previewAvatar={previewAvatar}
             onSelectAvatar={(av) => {
-              // Clicking a library card previews it; user can tweak and regen.
-              setGeneratedAvatars((prev) => [
-                { image_url: av.thumbnail, nickname: av.name },
-                ...prev.filter((x) => x.image_url !== av.thumbnail),
-              ]);
-              setCurrentIndex(0);
+              // Clicking a library card REPLACES the current preview — no queue.
+              setPreviewAvatar({ image_url: av.thumbnail, nickname: av.name });
             }}
           />
 
@@ -359,12 +403,12 @@ export default function AvatarCreator() {
           <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "var(--bg-primary)" }}>
             <Canvas
               loading={loading}
-              currentAvatar={currentAvatar}
-              generatedCount={generatedAvatars.length}
-              currentIndex={currentIndex}
-              onPrev={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-              onNext={() => setCurrentIndex(Math.min(generatedAvatars.length - 1, currentIndex + 1))}
-              onPickIndex={setCurrentIndex}
+              previewAvatar={previewAvatar}
+              onClearPreview={() => setPreviewAvatar(null)}
+              onDropAvatar={(av) => {
+                // Dragged from library → replaces preview, same as click.
+                setPreviewAvatar({ image_url: av.thumbnail, nickname: av.name });
+              }}
               tags={tagChips}
               onShuffle={() => {
                 // Randomize the four most-visual choices to suggest a variation.
@@ -461,12 +505,12 @@ export default function AvatarCreator() {
 function LibraryPanel({
   avatars,
   loading,
-  currentAvatar,
+  previewAvatar,
   onSelectAvatar,
 }: {
   avatars: Avatar[];
   loading: boolean;
-  currentAvatar: { image_url: string; nickname: string } | null;
+  previewAvatar: { image_url: string; nickname: string } | null;
   onSelectAvatar: (av: Avatar) => void;
 }) {
   return (
@@ -528,10 +572,23 @@ function LibraryPanel({
             <button
               key={av.avatar_id}
               onClick={() => onSelectAvatar(av)}
-              className="w-full aspect-[3/4] relative rounded-xl overflow-hidden transition-all cursor-pointer"
+              draggable
+              onDragStart={(e) => {
+                // Canvas onDrop reads this payload to load the dragged avatar.
+                const payload = JSON.stringify({
+                  avatar_id: av.avatar_id,
+                  name: av.name,
+                  thumbnail: av.thumbnail,
+                });
+                e.dataTransfer.setData("application/x-horpen-avatar", payload);
+                e.dataTransfer.setData("text/plain", av.thumbnail);
+                e.dataTransfer.effectAllowed = "copy";
+              }}
+              title="Click or drag to canvas"
+              className="w-full aspect-[3/4] relative rounded-xl overflow-hidden transition-all cursor-grab active:cursor-grabbing"
               style={{
                 border:
-                  currentAvatar?.image_url === av.thumbnail
+                  previewAvatar?.image_url === av.thumbnail
                     ? "2px solid var(--text-primary)"
                     : "1px solid var(--border-color)",
               }}
@@ -578,33 +635,55 @@ function LibraryPanel({
 
 function Canvas({
   loading,
-  currentAvatar,
-  generatedCount,
-  currentIndex,
-  onPrev,
-  onNext,
-  onPickIndex,
+  previewAvatar,
+  onClearPreview,
+  onDropAvatar,
   tags,
   onShuffle,
   onGenerate,
   generateDisabled,
 }: {
   loading: boolean;
-  currentAvatar: { image_url: string; nickname: string } | null;
-  generatedCount: number;
-  currentIndex: number;
-  onPrev: () => void;
-  onNext: () => void;
-  onPickIndex: (i: number) => void;
+  previewAvatar: { image_url: string; nickname: string } | null;
+  onClearPreview: () => void;
+  onDropAvatar: (av: Avatar) => void;
   tags: string[];
   onShuffle: () => void;
   onGenerate: () => void;
   generateDisabled: boolean;
 }) {
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("application/x-horpen-avatar")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    if (!isDragOver) setIsDragOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear when leaving the drop zone itself, not a child element.
+    if (e.currentTarget === e.target) setIsDragOver(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const raw = e.dataTransfer.getData("application/x-horpen-avatar");
+    if (!raw) return;
+    try {
+      const av = JSON.parse(raw) as Avatar;
+      onDropAvatar(av);
+    } catch {
+      /* ignore malformed payload */
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Preview canvas */}
       <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className="flex-1 flex items-center justify-center relative overflow-hidden"
         style={{
           background:
@@ -616,6 +695,9 @@ function Canvas({
           `,
           backgroundSize: "32px 32px",
           backgroundPosition: "center",
+          outline: isDragOver ? "2px dashed var(--text-primary)" : "none",
+          outlineOffset: "-8px",
+          transition: "outline 0.15s ease",
         }}
       >
         {loading ? (
@@ -627,7 +709,7 @@ function Canvas({
               <p className="text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>Generating avatar…</p>
             </div>
           </div>
-        ) : currentAvatar ? (
+        ) : previewAvatar ? (
           <div className="relative max-w-[380px] w-full mx-6">
             <div
               className="rounded-2xl overflow-hidden"
@@ -635,50 +717,38 @@ function Canvas({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={currentAvatar.image_url}
-                alt={currentAvatar.nickname}
+                src={previewAvatar.image_url}
+                alt={previewAvatar.nickname}
                 className="w-full h-auto object-contain"
               />
             </div>
+            {/* Clear (X) — top-left, returns to empty canvas */}
+            <button
+              onClick={onClearPreview}
+              aria-label="Clear preview"
+              className="absolute top-3 left-3 p-2 rounded-lg transition-colors"
+              style={{ background: "rgba(0,0,0,0.55)", color: "#fff", backdropFilter: "blur(6px)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.75)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.55)")}
+            >
+              <XIcon size={15} />
+            </button>
+            {/* Download — top-right */}
             <a
-              href={currentAvatar.image_url}
+              href={previewAvatar.image_url}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Download"
               className="absolute top-3 right-3 p-2 rounded-lg transition-colors"
               style={{ background: "rgba(0,0,0,0.55)", color: "#fff", backdropFilter: "blur(6px)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.75)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.55)")}
             >
               <Download size={15} />
             </a>
           </div>
         ) : (
-          <EmptyState />
-        )}
-
-        {/* Carousel dots */}
-        {generatedCount > 1 && (
-          <div
-            className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
-          >
-            <button onClick={onPrev} disabled={currentIndex === 0} className="text-white disabled:opacity-30">
-              <CaretLeft size={14} />
-            </button>
-            {Array.from({ length: generatedCount }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => onPickIndex(i)}
-                className="rounded-full transition-all"
-                style={{
-                  width: i === currentIndex ? 16 : 6,
-                  height: 6,
-                  background: i === currentIndex ? "#fff" : "rgba(255,255,255,0.35)",
-                }}
-              />
-            ))}
-            <button onClick={onNext} disabled={currentIndex === generatedCount - 1} className="text-white disabled:opacity-30">
-              <CaretRight size={14} />
-            </button>
-          </div>
+          <EmptyState dragActive={isDragOver} />
         )}
       </div>
 
@@ -745,25 +815,28 @@ function Canvas({
   );
 }
 
-function EmptyState() {
+function EmptyState({ dragActive }: { dragActive: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 text-center px-6">
+    <div className="flex flex-col items-center justify-center gap-3 text-center px-6 pointer-events-none">
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center"
         style={{
           background: "var(--bg-tertiary)",
           border: "1px solid var(--border-color)",
-          color: "var(--text-muted)",
+          color: dragActive ? "var(--text-primary)" : "var(--text-muted)",
+          transition: "color 0.15s ease",
         }}
       >
         <UserCircle size={32} />
       </div>
       <div>
         <p className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-          Your AI avatar lives here
+          {dragActive ? "Drop to load avatar" : "Your AI avatar lives here"}
         </p>
         <p className="text-[12px] mt-1" style={{ color: "var(--text-muted)" }}>
-          Pick your options on the right, then hit Generate.
+          {dragActive
+            ? "Release to use this avatar as the current preview."
+            : "Pick options on the right and hit Generate — or drag one in from the library."}
         </p>
       </div>
     </div>
@@ -890,6 +963,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="character-type"
               label="Character Type"
+              icon={MagicWand}
               open={p.openSection === "character-type"}
               onToggle={toggle}
               summary={CHARACTER_TYPES.find((c) => c.value === p.characterType)?.label}
@@ -905,6 +979,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="gender"
               label="Gender"
+              icon={Heart}
               open={p.openSection === "gender"}
               onToggle={toggle}
               summary={GENDERS.find((g) => g.value === p.gender)?.label}
@@ -915,11 +990,12 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="ethnicity"
               label="Ethnicity"
+              icon={Globe}
               open={p.openSection === "ethnicity"}
               onToggle={toggle}
               summary={p.ethnicity}
             >
-              <GradientTileGrid
+              <PortraitTileGrid
                 items={ETHNICITIES}
                 selected={p.ethnicity}
                 onSelect={p.setEthnicity}
@@ -929,6 +1005,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="skin"
               label="Skin Color"
+              icon={Palette}
               open={p.openSection === "skin"}
               onToggle={toggle}
               summary={p.skinTone}
@@ -939,6 +1016,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="eyes"
               label="Eye Color"
+              icon={Eye}
               open={p.openSection === "eyes"}
               onToggle={toggle}
               summary={p.eyeColor}
@@ -949,6 +1027,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="hair-length"
               label="Hair Length"
+              icon={Scissors}
               open={p.openSection === "hair-length"}
               onToggle={toggle}
               summary={p.hairLength}
@@ -964,6 +1043,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="hair-style"
               label="Hair Style"
+              icon={Brush}
               open={p.openSection === "hair-style"}
               onToggle={toggle}
               summary={p.hairStyle}
@@ -979,6 +1059,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="hair-color"
               label="Hair Color"
+              icon={Droplets}
               open={p.openSection === "hair-color"}
               onToggle={toggle}
               summary={p.hairColor}
@@ -989,6 +1070,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="age"
               label="Age Range"
+              icon={Calendar}
               open={p.openSection === "age"}
               onToggle={toggle}
               summary={p.age}
@@ -1004,6 +1086,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="body"
               label="Body Type"
+              icon={User}
               open={p.openSection === "body"}
               onToggle={toggle}
               summary={p.bodyType}
@@ -1019,6 +1102,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="outfit"
               label="Outfit"
+              icon={SparkleIcon}
               open={p.openSection === "outfit"}
               onToggle={toggle}
               summary={p.outfit}
@@ -1034,6 +1118,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="expression"
               label="Expression"
+              icon={FaceSmile}
               open={p.openSection === "expression"}
               onToggle={toggle}
               summary={p.expression}
@@ -1049,6 +1134,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="background"
               label="Background"
+              icon={ImageSquare}
               open={p.openSection === "background"}
               onToggle={toggle}
               summary={BACKGROUNDS.find((b) => b.value === p.background)?.label}
@@ -1064,6 +1150,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="style"
               label="Style"
+              icon={Camera}
               open={p.openSection === "style"}
               onToggle={toggle}
               summary={STYLES.find((s) => s.value === p.style)?.label}
@@ -1074,6 +1161,7 @@ function BuilderPanel(p: BuilderProps) {
             <Accordion
               keyName="references"
               label={`References · ${p.files.length}/5`}
+              icon={Upload}
               open={p.openSection === "references"}
               onToggle={toggle}
               summary={p.files.length > 0 ? `${p.files.length}` : undefined}
@@ -1220,6 +1308,7 @@ function Accordion({
   keyName,
   label,
   summary,
+  icon: Icon,
   open,
   onToggle,
   children,
@@ -1227,6 +1316,7 @@ function Accordion({
   keyName: string;
   label: string;
   summary?: string;
+  icon?: IconComp;
   open: boolean;
   onToggle: (k: string) => void;
   children: React.ReactNode;
@@ -1240,7 +1330,15 @@ function Accordion({
         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       >
-        <div className="flex items-baseline gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {Icon && (
+            <span
+              className="shrink-0 flex items-center justify-center w-5 h-5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <Icon size={14} />
+            </span>
+          )}
           <span className="text-[13px] font-semibold">{label}</span>
           {summary && !open && (
             <span className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
@@ -1320,12 +1418,12 @@ function IconTileGrid({
   );
 }
 
-function GradientTileGrid({
+function PortraitTileGrid({
   items,
   selected,
   onSelect,
 }: {
-  items: GradientTile[];
+  items: PortraitTile[];
   selected: string;
   onSelect: (v: string) => void;
 }) {
@@ -1339,6 +1437,8 @@ function GradientTileGrid({
             onClick={() => onSelect(it.value)}
             className="relative aspect-[3/4] rounded-lg overflow-hidden transition-all"
             style={{
+              // Gradient is the fallback behind the image — visible during load
+              // and if the CDN photo ever breaks.
               background: it.gradient,
               outline: active ? "2px solid var(--text-primary)" : "1px solid var(--border-color)",
               outlineOffset: active ? "1px" : "0",
@@ -1349,10 +1449,22 @@ function GradientTileGrid({
             onMouseLeave={(e) => (e.currentTarget.style.transform = active ? "scale(1.02)" : "scale(1)")}
             title={it.label}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={it.imageUrl}
+              alt={it.label}
+              loading="lazy"
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={(e) => {
+                // Hide the broken image so the gradient fallback shows through.
+                e.currentTarget.style.display = "none";
+              }}
+            />
             <div
               className="absolute inset-x-0 bottom-0 px-1.5 py-1"
               style={{
-                background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
+                background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 70%, transparent 100%)",
               }}
             >
               <span className="text-[10px] font-semibold text-white drop-shadow-sm">{it.label}</span>
