@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
+import MediaDetailView from "@/components/MediaDetailView";
 import { avatarAPI, videoAPI } from "@/lib/api";
 import {
   Spinner,
@@ -56,6 +58,8 @@ function RatioIcon({ ratio }: { ratio: string }) {
 }
 
 export default function VideoGenerator() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   /* ─── State ─── */
   const [motionPrompt, setMotionPrompt] = useState("");
   const [engine, setEngine] = useState(VIDEO_MODELS[0].id);
@@ -114,6 +118,27 @@ export default function VideoGenerator() {
   const promptZoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadData(); }, []);
+
+  // Prefill start-image / prompt from ?ref= & ?prompt= query params
+  useEffect(() => {
+    const ref = searchParams?.get("ref");
+    const pre = searchParams?.get("prompt");
+    let mutated = false;
+    if (ref) {
+      setStartImageUrl(ref);
+      setStartImageFile(null);
+      mutated = true;
+    }
+    if (pre) {
+      setMotionPrompt(pre);
+      mutated = true;
+    }
+    if (mutated) {
+      // Clear the query params from the URL so they don't re-apply on
+      // subsequent navigations within the page.
+      router.replace("/dashboard/videos");
+    }
+  }, [searchParams, router]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -422,29 +447,7 @@ export default function VideoGenerator() {
     ...(galleryFilter !== "images" ? videos.map((v) => ({ type: "video" as const, data: v })) : []),
   ].sort((a, b) => new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime());
 
-  // Lightbox keyboard controls
-  useEffect(() => {
-    if (!lightboxItem) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxItem(null);
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        const currentIdx = galleryItems.findIndex(item =>
-          item.type === "image" ? item.data.image_id === lightboxItem.id : item.data.job_id === lightboxItem.id
-        );
-        const nextIdx = e.key === "ArrowLeft" ? currentIdx - 1 : currentIdx + 1;
-        if (nextIdx >= 0 && nextIdx < galleryItems.length) {
-          const next = galleryItems[nextIdx];
-          if (next.type === "image") {
-            setLightboxItem({ type: "image", url: next.data.image_url, prompt: next.data.prompt, id: next.data.image_id, created_at: next.data.created_at });
-          } else if (next.data.status === "completed" && next.data.video_url) {
-            setLightboxItem({ type: "video", url: next.data.video_url, prompt: next.data.motion_prompt || "", id: next.data.job_id, created_at: next.data.created_at });
-          }
-        }
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [lightboxItem, galleryItems]);
+  // (keyboard controls live inside MediaDetailView)
 
   return (
     <>
@@ -984,90 +987,75 @@ export default function VideoGenerator() {
         </div>
       )}
 
-      {/* ═══ Lightbox ═══ */}
-      {lightboxItem && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center animate-fadeIn" style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setLightboxItem(null)}>
-          {/* Close */}
-          <button className="absolute top-4 right-4 p-2.5 rounded-xl transition-colors z-10 hover:bg-white/10" style={{ color: "rgba(255,255,255,0.7)" }} onClick={() => setLightboxItem(null)}>
-            <XIcon size={22} />
-          </button>
-
-          {/* Prev */}
-          {(() => {
-            const idx = galleryItems.findIndex(item => item.type === "image" ? item.data.image_id === lightboxItem.id : item.data.job_id === lightboxItem.id);
-            return idx > 0 ? (
-              <button
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
-                style={{ color: "rgba(255,255,255,0.7)" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const prev = galleryItems[idx - 1];
-                  if (prev.type === "image") setLightboxItem({ type: "image", url: prev.data.image_url, prompt: prev.data.prompt, id: prev.data.image_id, created_at: prev.data.created_at });
-                  else if (prev.data.status === "completed" && prev.data.video_url) setLightboxItem({ type: "video", url: prev.data.video_url, prompt: prev.data.motion_prompt || "", id: prev.data.job_id, created_at: prev.data.created_at });
-                }}
-              >
-                <CaretLeft size={24} />
-              </button>
-            ) : null;
-          })()}
-
-          {/* Next */}
-          {(() => {
-            const idx = galleryItems.findIndex(item => item.type === "image" ? item.data.image_id === lightboxItem.id : item.data.job_id === lightboxItem.id);
-            return idx < galleryItems.length - 1 ? (
-              <button
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
-                style={{ color: "rgba(255,255,255,0.7)" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const next = galleryItems[idx + 1];
-                  if (next.type === "image") setLightboxItem({ type: "image", url: next.data.image_url, prompt: next.data.prompt, id: next.data.image_id, created_at: next.data.created_at });
-                  else if (next.data.status === "completed" && next.data.video_url) setLightboxItem({ type: "video", url: next.data.video_url, prompt: next.data.motion_prompt || "", id: next.data.job_id, created_at: next.data.created_at });
-                }}
-              >
-                <CaretRight size={24} />
-              </button>
-            ) : null;
-          })()}
-
-          {/* Content */}
-          <div className="flex flex-col items-center max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            {lightboxItem.type === "video" ? (
-              <video
-                src={lightboxItem.url}
-                controls
-                autoPlay
-                className="max-w-full max-h-[78vh] rounded-xl"
-                style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.4)" }}
-              />
-            ) : (
-              <img
-                src={lightboxItem.url}
-                alt={lightboxItem.prompt}
-                className="max-w-full max-h-[78vh] object-contain rounded-xl"
-                style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.4)" }}
-              />
-            )}
-            <div className="flex items-center gap-3 mt-4">
-              <button
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-white/15"
-                style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
-                onClick={() => handleDownload(lightboxItem.url, `horpen-${lightboxItem.id}.${lightboxItem.type === "video" ? "mp4" : "png"}`)}
-              >
-                <Download size={14} /> Download
-              </button>
-              <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {lightboxItem.type === "video" ? "Video" : "Image"} · {new Date(lightboxItem.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-            </div>
-            {lightboxItem.prompt && (
-              <p className="text-[12px] mt-2 max-w-2xl text-center line-clamp-2" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {lightboxItem.prompt}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ═══ Detail view ═══ */}
+      {lightboxItem && (() => {
+        const idx = galleryItems.findIndex((it) =>
+          it.type === "image" ? it.data.image_id === lightboxItem.id : it.data.job_id === lightboxItem.id,
+        );
+        const go = (target: GalleryItem | undefined) => {
+          if (!target) return;
+          if (target.type === "image") {
+            setLightboxItem({
+              type: "image",
+              url: target.data.image_url,
+              prompt: target.data.prompt,
+              id: target.data.image_id,
+              created_at: target.data.created_at,
+            });
+          } else if (target.data.status === "completed" && target.data.video_url) {
+            setLightboxItem({
+              type: "video",
+              url: target.data.video_url,
+              prompt: target.data.motion_prompt || "",
+              id: target.data.job_id,
+              created_at: target.data.created_at,
+            });
+          }
+        };
+        return (
+          <MediaDetailView
+            item={{
+              id: lightboxItem.id,
+              type: lightboxItem.type,
+              url: lightboxItem.url,
+              prompt: lightboxItem.prompt,
+              created_at: lightboxItem.created_at,
+            }}
+            position={{ index: idx, total: galleryItems.length }}
+            onClose={() => setLightboxItem(null)}
+            onPrev={idx > 0 ? () => go(galleryItems[idx - 1]) : undefined}
+            onNext={
+              idx < galleryItems.length - 1
+                ? () => go(galleryItems[idx + 1])
+                : undefined
+            }
+            onDownload={() =>
+              handleDownload(
+                lightboxItem.url,
+                `horpen-${lightboxItem.id}.${lightboxItem.type === "video" ? "mp4" : "png"}`,
+              )
+            }
+            onReusePrompt={() => {
+              setMotionPrompt(lightboxItem.prompt || "");
+              if (lightboxItem.type === "image") {
+                setStartImageUrl(lightboxItem.url);
+                setStartImageFile(null);
+              }
+              setLightboxItem(null);
+            }}
+            onCreateVideo={
+              lightboxItem.type === "image"
+                ? () => {
+                    setStartImageUrl(lightboxItem.url);
+                    setStartImageFile(null);
+                    if (lightboxItem.prompt) setMotionPrompt(lightboxItem.prompt);
+                    setLightboxItem(null);
+                  }
+                : undefined
+            }
+          />
+        );
+      })()}
     </>
   );
 }

@@ -55,6 +55,11 @@ export { Globe01 as Globe } from "@untitledui/icons/Globe01";
 export { Lock01 as Lock } from "@untitledui/icons/Lock01";
 export { Check as Check } from "@untitledui/icons/Check";
 export { ChevronRight } from "@untitledui/icons/ChevronRight";
+export { Heart } from "@untitledui/icons/Heart";
+export { Edit01 as Pencil } from "@untitledui/icons/Edit01";
+export { Share01 as Share } from "@untitledui/icons/Share01";
+export { Save01 as Save } from "@untitledui/icons/Save01";
+export { DotsHorizontal } from "@untitledui/icons/DotsHorizontal";
 
 // Custom Spinner (Untitled UI has no animated spinner)
 export const Spinner: React.FC<{ size?: number; color?: string; className?: string }> = ({

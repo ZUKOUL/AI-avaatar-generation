@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
+import MediaDetailView from "@/components/MediaDetailView";
 import { avatarAPI, videoAPI } from "@/lib/api";
 import {
   Upload,
@@ -105,6 +107,7 @@ function RatioIcon({ ratio }: { ratio: string }) {
 }
 
 export default function ImageGenerator() {
+  const router = useRouter();
   /* ─── State ─── */
   // Kept as state so the existing video-mode branches still type-check; the
   // Video tab now navigates away (see SegmentToggle below) so this is always "image".
@@ -167,23 +170,7 @@ export default function ImageGenerator() {
     ? avatars.filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
     : [];
 
-  // Lightbox keyboard controls
-  useEffect(() => {
-    if (!lightboxImage) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxImage(null);
-      if (e.key === "ArrowLeft") {
-        const idx = images.findIndex(i => i.image_id === lightboxImage.image_id);
-        if (idx > 0) setLightboxImage(images[idx - 1]);
-      }
-      if (e.key === "ArrowRight") {
-        const idx = images.findIndex(i => i.image_id === lightboxImage.image_id);
-        if (idx < images.length - 1) setLightboxImage(images[idx + 1]);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [lightboxImage, images]);
+  // (keyboard controls live inside MediaDetailView)
 
   // Sync selectedAvatar when @mention is deleted from prompt
   useEffect(() => {
@@ -1223,67 +1210,68 @@ export default function ImageGenerator() {
         </div>
       )}
 
-      {/* ═══ Lightbox ═══ */}
-      {lightboxImage && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center animate-fadeIn" style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setLightboxImage(null)}>
-          {/* Close */}
-          <button className="absolute top-4 right-4 p-2.5 rounded-xl transition-colors z-10 hover:bg-white/10" style={{ color: "rgba(255,255,255,0.7)" }} onClick={() => setLightboxImage(null)}>
-            <XIcon size={22} />
-          </button>
-
-          {/* Prev */}
-          {images.findIndex(i => i.image_id === lightboxImage.image_id) > 0 && (
-            <button
-              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
-              style={{ color: "rgba(255,255,255,0.7)" }}
-              onClick={(e) => { e.stopPropagation(); const idx = images.findIndex(i => i.image_id === lightboxImage.image_id); if (idx > 0) setLightboxImage(images[idx - 1]); }}
-            >
-              <CaretLeft size={24} />
-            </button>
-          )}
-
-          {/* Next */}
-          {images.findIndex(i => i.image_id === lightboxImage.image_id) < images.length - 1 && (
-            <button
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
-              style={{ color: "rgba(255,255,255,0.7)" }}
-              onClick={(e) => { e.stopPropagation(); const idx = images.findIndex(i => i.image_id === lightboxImage.image_id); if (idx < images.length - 1) setLightboxImage(images[idx + 1]); }}
-            >
-              <CaretRight size={24} />
-            </button>
-          )}
-
-          {/* Image + info */}
-          <div className="flex flex-col items-center max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={lightboxImage.image_url}
-              alt={lightboxImage.prompt}
-              className="max-w-full max-h-[78vh] object-contain rounded-xl"
-              style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.4)" }}
-            />
-            <div className="flex items-center gap-3 mt-4">
-              <button
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-white/15"
-                style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
-                onClick={() => handleDownload(lightboxImage.image_url, `horpen-${lightboxImage.image_id}.png`)}
-              >
-                <Download size={14} /> Download
-              </button>
-              <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {new Date(lightboxImage.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-              <span className="text-[12px] px-2 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
-                {images.findIndex(i => i.image_id === lightboxImage.image_id) + 1} / {images.length}
-              </span>
-            </div>
-            {lightboxImage.prompt && (
-              <p className="text-[12px] mt-2 max-w-2xl text-center line-clamp-2" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {lightboxImage.prompt}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ═══ Detail view ═══ */}
+      {lightboxImage && (() => {
+        const idx = images.findIndex((i) => i.image_id === lightboxImage.image_id);
+        const refAvatar = lightboxImage.avatar_id
+          ? avatars.find((a) => a.avatar_id === lightboxImage.avatar_id)
+          : null;
+        return (
+          <MediaDetailView
+            item={{
+              id: lightboxImage.image_id,
+              type: "image",
+              url: lightboxImage.image_url,
+              prompt: lightboxImage.prompt,
+              created_at: lightboxImage.created_at,
+              avatar_id: lightboxImage.avatar_id,
+              references: refAvatar?.thumbnail
+                ? [{ url: refAvatar.thumbnail, label: refAvatar.name }]
+                : undefined,
+            }}
+            position={{ index: idx, total: images.length }}
+            onClose={() => setLightboxImage(null)}
+            onPrev={idx > 0 ? () => setLightboxImage(images[idx - 1]) : undefined}
+            onNext={
+              idx < images.length - 1
+                ? () => setLightboxImage(images[idx + 1])
+                : undefined
+            }
+            onDownload={() =>
+              handleDownload(lightboxImage.image_url, `horpen-${lightboxImage.image_id}.png`)
+            }
+            onReusePrompt={() => {
+              setPrompt(lightboxImage.prompt || "");
+              if (lightboxImage.avatar_id) setSelectedAvatar(lightboxImage.avatar_id);
+              setLightboxImage(null);
+              textareaRef.current?.focus();
+            }}
+            onEdit={() => {
+              // Drop the generated image into the reference zone of the prompt bar
+              setPrompt(lightboxImage.prompt || "");
+              if (lightboxImage.avatar_id) setSelectedAvatar(lightboxImage.avatar_id);
+              // Fetch the image as a File and push it into refs
+              fetch(lightboxImage.image_url)
+                .then((r) => r.blob())
+                .then((blob) => {
+                  const f = new File([blob], `ref-${lightboxImage.image_id}.png`, { type: blob.type || "image/png" });
+                  setFiles((prev) => [...prev, f].slice(0, 3));
+                  setPreviews((prev) => [...prev, URL.createObjectURL(f)].slice(0, 3));
+                })
+                .catch(() => {});
+              setLightboxImage(null);
+              textareaRef.current?.focus();
+            }}
+            onCreateVideo={() => {
+              const params = new URLSearchParams();
+              params.set("ref", lightboxImage.image_url);
+              if (lightboxImage.prompt) params.set("prompt", lightboxImage.prompt);
+              setLightboxImage(null);
+              router.push(`/dashboard/videos?${params.toString()}`);
+            }}
+          />
+        );
+      })()}
     </>
   );
 }
