@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ReactNode } from "react";
+import {
+  ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+
+/** useLayoutEffect on client, useEffect on server (SSR-safe). */
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export type SegmentItem = {
   key: string;
@@ -24,11 +34,12 @@ type SegmentToggleProps = {
 
 /**
  * Shared segmented control with an inset gray track and a sliding white pill.
- * Uses `transform: translateX(N * 100%)` so the indicator is always pixel-aligned
- * with the active button regardless of label length.
+ * Measures the active item's bounding box so the indicator stays perfectly
+ * aligned regardless of label length or container sizing (flex-1 items in a
+ * shrink-to-fit parent don't get equal widths — measurement sidesteps that).
  *
- * Defined at module level (NOT nested inside another component) so React preserves
- * the DOM node across parent renders and the CSS transition can actually play.
+ * Defined at module level so React preserves the DOM node across parent
+ * renders and the CSS transition actually plays.
  */
 export default function SegmentToggle({
   items,
@@ -38,22 +49,51 @@ export default function SegmentToggle({
   capitalize = false,
   className = "",
 }: SegmentToggleProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Array<HTMLElement | null>>([]);
+  const [indicator, setIndicator] = useState<{
+    left: number;
+    width: number;
+    visible: boolean;
+  }>({ left: 0, width: 0, visible: false });
+
   const rawIdx = items.findIndex((i) => i.key === selected);
   const activeIdx = rawIdx < 0 ? 0 : rawIdx;
-  const n = items.length;
   const isSm = size === "sm";
+
+  useIsoLayoutEffect(() => {
+    const update = () => {
+      const container = containerRef.current;
+      const el = itemRefs.current[activeIdx];
+      if (!container || !el) return;
+      const cRect = container.getBoundingClientRect();
+      const eRect = el.getBoundingClientRect();
+      setIndicator({
+        left: eRect.left - cRect.left,
+        width: eRect.width,
+        visible: rawIdx >= 0,
+      });
+    };
+    update();
+    // Re-measure after fonts/layout settle.
+    const t1 = setTimeout(update, 30);
+    const t2 = setTimeout(update, 120);
+    window.addEventListener("resize", update);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize", update);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIdx, rawIdx, items.length, size]);
 
   const containerCls = isSm
     ? "relative flex items-center rounded-lg p-0.5"
     : "relative flex items-center rounded-xl p-1";
 
   const indicatorCls = isSm
-    ? "absolute top-0.5 bottom-0.5 left-0.5 rounded-md pointer-events-none"
-    : "absolute top-1 bottom-1 left-1 rounded-lg pointer-events-none";
-
-  const indicatorWidth = isSm
-    ? `calc((100% - 4px) / ${n})`
-    : `calc((100% - 8px) / ${n})`;
+    ? "absolute rounded-md pointer-events-none"
+    : "absolute rounded-lg pointer-events-none";
 
   const baseBtn = isSm
     ? "relative z-[1] flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[12px] font-medium text-center"
@@ -61,8 +101,11 @@ export default function SegmentToggle({
 
   const btnCls = capitalize ? `${baseBtn} capitalize` : baseBtn;
 
+  const indicatorInset = isSm ? 2 : 4;
+
   return (
     <div
+      ref={containerRef}
       className={`${containerCls} ${className}`.trim()}
       style={{
         background: "var(--segment-bg)",
@@ -72,15 +115,18 @@ export default function SegmentToggle({
       <div
         className={indicatorCls}
         style={{
-          width: indicatorWidth,
-          transform: `translateX(${activeIdx * 100}%)`,
+          left: indicator.left,
+          width: indicator.width,
+          top: indicatorInset,
+          bottom: indicatorInset,
           background: "var(--segment-active-bg)",
           boxShadow: "var(--shadow-segment-active)",
-          transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease",
-          opacity: rawIdx < 0 ? 0 : 1,
+          transition:
+            "left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease",
+          opacity: indicator.visible ? 1 : 0,
         }}
       />
-      {items.map((item) => {
+      {items.map((item, i) => {
         const active = item.key === selected;
         const inner = (
           <>
@@ -96,6 +142,9 @@ export default function SegmentToggle({
           return (
             <Link
               key={item.key}
+              ref={(el) => {
+                itemRefs.current[i] = (el as unknown as HTMLElement) ?? null;
+              }}
               href={item.href}
               className={btnCls}
               style={style}
@@ -108,6 +157,9 @@ export default function SegmentToggle({
         return (
           <button
             key={item.key}
+            ref={(el) => {
+              itemRefs.current[i] = el;
+            }}
             type="button"
             onClick={() => onSelect?.(item.key)}
             className={btnCls}
