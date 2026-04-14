@@ -1,6 +1,6 @@
 """
 Stripe payment endpoints: Checkout Session creation + webhook handler.
-Supports multi-tier pricing (starter / standard / pro).
+Supports multi-tier pricing (creator / studio).
 """
 import logging
 from typing import Annotated, Literal
@@ -23,14 +23,13 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # Map tier slugs to the corresponding Settings attribute for the Stripe Price ID
 _TIER_PRICE_ID_MAP = {
-    "starter": settings.STRIPE_PRICE_ID_STARTER,
-    "standard": settings.STRIPE_PRICE_ID_STANDARD,
-    "pro": settings.STRIPE_PRICE_ID_PRO,
+    "creator": settings.STRIPE_PRICE_ID_CREATOR,
+    "studio": settings.STRIPE_PRICE_ID_STUDIO,
 }
 
 
 class CheckoutRequest(BaseModel):
-    tier: Literal["starter", "standard", "pro"] = Field(
+    tier: Literal["creator", "studio"] = Field(
         default=DEFAULT_TIER,
         description="Pricing tier to purchase",
     )

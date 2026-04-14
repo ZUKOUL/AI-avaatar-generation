@@ -199,11 +199,16 @@ export default function AvatarCreator() {
       setNickname("");
       loadAvatars();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string | { message?: string } } } };
+      const e = err as { response?: { status?: number; data?: { detail?: string | { message?: string; error?: string } } }; message?: string };
       const detail = e.response?.data?.detail;
-      if (typeof detail === "string") setError(detail);
-      else if (detail && typeof detail === "object" && "message" in detail) setError(detail.message || "Generation failed");
-      else setError("Generation failed. Please try again.");
+      const status = e.response?.status;
+      let msg = "";
+      if (typeof detail === "string") msg = detail;
+      else if (detail && typeof detail === "object") msg = detail.message || detail.error || JSON.stringify(detail);
+      else if (e.message) msg = e.message;
+      else msg = "Unknown error";
+      setError(`[${status || "?"}] ${msg}`);
+      console.error("Avatar generation error:", { status, detail, raw: err });
     } finally {
       setLoading(false);
     }
@@ -256,27 +261,30 @@ export default function AvatarCreator() {
     </div>
   );
 
-  const SegmentToggle = ({ items, selected, onSelect }: { items: { key: string; label: string }[]; selected: string; onSelect: (v: string) => void }) => (
-    <div className="flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-      {items.map((item) => {
-        const active = selected === item.key;
-        return (
-          <button
-            key={item.key}
-            onClick={() => onSelect(item.key)}
-            className="flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-all text-center"
-            style={{
-              background: active ? "var(--segment-active-bg)" : "transparent",
-              color: active ? "var(--text-primary)" : "var(--text-muted)",
-              boxShadow: active ? "var(--shadow-segment-active)" : "none",
-            }}
-          >
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+  const SegmentToggle = ({ items, selected, onSelect }: { items: { key: string; label: string }[]; selected: string; onSelect: (v: string) => void }) => {
+    const activeIdx = items.findIndex(i => i.key === selected);
+    return (
+      <div className="relative flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+        <div className="absolute top-1 bottom-1 rounded-lg" style={{ width: `calc(${100/items.length}% - 4px)`, left: `calc(${activeIdx * (100/items.length)}% + ${activeIdx === 0 ? 4 : 2}px)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
+        {items.map((item) => {
+          const active = selected === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => onSelect(item.key)}
+              className="relative z-[1] flex-1 py-1.5 rounded-lg text-[12px] font-medium text-center"
+              style={{
+                color: active ? "var(--text-primary)" : "var(--text-muted)",
+                transition: "color 0.25s ease",
+              }}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -434,9 +442,19 @@ export default function AvatarCreator() {
             {/* Preview area */}
             <div className="flex-1 flex items-center justify-center relative overflow-hidden" style={{ background: "var(--bg-secondary)" }}>
               {loading ? (
-                <div className="flex flex-col items-center gap-3">
-                  <Spinner size={32} />
-                  <p className="text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>Generating avatar...</p>
+                <div className="relative w-full h-full flex items-center justify-center p-8">
+                  <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden animate-fadeIn" style={{ background: "var(--bg-tertiary)", boxShadow: "0 8px 40px rgba(0,0,0,0.15)" }}>
+                    <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "linear-gradient(90deg, transparent 25%, var(--skeleton-shimmer) 50%, transparent 75%)", animation: "shimmerSweep 2s ease-in-out infinite" }} />
+                    <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "linear-gradient(to top, var(--skeleton-fill-start) 0%, var(--skeleton-fill-mid) 50%, var(--skeleton-fill-end) 90%, transparent 100%)", transform: "translateY(100%)", animation: "fillRise 25s ease-out forwards" }}>
+                      <svg style={{ position: "absolute", top: -10, left: 0, width: "200%", height: 20, animation: "waveSlide 3s linear infinite", color: "var(--skeleton-wave)" }} viewBox="0 0 240 20" fill="none" preserveAspectRatio="none">
+                        <path d="M0 10 Q15 0 30 10 Q45 20 60 10 Q75 0 90 10 Q105 20 120 10 Q135 0 150 10 Q165 20 180 10 Q195 0 210 10 Q225 20 240 10 L240 20 L0 20Z" fill="currentColor" />
+                      </svg>
+                    </div>
+                    <div style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                      <div className="spinner" />
+                      <p className="text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>Generating avatar...</p>
+                    </div>
+                  </div>
                 </div>
               ) : currentAvatar ? (
                 <div className="relative w-full h-full flex items-center justify-center p-6">
@@ -613,7 +631,7 @@ export default function AvatarCreator() {
                 </button>
               </div>
               <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--text-muted)" }}>
-                4 credits per generation
+                5 credits per generation
               </p>
             </div>
           </div>

@@ -26,46 +26,46 @@ interface Plan {
 const PLANS: Plan[] = [
   {
     name: "Free",
-    description: "Perfect for hobbyists, students, or early-stage creators.",
+    description: "Try Horpen with a few free generations.",
     monthlyPrice: 0,
     yearlyPrice: 0,
     tier: "free",
     cta: "Current Plan",
     current: true,
     features: [
+      { text: "3 free credits to start" },
       { text: "Access to basic AI models" },
-      { text: "5 image generations per day" },
-      { text: "Generate up to 10 avatars" },
+      { text: "1 avatar" },
       { text: "Watermarked exports" },
-      { text: "Standard quality output" },
+      { text: "Standard quality" },
     ],
   },
   {
     name: "Creator",
-    description: "For indie creators, and startups who need high-quality output",
-    monthlyPrice: 20,
-    yearlyPrice: 192,
-    tier: "standard",
+    description: "For creators and freelancers who need quality AI content.",
+    monthlyPrice: 35,
+    yearlyPrice: 336,
+    tier: "creator",
     cta: "Get Creator",
-    highlighted: true,
     features: [
-      { text: "Everything in Free" },
-      { text: "Unlimited image generation" },
-      { text: "Premium AI models access" },
-      { text: "HD exports without watermark" },
-      { text: "Video generation up to 30s" },
+      { text: "200 credits / month" },
+      { text: "All AI models" },
+      { text: "HD exports, no watermark" },
+      { text: "Up to 20 avatars" },
+      { text: "Priority support" },
     ],
   },
   {
     name: "Studio",
-    description: "For teams and studios that need power, speed.",
-    monthlyPrice: 40,
-    yearlyPrice: 384,
-    tier: "pro",
+    description: "For agencies and teams who need volume and speed.",
+    monthlyPrice: 85,
+    yearlyPrice: 816,
+    tier: "studio",
     cta: "Get Studio",
+    highlighted: true,
     features: [
+      { text: "450 credits / month" },
       { text: "Everything in Creator" },
-      { text: "Unlimited video generation" },
       { text: "4K export quality" },
       { text: "Priority processing" },
       { text: "API access" },
@@ -107,23 +107,23 @@ export default function CreditsPage() {
           {/* Billing toggle */}
           <div className="flex justify-center mb-10">
             <div
-              className="inline-flex items-center rounded-xl p-1"
+              className="relative inline-flex items-center rounded-xl p-1"
               style={{
                 background: "var(--segment-bg)",
                 boxShadow: "var(--shadow-segment-inset)",
               }}
             >
+              <div className="absolute top-1 bottom-1 rounded-lg" style={{ width: "calc(50% - 4px)", left: billing === "monthly" ? 4 : "calc(50% + 0px)", background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
               {(["monthly", "yearly"] as BillingCycle[]).map((cycle) => {
                 const active = billing === cycle;
                 return (
                   <button
                     key={cycle}
                     onClick={() => setBilling(cycle)}
-                    className="px-5 py-2 rounded-lg text-[14px] font-medium transition-all"
+                    className="relative z-[1] px-5 py-2 rounded-lg text-[14px] font-medium"
                     style={{
-                      background: active ? "var(--segment-active-bg)" : "transparent",
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      boxShadow: active ? "var(--shadow-segment-active)" : "none",
+                      transition: "color 0.25s ease",
                     }}
                   >
                     {cycle === "monthly" ? "Pay monthly" : "Pay yearly"}

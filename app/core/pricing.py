@@ -32,32 +32,27 @@ def get_video_cost(engine: str) -> float:
     return COST_VEO_VIDEO
 
 
-# ─── Credit costs per generation type (high-margin plan) ───
-CREDIT_COST_IMAGE = 4      # credits per image generation       (~73% margin)
-CREDIT_COST_VEO_VIDEO = 15    # credits per Veo video              (~63% margin)
-CREDIT_COST_KLING_VIDEO = 8   # credits per Kling video (no audio) (~69% margin)
-CREDIT_COST_KLING_AUDIO = 12  # credits per Kling video (with audio)(~59% margin)
+# ─── Credit costs per generation type (optimised for margin) ───
+CREDIT_COST_IMAGE = 5         # credits per image generation       (~87 % margin on Creator)
+CREDIT_COST_VEO_VIDEO = 20    # credits per Veo video              (~80 % margin on Creator)
+CREDIT_COST_KLING_VIDEO = 10  # credits per Kling video (no audio) (~83 % margin on Creator)
+CREDIT_COST_KLING_AUDIO = 15  # credits per Kling video (w/ audio) (~77 % margin on Creator)
 
 
-# ─── Multi-tier pricing plans ───
+# ─── Multi-tier pricing plans (~75 % target margin) ───
 PRICING_TIERS = {
-    "starter": {
-        "credits": 50,
-        "price_usd": 9.99,
-        "stripe_env_key": "STRIPE_PRICE_ID_STARTER",
+    "creator": {
+        "credits": 200,
+        "price_usd": 35.00,
+        "stripe_env_key": "STRIPE_PRICE_ID_CREATOR",
     },
-    "standard": {
-        "credits": 100,
-        "price_usd": 15.00,
-        "stripe_env_key": "STRIPE_PRICE_ID_STANDARD",
-    },
-    "pro": {
-        "credits": 300,
-        "price_usd": 34.99,
-        "stripe_env_key": "STRIPE_PRICE_ID_PRO",
+    "studio": {
+        "credits": 450,
+        "price_usd": 85.00,
+        "stripe_env_key": "STRIPE_PRICE_ID_STUDIO",
     },
 }
-DEFAULT_TIER = "standard"
+DEFAULT_TIER = "creator"
 
 
 def get_credit_cost(generation_type: str) -> int:

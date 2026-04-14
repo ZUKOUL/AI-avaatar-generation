@@ -36,26 +36,26 @@ interface PlanDef {
 
 const PLAN_DEFS: PlanDef[] = [
   {
-    name: "Free", description: "Perfect for hobbyists, students, or early-stage creators.",
+    name: "Free", description: "Try Horpen with a few free generations.",
     monthlyPrice: 0, yearlyPrice: 0, tier: "free", cta: "Current Plan", current: true,
     features: [
-      { text: "Access to basic AI models" }, { text: "5 image generations per day" },
-      { text: "Generate up to 10 avatars" }, { text: "Watermarked exports" }, { text: "Standard quality output" },
+      { text: "3 free credits to start" }, { text: "Access to basic AI models" },
+      { text: "1 avatar" }, { text: "Watermarked exports" }, { text: "Standard quality" },
     ],
   },
   {
-    name: "Creator", description: "For indie creators, and startups who need high-quality output",
-    monthlyPrice: 20, yearlyPrice: 192, tier: "standard", cta: "Get Creator", highlighted: true,
+    name: "Creator", description: "For creators and freelancers who need quality AI content.",
+    monthlyPrice: 35, yearlyPrice: 336, tier: "creator", cta: "Get Creator",
     features: [
-      { text: "Everything in Free" }, { text: "Unlimited image generation" },
-      { text: "Premium AI models access" }, { text: "HD exports without watermark" }, { text: "Video generation up to 30s" },
+      { text: "200 credits / month" }, { text: "All AI models" },
+      { text: "HD exports, no watermark" }, { text: "Up to 20 avatars" }, { text: "Priority support" },
     ],
   },
   {
-    name: "Studio", description: "For teams and studios that need power, speed.",
-    monthlyPrice: 40, yearlyPrice: 384, tier: "pro", cta: "Get Studio",
+    name: "Studio", description: "For agencies and teams who need volume and speed.",
+    monthlyPrice: 85, yearlyPrice: 816, tier: "studio", cta: "Get Studio", highlighted: true,
     features: [
-      { text: "Everything in Creator" }, { text: "Unlimited video generation" },
+      { text: "450 credits / month" }, { text: "Everything in Creator" },
       { text: "4K export quality" }, { text: "Priority processing" }, { text: "API access" },
     ],
   },
@@ -216,12 +216,24 @@ export default function SettingsPage() {
             {/* ─── Sidebar tabs ─── */}
             <div className="md:w-[200px] shrink-0">
               <div
-                className="flex md:flex-col gap-1 rounded-xl p-1"
+                className="relative flex md:flex-col gap-1 rounded-xl p-1"
                 style={{
                   background: "var(--segment-bg)",
                   boxShadow: "var(--shadow-segment-inset)",
                 }}
               >
+                {/* Sliding indicator — horizontal on mobile, vertical on desktop */}
+                {(() => {
+                  const tabIndex = TABS.findIndex(t => t.key === activeTab);
+                  return (
+                    <>
+                      {/* Mobile: horizontal slider */}
+                      <div className="absolute top-1 bottom-1 rounded-lg md:hidden" style={{ width: `calc(${100/TABS.length}% - 4px)`, left: `calc(${tabIndex * (100/TABS.length)}% + ${tabIndex === 0 ? 4 : 2}px)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
+                      {/* Desktop: vertical slider */}
+                      <div className="absolute left-1 right-1 rounded-lg hidden md:block" style={{ height: `calc(${100/TABS.length}% - 4px)`, top: `calc(${tabIndex * (100/TABS.length)}% + ${tabIndex === 0 ? 4 : 2}px)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "top 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
+                    </>
+                  );
+                })()}
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
                   const active = activeTab === tab.key;
@@ -229,11 +241,10 @@ export default function SettingsPage() {
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all flex-1 md:flex-initial"
+                      className="relative z-[1] flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium flex-1 md:flex-initial"
                       style={{
-                        background: active ? "var(--segment-active-bg)" : "transparent",
                         color: active ? "var(--text-primary)" : "var(--text-muted)",
-                        boxShadow: active ? "var(--shadow-segment-active)" : "none",
+                        transition: "color 0.25s ease",
                       }}
                     >
                       <Icon size={16} />
@@ -504,20 +515,20 @@ export default function SettingsPage() {
                   {/* Billing toggle */}
                   <div className="flex mb-6">
                     <div
-                      className="inline-flex items-center rounded-xl p-1"
+                      className="relative inline-flex items-center rounded-xl p-1"
                       style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}
                     >
+                      <div className="absolute top-1 bottom-1 rounded-lg" style={{ width: "calc(50% - 4px)", left: billing === "monthly" ? 4 : "calc(50% + 0px)", background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
                       {(["monthly", "yearly"] as BillingCycle[]).map((cycle) => {
                         const active = billing === cycle;
                         return (
                           <button
                             key={cycle}
                             onClick={() => setBilling(cycle)}
-                            className="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all"
+                            className="relative z-[1] px-4 py-1.5 rounded-lg text-[13px] font-medium"
                             style={{
-                              background: active ? "var(--segment-active-bg)" : "transparent",
                               color: active ? "var(--text-primary)" : "var(--text-muted)",
-                              boxShadow: active ? "var(--shadow-segment-active)" : "none",
+                              transition: "color 0.25s ease",
                             }}
                           >
                             {cycle === "monthly" ? "Pay monthly" : "Pay yearly"}

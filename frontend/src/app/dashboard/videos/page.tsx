@@ -11,6 +11,7 @@ import {
   Upload,
   XIcon,
   CaretLeft,
+  CaretRight,
   ChevronDown,
   ImageSquare,
   Play,
@@ -95,6 +96,7 @@ export default function VideoGenerator() {
   const [mentionPos, setMentionPos] = useState<{ top: number; left: number } | null>(null);
   const mentionStartRef = useRef<number | null>(null);
   const [chipDropdown, setChipDropdown] = useState<{ avatarId: string; pos: { top: number; left: number } } | null>(null);
+  const [lightboxItem, setLightboxItem] = useState<{ type: "image" | "video"; url: string; prompt: string; id: string; created_at: string } | null>(null);
 
   const mentionFiltered = mentionQuery !== null
     ? avatars.filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
@@ -135,7 +137,7 @@ export default function VideoGenerator() {
   };
 
   const currentModel = VIDEO_MODELS.find((m) => m.id === engine) || VIDEO_MODELS[0];
-  const creditCost = engine === "kling" ? (audio ? 12 : 8) : 15;
+  const creditCost = engine === "kling" ? (audio ? 15 : 10) : 20;
 
   const handleStartImage = (file: File) => {
     setStartImageFile(file);
@@ -227,9 +229,13 @@ export default function VideoGenerator() {
             })
             .finally(() => setDescribing(false));
         }
+      } else {
+        // Quick click — open lightbox
+        const clickedImg = images.find(i => i.image_url === url);
+        if (clickedImg) {
+          setLightboxItem({ type: "image", url: clickedImg.image_url, prompt: clickedImg.prompt, id: clickedImg.image_id, created_at: clickedImg.created_at });
+        }
       }
-      // else: was a quick click — do nothing (future: open image detail)
-
       setDraggingUrl(null);
       setDraggingThumb(null);
       setDragOverZone(null);
@@ -415,6 +421,30 @@ export default function VideoGenerator() {
     ...(galleryFilter !== "images" ? videos.map((v) => ({ type: "video" as const, data: v })) : []),
   ].sort((a, b) => new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime());
 
+  // Lightbox keyboard controls
+  useEffect(() => {
+    if (!lightboxItem) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxItem(null);
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const currentIdx = galleryItems.findIndex(item =>
+          item.type === "image" ? item.data.image_id === lightboxItem.id : item.data.job_id === lightboxItem.id
+        );
+        const nextIdx = e.key === "ArrowLeft" ? currentIdx - 1 : currentIdx + 1;
+        if (nextIdx >= 0 && nextIdx < galleryItems.length) {
+          const next = galleryItems[nextIdx];
+          if (next.type === "image") {
+            setLightboxItem({ type: "image", url: next.data.image_url, prompt: next.data.prompt, id: next.data.image_id, created_at: next.data.created_at });
+          } else if (next.data.status === "completed" && next.data.video_url) {
+            setLightboxItem({ type: "video", url: next.data.video_url, prompt: next.data.motion_prompt || "", id: next.data.job_id, created_at: next.data.created_at });
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxItem, galleryItems]);
+
   return (
     <>
       <Header title="Video Generator" />
@@ -426,7 +456,18 @@ export default function VideoGenerator() {
 
             {/* Tabs — Image | Video */}
             <div className="px-4 pt-4 pb-1">
-              <div className="flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+              <div className="relative flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                {/* Sliding active indicator — Video is active (index 1) */}
+                <div
+                  className="absolute top-1 bottom-1 rounded-lg"
+                  style={{
+                    width: "calc(50% - 4px)",
+                    left: "calc(50% + 0px)",
+                    background: "var(--segment-active-bg)",
+                    boxShadow: "var(--shadow-segment-active)",
+                    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                />
                 {([
                   { href: "/dashboard/images", icon: ImageSquare, label: "Image", active: false },
                   { href: "/dashboard/videos", icon: VideoCamera, label: "Video", active: true },
@@ -436,11 +477,10 @@ export default function VideoGenerator() {
                     <Link
                       key={tab.label}
                       href={tab.href}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium transition-all"
+                      className="relative z-[1] flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium"
                       style={{
-                        background: tab.active ? "var(--segment-active-bg)" : "transparent",
                         color: tab.active ? "var(--text-primary)" : "var(--text-muted)",
-                        boxShadow: tab.active ? "var(--shadow-segment-active)" : "none",
+                        transition: "color 0.25s ease",
                       }}
                     >
                       <Icon size={14} />
@@ -742,13 +782,24 @@ export default function VideoGenerator() {
           <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-primary)" }}>
             {/* Gallery header */}
             <div className="flex items-center justify-between px-4 md:px-6 py-3 sticky top-0 z-10" style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color)" }}>
-              <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+              <div className="relative flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                {/* Sliding indicator for gallery filter */}
+                <div
+                  className="absolute top-0.5 bottom-0.5 rounded-md"
+                  style={{
+                    width: "calc(33.333% - 2px)",
+                    left: galleryFilter === "all" ? 2 : galleryFilter === "images" ? "calc(33.333% + 0px)" : "calc(66.666% - 2px)",
+                    background: "var(--segment-active-bg)",
+                    boxShadow: "var(--shadow-segment-active)",
+                    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                />
                 {(["all", "images", "videos"] as GalleryFilter[]).map((f) => (
                   <button
                     key={f}
                     onClick={() => setGalleryFilter(f)}
-                    className="text-[13px] font-medium transition-all capitalize px-3 py-1 rounded-md"
-                    style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)", background: galleryFilter === f ? "var(--segment-active-bg)" : "transparent", boxShadow: galleryFilter === f ? "var(--shadow-segment-active)" : "none" }}
+                    className="relative z-[1] text-[13px] font-medium capitalize px-3 py-1 rounded-md"
+                    style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}
                   >
                     {f === "all" ? "All" : f === "images" ? "Images" : "Videos"}
                   </button>
@@ -761,9 +812,10 @@ export default function VideoGenerator() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>{galleryItems.length} items</span>
-                <div className="flex items-center rounded-lg overflow-hidden p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                <div className="relative flex items-center rounded-lg overflow-hidden p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                  <div className="absolute top-0.5 bottom-0.5 rounded-md" style={{ width: "calc(33.333% - 2px)", left: gridSize === "small" ? 2 : gridSize === "medium" ? "calc(33.333% + 0px)" : "calc(66.666% - 2px)", background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
                   {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                    <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 rounded-md transition-all" style={{ background: gridSize === key ? "var(--segment-active-bg)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", boxShadow: gridSize === key ? "var(--shadow-segment-active)" : "none" }}>
+                    <button key={key} onClick={() => setGridSize(key)} className="relative z-[1] px-2 py-1.5 rounded-md" style={{ color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}>
                       {icon}
                     </button>
                   ))}
@@ -773,9 +825,28 @@ export default function VideoGenerator() {
 
             {/* Gallery grid */}
             <div className="px-4 md:px-6 py-4">
+              {/* Skeleton loader during generation */}
+              {!loadingGallery && loading && (
+                <div className="mb-4 animate-fadeIn">
+                  <div className={`grid gap-2 ${GRID_COLS[gridSize]}`}>
+                    <div className="relative aspect-square rounded-xl overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
+                      <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "linear-gradient(90deg, transparent 25%, var(--skeleton-shimmer) 50%, transparent 75%)", animation: "shimmerSweep 2s ease-in-out infinite" }} />
+                      <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "linear-gradient(to top, var(--skeleton-fill-start) 0%, var(--skeleton-fill-mid) 50%, var(--skeleton-fill-end) 90%, transparent 100%)", transform: "translateY(100%)", animation: "fillRise 60s ease-out forwards" }}>
+                        <svg style={{ position: "absolute", top: -10, left: 0, width: "200%", height: 20, animation: "waveSlide 3s linear infinite", color: "var(--skeleton-wave)" }} viewBox="0 0 240 20" fill="none" preserveAspectRatio="none">
+                          <path d="M0 10 Q15 0 30 10 Q45 20 60 10 Q75 0 90 10 Q105 20 120 10 Q135 0 150 10 Q165 20 180 10 Q195 0 210 10 Q225 20 240 10 L240 20 L0 20Z" fill="currentColor" />
+                        </svg>
+                      </div>
+                      <div style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                        <div className="spinner" />
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Generating video...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {loadingGallery ? (
                 <div className="flex items-center justify-center py-16"><div className="spinner" /></div>
-              ) : galleryItems.length === 0 ? (
+              ) : galleryItems.length === 0 && !loading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                     <VideoIcon size={24} style={{ color: "var(--text-muted)" }} />
@@ -827,7 +898,7 @@ export default function VideoGenerator() {
                     } else {
                       const v = item.data;
                       return (
-                        <div key={`vid-${v.job_id}`} className="rounded-xl overflow-hidden group relative cursor-pointer">
+                        <div key={`vid-${v.job_id}`} className="rounded-xl overflow-hidden group relative cursor-pointer" onClick={() => { if (v.status === "completed" && v.video_url) setLightboxItem({ type: "video", url: v.video_url, prompt: v.motion_prompt || "", id: v.job_id, created_at: v.created_at }); }}>
                           {v.status === "completed" && v.video_url ? (
                             <div className="aspect-square overflow-hidden relative">
                               <video src={v.video_url} className="w-full h-full object-cover" muted />
@@ -838,11 +909,24 @@ export default function VideoGenerator() {
                               </div>
                             </div>
                           ) : (
-                            <div className="aspect-square flex flex-col items-center justify-center gap-2" style={{ background: "var(--bg-secondary)" }}>
+                            <div className="aspect-square relative overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
                               {v.status === "processing" ? (
-                                <><Spinner size={20} /><span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Processing...</span></>
+                                <>
+                                  <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "linear-gradient(90deg, transparent 25%, var(--skeleton-shimmer) 50%, transparent 75%)", animation: "shimmerSweep 2s ease-in-out infinite" }} />
+                                  <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "linear-gradient(to top, var(--skeleton-fill-start) 0%, var(--skeleton-fill-mid) 50%, var(--skeleton-fill-end) 90%, transparent 100%)", transform: "translateY(100%)", animation: "fillRise 90s ease-out forwards" }}>
+                                    <svg style={{ position: "absolute", top: -10, left: 0, width: "200%", height: 20, animation: "waveSlide 3s linear infinite", color: "var(--skeleton-wave)" }} viewBox="0 0 240 20" fill="none" preserveAspectRatio="none">
+                                      <path d="M0 10 Q15 0 30 10 Q45 20 60 10 Q75 0 90 10 Q105 20 120 10 Q135 0 150 10 Q165 20 180 10 Q195 0 210 10 Q225 20 240 10 L240 20 L0 20Z" fill="currentColor" />
+                                    </svg>
+                                  </div>
+                                  <div style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                                    <div className="spinner" />
+                                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Processing...</span>
+                                  </div>
+                                </>
                               ) : (
-                                <span className="text-[11px]" style={{ color: "var(--error)" }}>Failed</span>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[11px]" style={{ color: "var(--error)" }}>Failed</span>
+                                </div>
                               )}
                             </div>
                           )}
@@ -884,6 +968,91 @@ export default function VideoGenerator() {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ Lightbox ═══ */}
+      {lightboxItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center animate-fadeIn" style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setLightboxItem(null)}>
+          {/* Close */}
+          <button className="absolute top-4 right-4 p-2.5 rounded-xl transition-colors z-10 hover:bg-white/10" style={{ color: "rgba(255,255,255,0.7)" }} onClick={() => setLightboxItem(null)}>
+            <XIcon size={22} />
+          </button>
+
+          {/* Prev */}
+          {(() => {
+            const idx = galleryItems.findIndex(item => item.type === "image" ? item.data.image_id === lightboxItem.id : item.data.job_id === lightboxItem.id);
+            return idx > 0 ? (
+              <button
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const prev = galleryItems[idx - 1];
+                  if (prev.type === "image") setLightboxItem({ type: "image", url: prev.data.image_url, prompt: prev.data.prompt, id: prev.data.image_id, created_at: prev.data.created_at });
+                  else if (prev.data.status === "completed" && prev.data.video_url) setLightboxItem({ type: "video", url: prev.data.video_url, prompt: prev.data.motion_prompt || "", id: prev.data.job_id, created_at: prev.data.created_at });
+                }}
+              >
+                <CaretLeft size={24} />
+              </button>
+            ) : null;
+          })()}
+
+          {/* Next */}
+          {(() => {
+            const idx = galleryItems.findIndex(item => item.type === "image" ? item.data.image_id === lightboxItem.id : item.data.job_id === lightboxItem.id);
+            return idx < galleryItems.length - 1 ? (
+              <button
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = galleryItems[idx + 1];
+                  if (next.type === "image") setLightboxItem({ type: "image", url: next.data.image_url, prompt: next.data.prompt, id: next.data.image_id, created_at: next.data.created_at });
+                  else if (next.data.status === "completed" && next.data.video_url) setLightboxItem({ type: "video", url: next.data.video_url, prompt: next.data.motion_prompt || "", id: next.data.job_id, created_at: next.data.created_at });
+                }}
+              >
+                <CaretRight size={24} />
+              </button>
+            ) : null;
+          })()}
+
+          {/* Content */}
+          <div className="flex flex-col items-center max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            {lightboxItem.type === "video" ? (
+              <video
+                src={lightboxItem.url}
+                controls
+                autoPlay
+                className="max-w-full max-h-[78vh] rounded-xl"
+                style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.4)" }}
+              />
+            ) : (
+              <img
+                src={lightboxItem.url}
+                alt={lightboxItem.prompt}
+                className="max-w-full max-h-[78vh] object-contain rounded-xl"
+                style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.4)" }}
+              />
+            )}
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-white/15"
+                style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
+                onClick={() => handleDownload(lightboxItem.url, `horpen-${lightboxItem.id}.${lightboxItem.type === "video" ? "mp4" : "png"}`)}
+              >
+                <Download size={14} /> Download
+              </button>
+              <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {lightboxItem.type === "video" ? "Video" : "Image"} · {new Date(lightboxItem.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            </div>
+            {lightboxItem.prompt && (
+              <p className="text-[12px] mt-2 max-w-2xl text-center line-clamp-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {lightboxItem.prompt}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </>

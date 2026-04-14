@@ -10,9 +10,8 @@ class Settings:
     JWT_EXPIRE_SECONDS = int(os.getenv("JWT_EXPIRE_SECONDS", "604800"))  # 7 days
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRETE_KEY", "")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-    STRIPE_PRICE_ID_STARTER  = os.getenv("STRIPE_PRICE_ID_STARTER", "")
-    STRIPE_PRICE_ID_STANDARD = os.getenv("STRIPE_PRICE_ID_STANDARD", "")
-    STRIPE_PRICE_ID_PRO      = os.getenv("STRIPE_PRICE_ID_PRO", "")
+    STRIPE_PRICE_ID_CREATOR  = os.getenv("STRIPE_PRICE_ID_CREATOR", "price_1T6Pd6BnAnTuqTl3BBYJxdJ8")
+    STRIPE_PRICE_ID_STUDIO   = os.getenv("STRIPE_PRICE_ID_STUDIO", "price_1TLuKfBnAnTuqTl3IEwp4EBF")
     RESEND_API_KEY           = os.getenv("RESEND_API_KEY", "")
     FRONTEND_URL             = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
