@@ -106,7 +106,9 @@ function RatioIcon({ ratio }: { ratio: string }) {
 
 export default function ImageGenerator() {
   /* ─── State ─── */
-  const activeTab: ActiveTab = "image";
+  // Kept as state so the existing video-mode branches still type-check; the
+  // Video tab now navigates away (see SegmentToggle below) so this is always "image".
+  const [activeTab] = useState<ActiveTab>("image");
   const [prompt, setPrompt] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
