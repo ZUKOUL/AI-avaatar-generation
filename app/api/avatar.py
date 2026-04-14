@@ -24,6 +24,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 MAX_REFERENCE_IMAGES = 5
+# Character training: upper bound on stored photos per character. The 50
+# ceiling keeps one request under a few hundred MB; Gemini never reads
+# all of them in one go (we sample MAX_REFERENCE_IMAGES per generation).
+MAX_TRAINING_IMAGES = 50
+MIN_TRAINING_IMAGES = 3
 
 router = APIRouter()
 
@@ -387,7 +392,197 @@ async def generate_image(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. AVATAR MANAGEMENT
+# 3. TRAIN CHARACTER — Upload many reference photos, generate a thumbnail
+# portrait, and store the character with ALL refs for later use.
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# Gemini 3 Pro Image has no fine-tuning API; "training" here means:
+#   1. Persist N reference photos in Supabase so future generations can
+#      sample from them for in-context identity conditioning.
+#   2. Generate one clean portrait with the first few refs to serve as
+#      the character's thumbnail in the library.
+#
+@router.post("/train-character")
+async def train_character(
+    current_user: Annotated[User, Depends(get_current_user)],
+    name: str = Form(..., max_length=100, description="Character name"),
+    files: List[UploadFile] = File(..., description=f"{MIN_TRAINING_IMAGES}–{MAX_TRAINING_IMAGES} reference photos"),
+):
+    """
+    Train a reusable character from many reference photos.
+    - name (required): Unique character name
+    - files (required): Between MIN_TRAINING_IMAGES and MAX_TRAINING_IMAGES photos
+    """
+    # Validate count
+    if len(files) < MIN_TRAINING_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"At least {MIN_TRAINING_IMAGES} photos required. You uploaded {len(files)}.",
+        )
+    if len(files) > MAX_TRAINING_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum {MAX_TRAINING_IMAGES} photos allowed. You uploaded {len(files)}.",
+        )
+
+    # Read and filter out empty uploads up-front so we know the real count
+    # before touching storage or deducting credits.
+    file_bytes_list: List[bytes] = []
+    for f in files:
+        content = await f.read()
+        if content and len(content) > 100:
+            file_bytes_list.append(content)
+
+    if len(file_bytes_list) < MIN_TRAINING_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"At least {MIN_TRAINING_IMAGES} valid photos required.",
+        )
+
+    # Credit check (skip for administrators) — same cost as one avatar gen
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < CREDIT_COST_IMAGE:
+            raise HTTPException(
+                status_code=402,
+                detail={"error": "INSUFFICIENT_CREDITS", "message": f"You need {CREDIT_COST_IMAGE} credit(s). Current balance: {balance}"},
+            )
+
+    avatar_id = str(uuid.uuid4())
+    name_clean = name.strip()
+    logger.info(f"Training character '{name_clean}' for user {current_user['id']} with {len(file_bytes_list)} photos: {avatar_id}")
+
+    # 1. Upload every reference photo to storage first. If any upload
+    #    fails we short-circuit before the expensive Gemini call.
+    ref_paths: List[str] = []
+    try:
+        for i, data in enumerate(file_bytes_list):
+            storage_path = f"avatars_library/{avatar_id}/ref_{i:02d}.png"
+            supabase.storage.from_("avatars").upload(
+                path=storage_path,
+                file=data,
+                file_options={"content-type": "image/png", "x-upsert": "true"},
+            )
+            ref_paths.append(storage_path)
+    except Exception as e:
+        logger.error(f"Failed to upload reference photos: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload reference photos: {str(e)}")
+
+    # 2. Generate a portrait thumbnail using the first few refs.
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    thumb_refs = file_bytes_list[:MAX_REFERENCE_IMAGES]
+    gemini_contents = [
+        types.Part.from_bytes(data=b, mime_type="image/png") for b in thumb_refs
+    ]
+    portrait_prompt = (
+        "These are reference photos of a specific person. "
+        "Generate a NEW photorealistic portrait of THIS EXACT SAME PERSON. "
+        "ABSOLUTE REQUIREMENT — the generated face must be identical to the references: "
+        "do not alter, beautify, or idealize any facial feature. "
+        "Pure white studio background (#FFFFFF), seamless, evenly lit, no shadows on the backdrop, "
+        "passport-photo / ID-card style isolation. "
+        "Head and shoulders framing, eye-level angle, natural relaxed expression. "
+        "Shot on 85mm f/1.4, shallow depth of field, soft cinematic lighting, "
+        "ultra high detail, 8K, no text, no watermark."
+    )
+    gemini_contents.append(portrait_prompt)
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-3-pro-image-preview",
+            contents=gemini_contents,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
+                image_config=types.ImageConfig(aspect_ratio="1:1", image_size="1K"),
+            ),
+        )
+    except APIError as api_err:
+        logger.error(f"Gemini API Error during training: {api_err}")
+        # Roll back the uploaded refs so we don't leave orphans
+        _rollback_refs(ref_paths)
+        raise HTTPException(status_code=400, detail=f"AI provider error: {getattr(api_err, 'message', str(api_err))}")
+    except Exception as e:
+        logger.error(f"Unexpected error calling Gemini during training: {e}")
+        _rollback_refs(ref_paths)
+        raise HTTPException(status_code=500, detail=f"Failed to communicate with AI provider: {str(e)}")
+
+    if not response.candidates:
+        _rollback_refs(ref_paths)
+        raise HTTPException(status_code=500, detail="Gemini returned no candidates.")
+    candidate = response.candidates[0]
+    if not candidate.content or not candidate.content.parts:
+        _rollback_refs(ref_paths)
+        raise HTTPException(
+            status_code=400,
+            detail="Portrait generation failed or was blocked by safety filters.",
+        )
+
+    thumbnail_path: Optional[str] = None
+    for part in candidate.content.parts:
+        if part.text:
+            logger.info(f"Gemini reasoning: {part.text[:200]}")
+        elif part.inline_data:
+            thumbnail_path = f"avatars_library/{avatar_id}/portrait.png"
+            supabase.storage.from_("avatars").upload(
+                path=thumbnail_path,
+                file=part.inline_data.data,
+                file_options={"content-type": "image/png", "x-upsert": "true"},
+            )
+            break
+
+    if not thumbnail_path:
+        _rollback_refs(ref_paths)
+        raise HTTPException(status_code=500, detail="Gemini returned empty response.")
+
+    # 3. Insert character record. Portrait goes first so it's picked up as
+    #    the thumbnail; all refs follow so future generations can use them.
+    data = {
+        "id": avatar_id,
+        "user_id": current_user["id"],
+        "image_paths": [thumbnail_path] + ref_paths,
+        "name": name_clean,
+    }
+    try:
+        supabase.table("characters").insert(data).execute()
+    except Exception as db_err:
+        err_msg = str(db_err)
+        _rollback_refs([thumbnail_path] + ref_paths)
+        if "unique" in err_msg.lower() or "duplicate" in err_msg.lower():
+            raise HTTPException(
+                status_code=409,
+                detail={"error": "NICKNAME_TAKEN", "message": f"The name '{name_clean}' is already taken. Please choose another."},
+            )
+        raise HTTPException(status_code=500, detail=f"Failed to save character: {err_msg}")
+
+    # 4. Deduct credits (skip for administrators)
+    if not is_admin(current_user):
+        deduct_credits(current_user["id"], CREDIT_COST_IMAGE, "character_training", f"Character training: {name_clean}")
+
+    logger.info(f"Character trained. ID: {avatar_id}, Name: {name_clean}, Refs: {len(ref_paths)}")
+
+    thumbnail_url = supabase.storage.from_("avatars").get_public_url(thumbnail_path)
+    return {
+        "status": "Success",
+        "avatar_id": avatar_id,
+        "name": name_clean,
+        "thumbnail": thumbnail_url,
+        "reference_count": len(ref_paths),
+        "cost_usd": COST_GEMINI_FLASH_IMAGE,
+        "engine": "gemini-3-pro-image-preview",
+    }
+
+
+def _rollback_refs(paths: List[str]) -> None:
+    """Best-effort cleanup of storage when a downstream step fails."""
+    try:
+        if paths:
+            supabase.storage.from_("avatars").remove(paths)
+    except Exception as e:
+        logger.warning(f"Failed to rollback storage refs: {e}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 4. AVATAR MANAGEMENT
 # ──────────────────────────────────────────────────────────────────────────────
 @router.put("/characters/{character_id}/nickname")
 async def update_character_nickname(

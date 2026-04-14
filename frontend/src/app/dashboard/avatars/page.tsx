@@ -109,10 +109,21 @@ const BACKGROUNDS = [
    Defined at module scope so it doesn't re-mount on every parent render.
    ═══════════════════════════════════════════════════════════════════ */
 
-function CharacterPanel({ avatars, loading }: { avatars: Avatar[]; loading: boolean }) {
+function CharacterPanel({
+  avatars,
+  loading,
+  onTrained,
+}: {
+  avatars: Avatar[];
+  loading: boolean;
+  onTrained: () => void;
+}) {
   const [charFiles, setCharFiles] = useState<File[]>([]);
   const [charPreviews, setCharPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [charName, setCharName] = useState("");
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainError, setTrainError] = useState("");
   const charInputRef = useRef<HTMLInputElement>(null);
 
   const addCharFiles = (incoming: FileList | File[] | null) => {
@@ -128,7 +139,44 @@ function CharacterPanel({ avatars, loading }: { avatars: Avatar[]; loading: bool
   };
 
   const hasPhotos = charFiles.length > 0;
-  const enough = charFiles.length >= 20;
+  // Backend requires 3+ (MIN_TRAINING_IMAGES); we recommend 20+ for quality,
+  // but allow training as soon as the backend minimum + a name are present.
+  const meetsMinimum = charFiles.length >= 3;
+  const canTrain = meetsMinimum && charName.trim().length > 0 && !isTraining;
+  const recommended = charFiles.length >= 20;
+
+  const handleTrain = async () => {
+    if (!canTrain) return;
+    setIsTraining(true);
+    setTrainError("");
+    try {
+      const formData = new FormData();
+      formData.append("name", charName.trim());
+      charFiles.forEach((f) => formData.append("files", f));
+      await avatarAPI.trainCharacter(formData);
+      // Success — reset and refresh
+      setCharFiles([]);
+      setCharPreviews([]);
+      setCharName("");
+      onTrained();
+    } catch (err: unknown) {
+      const e = err as {
+        response?: { status?: number; data?: { detail?: string | { message?: string; error?: string } } };
+        message?: string;
+      };
+      const detail = e.response?.data?.detail;
+      const status = e.response?.status;
+      let msg = "";
+      if (typeof detail === "string") msg = detail;
+      else if (detail && typeof detail === "object") msg = detail.message || detail.error || JSON.stringify(detail);
+      else if (e.message) msg = e.message;
+      else msg = "Training failed";
+      setTrainError(`[${status || "?"}] ${msg}`);
+      console.error("Character training error:", { status, detail, raw: err });
+    } finally {
+      setIsTraining(false);
+    }
+  };
 
   return (
     <div className="pt-2 pb-4 space-y-5">
@@ -193,8 +241,18 @@ function CharacterPanel({ avatars, loading }: { avatars: Avatar[]; loading: bool
               </button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1">
-              <span className="text-[11px]" style={{ color: enough ? "var(--success)" : "var(--text-muted)" }}>
-                {charFiles.length} / 20+
+              <span
+                className="text-[11px]"
+                style={{
+                  color: recommended
+                    ? "var(--success)"
+                    : meetsMinimum
+                      ? "var(--text-secondary)"
+                      : "var(--text-muted)",
+                }}
+              >
+                {charFiles.length} photo{charFiles.length === 1 ? "" : "s"}
+                {recommended ? " · great" : meetsMinimum ? " · ok" : " · need 3+"}
               </span>
               <button
                 type="button"
@@ -214,6 +272,29 @@ function CharacterPanel({ avatars, loading }: { avatars: Avatar[]; loading: bool
           accept="image/*"
           className="hidden"
           onChange={(e) => addCharFiles(e.target.files)}
+        />
+      </div>
+
+      {/* Character name */}
+      <div>
+        <label
+          className="text-[11px] font-semibold uppercase tracking-wider block mb-2"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Character name
+        </label>
+        <input
+          type="text"
+          value={charName}
+          onChange={(e) => setCharName(e.target.value)}
+          placeholder="e.g. Emma Rodriguez"
+          maxLength={60}
+          className="w-full px-3 py-2 rounded-lg text-[13px]"
+          style={{
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border-color)",
+            color: "var(--text-primary)",
+          }}
         />
       </div>
 
@@ -249,19 +330,43 @@ function CharacterPanel({ avatars, loading }: { avatars: Avatar[]; loading: bool
       {/* Train button */}
       <button
         type="button"
-        disabled={!enough}
+        disabled={!canTrain}
+        onClick={handleTrain}
         className="w-full py-2.5 rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-opacity"
         style={{
-          background: enough ? "var(--text-primary)" : "var(--bg-secondary)",
-          color: enough ? "var(--bg-primary)" : "var(--text-muted)",
-          border: enough ? "none" : "1px solid var(--border-color)",
-          opacity: enough ? 1 : 0.7,
-          cursor: enough ? "pointer" : "not-allowed",
+          background: canTrain ? "var(--text-primary)" : "var(--bg-secondary)",
+          color: canTrain ? "var(--bg-primary)" : "var(--text-muted)",
+          border: canTrain ? "none" : "1px solid var(--border-color)",
+          opacity: canTrain ? 1 : 0.7,
+          cursor: canTrain ? "pointer" : "not-allowed",
         }}
       >
-        <SparkleIcon size={14} />
-        Train character
+        {isTraining ? (
+          <>
+            <Spinner size={14} />
+            Training…
+          </>
+        ) : (
+          <>
+            <SparkleIcon size={14} />
+            Train character
+          </>
+        )}
       </button>
+
+      {/* Error message */}
+      {trainError && (
+        <div
+          className="px-3 py-2 rounded-lg text-[12px]"
+          style={{
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.25)",
+            color: "var(--error)",
+          }}
+        >
+          {trainError}
+        </div>
+      )}
 
       {/* Existing characters */}
       {(loading || avatars.length > 0) && (
@@ -654,7 +759,11 @@ export default function AvatarCreator() {
                 </div>
               ) : (
                 /* ─── Character tab ─── */
-                <CharacterPanel avatars={avatars} loading={loadingAvatars} />
+                <CharacterPanel
+                  avatars={avatars}
+                  loading={loadingAvatars}
+                  onTrained={loadAvatars}
+                />
               )}
             </div>
           </div>

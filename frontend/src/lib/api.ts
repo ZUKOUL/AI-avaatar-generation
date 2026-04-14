@@ -53,6 +53,10 @@ export const avatarAPI = {
     api.post("/avatar/generate-image", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  trainCharacter: (formData: FormData) =>
+    api.post("/avatar/train-character", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
   list: () => api.get("/avatar/avatars"),
   getImages: (avatarId?: string, limit = 50) =>
     api.get("/avatar/images", { params: { avatar_id: avatarId, limit } }),
