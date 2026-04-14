@@ -95,20 +95,23 @@ function NavSection({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const [indicator, setIndicator] = useState<{ top: number; height: number; visible: boolean }>({
+  const [indicator, setIndicator] = useState<{ top: number; height: number; visible: boolean; animate: boolean }>({
     top: 0,
     height: 0,
     visible: false,
+    animate: false,
   });
 
   const activeIdx = items.findIndex((i) => i.href === activeHref);
 
   useEffect(() => {
     if (collapsed) {
-      setIndicator((s) => ({ ...s, visible: false }));
+      setIndicator((s) => ({ ...s, visible: false, animate: false }));
       return;
     }
-    const update = () => {
+    let cancelled = false;
+    const measure = (animate: boolean) => {
+      if (cancelled) return;
       if (activeIdx < 0) {
         setIndicator((s) => ({ ...s, visible: false }));
         return;
@@ -122,14 +125,21 @@ function NavSection({
         top: elRect.top - cRect.top,
         height: elRect.height,
         visible: true,
+        animate,
       });
     };
-    update();
-    const t = setTimeout(update, 60);
-    window.addEventListener("resize", update);
+    // First measurement: jump (no CSS transition) to correct spot after layout.
+    const raf = requestAnimationFrame(() => measure(false));
+    // Second measurement after sidebar width transition (0.25s) completes;
+    // re-enable animation for subsequent active-item changes.
+    const t = setTimeout(() => measure(true), 280);
+    const onResize = () => measure(true);
+    window.addEventListener("resize", onResize);
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
       clearTimeout(t);
-      window.removeEventListener("resize", update);
+      window.removeEventListener("resize", onResize);
     };
   }, [activeIdx, pathname, collapsed]);
 
@@ -177,7 +187,7 @@ function NavSection({
   return (
     <div
       ref={containerRef}
-      className="relative rounded-xl p-1"
+      className="relative rounded-xl p-1 overflow-hidden"
       style={{
         background: "var(--segment-bg)",
         boxShadow: "var(--shadow-segment-inset)",
@@ -191,7 +201,9 @@ function NavSection({
             height: indicator.height,
             background: "var(--segment-active-bg)",
             boxShadow: "var(--shadow-segment-active)",
-            transition: "top 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: indicator.animate
+              ? "top 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+              : "none",
           }}
         />
       )}
@@ -206,7 +218,7 @@ function NavSection({
             }}
             href={item.href}
             onClick={(e) => e.stopPropagation()}
-            className="relative z-[1] flex items-center gap-3 px-2.5 py-[8px] rounded-lg text-[13px]"
+            className="relative z-[1] flex items-center h-9 gap-3 px-2.5 rounded-lg text-[13px] whitespace-nowrap overflow-hidden"
             style={{
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
               fontWeight: active ? 600 : 400,
@@ -220,7 +232,7 @@ function NavSection({
             }}
           >
             <Icon size={18} />
-            <span>{item.label}</span>
+            <span className="truncate">{item.label}</span>
           </Link>
         );
       })}
