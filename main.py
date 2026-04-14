@@ -9,6 +9,7 @@ from app.api.video import router as video_router
 from app.api.auth import router as auth_router
 from app.api.payments import router as payments_router
 from app.api.credits import router as credits_router
+from app.api.thumbnail import router as thumbnail_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -51,6 +52,12 @@ app.include_router(
     video_router,
     prefix="/video",
     tags=["Video Generation"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    thumbnail_router,
+    prefix="/thumbnail",
+    tags=["Thumbnail Generation"],
     dependencies=[Depends(get_current_user)],
 )
 

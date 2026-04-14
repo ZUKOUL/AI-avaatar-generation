@@ -72,6 +72,16 @@ export const avatarAPI = {
   },
 };
 
+// ── Thumbnail ──
+export const thumbnailAPI = {
+  generate: (formData: FormData) =>
+    api.post("/thumbnail/generate", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  youtubePreview: (url: string) =>
+    api.get("/thumbnail/youtube-preview", { params: { url } }),
+};
+
 // ── Video ──
 export const videoAPI = {
   animate: (formData: FormData) =>

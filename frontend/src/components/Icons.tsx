@@ -67,6 +67,9 @@ export { Droplets01 as Droplets } from "@untitledui/icons/Droplets01";
 export { User01 as User } from "@untitledui/icons/User01";
 export { FaceSmile } from "@untitledui/icons/FaceSmile";
 export { Camera01 as Camera } from "@untitledui/icons/Camera01";
+export { PlaySquare } from "@untitledui/icons/PlaySquare";
+export { Link01 as LinkIcon } from "@untitledui/icons/Link01";
+export { Type01 as Type } from "@untitledui/icons/Type01";
 
 // Custom Spinner (Untitled UI has no animated spinner)
 export const Spinner: React.FC<{ size?: number; color?: string; className?: string }> = ({
