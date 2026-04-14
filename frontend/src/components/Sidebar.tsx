@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   XIcon,
+  MagicWand,
 } from "@/components/Icons";
 
 type NavDef = {
@@ -30,7 +31,8 @@ const NAV_MAIN: NavDef[] = [
 ];
 
 const NAV_TOOLS: NavDef[] = [
-  { href: "/dashboard/avatars", label: "Avatar Creator", icon: UserCircle },
+  { href: "/dashboard/characters", label: "Characters", icon: UserCircle },
+  { href: "/dashboard/avatars", label: "Avatar Creator", icon: MagicWand },
   { href: "/dashboard/images", label: "Image Generator", icon: ImageSquare },
   { href: "/dashboard/videos", label: "Video Generator", icon: VideoCamera },
 ];
