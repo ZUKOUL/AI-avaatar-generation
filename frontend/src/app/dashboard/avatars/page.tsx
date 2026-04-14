@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Download,
   MagicWand,
+  Check,
 } from "@/components/Icons";
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -30,7 +31,7 @@ interface Avatar {
   created_at: string;
 }
 
-type LeftTab = "customize" | "library";
+type LeftTab = "customize" | "character";
 type RightTab = "design" | "details";
 
 const GENDERS = [
@@ -101,6 +102,227 @@ const BACKGROUNDS = [
   { value: "gradient", label: "Gradient" },
   { value: "solid-color", label: "Solid Color" },
 ];
+
+/* ═══════════════════════════════════════════════════════════════════
+   CharacterPanel — upload interface for training a reusable character
+   from 20+ photos. Shows existing characters below when present.
+   Defined at module scope so it doesn't re-mount on every parent render.
+   ═══════════════════════════════════════════════════════════════════ */
+
+function CharacterPanel({ avatars, loading }: { avatars: Avatar[]; loading: boolean }) {
+  const [charFiles, setCharFiles] = useState<File[]>([]);
+  const [charPreviews, setCharPreviews] = useState<string[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const charInputRef = useRef<HTMLInputElement>(null);
+
+  const addCharFiles = (incoming: FileList | File[] | null) => {
+    if (!incoming) return;
+    const next = [...charFiles, ...Array.from(incoming)];
+    setCharFiles(next);
+    setCharPreviews(next.map((f) => URL.createObjectURL(f)));
+  };
+  const removeCharFile = (idx: number) => {
+    const next = charFiles.filter((_, i) => i !== idx);
+    setCharFiles(next);
+    setCharPreviews(next.map((f) => URL.createObjectURL(f)));
+  };
+
+  const hasPhotos = charFiles.length > 0;
+  const enough = charFiles.length >= 20;
+
+  return (
+    <div className="pt-2 pb-4 space-y-5">
+      {/* Upload dropzone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          addCharFiles(e.dataTransfer.files);
+        }}
+        onClick={() => charInputRef.current?.click()}
+        className="relative rounded-xl cursor-pointer overflow-hidden"
+        style={{
+          background: "var(--bg-secondary)",
+          border: `1.5px dashed ${dragging ? "var(--text-primary)" : "var(--border-color)"}`,
+          minHeight: hasPhotos ? "auto" : 180,
+          transition: "border-color 0.2s ease, background 0.2s ease",
+        }}
+      >
+        {!hasPhotos ? (
+          <div className="flex flex-col items-center justify-center text-center px-4 py-8">
+            <div
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold"
+              style={{ background: "var(--text-primary)", color: "var(--bg-primary)" }}
+            >
+              Upload <Upload size={14} />
+            </div>
+            <p className="text-[11px] mt-2.5" style={{ color: "var(--text-muted)" }}>
+              Upload 20+ photos for best results
+            </p>
+          </div>
+        ) : (
+          <div className="p-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              {charPreviews.map((src, i) => (
+                <div key={i} className="relative aspect-square rounded-md overflow-hidden group">
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeCharFile(i); }}
+                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "rgba(0,0,0,0.65)", color: "#fff" }}
+                    aria-label="Remove photo"
+                  >
+                    <XIcon size={10} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); charInputRef.current?.click(); }}
+                className="aspect-square rounded-md flex items-center justify-center"
+                style={{
+                  border: "1.5px dashed var(--border-color)",
+                  color: "var(--text-muted)",
+                }}
+                aria-label="Add more"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between mt-2 px-1">
+              <span className="text-[11px]" style={{ color: enough ? "var(--success)" : "var(--text-muted)" }}>
+                {charFiles.length} / 20+
+              </span>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setCharFiles([]); setCharPreviews([]); }}
+                className="text-[11px] hover:underline"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        )}
+        <input
+          ref={charInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => addCharFiles(e.target.files)}
+        />
+      </div>
+
+      {/* Guidelines — DO / AVOID */}
+      <div className="space-y-3">
+        <div className="flex items-start gap-2.5">
+          <div
+            className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5"
+            style={{ background: "var(--success)", color: "#fff" }}
+          >
+            <Check size={12} />
+          </div>
+          <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>20+ photos recommended:</span>{" "}
+            one person, clear face, multiple angles.
+          </p>
+        </div>
+
+        <div className="flex items-start gap-2.5">
+          <div
+            className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5"
+            style={{ background: "var(--error)", color: "#fff" }}
+          >
+            <XIcon size={12} />
+          </div>
+          <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Avoid:</span>{" "}
+            duplicates, group shots, filters, face coverings (masks, sunglasses).
+          </p>
+        </div>
+      </div>
+
+      {/* Train button */}
+      <button
+        type="button"
+        disabled={!enough}
+        className="w-full py-2.5 rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-opacity"
+        style={{
+          background: enough ? "var(--text-primary)" : "var(--bg-secondary)",
+          color: enough ? "var(--bg-primary)" : "var(--text-muted)",
+          border: enough ? "none" : "1px solid var(--border-color)",
+          opacity: enough ? 1 : 0.7,
+          cursor: enough ? "pointer" : "not-allowed",
+        }}
+      >
+        <SparkleIcon size={14} />
+        Train character
+      </button>
+
+      {/* Existing characters */}
+      {(loading || avatars.length > 0) && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Your characters
+            </span>
+            {!loading && avatars.length > 0 && (
+              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                {avatars.length}
+              </span>
+            )}
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner size={16} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {avatars.map((av) => (
+                <button
+                  key={av.avatar_id}
+                  type="button"
+                  className="text-left rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  {av.thumbnail ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={av.thumbnail} alt={av.name} className="w-full aspect-square object-cover" />
+                  ) : (
+                    <div
+                      className="w-full aspect-square flex items-center justify-center"
+                      style={{ background: "var(--bg-tertiary)" }}
+                    >
+                      <UserCircle size={24} style={{ color: "var(--text-muted)" }} />
+                    </div>
+                  )}
+                  <div className="px-2 py-1.5">
+                    <p
+                      className="text-[11px] font-medium truncate"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {av.name}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ═══════════════════════════════════════════════════════════════════ */
 
@@ -310,7 +532,7 @@ export default function AvatarCreator() {
             {/* Tab toggle */}
             <div className="px-3 pt-3 pb-2">
               <SegmentToggle
-                items={[{ key: "customize", label: "Customize" }, { key: "library", label: "Library" }]}
+                items={[{ key: "customize", label: "Customize" }, { key: "character", label: "Character" }]}
                 selected={leftTab}
                 onSelect={(v) => setLeftTab(v as LeftTab)}
               />
@@ -431,38 +653,8 @@ export default function AvatarCreator() {
                   </div>
                 </div>
               ) : (
-                /* ─── Library tab ─── */
-                <div className="pt-2">
-                  {loadingAvatars ? (
-                    <div className="flex items-center justify-center py-12"><Spinner size={18} /></div>
-                  ) : avatars.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <UserCircle size={28} style={{ color: "var(--text-muted)" }} />
-                      <p className="text-[12px] mt-2" style={{ color: "var(--text-muted)" }}>No avatars yet</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {avatars.map((av) => (
-                        <div
-                          key={av.avatar_id}
-                          className="rounded-xl overflow-hidden cursor-pointer transition-all hover:-translate-y-0.5"
-                          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-                        >
-                          {av.thumbnail ? (
-                            <img src={av.thumbnail} alt={av.name} className="w-full aspect-square object-cover" />
-                          ) : (
-                            <div className="w-full aspect-square flex items-center justify-center" style={{ background: "var(--bg-tertiary)" }}>
-                              <UserCircle size={24} style={{ color: "var(--text-muted)" }} />
-                            </div>
-                          )}
-                          <div className="px-2 py-1.5">
-                            <p className="text-[11px] font-medium truncate" style={{ color: "var(--text-primary)" }}>{av.name}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                /* ─── Character tab ─── */
+                <CharacterPanel avatars={avatars} loading={loadingAvatars} />
               )}
             </div>
           </div>
