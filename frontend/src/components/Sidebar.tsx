@@ -42,14 +42,56 @@ const NAV_ACCOUNT: NavDef[] = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
+/**
+ * Sidebar toggle glyph — two-pane rectangle with the active pane highlighted.
+ * Kept inline so it can flip direction cleanly via `flipped`.
+ */
+function PanelToggleIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      style={{ transition: "transform 0.25s ease" }}
+    >
+      <rect
+        x="2"
+        y="3"
+        width="12"
+        height="10"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <line
+        x1={collapsed ? "6" : "6"}
+        y1="3"
+        x2={collapsed ? "6" : "6"}
+        y2="13"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+    </svg>
+  );
+}
+
+/**
+ * NavSection — renders one group of nav items either as a segmented toggle
+ * (expanded) or as a stack of icon-only buttons (collapsed). The animated
+ * active-indicator pill is only meaningful in expanded mode, so collapsed
+ * mode renders a simpler per-item active state.
+ */
 function NavSection({
   items,
   activeHref,
   pathname,
+  collapsed,
 }: {
   items: NavDef[];
   activeHref: string | null;
   pathname: string | null;
+  collapsed: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
@@ -62,6 +104,10 @@ function NavSection({
   const activeIdx = items.findIndex((i) => i.href === activeHref);
 
   useEffect(() => {
+    if (collapsed) {
+      setIndicator((s) => ({ ...s, visible: false }));
+      return;
+    }
     const update = () => {
       if (activeIdx < 0) {
         setIndicator((s) => ({ ...s, visible: false }));
@@ -85,7 +131,48 @@ function NavSection({
       clearTimeout(t);
       window.removeEventListener("resize", update);
     };
-  }, [activeIdx, pathname]);
+  }, [activeIdx, pathname, collapsed]);
+
+  // Collapsed: icon-only column, no segmented background.
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = item.href === activeHref;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={(e) => e.stopPropagation()}
+              title={item.label}
+              className="w-10 h-10 flex items-center justify-center rounded-lg"
+              style={{
+                background: active ? "var(--segment-active-bg)" : "transparent",
+                boxShadow: active ? "var(--shadow-segment-active)" : "none",
+                color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                transition: "background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  e.currentTarget.style.background = "var(--bg-hover)";
+                  e.currentTarget.style.color = "var(--text-primary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--text-secondary)";
+                }
+              }}
+            >
+              <Icon size={18} />
+            </Link>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -118,6 +205,7 @@ function NavSection({
               itemRefs.current[i] = el;
             }}
             href={item.href}
+            onClick={(e) => e.stopPropagation()}
             className="relative z-[1] flex items-center gap-3 px-2.5 py-[8px] rounded-lg text-[13px]"
             style={{
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
@@ -140,7 +228,14 @@ function NavSection({
   );
 }
 
-export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
+interface SidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}
+
+export default function Sidebar({ open, onClose, collapsed = false, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const user = typeof window !== "undefined" ? getStoredUser() : null;
@@ -170,62 +265,142 @@ export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: (
       (i) => pathname === i.href || (i.href !== "/dashboard" && pathname?.startsWith(i.href))
     )?.href ?? null;
 
+  // When collapsed, clicks on empty sidebar area expand it back. Individual
+  // buttons/links stop propagation so they don't accidentally trigger this.
+  const handleSidebarClick = () => {
+    if (collapsed && onToggleCollapsed) onToggleCollapsed();
+  };
+
   const sidebarContent = (
     <>
-      {/* Logo */}
+      {/* Logo + collapse toggle */}
       <div
-        className="flex items-center justify-between px-4 h-[52px] shrink-0"
-        style={{ borderBottom: "1px solid var(--border-color)" }}
+        className="flex items-center px-4 h-14 shrink-0"
+        style={{
+          borderBottom: "1px solid var(--border-color)",
+          justifyContent: collapsed ? "center" : "space-between",
+        }}
+        onClick={(e) => {
+          // Let children handle their own clicks; ignore header background.
+          if (e.target === e.currentTarget) e.stopPropagation();
+        }}
       >
-        <div className="flex items-center gap-2.5">
-          <Logo size={28} />
-          <span className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-            Horpen
-          </span>
-        </div>
-        {isMobile && onClose && (
+        {!collapsed && (
+          <div className="flex items-center gap-2.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+            <Logo size={28} />
+            <span
+              className="text-[15px] font-semibold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Horpen
+            </span>
+          </div>
+        )}
+        {isMobile && onClose && !collapsed && (
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: "var(--text-muted)" }}
           >
             <XIcon size={18} />
           </button>
         )}
+        {!isMobile && onToggleCollapsed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapsed();
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            style={{ color: "var(--text-muted)" }}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-hover)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-muted)";
+            }}
+          >
+            <PanelToggleIcon collapsed={collapsed} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2.5 pt-3">
-        <NavSection items={NAV_MAIN} activeHref={activeHref} pathname={pathname} />
+      <nav
+        className={`flex-1 overflow-y-auto pt-3 ${collapsed ? "px-2" : "px-2.5"}`}
+      >
+        <NavSection
+          items={NAV_MAIN}
+          activeHref={activeHref}
+          pathname={pathname}
+          collapsed={collapsed}
+        />
 
-        <div className="mt-5 mb-1.5 px-3">
-          <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            Tools
-          </span>
-        </div>
-        <NavSection items={NAV_TOOLS} activeHref={activeHref} pathname={pathname} />
+        {!collapsed && (
+          <div className="mt-5 mb-1.5 px-3">
+            <span
+              className="text-[11px] font-medium uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Tools
+            </span>
+          </div>
+        )}
+        {collapsed && <div className="mt-4" />}
+        <NavSection
+          items={NAV_TOOLS}
+          activeHref={activeHref}
+          pathname={pathname}
+          collapsed={collapsed}
+        />
 
-        <div className="mt-5 mb-1.5 px-3">
-          <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            Account
-          </span>
-        </div>
-        <NavSection items={NAV_ACCOUNT} activeHref={activeHref} pathname={pathname} />
+        {!collapsed && (
+          <div className="mt-5 mb-1.5 px-3">
+            <span
+              className="text-[11px] font-medium uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Account
+            </span>
+          </div>
+        )}
+        {collapsed && <div className="mt-4" />}
+        <NavSection
+          items={NAV_ACCOUNT}
+          activeHref={activeHref}
+          pathname={pathname}
+          collapsed={collapsed}
+        />
       </nav>
 
       {/* Bottom bar */}
       <div
-        className="px-3 py-3 shrink-0 space-y-2"
+        className={`shrink-0 ${collapsed ? "px-2 py-3 space-y-1 flex flex-col items-center" : "px-3 py-3 space-y-2"}`}
         style={{ borderTop: "1px solid var(--border-color)" }}
       >
         <button
-          onClick={toggleTheme}
-          className="w-full flex items-center gap-3 px-3 py-[8px] rounded-xl text-[13px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleTheme();
+          }}
+          className={
+            collapsed
+              ? "w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-[8px] rounded-xl text-[13px]"
+          }
           style={{
             color: "var(--text-secondary)",
             border: "1px solid transparent",
             transition: "background 0.2s ease, color 0.2s ease, border-color 0.2s ease",
           }}
+          title={collapsed ? (theme === "dark" ? "Light mode" : "Dark mode") : undefined}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "var(--bg-hover)";
             e.currentTarget.style.color = "var(--text-primary)";
@@ -236,31 +411,54 @@ export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: (
           }}
         >
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+          {!collapsed && <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
         </button>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold uppercase shrink-0"
-              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
-            >
-              {user?.email?.charAt(0) || "?"}
-            </div>
-            <span className="text-[12px] truncate" style={{ color: "var(--text-secondary)" }}>
-              {user?.email || ""}
-            </span>
-          </div>
+        {collapsed ? (
           <button
-            onClick={handleLogout}
-            className="p-1.5 rounded-md transition-colors shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleLogout();
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
             style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            title={user?.email ? `Sign out (${user.email})` : "Sign out"}
+            aria-label="Sign out"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-hover)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-muted)";
+            }}
           >
             <SignOut size={16} />
           </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold uppercase shrink-0"
+                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+              >
+                {user?.email?.charAt(0) || "?"}
+              </div>
+              <span className="text-[12px] truncate" style={{ color: "var(--text-secondary)" }}>
+                {user?.email || ""}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-md transition-colors shrink-0"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            >
+              <SignOut size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -293,7 +491,7 @@ export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: (
     );
   }
 
-  // Desktop: fixed sidebar
+  // Desktop: fixed sidebar with width bound to the CSS variable set by layout.
   return (
     <aside
       className="fixed left-0 top-0 h-full z-40 flex flex-col"
@@ -301,7 +499,10 @@ export default function Sidebar({ open, onClose }: { open?: boolean; onClose?: (
         width: "var(--sidebar-width)",
         background: "var(--bg-secondary)",
         borderRight: "1px solid var(--border-color)",
+        transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        cursor: collapsed ? "pointer" : "default",
       }}
+      onClick={handleSidebarClick}
     >
       {sidebarContent}
     </aside>

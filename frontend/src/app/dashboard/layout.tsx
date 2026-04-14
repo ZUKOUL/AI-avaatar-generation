@@ -5,10 +5,31 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { isAuthenticated } from "@/lib/auth";
 
+/**
+ * Dashboard layout.
+ *
+ * Owns the collapsed-sidebar state and exposes it to children via a CSS
+ * custom property `--sidebar-width`. Both the fixed `<Sidebar />` and the
+ * `ml-[var(--sidebar-width)]` on the main region read the same variable,
+ * so toggling collapsed shifts the layout in one place.
+ *
+ * Persistence: the preference is saved to localStorage so a refresh keeps
+ * the state. SSR-safe default is "expanded".
+ */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Load persisted collapsed preference on mount (client-only).
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("sidebarCollapsed") === "true");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -17,6 +38,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setReady(true);
     }
   }, [router]);
+
+  const handleToggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("sidebarCollapsed", String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   if (!ready) {
     return (
@@ -27,8 +60,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-primary)" }}>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div
+      className="flex h-screen overflow-hidden"
+      style={
+        {
+          background: "var(--bg-primary)",
+          // When collapsed, the fixed sidebar narrows to 64px and the main
+          // region reclaims the freed space via its `md:ml-[var(--sidebar-width)]`.
+          ["--sidebar-width" as string]: collapsed ? "64px" : "220px",
+        } as React.CSSProperties
+      }
+    >
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={collapsed}
+        onToggleCollapsed={handleToggleCollapsed}
+      />
 
       {/* Mobile hamburger */}
       <button
@@ -49,6 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <main
         className="flex-1 flex flex-col overflow-hidden md:ml-[var(--sidebar-width)]"
+        style={{ transition: "margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)" }}
       >
         {children}
       </main>

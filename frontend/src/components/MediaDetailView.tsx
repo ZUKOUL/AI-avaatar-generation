@@ -165,11 +165,8 @@ export default function MediaDetailView({
         </button>
       )}
 
-      {/* Media area */}
-      <div
-        className="flex-1 flex items-center justify-center p-6 md:p-10"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {/* Media area — click on padding/black area closes; only the media itself swallows clicks. */}
+      <div className="flex-1 flex items-center justify-center p-6 md:p-10">
         {item.type === "video" ? (
           <video
             key={item.id}
@@ -179,6 +176,7 @@ export default function MediaDetailView({
             src={item.url}
             controls
             autoPlay
+            onClick={(e) => e.stopPropagation()}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
               setDims({ w: v.videoWidth, h: v.videoHeight });
@@ -194,6 +192,7 @@ export default function MediaDetailView({
             }}
             src={item.url}
             alt={item.prompt}
+            onClick={(e) => e.stopPropagation()}
             onLoad={(e) => {
               const img = e.currentTarget;
               setDims({ w: img.naturalWidth, h: img.naturalHeight });
