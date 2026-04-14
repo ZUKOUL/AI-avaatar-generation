@@ -508,11 +508,6 @@ export default function AvatarCreator() {
                     className="max-h-[80%] w-auto object-contain"
                     style={{ filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.35))" }}
                   />
-                  {/* Overlay text */}
-                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-center">
-                    <p className="text-[13px] font-medium mb-0.5" style={{ color: "var(--text-secondary)" }}>Design your avatar</p>
-                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Customize, then generate</p>
-                  </div>
                 </div>
               )}
 
