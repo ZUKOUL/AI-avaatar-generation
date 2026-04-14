@@ -61,12 +61,41 @@ const MODE_ITEMS: { key: Mode; label: string; Icon: React.FC<{ size?: number }> 
   { key: "title", label: "Title", Icon: Type },
 ];
 
-const ASPECT_ITEMS: { key: AspectRatio; label: string }[] = [
-  { key: "16:9", label: "16:9" },
-  { key: "9:16", label: "9:16" },
-  { key: "1:1", label: "1:1" },
-  { key: "4:3", label: "4:3" },
-  { key: "3:4", label: "3:4" },
+/* ─── Small SVG glyphs for each aspect ratio ─────────────────────────────────
+ * A filled rectangle sized to the ratio, centered in an 18×18 viewBox. Gives
+ * the user an immediate visual of what "16:9" actually looks like vs "9:16"
+ * without eating horizontal space. */
+function RatioIcon({ ratio }: { ratio: AspectRatio }) {
+  const dims: Record<AspectRatio, [number, number]> = {
+    "16:9": [16, 9],
+    "9:16": [9, 16],
+    "1:1": [12, 12],
+    "4:3": [14, 10],
+    "3:4": [10, 14],
+  };
+  const [w, h] = dims[ratio];
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect
+        x={(18 - w) / 2}
+        y={(18 - h) / 2}
+        width={w}
+        height={h}
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+const ASPECT_ITEMS: { key: AspectRatio; icon: React.ReactNode }[] = [
+  { key: "16:9", icon: <RatioIcon ratio="16:9" /> },
+  { key: "9:16", icon: <RatioIcon ratio="9:16" /> },
+  { key: "1:1", icon: <RatioIcon ratio="1:1" /> },
+  { key: "4:3", icon: <RatioIcon ratio="4:3" /> },
+  { key: "3:4", icon: <RatioIcon ratio="3:4" /> },
 ];
 
 const SAMPLE_PROMPTS: Record<Mode, string[]> = {
@@ -118,6 +147,12 @@ export default function ThumbnailStudio() {
   const mentionStartRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  // Clicking an @name chip in the prompt opens a dropdown to swap it to
+  // another avatar without retyping. We anchor the dropdown to the chip's
+  // bounding rect so it tracks regardless of scroll/layout.
+  const [chipDropdown, setChipDropdown] = useState<
+    { avatarId: string; pos: { top: number; left: number } } | null
+  >(null);
 
   /* ─── "Add character" popover ─── */
   const [charPickerOpen, setCharPickerOpen] = useState(false);
@@ -167,6 +202,20 @@ export default function ThumbnailStudio() {
       document.removeEventListener("mousedown", handler);
     };
   }, [charPickerOpen]);
+
+  /* ─── Close chip dropdown on outside click ─── */
+  useEffect(() => {
+    if (!chipDropdown) return;
+    const handler = () => setChipDropdown(null);
+    const t = window.setTimeout(
+      () => document.addEventListener("click", handler, { once: true }),
+      0,
+    );
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("click", handler);
+    };
+  }, [chipDropdown]);
 
   /* ─── Reference images (manual upload) ─── */
   const handleRefFiles = (files: FileList | File[]) => {
@@ -249,6 +298,28 @@ export default function ThumbnailStudio() {
     }, 0);
   };
 
+  // Swap an already-mentioned character for a different one in-place. Rewrites
+  // the @name in the prompt text and refreshes the tracked avatar IDs so the
+  // generate call picks up the new reference image.
+  const switchMention = (oldId: string, newAvatar: Avatar) => {
+    const old = avatars.find((a) => a.avatar_id === oldId);
+    if (!old) return;
+    if (old.avatar_id === newAvatar.avatar_id) {
+      setChipDropdown(null);
+      return;
+    }
+    const re = new RegExp(
+      `@${old.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+      "i",
+    );
+    setPrompt((p) => p.replace(re, `@${newAvatar.name}`));
+    setMentionedAvatarIds((prev) => {
+      const next = prev.filter((id) => id !== oldId);
+      return next.includes(newAvatar.avatar_id) ? next : [...next, newAvatar.avatar_id];
+    });
+    setChipDropdown(null);
+  };
+
   // Keep mentionedAvatarIds in sync when user deletes @mention from prompt.
   useEffect(() => {
     setMentionedAvatarIds((ids) =>
@@ -319,15 +390,40 @@ export default function ThumbnailStudio() {
           return (
             <span
               key={i}
-              className="rounded-[4px] select-none"
+              className="relative rounded-[4px] pointer-events-auto cursor-pointer select-none"
               style={{
                 background: "rgba(59,130,246,0.15)",
                 color: "#3b82f6",
                 fontWeight: 600,
                 padding: "2px 0",
               }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                setChipDropdown({
+                  avatarId: av.avatar_id,
+                  pos: { top: r.bottom + 4, left: r.left },
+                });
+              }}
             >
               {part}
+              <svg
+                className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ left: "calc(100% + 1px)" }}
+                width="8"
+                height="8"
+                viewBox="0 0 8 8"
+                fill="none"
+                aria-hidden
+              >
+                <path
+                  d="M2 3L4 5L6 3"
+                  stroke="#3b82f6"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </span>
           );
         }
@@ -875,6 +971,88 @@ export default function ThumbnailStudio() {
                 )}
               </div>
 
+              {/* Chip switch dropdown — click an @name chip to swap it */}
+              {chipDropdown && (
+                <div
+                  className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
+                  style={{
+                    top: chipDropdown.pos.top,
+                    left: chipDropdown.pos.left,
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                    minWidth: 220,
+                    maxWidth: 300,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div
+                    className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Switch character
+                  </div>
+                  <div className="max-h-[260px] overflow-y-auto">
+                    {avatars.map((a) => (
+                      <button
+                        key={a.avatar_id}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                        style={{
+                          background:
+                            a.avatar_id === chipDropdown.avatarId
+                              ? "var(--bg-tertiary)"
+                              : "transparent",
+                        }}
+                        onClick={() => switchMention(chipDropdown.avatarId, a)}
+                      >
+                        {a.thumbnail ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={a.thumbnail}
+                            alt={a.name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div
+                            className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold"
+                            style={{
+                              background: "var(--bg-tertiary)",
+                              color: "var(--text-muted)",
+                            }}
+                          >
+                            {a.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span
+                          className="text-[13px] font-medium truncate"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {a.name}
+                        </span>
+                        {a.avatar_id === chipDropdown.avatarId && (
+                          <svg
+                            className="ml-auto shrink-0"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 14 14"
+                            fill="none"
+                            aria-hidden
+                          >
+                            <path
+                              d="M3 7l3 3 5-5"
+                              stroke="#3b82f6"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Mentioned chips summary */}
               {mentionedAvatars.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
@@ -1401,8 +1579,16 @@ export default function ThumbnailStudio() {
           onClick={() => setLightbox(null)}
         >
           <div
-            className="relative max-w-[1100px] w-full max-h-[90vh] rounded-2xl overflow-hidden flex flex-col"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+            className="relative rounded-2xl overflow-hidden flex flex-col"
+            style={{
+              // Keep the lightbox compact so the generated image is always
+              // visible in full without scrolling — users were complaining the
+              // previous 1100px wide panel filled their screen.
+              width: "min(88vw, 680px)",
+              maxHeight: "78vh",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div

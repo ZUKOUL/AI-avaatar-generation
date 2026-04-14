@@ -167,26 +167,67 @@ async def generate_thumbnail(
         "watermarks. Sharp, high detail, optimized to be eye-catching at small sizes."
     )
 
+    # When the user attached extra reference images (beyond the first YouTube/
+    # source thumbnail), we know they intend to inject a specific person. The
+    # prompt then has to treat the source as a *layout* reference rather than
+    # locking the source's identity — otherwise face-swap requests get ignored.
+    has_character_refs = len([c for c in gemini_contents if not isinstance(c, str)]) > 1
+
     if mode == "prompt":
         full_prompt = (
             f"Create an original YouTube thumbnail. {base_style} "
-            f"Thumbnail concept: {prompt}"
+            + (
+                "One or more reference images show the specific person(s) who "
+                "must appear as the subject. Reproduce their face identity "
+                "exactly — do NOT alter, beautify, or idealize facial features. "
+                if has_character_refs
+                else ""
+            )
+            + f"Thumbnail concept: {prompt}"
         )
     elif mode == "recreate":
-        full_prompt = (
-            "The first image is the ORIGINAL YouTube thumbnail. "
-            "Generate a NEW thumbnail that keeps the overall composition and "
-            "subject framing but applies the requested change. "
-            "Preserve the main character's identity exactly (face, hair, build). "
-            f"{base_style} "
-            f"Change to apply: {prompt}"
-        )
+        if has_character_refs:
+            # Face-swap / person-injection: keep the ORIGINAL composition,
+            # lighting and background, but replace the subject with the
+            # reference person(s).
+            full_prompt = (
+                "The FIRST image is the ORIGINAL YouTube thumbnail — use it as "
+                "the compositional and stylistic reference (framing, lighting, "
+                "mood, background, colors). "
+                "The following reference images show the specific person(s) "
+                "the user wants featured. Reproduce their face and identity "
+                "EXACTLY — do NOT alter, beautify, or idealize facial features. "
+                "If the prompt asks you to replace someone in the original, "
+                "swap the corresponding subject so the referenced person "
+                "occupies that position, matching the original's pose, "
+                "lighting, and expression. Keep everything else identical. "
+                f"{base_style} "
+                f"Change to apply: {prompt}"
+            )
+        else:
+            full_prompt = (
+                "The first image is the ORIGINAL YouTube thumbnail. "
+                "Generate a NEW thumbnail that keeps the overall composition, "
+                "lighting, and subject framing but applies the requested "
+                "change literally — the user's instructions take priority "
+                "over preserving details. "
+                f"{base_style} "
+                f"Change to apply: {prompt}"
+            )
     elif mode == "edit":
         full_prompt = (
-            "The first uploaded image is the source thumbnail. "
-            "Apply the requested edit while preserving everything else. "
-            f"{base_style} "
-            f"Edit instructions: {prompt}"
+            "The first uploaded image is the source thumbnail — keep its "
+            "composition, lighting and overall look, then apply the requested "
+            "edit literally. "
+            + (
+                "Additional reference images show the specific person(s) "
+                "to feature; reproduce their face identity exactly when the "
+                "edit involves swapping or adding a character. "
+                if has_character_refs
+                else ""
+            )
+            + f"{base_style} "
+            + f"Edit instructions: {prompt}"
         )
     else:  # title
         title = (title_text or "").strip()
