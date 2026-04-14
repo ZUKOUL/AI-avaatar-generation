@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-manrope",
+});
 
 export const metadata: Metadata = {
   title: "Horpen.ai — AI Avatar & Ad Generator",
@@ -13,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" className={`h-full ${manrope.variable}`} data-theme="dark" suppressHydrationWarning>
       <head>
         {/* Prevent flash: set theme before React hydrates */}
         <script
@@ -36,7 +43,7 @@ export default function RootLayout({
       <body
         className="min-h-full"
         style={{
-          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+          fontFamily: "var(--font-manrope), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
           letterSpacing: "-0.011em",
         }}
       >

@@ -845,7 +845,7 @@ export default function VideoGenerator() {
                   <button
                     key={f}
                     onClick={() => setGalleryFilter(f)}
-                    className="relative z-[1] flex-1 text-[13px] font-medium capitalize px-3 py-1 rounded-md"
+                    className="relative z-[1] flex-1 text-center text-[13px] font-medium capitalize px-3 py-1 rounded-md"
                     style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}
                   >
                     {f === "all" ? "All" : f === "images" ? "Images" : "Videos"}
