@@ -208,12 +208,12 @@ export default function CreditsPage() {
                     <button
                       onClick={() => handleCheckout(plan.tier)}
                       disabled={plan.current || checkoutLoading === plan.tier}
-                      className="w-full py-3 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed mb-6"
+                      className="w-full py-3 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:cursor-not-allowed mb-6"
                       style={{
                         background: plan.current
                           ? "var(--bg-tertiary)"
                           : plan.highlighted
-                            ? "var(--bg-tertiary)"
+                            ? "var(--btn-raised-bg)"
                             : "var(--text-primary)",
                         color: plan.current
                           ? "var(--text-muted)"
@@ -221,9 +221,31 @@ export default function CreditsPage() {
                             ? "var(--text-primary)"
                             : "var(--bg-primary)",
                         border: plan.highlighted
-                          ? "1px solid var(--border-color)"
+                          ? "1px solid var(--btn-raised-border)"
                           : "none",
+                        boxShadow: plan.current
+                          ? "none"
+                          : plan.highlighted
+                            ? "var(--shadow-btn-raised)"
+                            : "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)",
                         opacity: plan.current ? 0.6 : 1,
+                        transition: "box-shadow 0.25s ease, transform 0.1s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (plan.current || checkoutLoading === plan.tier) return;
+                        if (plan.highlighted) {
+                          e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
+                        } else {
+                          e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (plan.current) return;
+                        if (plan.highlighted) {
+                          e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
+                        } else {
+                          e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)";
+                        }
                       }}
                     >
                       {checkoutLoading === plan.tier ? (

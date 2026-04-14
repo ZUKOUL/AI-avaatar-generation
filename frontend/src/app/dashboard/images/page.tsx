@@ -18,6 +18,7 @@ import {
   Grid,
   LayoutGrid,
   CaretLeft,
+  CaretRight,
   ChevronDown,
   Search,
   Maximize,
@@ -124,6 +125,7 @@ export default function ImageGenerator() {
   const [videoModel, setVideoModel] = useState(VIDEO_MODELS[0].id);
   const [gridSize, setGridSize] = useState<GridSize>("medium");
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
 
   // Video-specific
   const [videoRefPreview, setVideoRefPreview] = useState<string | null>(null);
@@ -161,6 +163,24 @@ export default function ImageGenerator() {
   const mentionFiltered = mentionQuery !== null
     ? avatars.filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
     : [];
+
+  // Lightbox keyboard controls
+  useEffect(() => {
+    if (!lightboxImage) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxImage(null);
+      if (e.key === "ArrowLeft") {
+        const idx = images.findIndex(i => i.image_id === lightboxImage.image_id);
+        if (idx > 0) setLightboxImage(images[idx - 1]);
+      }
+      if (e.key === "ArrowRight") {
+        const idx = images.findIndex(i => i.image_id === lightboxImage.image_id);
+        if (idx < images.length - 1) setLightboxImage(images[idx + 1]);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxImage, images]);
 
   // Sync selectedAvatar when @mention is deleted from prompt
   useEffect(() => {
@@ -494,6 +514,9 @@ export default function ImageGenerator() {
             })
             .finally(() => setDescribing(false));
         }
+      } else {
+        const clickedImg = images.find(i => i.image_url === url);
+        if (clickedImg) setLightboxImage(clickedImg);
       }
       setDraggingUrl(null);
       setDraggingThumb(null);
@@ -525,7 +548,18 @@ export default function ImageGenerator() {
 
             {/* Tabs — Image | Video (stay on same page) */}
             <div className="px-4 pt-4 pb-1">
-              <div className="flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+              <div className="relative flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                {/* Sliding active indicator */}
+                <div
+                  className="absolute top-1 bottom-1 rounded-lg"
+                  style={{
+                    width: "calc(50% - 4px)",
+                    left: activeTab === "image" ? 4 : "calc(50% + 0px)",
+                    background: "var(--segment-active-bg)",
+                    boxShadow: "var(--shadow-segment-active)",
+                    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                />
                 {([
                   { key: "image" as ActiveTab, icon: ImageSquare, label: "Image" },
                   { key: "video" as ActiveTab, icon: VideoCamera, label: "Video" },
@@ -536,11 +570,10 @@ export default function ImageGenerator() {
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium transition-all"
+                      className="relative z-[1] flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium"
                       style={{
-                        background: active ? "var(--segment-active-bg)" : "transparent",
                         color: active ? "var(--text-primary)" : "var(--text-muted)",
-                        boxShadow: active ? "var(--shadow-segment-active)" : "none",
+                        transition: "color 0.25s ease",
                       }}
                     >
                       <Icon size={14} />
@@ -567,8 +600,16 @@ export default function ImageGenerator() {
               <div className="relative">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowModelDropdown(!showModelDropdown); setShowRatioDropdown(false); setShowQualityDropdown(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
-                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium"
+                  style={{
+                    background: "var(--btn-raised-bg)",
+                    border: "1px solid var(--btn-raised-border)",
+                    boxShadow: "var(--shadow-btn-raised)",
+                    color: "var(--text-primary)",
+                    transition: "box-shadow 0.25s ease, transform 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                 >
                   <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "#3b82f6", color: "#fff" }}>
                     {currentModels.find((m) => m.id === currentModelId)?.icon || "G"}
@@ -792,7 +833,15 @@ export default function ImageGenerator() {
                     <button
                       onClick={(e) => { e.stopPropagation(); }}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
-                      style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                      style={{
+                        background: "var(--btn-raised-bg)",
+                        border: "1px solid var(--btn-raised-border)",
+                        boxShadow: "var(--shadow-btn-raised)",
+                        color: "var(--text-primary)",
+                        transition: "box-shadow 0.25s ease",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                     >
                       <select
                         value={videoDuration}
@@ -811,8 +860,16 @@ export default function ImageGenerator() {
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowRatioDropdown(!showRatioDropdown); setShowQualityDropdown(false); setShowModelDropdown(false); }}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                    style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                    style={{
+                      background: "var(--btn-raised-bg)",
+                      border: "1px solid var(--btn-raised-border)",
+                      boxShadow: "var(--shadow-btn-raised)",
+                      color: "var(--text-primary)",
+                      transition: "box-shadow 0.25s ease",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                   >
                     <RatioIcon ratio={aspectRatio} />
                     {aspectRatio}
@@ -842,8 +899,16 @@ export default function ImageGenerator() {
                   <div className="relative">
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowQualityDropdown(!showQualityDropdown); setShowRatioDropdown(false); setShowModelDropdown(false); }}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                      style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                      style={{
+                        background: "var(--btn-raised-bg)",
+                        border: "1px solid var(--btn-raised-border)",
+                        boxShadow: "var(--shadow-btn-raised)",
+                        color: "var(--text-primary)",
+                        transition: "box-shadow 0.25s ease",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                     >
                       <Maximize size={14} />
                       {quality}
@@ -873,7 +938,19 @@ export default function ImageGenerator() {
 
               {/* Generate */}
               <div className="px-4 pb-4 pt-1">
-                <button onClick={handleGenerate} disabled={loading || !prompt.trim()} className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{ background: "#3b82f6", color: "#fff" }}>
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading || !prompt.trim()}
+                  className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: "#3b82f6",
+                    color: "#fff",
+                    boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
+                    transition: "box-shadow 0.25s ease, transform 0.1s ease",
+                  }}
+                  onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
+                >
                   {loading ? <><Spinner size={16} /> Generating...</> : "Generate"}
                 </button>
               </div>
@@ -893,30 +970,48 @@ export default function ImageGenerator() {
                   <>
                     <button
                       onClick={handleReusePrompt}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                      style={{ color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                      style={{
+                        color: "var(--text-primary)",
+                        background: "var(--btn-raised-bg)",
+                        border: "1px solid var(--btn-raised-border)",
+                        boxShadow: "var(--shadow-btn-raised)",
+                        transition: "box-shadow 0.25s ease",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                       title="Reuse prompt"
                     >
                       <RefreshCw size={13} /> Reuse
                     </button>
                     <button
                       onClick={handleDownloadSelected}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                      style={{ color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                      style={{
+                        color: "var(--text-primary)",
+                        background: "var(--btn-raised-bg)",
+                        border: "1px solid var(--btn-raised-border)",
+                        boxShadow: "var(--shadow-btn-raised)",
+                        transition: "box-shadow 0.25s ease",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                       title="Download"
                     >
                       <Download size={13} /> Download
                     </button>
                     <button
                       onClick={handleDeleteSelected}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                      style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239,68,68,0.1)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                      style={{
+                        color: "#ef4444",
+                        background: "var(--btn-raised-bg)",
+                        border: "1px solid rgba(239,68,68,0.25)",
+                        boxShadow: "var(--shadow-btn-raised)",
+                        transition: "box-shadow 0.25s ease, background 0.25s ease",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.1)"; e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--btn-raised-bg)"; e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                       title="Delete"
                     >
                       <Trash size={13} /> Delete
@@ -935,9 +1030,10 @@ export default function ImageGenerator() {
                 ) : (
                   <>
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}><ImageSquare size={14} /> Images</div>
-                    <div className="flex items-center rounded-lg overflow-hidden p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                    <div className="relative flex items-center rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                      <div className="absolute top-0.5 bottom-0.5 left-0.5 rounded-md" style={{ width: "calc((100% - 4px) / 3)", transform: `translateX(${gridSize === "small" ? 0 : gridSize === "medium" ? 100 : 200}%)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
                       {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                        <button key={key} onClick={() => setGridSize(key)} className="px-2 py-1.5 rounded-md transition-all" style={{ background: gridSize === key ? "var(--segment-active-bg)" : "transparent", color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", boxShadow: gridSize === key ? "var(--shadow-segment-active)" : "none" }}>
+                        <button key={key} onClick={() => setGridSize(key)} className="relative z-[1] flex-1 px-2 py-1.5 rounded-md" style={{ color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}>
                           {icon}
                         </button>
                       ))}
@@ -947,7 +1043,27 @@ export default function ImageGenerator() {
               </div>
             </div>
             <div className="px-4 md:px-6 py-4">
-              {loadingImages ? <div className="flex items-center justify-center py-16"><div className="spinner" /></div> : images.length === 0 ? (
+              {/* Skeleton loader during generation */}
+              {!loadingImages && loading && (
+                <div className="mb-6 animate-fadeIn">
+                  <span className="text-[12px] font-medium block mb-3" style={{ color: "var(--text-muted)" }}>Generating...</span>
+                  <div className={`grid gap-2 ${GRID_COLS[gridSize]}`}>
+                    <div className="relative aspect-square rounded-xl overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
+                      <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "linear-gradient(90deg, transparent 25%, var(--skeleton-shimmer) 50%, transparent 75%)", animation: "shimmerSweep 2s ease-in-out infinite" }} />
+                      <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "linear-gradient(to top, var(--skeleton-fill-start) 0%, var(--skeleton-fill-mid) 50%, var(--skeleton-fill-end) 90%, transparent 100%)", transform: "translateY(100%)", animation: "fillRise 25s ease-out forwards" }}>
+                        <svg style={{ position: "absolute", top: -10, left: 0, width: "200%", height: 20, animation: "waveSlide 3s linear infinite", color: "var(--skeleton-wave)" }} viewBox="0 0 240 20" fill="none" preserveAspectRatio="none">
+                          <path d="M0 10 Q15 0 30 10 Q45 20 60 10 Q75 0 90 10 Q105 20 120 10 Q135 0 150 10 Q165 20 180 10 Q195 0 210 10 Q225 20 240 10 L240 20 L0 20Z" fill="currentColor" />
+                        </svg>
+                      </div>
+                      <div style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                        <div className="spinner" />
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Generating...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {loadingImages ? <div className="flex items-center justify-center py-16"><div className="spinner" /></div> : images.length === 0 && !loading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}><ImageSquare size={24} style={{ color: "var(--text-muted)" }} /></div>
                   <p className="font-medium text-[14px] mb-1" style={{ color: "var(--text-secondary)" }}>No images yet</p>
@@ -1021,7 +1137,19 @@ export default function ImageGenerator() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[20px] font-semibold" style={{ color: "var(--text-primary)" }}>Characters</h2>
-                  <button onClick={() => setShowNewCharacter(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors" style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <button
+                    onClick={() => setShowNewCharacter(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-medium"
+                    style={{
+                      background: "var(--btn-raised-bg)",
+                      border: "1px solid var(--btn-raised-border)",
+                      boxShadow: "var(--shadow-btn-raised)",
+                      color: "var(--text-primary)",
+                      transition: "box-shadow 0.25s ease",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
+                  >
                     <Plus size={14} /> New character
                   </button>
                 </div>
@@ -1114,6 +1242,68 @@ export default function ImageGenerator() {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ Lightbox ═══ */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center animate-fadeIn" style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setLightboxImage(null)}>
+          {/* Close */}
+          <button className="absolute top-4 right-4 p-2.5 rounded-xl transition-colors z-10 hover:bg-white/10" style={{ color: "rgba(255,255,255,0.7)" }} onClick={() => setLightboxImage(null)}>
+            <XIcon size={22} />
+          </button>
+
+          {/* Prev */}
+          {images.findIndex(i => i.image_id === lightboxImage.image_id) > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
+              style={{ color: "rgba(255,255,255,0.7)" }}
+              onClick={(e) => { e.stopPropagation(); const idx = images.findIndex(i => i.image_id === lightboxImage.image_id); if (idx > 0) setLightboxImage(images[idx - 1]); }}
+            >
+              <CaretLeft size={24} />
+            </button>
+          )}
+
+          {/* Next */}
+          {images.findIndex(i => i.image_id === lightboxImage.image_id) < images.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full transition-colors hover:bg-white/10"
+              style={{ color: "rgba(255,255,255,0.7)" }}
+              onClick={(e) => { e.stopPropagation(); const idx = images.findIndex(i => i.image_id === lightboxImage.image_id); if (idx < images.length - 1) setLightboxImage(images[idx + 1]); }}
+            >
+              <CaretRight size={24} />
+            </button>
+          )}
+
+          {/* Image + info */}
+          <div className="flex flex-col items-center max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={lightboxImage.image_url}
+              alt={lightboxImage.prompt}
+              className="max-w-full max-h-[78vh] object-contain rounded-xl"
+              style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.4)" }}
+            />
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-white/15"
+                style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
+                onClick={() => handleDownload(lightboxImage.image_url, `horpen-${lightboxImage.image_id}.png`)}
+              >
+                <Download size={14} /> Download
+              </button>
+              <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {new Date(lightboxImage.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+              <span className="text-[12px] px-2 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                {images.findIndex(i => i.image_id === lightboxImage.image_id) + 1} / {images.length}
+              </span>
+            </div>
+            {lightboxImage.prompt && (
+              <p className="text-[12px] mt-2 max-w-2xl text-center line-clamp-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {lightboxImage.prompt}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </>

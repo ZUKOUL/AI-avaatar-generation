@@ -507,8 +507,16 @@ export default function VideoGenerator() {
               <div className="relative">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowModelDropdown(!showModelDropdown); setShowRatioDropdown(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
-                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium"
+                  style={{
+                    background: "var(--btn-raised-bg)",
+                    border: "1px solid var(--btn-raised-border)",
+                    boxShadow: "var(--shadow-btn-raised)",
+                    color: "var(--text-primary)",
+                    transition: "box-shadow 0.25s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                 >
                   <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold" style={{ background: "#3b82f6", color: "#fff" }}>
                     {currentModel.icon}
@@ -595,23 +603,31 @@ export default function VideoGenerator() {
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={() => setPickingFor(pickingFor === "start" ? null : "start")}
-                  className="text-[11px] font-medium px-2 py-1 rounded-md transition-colors"
+                  className="text-[11px] font-medium px-2 py-1 rounded-md"
                   style={{
-                    background: pickingFor === "start" ? "#3b82f6" : "var(--bg-secondary)",
-                    color: pickingFor === "start" ? "#fff" : "var(--text-muted)",
-                    border: `1px solid ${pickingFor === "start" ? "#3b82f6" : "var(--border-color)"}`,
+                    background: pickingFor === "start" ? "#3b82f6" : "var(--btn-raised-bg)",
+                    color: pickingFor === "start" ? "#fff" : "var(--text-secondary)",
+                    border: `1px solid ${pickingFor === "start" ? "#3b82f6" : "var(--btn-raised-border)"}`,
+                    boxShadow: pickingFor === "start" ? "0 1px 2px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.18)" : "var(--shadow-btn-raised)",
+                    transition: "box-shadow 0.25s ease, background 0.25s ease",
                   }}
+                  onMouseEnter={(e) => { if (pickingFor !== "start") e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                  onMouseLeave={(e) => { if (pickingFor !== "start") e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                 >
                   {pickingFor === "start" ? "Picking start…" : "Gallery → Start"}
                 </button>
                 <button
                   onClick={() => setPickingFor(pickingFor === "end" ? null : "end")}
-                  className="text-[11px] font-medium px-2 py-1 rounded-md transition-colors"
+                  className="text-[11px] font-medium px-2 py-1 rounded-md"
                   style={{
-                    background: pickingFor === "end" ? "#3b82f6" : "var(--bg-secondary)",
-                    color: pickingFor === "end" ? "#fff" : "var(--text-muted)",
-                    border: `1px solid ${pickingFor === "end" ? "#3b82f6" : "var(--border-color)"}`,
+                    background: pickingFor === "end" ? "#3b82f6" : "var(--btn-raised-bg)",
+                    color: pickingFor === "end" ? "#fff" : "var(--text-secondary)",
+                    border: `1px solid ${pickingFor === "end" ? "#3b82f6" : "var(--btn-raised-border)"}`,
+                    boxShadow: pickingFor === "end" ? "0 1px 2px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.18)" : "var(--shadow-btn-raised)",
+                    transition: "box-shadow 0.25s ease, background 0.25s ease",
                   }}
+                  onMouseEnter={(e) => { if (pickingFor !== "end") e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                  onMouseLeave={(e) => { if (pickingFor !== "end") e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                 >
                   {pickingFor === "end" ? "Picking end…" : "Gallery → End"}
                 </button>
@@ -723,7 +739,15 @@ export default function VideoGenerator() {
             <div className="shrink-0">
               <div className="px-4 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid var(--border-color)" }}>
                 {/* Duration */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                  style={{
+                    background: "var(--btn-raised-bg)",
+                    border: "1px solid var(--btn-raised-border)",
+                    boxShadow: "var(--shadow-btn-raised)",
+                    color: "var(--text-primary)",
+                  }}
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                   {currentModel.duration}
                 </div>
@@ -732,8 +756,16 @@ export default function VideoGenerator() {
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowRatioDropdown(!showRatioDropdown); setShowModelDropdown(false); }}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                    style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                    style={{
+                      background: "var(--btn-raised-bg)",
+                      border: "1px solid var(--btn-raised-border)",
+                      boxShadow: "var(--shadow-btn-raised)",
+                      color: "var(--text-primary)",
+                      transition: "box-shadow 0.25s ease",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
                   >
                     <RatioIcon ratio={aspectRatio} />
                     {aspectRatio}
@@ -758,7 +790,15 @@ export default function VideoGenerator() {
                 </div>
 
                 {/* Audio indicator */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                  style={{
+                    background: "var(--btn-raised-bg)",
+                    border: "1px solid var(--btn-raised-border)",
+                    boxShadow: "var(--shadow-btn-raised)",
+                    color: "var(--text-primary)",
+                  }}
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />{audio ? <><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></> : <line x1="23" y1="9" x2="17" y2="15" />}</svg>
                   {audio ? "ON" : "OFF"}
                 </div>
@@ -769,8 +809,15 @@ export default function VideoGenerator() {
                 <button
                   onClick={handleGenerate}
                   disabled={loading || !motionPrompt.trim()}
-                  className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: "#3b82f6", color: "#fff" }}
+                  className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: "#3b82f6",
+                    color: "#fff",
+                    boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
+                    transition: "box-shadow 0.25s ease",
+                  }}
+                  onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
                 >
                   {loading ? <><Spinner size={16} /> Generating...</> : `Generate · ${creditCost} credits`}
                 </button>
@@ -782,23 +829,23 @@ export default function VideoGenerator() {
           <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-primary)" }}>
             {/* Gallery header */}
             <div className="flex items-center justify-between px-4 md:px-6 py-3 sticky top-0 z-10" style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color)" }}>
-              <div className="relative flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+              <div className="relative flex items-center rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
                 {/* Sliding indicator for gallery filter */}
                 <div
-                  className="absolute top-0.5 bottom-0.5 rounded-md"
+                  className="absolute top-0.5 bottom-0.5 left-0.5 rounded-md"
                   style={{
-                    width: "calc(33.333% - 2px)",
-                    left: galleryFilter === "all" ? 2 : galleryFilter === "images" ? "calc(33.333% + 0px)" : "calc(66.666% - 2px)",
+                    width: "calc((100% - 4px) / 3)",
+                    transform: `translateX(${galleryFilter === "all" ? 0 : galleryFilter === "images" ? 100 : 200}%)`,
                     background: "var(--segment-active-bg)",
                     boxShadow: "var(--shadow-segment-active)",
-                    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 />
                 {(["all", "images", "videos"] as GalleryFilter[]).map((f) => (
                   <button
                     key={f}
                     onClick={() => setGalleryFilter(f)}
-                    className="relative z-[1] text-[13px] font-medium capitalize px-3 py-1 rounded-md"
+                    className="relative z-[1] flex-1 text-[13px] font-medium capitalize px-3 py-1 rounded-md"
                     style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}
                   >
                     {f === "all" ? "All" : f === "images" ? "Images" : "Videos"}
@@ -812,10 +859,10 @@ export default function VideoGenerator() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>{galleryItems.length} items</span>
-                <div className="relative flex items-center rounded-lg overflow-hidden p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-                  <div className="absolute top-0.5 bottom-0.5 rounded-md" style={{ width: "calc(33.333% - 2px)", left: gridSize === "small" ? 2 : gridSize === "medium" ? "calc(33.333% + 0px)" : "calc(66.666% - 2px)", background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
+                <div className="relative flex items-center rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
+                  <div className="absolute top-0.5 bottom-0.5 left-0.5 rounded-md" style={{ width: "calc((100% - 4px) / 3)", transform: `translateX(${gridSize === "small" ? 0 : gridSize === "medium" ? 100 : 200}%)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
                   {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                    <button key={key} onClick={() => setGridSize(key)} className="relative z-[1] px-2 py-1.5 rounded-md" style={{ color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}>
+                    <button key={key} onClick={() => setGridSize(key)} className="relative z-[1] flex-1 px-2 py-1.5 rounded-md" style={{ color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}>
                       {icon}
                     </button>
                   ))}

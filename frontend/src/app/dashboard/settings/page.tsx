@@ -287,8 +287,15 @@ export default function SettingsPage() {
                           <button
                             onClick={handleSaveProfile}
                             disabled={savingProfile}
-                            className="px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all disabled:opacity-50"
-                            style={{ background: "#3b82f6", color: "#fff" }}
+                            className="px-4 py-2.5 rounded-lg text-[13px] font-medium disabled:opacity-50"
+                            style={{
+                              background: "#3b82f6",
+                              color: "#fff",
+                              boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
+                              transition: "box-shadow 0.25s ease",
+                            }}
+                            onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
                           >
                             {savingProfile ? <Spinner size={14} /> : "Save"}
                           </button>
@@ -335,8 +342,15 @@ export default function SettingsPage() {
                           </div>
                           <button
                             onClick={handleSaveLanguage}
-                            className="px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all"
-                            style={{ background: "#3b82f6", color: "#fff" }}
+                            className="px-4 py-2.5 rounded-lg text-[13px] font-medium"
+                            style={{
+                              background: "#3b82f6",
+                              color: "#fff",
+                              boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
+                              transition: "box-shadow 0.25s ease",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
                           >
                             Save
                           </button>
@@ -385,8 +399,15 @@ export default function SettingsPage() {
                                 setAddingCredits(false);
                               }}
                               disabled={addingCredits}
-                              className="px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all disabled:opacity-50"
-                              style={{ background: "#22c55e", color: "#fff" }}
+                              className="px-4 py-2.5 rounded-lg text-[13px] font-medium disabled:opacity-50"
+                              style={{
+                                background: "#22c55e",
+                                color: "#fff",
+                                boxShadow: "0 1px 2px rgba(34,197,94,0.35), 0 2px 6px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
+                                transition: "box-shadow 0.25s ease",
+                              }}
+                              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(34,197,94,0.5), 0 4px 12px rgba(34,197,94,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(34,197,94,0.35), 0 2px 6px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
                             >
                               {addingCredits ? <Spinner size={14} /> : `+ ${creditAmount} credits`}
                             </button>
@@ -496,8 +517,15 @@ export default function SettingsPage() {
                       <button
                         onClick={handleChangePassword}
                         disabled={changingPw || !currentPassword || !newPassword || !confirmPassword}
-                        className="w-full py-2.5 rounded-lg font-medium text-[13px] flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{ background: "#3b82f6", color: "#fff" }}
+                        className="w-full py-2.5 rounded-lg font-medium text-[13px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          background: "#3b82f6",
+                          color: "#fff",
+                          boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
+                          transition: "box-shadow 0.25s ease",
+                        }}
+                        onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
                       >
                         {changingPw ? <><Spinner size={14} /> Changing...</> : "Change password"}
                       </button>
@@ -572,12 +600,36 @@ export default function SettingsPage() {
                             <button
                               onClick={() => handleSubCheckout(plan.tier)}
                               disabled={plan.current || checkoutLoading === plan.tier}
-                              className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed mb-4"
+                              className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 disabled:cursor-not-allowed mb-4"
                               style={{
-                                background: plan.current ? "var(--bg-tertiary)" : plan.highlighted ? "var(--bg-tertiary)" : "var(--text-primary)",
-                                color: plan.current ? "var(--text-muted)" : plan.highlighted ? "var(--text-primary)" : "var(--bg-primary)",
-                                border: plan.highlighted ? "1px solid var(--border-color)" : "none",
+                                background: plan.current
+                                  ? "var(--bg-tertiary)"
+                                  : plan.highlighted
+                                    ? "var(--btn-raised-bg)"
+                                    : "var(--text-primary)",
+                                color: plan.current
+                                  ? "var(--text-muted)"
+                                  : plan.highlighted
+                                    ? "var(--text-primary)"
+                                    : "var(--bg-primary)",
+                                border: plan.highlighted ? "1px solid var(--btn-raised-border)" : "none",
+                                boxShadow: plan.current
+                                  ? "none"
+                                  : plan.highlighted
+                                    ? "var(--shadow-btn-raised)"
+                                    : "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)",
                                 opacity: plan.current ? 0.6 : 1,
+                                transition: "box-shadow 0.25s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (plan.current || checkoutLoading === plan.tier) return;
+                                if (plan.highlighted) e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
+                                else e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)";
+                              }}
+                              onMouseLeave={(e) => {
+                                if (plan.current) return;
+                                if (plan.highlighted) e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
+                                else e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)";
                               }}
                             >
                               {checkoutLoading === plan.tier ? <Spinner size={14} /> : plan.current ? "Current Plan" : plan.cta}

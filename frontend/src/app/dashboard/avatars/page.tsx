@@ -224,40 +224,66 @@ export default function AvatarCreator() {
 
   const ChipGrid = ({ items, selected, onSelect, cols = "grid-cols-3" }: { items: string[]; selected: string; onSelect: (v: string) => void; cols?: string }) => (
     <div className={`grid ${cols} gap-1.5`}>
-      {items.map((item) => (
-        <button
-          key={item}
-          onClick={() => onSelect(item)}
-          className="px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all text-center truncate"
-          style={{
-            background: selected === item ? "var(--segment-active-bg)" : "var(--bg-secondary)",
-            color: selected === item ? "var(--text-primary)" : "var(--text-muted)",
-            border: selected === item ? "1.5px solid var(--text-primary)" : "1px solid var(--border-color)",
-            boxShadow: selected === item ? "var(--shadow-segment-active)" : "none",
-          }}
-        >
-          {item}
-        </button>
-      ))}
+      {items.map((item) => {
+        const active = selected === item;
+        return (
+          <button
+            key={item}
+            onClick={() => onSelect(item)}
+            className="px-2 py-1.5 rounded-lg text-[11px] font-medium text-center truncate"
+            style={{
+              background: active ? "var(--btn-raised-bg)" : "transparent",
+              color: active ? "var(--text-primary)" : "var(--text-secondary)",
+              border: active ? "1px solid var(--btn-raised-border)" : "1px solid var(--border-color)",
+              boxShadow: active ? "var(--shadow-btn-raised)" : "none",
+              fontWeight: active ? 600 : 400,
+              transition: "background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.background = "var(--bg-hover)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              } else {
+                e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              } else {
+                e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
+              }
+            }}
+          >
+            {item}
+          </button>
+        );
+      })}
     </div>
   );
 
   const ColorSwatches = ({ items, selected, onSelect }: { items: { label: string; color: string }[]; selected: string; onSelect: (v: string) => void }) => (
     <div className="flex flex-wrap gap-2">
-      {items.map((item) => (
-        <button
-          key={item.label}
-          onClick={() => onSelect(item.label)}
-          className="w-7 h-7 rounded-full transition-all"
-          style={{
-            background: item.color,
-            outline: selected === item.label ? "2.5px solid var(--text-primary)" : "1px solid var(--border-color)",
-            outlineOffset: selected === item.label ? "2px" : "0px",
-            transform: selected === item.label ? "scale(1.1)" : "scale(1)",
-          }}
-          title={item.label}
-        />
-      ))}
+      {items.map((item) => {
+        const active = selected === item.label;
+        return (
+          <button
+            key={item.label}
+            onClick={() => onSelect(item.label)}
+            className="w-7 h-7 rounded-full"
+            style={{
+              background: item.color,
+              outline: active ? "2.5px solid var(--text-primary)" : "1px solid var(--border-color)",
+              outlineOffset: active ? "2px" : "0px",
+              transform: active ? "scale(1.1)" : "scale(1)",
+              boxShadow: active ? "var(--shadow-btn-raised)" : "none",
+              transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), outline 0.25s ease, box-shadow 0.25s ease",
+            }}
+            title={item.label}
+          />
+        );
+      })}
     </div>
   );
 
@@ -314,22 +340,43 @@ export default function AvatarCreator() {
                   <div>
                     <SectionLabel>Gender</SectionLabel>
                     <div className="flex gap-2">
-                      {GENDERS.map((g) => (
-                        <button
-                          key={g.value}
-                          onClick={() => setGender(g.value)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[13px] font-medium transition-all"
-                          style={{
-                            background: gender === g.value ? "var(--segment-active-bg)" : "var(--bg-secondary)",
-                            color: gender === g.value ? "var(--text-primary)" : "var(--text-muted)",
-                            border: gender === g.value ? "1.5px solid var(--text-primary)" : "1px solid var(--border-color)",
-                            boxShadow: gender === g.value ? "var(--shadow-segment-active)" : "none",
-                          }}
-                        >
-                          <span className="text-[16px]">{g.icon}</span>
-                          {g.label}
-                        </button>
-                      ))}
+                      {GENDERS.map((g) => {
+                        const active = gender === g.value;
+                        return (
+                          <button
+                            key={g.value}
+                            onClick={() => setGender(g.value)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[13px]"
+                            style={{
+                              background: active ? "var(--btn-raised-bg)" : "transparent",
+                              color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                              border: active ? "1px solid var(--btn-raised-border)" : "1px solid var(--border-color)",
+                              boxShadow: active ? "var(--shadow-btn-raised)" : "none",
+                              fontWeight: active ? 600 : 400,
+                              transition: "background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = "var(--bg-hover)";
+                                e.currentTarget.style.color = "var(--text-primary)";
+                              } else {
+                                e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "var(--text-secondary)";
+                              } else {
+                                e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
+                              }
+                            }}
+                          >
+                            <span className="text-[16px]">{g.icon}</span>
+                            {g.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -658,23 +705,35 @@ export default function AvatarCreator() {
                   <div>
                     <SectionLabel>Style</SectionLabel>
                     <div className="space-y-1.5">
-                      {STYLES.map((s) => (
-                        <button
-                          key={s.value}
-                          onClick={() => setStyle(s.value)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
-                          style={{
-                            background: style === s.value ? "var(--segment-active-bg)" : "var(--bg-secondary)",
-                            border: style === s.value ? "1.5px solid var(--text-primary)" : "1px solid var(--border-color)",
-                            boxShadow: style === s.value ? "var(--shadow-segment-active)" : "none",
-                          }}
-                        >
-                          <div>
-                            <span className="text-[12px] font-medium block" style={{ color: style === s.value ? "var(--text-primary)" : "var(--text-secondary)" }}>{s.label}</span>
-                            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{s.desc}</span>
-                          </div>
-                        </button>
-                      ))}
+                      {STYLES.map((s) => {
+                        const active = style === s.value;
+                        return (
+                          <button
+                            key={s.value}
+                            onClick={() => setStyle(s.value)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left"
+                            style={{
+                              background: active ? "var(--btn-raised-bg)" : "transparent",
+                              border: active ? "1px solid var(--btn-raised-border)" : "1px solid var(--border-color)",
+                              boxShadow: active ? "var(--shadow-btn-raised)" : "none",
+                              transition: "background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!active) e.currentTarget.style.background = "var(--bg-hover)";
+                              else e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!active) e.currentTarget.style.background = "transparent";
+                              else e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
+                            }}
+                          >
+                            <div>
+                              <span className="text-[12px] block" style={{ color: active ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: active ? 600 : 500 }}>{s.label}</span>
+                              <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{s.desc}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -694,21 +753,42 @@ export default function AvatarCreator() {
                   <div>
                     <SectionLabel>Background</SectionLabel>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {BACKGROUNDS.map((bg) => (
-                        <button
-                          key={bg.value}
-                          onClick={() => setBackground(bg.value)}
-                          className="px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all text-center"
-                          style={{
-                            background: background === bg.value ? "var(--segment-active-bg)" : "var(--bg-secondary)",
-                            color: background === bg.value ? "var(--text-primary)" : "var(--text-muted)",
-                            border: background === bg.value ? "1.5px solid var(--text-primary)" : "1px solid var(--border-color)",
-                            boxShadow: background === bg.value ? "var(--shadow-segment-active)" : "none",
-                          }}
-                        >
-                          {bg.label}
-                        </button>
-                      ))}
+                      {BACKGROUNDS.map((bg) => {
+                        const active = background === bg.value;
+                        return (
+                          <button
+                            key={bg.value}
+                            onClick={() => setBackground(bg.value)}
+                            className="px-2 py-1.5 rounded-lg text-[11px] text-center"
+                            style={{
+                              background: active ? "var(--btn-raised-bg)" : "transparent",
+                              color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                              border: active ? "1px solid var(--btn-raised-border)" : "1px solid var(--border-color)",
+                              boxShadow: active ? "var(--shadow-btn-raised)" : "none",
+                              fontWeight: active ? 600 : 400,
+                              transition: "background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = "var(--bg-hover)";
+                                e.currentTarget.style.color = "var(--text-primary)";
+                              } else {
+                                e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "var(--text-secondary)";
+                              } else {
+                                e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
+                              }
+                            }}
+                          >
+                            {bg.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
