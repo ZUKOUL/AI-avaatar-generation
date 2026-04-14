@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Header from "@/components/Header";
+import SegmentToggle from "@/components/SegmentToggle";
 import { avatarAPI, videoAPI } from "@/lib/api";
 import {
   Upload,
@@ -548,40 +549,14 @@ export default function ImageGenerator() {
 
             {/* Tabs — Image | Video (stay on same page) */}
             <div className="px-4 pt-4 pb-1">
-              <div className="relative flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-                {/* Sliding active indicator */}
-                <div
-                  className="absolute top-1 bottom-1 rounded-lg"
-                  style={{
-                    width: "calc(50% - 4px)",
-                    left: activeTab === "image" ? 4 : "calc(50% + 0px)",
-                    background: "var(--segment-active-bg)",
-                    boxShadow: "var(--shadow-segment-active)",
-                    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  }}
-                />
-                {([
-                  { key: "image" as ActiveTab, icon: ImageSquare, label: "Image" },
-                  { key: "video" as ActiveTab, icon: VideoCamera, label: "Video" },
-                ]).map((tab) => {
-                  const Icon = tab.icon;
-                  const active = activeTab === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key)}
-                      className="relative z-[1] flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium"
-                      style={{
-                        color: active ? "var(--text-primary)" : "var(--text-muted)",
-                        transition: "color 0.25s ease",
-                      }}
-                    >
-                      <Icon size={14} />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <SegmentToggle
+                selected={activeTab}
+                onSelect={(k) => setActiveTab(k as ActiveTab)}
+                items={[
+                  { key: "image", icon: <ImageSquare size={14} />, label: "Image" },
+                  { key: "video", icon: <VideoCamera size={14} />, label: "Video" },
+                ]}
+              />
             </div>
 
             {/* Back + Title */}
@@ -1030,14 +1005,16 @@ export default function ImageGenerator() {
                 ) : (
                   <>
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}><ImageSquare size={14} /> Images</div>
-                    <div className="relative flex items-center rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-                      <div className="absolute top-0.5 bottom-0.5 left-0.5 rounded-md" style={{ width: "calc((100% - 4px) / 3)", transform: `translateX(${gridSize === "small" ? 0 : gridSize === "medium" ? 100 : 200}%)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
-                      {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                        <button key={key} onClick={() => setGridSize(key)} className="relative z-[1] flex-1 px-2 py-1.5 rounded-md" style={{ color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}>
-                          {icon}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentToggle
+                      size="sm"
+                      selected={gridSize}
+                      onSelect={(k) => setGridSize(k as GridSize)}
+                      items={[
+                        { key: "small", icon: <Grid size={13} /> },
+                        { key: "medium", icon: <LayoutGrid size={13} /> },
+                        { key: "large", icon: <ImageSquare size={13} /> },
+                      ]}
+                    />
                   </>
                 )}
               </div>

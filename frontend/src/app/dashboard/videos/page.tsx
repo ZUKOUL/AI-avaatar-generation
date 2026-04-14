@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/Header";
+import SegmentToggle from "@/components/SegmentToggle";
 import { avatarAPI, videoAPI } from "@/lib/api";
 import {
   Spinner,
@@ -456,39 +457,13 @@ export default function VideoGenerator() {
 
             {/* Tabs — Image | Video */}
             <div className="px-4 pt-4 pb-1">
-              <div className="relative flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-                {/* Sliding active indicator — Video is active (index 1) */}
-                <div
-                  className="absolute top-1 bottom-1 rounded-lg"
-                  style={{
-                    width: "calc(50% - 4px)",
-                    left: "calc(50% + 0px)",
-                    background: "var(--segment-active-bg)",
-                    boxShadow: "var(--shadow-segment-active)",
-                    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  }}
-                />
-                {([
-                  { href: "/dashboard/images", icon: ImageSquare, label: "Image", active: false },
-                  { href: "/dashboard/videos", icon: VideoCamera, label: "Video", active: true },
-                ]).map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <Link
-                      key={tab.label}
-                      href={tab.href}
-                      className="relative z-[1] flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[13px] font-medium"
-                      style={{
-                        color: tab.active ? "var(--text-primary)" : "var(--text-muted)",
-                        transition: "color 0.25s ease",
-                      }}
-                    >
-                      <Icon size={14} />
-                      {tab.label}
-                    </Link>
-                  );
-                })}
-              </div>
+              <SegmentToggle
+                selected="video"
+                items={[
+                  { key: "image", href: "/dashboard/images", icon: <ImageSquare size={14} />, label: "Image" },
+                  { key: "video", href: "/dashboard/videos", icon: <VideoCamera size={14} />, label: "Video" },
+                ]}
+              />
             </div>
 
             {/* Back + Title */}
@@ -829,28 +804,17 @@ export default function VideoGenerator() {
           <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-primary)" }}>
             {/* Gallery header */}
             <div className="flex items-center justify-between px-4 md:px-6 py-3 sticky top-0 z-10" style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color)" }}>
-              <div className="relative flex items-center rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-                {/* Sliding indicator for gallery filter */}
-                <div
-                  className="absolute top-0.5 bottom-0.5 left-0.5 rounded-md"
-                  style={{
-                    width: "calc((100% - 4px) / 3)",
-                    transform: `translateX(${galleryFilter === "all" ? 0 : galleryFilter === "images" ? 100 : 200}%)`,
-                    background: "var(--segment-active-bg)",
-                    boxShadow: "var(--shadow-segment-active)",
-                    transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  }}
+              <div className="flex items-center gap-3">
+                <SegmentToggle
+                  size="sm"
+                  selected={galleryFilter}
+                  onSelect={(k) => setGalleryFilter(k as GalleryFilter)}
+                  items={[
+                    { key: "all", label: "All" },
+                    { key: "images", label: "Images" },
+                    { key: "videos", label: "Videos" },
+                  ]}
                 />
-                {(["all", "images", "videos"] as GalleryFilter[]).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setGalleryFilter(f)}
-                    className="relative z-[1] flex-1 text-center text-[13px] font-medium capitalize px-3 py-1 rounded-md"
-                    style={{ color: galleryFilter === f ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}
-                  >
-                    {f === "all" ? "All" : f === "images" ? "Images" : "Videos"}
-                  </button>
-                ))}
                 {pickingFor && (
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#3b82f6", color: "#fff" }}>
                     Click an image to set as {pickingFor} image
@@ -859,14 +823,16 @@ export default function VideoGenerator() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>{galleryItems.length} items</span>
-                <div className="relative flex items-center rounded-lg p-0.5" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-                  <div className="absolute top-0.5 bottom-0.5 left-0.5 rounded-md" style={{ width: "calc((100% - 4px) / 3)", transform: `translateX(${gridSize === "small" ? 0 : gridSize === "medium" ? 100 : 200}%)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
-                  {([{ key: "small" as GridSize, icon: <Grid size={13} /> }, { key: "medium" as GridSize, icon: <LayoutGrid size={13} /> }, { key: "large" as GridSize, icon: <ImageSquare size={13} /> }]).map(({ key, icon }) => (
-                    <button key={key} onClick={() => setGridSize(key)} className="relative z-[1] flex-1 px-2 py-1.5 rounded-md" style={{ color: gridSize === key ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.25s ease" }}>
-                      {icon}
-                    </button>
-                  ))}
-                </div>
+                <SegmentToggle
+                  size="sm"
+                  selected={gridSize}
+                  onSelect={(k) => setGridSize(k as GridSize)}
+                  items={[
+                    { key: "small", icon: <Grid size={13} /> },
+                    { key: "medium", icon: <LayoutGrid size={13} /> },
+                    { key: "large", icon: <ImageSquare size={13} /> },
+                  ]}
+                />
               </div>
             </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Header from "@/components/Header";
+import SegmentToggle from "@/components/SegmentToggle";
 import { avatarAPI } from "@/lib/api";
 import {
   Upload,
@@ -286,31 +287,6 @@ export default function AvatarCreator() {
       })}
     </div>
   );
-
-  const SegmentToggle = ({ items, selected, onSelect }: { items: { key: string; label: string }[]; selected: string; onSelect: (v: string) => void }) => {
-    const activeIdx = items.findIndex(i => i.key === selected);
-    return (
-      <div className="relative flex items-center rounded-xl p-1" style={{ background: "var(--segment-bg)", boxShadow: "var(--shadow-segment-inset)" }}>
-        <div className="absolute top-1 bottom-1 rounded-lg" style={{ width: `calc(${100/items.length}% - 4px)`, left: `calc(${activeIdx * (100/items.length)}% + ${activeIdx === 0 ? 4 : 2}px)`, background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
-        {items.map((item) => {
-          const active = selected === item.key;
-          return (
-            <button
-              key={item.key}
-              onClick={() => onSelect(item.key)}
-              className="relative z-[1] flex-1 py-1.5 rounded-lg text-[12px] font-medium text-center"
-              style={{
-                color: active ? "var(--text-primary)" : "var(--text-muted)",
-                transition: "color 0.25s ease",
-              }}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
 
   return (
     <>

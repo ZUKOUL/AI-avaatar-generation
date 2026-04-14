@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Header from "@/components/Header";
+import SegmentToggle from "@/components/SegmentToggle";
 import { paymentsAPI } from "@/lib/api";
 import { Check, Spinner } from "@/components/Icons";
 
@@ -106,31 +107,15 @@ export default function CreditsPage() {
 
           {/* Billing toggle */}
           <div className="flex justify-center mb-10">
-            <div
-              className="relative inline-flex items-center rounded-xl p-1"
-              style={{
-                background: "var(--segment-bg)",
-                boxShadow: "var(--shadow-segment-inset)",
-              }}
-            >
-              <div className="absolute top-1 bottom-1 rounded-lg" style={{ width: "calc(50% - 4px)", left: billing === "monthly" ? 4 : "calc(50% + 0px)", background: "var(--segment-active-bg)", boxShadow: "var(--shadow-segment-active)", transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
-              {(["monthly", "yearly"] as BillingCycle[]).map((cycle) => {
-                const active = billing === cycle;
-                return (
-                  <button
-                    key={cycle}
-                    onClick={() => setBilling(cycle)}
-                    className="relative z-[1] px-5 py-2 rounded-lg text-[14px] font-medium"
-                    style={{
-                      color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      transition: "color 0.25s ease",
-                    }}
-                  >
-                    {cycle === "monthly" ? "Pay monthly" : "Pay yearly"}
-                  </button>
-                );
-              })}
-            </div>
+            <SegmentToggle
+              selected={billing}
+              onSelect={(k) => setBilling(k as BillingCycle)}
+              items={[
+                { key: "monthly", label: "Pay monthly" },
+                { key: "yearly", label: "Pay yearly" },
+              ]}
+              className="px-3"
+            />
           </div>
 
           {/* Plan cards */}
