@@ -138,6 +138,32 @@ export const thumbnailAPI = {
     }),
 };
 
+// ── Ads (product training + ad creative generation) ──
+export const adsAPI = {
+  /** Train a new product from 3-20 reference photos. */
+  trainProduct: (formData: FormData) =>
+    api.post("/ads/train-product", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /** List all products trained by the current user. */
+  listProducts: () => api.get("/ads/products"),
+  /** Delete a product (row + storage files). */
+  deleteProduct: (productId: string) =>
+    api.delete(`/ads/products/${productId}`),
+  /** Generate a static ad creative using a trained product + template. */
+  generate: (formData: FormData) =>
+    api.post("/ads/generate", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /** Fetch the static list of supported ad templates + aspect ratios. */
+  templates: () => api.get("/ads/templates"),
+  /** List generated ads (optionally filtered by product). */
+  history: (productId?: string, limit = 100) =>
+    api.get("/ads/history", { params: { product_id: productId, limit } }),
+  /** Delete a single generated ad creative. */
+  delete: (adId: string) => api.delete(`/ads/${adId}`),
+};
+
 // ── Video ──
 export const videoAPI = {
   animate: (formData: FormData) =>
