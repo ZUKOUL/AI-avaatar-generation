@@ -122,6 +122,8 @@ export const thumbnailAPI = {
     api.post("/thumbnail/describe-region", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  inspiration: (niche = "business", limit = 12) =>
+    api.get("/thumbnail/inspiration", { params: { niche, limit } }),
 };
 
 // ── Video ──

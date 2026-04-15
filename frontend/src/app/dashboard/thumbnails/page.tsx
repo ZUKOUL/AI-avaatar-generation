@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
 import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
@@ -2855,6 +2856,30 @@ export default function ThumbnailStudio() {
                 Create from scratch, recreate from a YouTube link, edit an upload, or bake in a title.
               </p>
             </div>
+          </div>
+
+          {/* Inspiration link */}
+          <div className="flex justify-end mb-3">
+            <Link
+              href="/dashboard/thumbnails/inspiration"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all"
+              style={{
+                background: "var(--bg-secondary)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-color)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--text-primary)";
+                e.currentTarget.style.background = "var(--bg-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-secondary)";
+                e.currentTarget.style.background = "var(--bg-secondary)";
+              }}
+            >
+              <span>✨</span>
+              <span>Inspiration</span>
+            </Link>
           </div>
 
           {/* Mode tabs */}

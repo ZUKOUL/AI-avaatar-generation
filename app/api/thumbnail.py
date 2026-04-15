@@ -22,6 +22,7 @@ import io
 import json
 import os
 import re
+import time
 import uuid
 import logging
 from typing import Annotated, List, Optional
@@ -118,6 +119,39 @@ def decode_thumbnail_prefix(prompt: str) -> Optional[dict]:
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Inspiration feature — in-memory cache + niche config
+# ──────────────────────────────────────────────────────────────────────────────
+_inspiration_cache: dict = {}
+
+INSPIRATION_NICHES = {
+    "business": {
+        "label": "Business & Finance",
+        "emoji": "💼",
+        "query": "how to make money online entrepreneur motivation 2024 viral",
+    },
+    "sport": {
+        "label": "Sport & Fitness",
+        "emoji": "💪",
+        "category_id": "17",
+    },
+    "entertainment": {
+        "label": "Entertainment",
+        "emoji": "🎭",
+        "category_id": "24",
+    },
+    "mrbeast": {
+        "label": "MrBeast Style",
+        "emoji": "🏆",
+        "query": "challenge win money viral biggest 2024",
+    },
+    "gaming": {
+        "label": "Gaming & Tech",
+        "emoji": "🎮",
+        "category_id": "20",
+    },
+}
 
 MAX_REFERENCE_IMAGES = 5
 # Thumbnail generation costs more than a plain avatar because it burns an extra
@@ -1482,3 +1516,143 @@ async def describe_region(
     except Exception as e:
         logger.error(f"describe-region unexpected error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Describe failed: {e}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GET /thumbnail/inspiration
+# Returns top-performing YouTube thumbnails for a given niche so creators can
+# browse real examples before generating their own. Results are cached in
+# memory for 24 hours to avoid burning YouTube quota on every page load.
+# ──────────────────────────────────────────────────────────────────────────────
+def _niches_metadata() -> list[dict]:
+    """Return a compact list of niche metadata for the frontend pill row."""
+    return [
+        {"key": key, "label": v["label"], "emoji": v["emoji"]}
+        for key, v in INSPIRATION_NICHES.items()
+    ]
+
+
+@router.get("/inspiration")
+async def get_inspiration(
+    current_user: Annotated[User, Depends(get_current_user)],
+    niche: str = "business",
+    limit: int = 12,
+):
+    """
+    Return top-performing YouTube thumbnails for the requested niche.
+
+    If no YOUTUBE_API_KEY is configured the endpoint still returns 200 with
+    `needs_api_key: True` so the frontend can show a friendly setup screen
+    instead of a generic error.
+    """
+    niches_meta = _niches_metadata()
+
+    api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    if not api_key:
+        return {
+            "needs_api_key": True,
+            "niches": niches_meta,
+            "videos": [],
+        }
+
+    if niche not in INSPIRATION_NICHES:
+        niche = "business"
+
+    limit = max(1, min(limit, 50))
+    cache_key = f"{niche}_{limit}"
+    _CACHE_TTL = 86400  # 24 hours
+
+    cached = _inspiration_cache.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _CACHE_TTL:
+        return {
+            "needs_api_key": False,
+            "niche": niche,
+            "niches": niches_meta,
+            "videos": cached["videos"],
+        }
+
+    niche_cfg = INSPIRATION_NICHES[niche]
+    videos: list[dict] = []
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            if "query" in niche_cfg:
+                # Search endpoint for query-based niches.
+                resp = await client.get(
+                    "https://www.googleapis.com/youtube/v3/search",
+                    params={
+                        "part": "snippet",
+                        "q": niche_cfg["query"],
+                        "type": "video",
+                        "maxResults": limit,
+                        "order": "viewCount",
+                        "videoEmbeddable": "true",
+                        "key": api_key,
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for item in data.get("items", []):
+                        vid_id = item.get("id", {}).get("videoId")
+                        snippet = item.get("snippet", {})
+                        if not vid_id:
+                            continue
+                        videos.append(
+                            {
+                                "video_id": vid_id,
+                                "title": snippet.get("title", ""),
+                                "channel": snippet.get("channelTitle", ""),
+                                "thumbnail_url": f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg",
+                                "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
+                            }
+                        )
+                else:
+                    logger.warning(
+                        f"YouTube search API returned {resp.status_code} for niche={niche}: {resp.text[:200]}"
+                    )
+            else:
+                # Trending endpoint for category-based niches.
+                resp = await client.get(
+                    "https://www.googleapis.com/youtube/v3/videos",
+                    params={
+                        "part": "snippet",
+                        "chart": "mostPopular",
+                        "categoryId": niche_cfg["category_id"],
+                        "maxResults": limit,
+                        "regionCode": "US",
+                        "key": api_key,
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for item in data.get("items", []):
+                        vid_id = item.get("id")
+                        snippet = item.get("snippet", {})
+                        if not vid_id:
+                            continue
+                        videos.append(
+                            {
+                                "video_id": vid_id,
+                                "title": snippet.get("title", ""),
+                                "channel": snippet.get("channelTitle", ""),
+                                "thumbnail_url": f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg",
+                                "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
+                            }
+                        )
+                else:
+                    logger.warning(
+                        f"YouTube trending API returned {resp.status_code} for niche={niche}: {resp.text[:200]}"
+                    )
+    except httpx.HTTPError as e:
+        logger.error(f"inspiration YouTube fetch error for niche={niche}: {e}")
+
+    # Cache even an empty result so we don't hammer the API on every request
+    # when YouTube is unhappy (e.g. quota exceeded).
+    _inspiration_cache[cache_key] = {"ts": time.time(), "videos": videos}
+
+    return {
+        "needs_api_key": False,
+        "niche": niche,
+        "niches": niches_meta,
+        "videos": videos,
+    }
