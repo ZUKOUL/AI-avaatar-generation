@@ -103,16 +103,26 @@ function NavSection({
     visible: false,
     animate: false,
   });
+  // Track previous collapsed state so we can distinguish "sidebar just
+  // expanded" (needs a snap + re-enable cycle) from "user navigated"
+  // (should animate the pill directly).
+  const prevCollapsedRef = useRef(collapsed);
 
   const activeIdx = items.findIndex((i) => i.href === activeHref);
 
   useEffect(() => {
     if (collapsed) {
       setIndicator((s) => ({ ...s, visible: false, animate: false }));
+      prevCollapsedRef.current = true;
       return;
     }
+
+    // Did the sidebar just expand from collapsed state?
+    const sidebarJustExpanded = prevCollapsedRef.current === true;
+    prevCollapsedRef.current = false;
+
     let cancelled = false;
-    const measure = (animate: boolean) => {
+    const updatePosition = (animate: boolean) => {
       if (cancelled) return;
       if (activeIdx < 0) {
         setIndicator((s) => ({ ...s, visible: false }));
@@ -123,20 +133,33 @@ function NavSection({
       if (!el || !container) return;
       const elRect = el.getBoundingClientRect();
       const cRect = container.getBoundingClientRect();
-      setIndicator({
-        top: elRect.top - cRect.top,
-        height: elRect.height,
-        visible: true,
-        animate,
-      });
+      setIndicator({ top: elRect.top - cRect.top, height: elRect.height, visible: true, animate });
     };
-    // First measurement: jump (no CSS transition) to correct spot after layout.
-    const raf = requestAnimationFrame(() => measure(false));
-    // Second measurement after sidebar width transition (0.25s) completes;
-    // re-enable animation for subsequent active-item changes.
-    const t = setTimeout(() => measure(true), 280);
-    const onResize = () => measure(true);
+
+    let raf: number;
+    let t: ReturnType<typeof setTimeout> | undefined;
+
+    if (sidebarJustExpanded) {
+      // Sidebar width is mid-transition: snap the pill to its spot first,
+      // then re-enable the slide animation once the transition settles.
+      raf = requestAnimationFrame(() => updatePosition(false));
+      t = setTimeout(() => { if (!cancelled) updatePosition(true); }, 280);
+    } else {
+      // Normal navigation: animate the pill sliding to the new active item.
+      raf = requestAnimationFrame(() => updatePosition(true));
+    }
+
+    const onResize = () => {
+      if (activeIdx < 0) return;
+      const el = itemRefs.current[activeIdx];
+      const container = containerRef.current;
+      if (!el || !container) return;
+      const elRect = el.getBoundingClientRect();
+      const cRect = container.getBoundingClientRect();
+      setIndicator((s) => ({ ...s, top: elRect.top - cRect.top, height: elRect.height }));
+    };
     window.addEventListener("resize", onResize);
+
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
