@@ -656,10 +656,13 @@ export default function ThumbnailStudio() {
     if (seededPrompt) setPrompt(seededPrompt);
 
     if (ytDescribe) {
-      // Prompt mode — show the YouTube URL immediately, then replace it with
-      // an AI-generated description once the backend responds.
+      // Prompt mode — show the YouTube URL immediately, trigger the same
+      // describing animation used by manual paste, then replace with AI description.
       setMode("prompt");
       setPrompt(ytDescribe);
+      // Adding to describingYoutubeUrls fires the blue shimmer + spinner badge
+      // so the user sees something is loading right away.
+      setDescribingYoutubeUrls((prev) => new Set(prev).add(ytDescribe));
       thumbnailAPI
         .describeYoutube(ytDescribe)
         .then((res) => {
@@ -668,6 +671,13 @@ export default function ThumbnailStudio() {
         })
         .catch(() => {
           // Leave the URL as-is if the describe call fails.
+        })
+        .finally(() => {
+          setDescribingYoutubeUrls((prev) => {
+            const next = new Set(prev);
+            next.delete(ytDescribe);
+            return next;
+          });
         });
     } else if (yt) {
       // Recreate mode — the backend re-fetches the YouTube frame so we
@@ -3248,29 +3258,50 @@ export default function ThumbnailStudio() {
                   }}
                 />
                 {/* In-flight indicator for YouTube URL auto-describe.
-                    Sits in the top-right corner of the textarea shell so
-                    it doesn't obscure the typed text. The small spinner +
-                    "Describing YouTube thumbnail…" label is enough signal
-                    that the URL the user just pasted is being processed. */}
+                    Blue LED shimmer at the bottom (same as the YouTube URL
+                    input) + a small badge in the top-right corner. */}
                 {describingYoutubeUrls.size > 0 && (
-                  <div
-                    className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium"
-                    style={{
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-secondary)",
-                      zIndex: 3,
-                    }}
-                  >
+                  <>
+                    {/* Blue glowing sweep at the bottom edge of the textarea */}
                     <span
-                      className="inline-block w-3 h-3 rounded-full border-2 animate-spin"
+                      aria-hidden
+                      className="absolute left-0 bottom-0 w-full pointer-events-none overflow-hidden rounded-b-xl"
+                      style={{ height: 3, zIndex: 3 }}
+                    >
+                      <span
+                        className="block"
+                        style={{
+                          height: "100%",
+                          width: "35%",
+                          borderRadius: 2,
+                          background:
+                            "linear-gradient(90deg, rgba(59,130,246,0) 0%, rgba(96,165,250,0.9) 40%, #3b82f6 50%, rgba(96,165,250,0.9) 60%, rgba(59,130,246,0) 100%)",
+                          boxShadow:
+                            "0 0 10px rgba(59,130,246,0.75), 0 0 20px rgba(96,165,250,0.5)",
+                          animation: "shimmerSweep 1.15s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                        }}
+                      />
+                    </span>
+                    {/* Small status badge top-right */}
+                    <div
+                      className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium"
                       style={{
-                        borderColor: "var(--border-color)",
-                        borderTopColor: "var(--text-primary)",
+                        background: "var(--bg-secondary)",
+                        border: "1px solid rgba(59,130,246,0.35)",
+                        color: "#3b82f6",
+                        zIndex: 3,
                       }}
-                    />
-                    Describing YouTube thumbnail…
-                  </div>
+                    >
+                      <span
+                        className="inline-block w-3 h-3 rounded-full border-2 animate-spin"
+                        style={{
+                          borderColor: "rgba(59,130,246,0.25)",
+                          borderTopColor: "#3b82f6",
+                        }}
+                      />
+                      Describing thumbnail…
+                    </div>
+                  </>
                 )}
                 <div
                   ref={overlayRef}

@@ -129,27 +129,29 @@ INSPIRATION_NICHES = {
     "business": {
         "label": "Business & Finance",
         "emoji": "💼",
-        "query": "entrepreneur business success finance investing wealth USA UK",
+        # Target entrepreneurship / e-commerce / hustle culture creators
+        # (Iman Gadzhi, Alex Hormozi, Yomi Denzel, Graham Stephan style)
+        "query": "entrepreneur make money online ecommerce dropshipping passive income side hustle",
     },
     "sport": {
         "label": "Sport & Fitness",
         "emoji": "💪",
-        "query": "fitness workout training sport performance athlete USA UK",
+        "query": "workout routine fitness motivation bodybuilding gym training results",
     },
     "entertainment": {
         "label": "Entertainment",
         "emoji": "🎭",
-        "query": "entertainment comedy reaction viral funny experiment USA UK",
+        "query": "funniest moments try not to laugh reaction challenge viral experiment",
     },
     "mrbeast": {
         "label": "MrBeast Style",
         "emoji": "🏆",
-        "query": "challenge biggest survival win money extreme impossible USA UK",
+        "query": "$10000 challenge win biggest extreme survival last to leave competition",
     },
     "gaming": {
         "label": "Gaming & Tech",
         "emoji": "🎮",
-        "query": "gaming best plays tutorial tips tech review USA UK",
+        "query": "gaming best moments epic plays tips tricks gameplay review 2024",
     },
 }
 
@@ -1564,8 +1566,8 @@ async def get_inspiration(
         niche = "business"
 
     limit = max(1, min(limit, 50))
-    # v3 prefix busts old cache entries (medium duration filter change).
-    cache_key = f"v3_{niche}_{limit}"
+    # v4 prefix busts old cache entries (simplified filter, new queries).
+    cache_key = f"v4_{niche}_{limit}"
     _CACHE_TTL = 86400  # 24 hours
 
     cached = _inspiration_cache.get(cache_key)
@@ -1582,22 +1584,23 @@ async def get_inspiration(
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # ── Step 1: Search for long-format English videos ─────────────────
-            # Over-fetch so we have headroom after subscriber filtering.
-            fetch_count = min(limit * 3, 50)
-
+            # Search for the most-viewed English-language videos for this niche.
+            # We keep filters minimal to avoid YouTube returning empty result
+            # sets: relevanceLanguage filters for English content; safeSearch
+            # blocks explicit material; order=viewCount surfaces viral thumbnails.
+            # No videoDuration filter — combining it with other constraints
+            # causes YouTube's API to return 0 results for many niches.
             search_resp = await client.get(
                 "https://www.googleapis.com/youtube/v3/search",
                 params={
                     "part": "snippet",
                     "q": niche_cfg["query"],
                     "type": "video",
-                    "maxResults": fetch_count,
+                    "maxResults": min(limit + 10, 50),  # small buffer for dedup
                     "order": "viewCount",
                     "videoEmbeddable": "true",
-                    "videoDuration": "medium",  # 4–20 min — no Shorts, no quick clips
-                    "relevanceLanguage": "en", # English-language results only
-                    "regionCode": "US",        # Western region
+                    "relevanceLanguage": "en",   # English results only
+                    "safeSearch": "moderate",
                     "key": api_key,
                 },
             )
@@ -1610,62 +1613,15 @@ async def get_inspiration(
             else:
                 items = search_resp.json().get("items", [])
 
-                # ── Step 2: Collect unique channel IDs ────────────────────────
-                channel_ids = list(
-                    {
-                        item["snippet"]["channelId"]
-                        for item in items
-                        if item.get("snippet", {}).get("channelId")
-                    }
-                )
-
-                # ── Step 3: Fetch channel subscriber counts ───────────────────
-                sub_counts: dict[str, int] = {}
-                if channel_ids:
-                    ch_resp = await client.get(
-                        "https://www.googleapis.com/youtube/v3/channels",
-                        params={
-                            "part": "statistics",
-                            "id": ",".join(channel_ids[:50]),
-                            "key": api_key,
-                        },
-                    )
-                    if ch_resp.status_code == 200:
-                        for ch in ch_resp.json().get("items", []):
-                            ch_id = ch.get("id", "")
-                            try:
-                                count = int(
-                                    ch.get("statistics", {}).get("subscriberCount", 0)
-                                )
-                            except (ValueError, TypeError):
-                                count = 0
-                            sub_counts[ch_id] = count
-                    else:
-                        logger.warning(
-                            f"YouTube channels API returned {ch_resp.status_code}: "
-                            f"{ch_resp.text[:200]}"
-                        )
-
-                # ── Step 4: Filter by subscriber count and build video list ───
-                MIN_SUBSCRIBERS = 5_000
                 for item in items:
                     vid_id = item.get("id", {}).get("videoId")
                     snippet = item.get("snippet", {})
-                    channel_id = snippet.get("channelId", "")
 
                     if not vid_id:
                         continue
 
-                    # Skip channels below the minimum subscriber threshold.
-                    # If we couldn't retrieve the count (sub_counts miss), allow
-                    # it through so a channels API failure doesn't blank the page.
-                    ch_subs = sub_counts.get(channel_id)
-                    if ch_subs is not None and ch_subs < MIN_SUBSCRIBERS:
-                        continue
-
                     # Use API-provided thumbnail URLs (guaranteed to exist).
-                    # Prefer maxres → standard → high; fall back to hqdefault
-                    # constructed URL only as a last resort.
+                    # Prefer maxres → standard → high.
                     thumbs = snippet.get("thumbnails", {})
                     thumb_url = (
                         thumbs.get("maxres", {}).get("url")
