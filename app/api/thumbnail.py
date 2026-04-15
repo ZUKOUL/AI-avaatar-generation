@@ -1678,60 +1678,95 @@ async def generate_smart_prompt(
     video_description: str = Form(""),
 ):
     """
-    AI-powered prompt generator: search YouTube for proven thumbnails in
-    the user's niche, analyse their visual patterns with Gemini, and return
-    a tailored generation prompt personalised to the user's video concept.
+    AI-powered prompt generator v2:
+    - Two-pass YouTube search: user's specific topic + niche-specific proven creators
+    - Pulls user's own past prompt-mode thumbnails as few-shot style examples
+    - Instructs Gemini with the exact same output format as describe-youtube-thumbnail
+      so the result is as specific and vivid as pasting a real YouTube URL
     """
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not gemini_key:
         raise HTTPException(status_code=500, detail="AI service not configured.")
 
     youtube_key = os.getenv("YOUTUBE_API_KEY", "").strip()
-    search_query = f"{niche} {video_title}".strip()
 
-    # ── Step 1: Search YouTube for top videos matching the user's idea ────────
+    # ── Niche → proven high-CTR creator query boosts ──────────────────────────
+    _NICHE_BOOST: dict[str, str] = {
+        "business":     "iman gadzhi yomi denzel make money online",
+        "entrepreneurship": "iman gadzhi yomi denzel side hustle income",
+        "finance":      "graham stephan andrei jikh passive income investing",
+        "money":        "iman gadzhi yomi denzel make money online",
+        "ecommerce":    "dropshipping shopify make money ecommerce results",
+        "fitness":      "athlean-x jeff nippard workout transformation before after",
+        "gaming":       "markiplier unspeakable gaming challenge best moments",
+        "entertainment":"mrbeast viral challenge experiment",
+        "tech":         "mkbhd unbox therapy tech review",
+        "travel":       "travel vlog adventure viral challenge explore",
+        "food":         "viral food challenge cooking recipe best",
+    }
+    niche_lower = niche.lower()
+    boost_query = next(
+        (v for k, v in _NICHE_BOOST.items() if k in niche_lower),
+        f"{niche} viral top",
+    )
+
+    # Run two distinct YouTube searches so we cover both:
+    # 1. The creator's exact topic (most relevant to their video)
+    # 2. The niche's proven high-CTR creators (strongest visual DNA reference)
+    search_queries = [
+        f"{niche} {video_title}",
+        boost_query,
+    ]
+
+    # ── Step 1: Collect reference thumbnails (up to 6 total) ──────────────────
     ref_images: list[bytes] = []
     ref_titles: list[str] = []
+    seen_ids: set[str] = set()
 
     if youtube_key:
-        try:
-            async with httpx.AsyncClient(timeout=12.0) as yt_client:
-                resp = await yt_client.get(
-                    "https://www.googleapis.com/youtube/v3/search",
-                    params={
-                        "part": "snippet",
-                        "q": search_query,
-                        "type": "video",
-                        "maxResults": 8,
-                        "order": "viewCount",
-                        "relevanceLanguage": "en",
-                        "safeSearch": "moderate",
-                        "key": youtube_key,
-                    },
-                )
-                if resp.status_code == 200:
+        async with httpx.AsyncClient(timeout=12.0) as yt_client:
+            for q in search_queries:
+                if len(ref_images) >= 6:
+                    break
+                try:
+                    resp = await yt_client.get(
+                        "https://www.googleapis.com/youtube/v3/search",
+                        params={
+                            "part": "snippet",
+                            "q": q,
+                            "type": "video",
+                            "maxResults": 10,
+                            "order": "viewCount",
+                            "relevanceLanguage": "en",
+                            "videoDuration": "medium",
+                            "safeSearch": "moderate",
+                            "key": youtube_key,
+                        },
+                    )
+                    if resp.status_code != 200:
+                        continue
                     thumb_queue: list[tuple[str, str]] = []
                     for item in resp.json().get("items", []):
                         vid_id = item.get("id", {}).get("videoId")
-                        snippet = item.get("snippet", {})
-                        if not vid_id:
+                        if not vid_id or vid_id in seen_ids:
                             continue
+                        snippet = item.get("snippet", {})
                         title = snippet.get("title", "")
-                        # Skip Shorts
                         if re.search(r"#shorts?", title, re.IGNORECASE):
                             continue
+                        seen_ids.add(vid_id)
                         thumbs = snippet.get("thumbnails", {})
                         url = (
-                            thumbs.get("high", {}).get("url")
+                            thumbs.get("maxres", {}).get("url")
+                            or thumbs.get("high", {}).get("url")
                             or thumbs.get("medium", {}).get("url")
                             or f"https://img.youtube.com/vi/{vid_id}/hqdefault.jpg"
                         )
                         thumb_queue.append((url, title))
 
-                    # Download up to 4 thumbnails for analysis
                     async with httpx.AsyncClient(timeout=8.0) as img_client:
-                        for thumb_url, thumb_title in thumb_queue[:6]:
-                            if len(ref_images) >= 4:
+                        for thumb_url, thumb_title in thumb_queue[:8]:
+                            if len(ref_images) >= 6:
                                 break
                             try:
                                 r = await img_client.get(thumb_url)
@@ -1740,10 +1775,33 @@ async def generate_smart_prompt(
                                     ref_titles.append(thumb_title)
                             except Exception:
                                 pass
-        except Exception as e:
-            logger.warning(f"smart_prompt: YouTube fetch failed: {e}")
+                except Exception as e:
+                    logger.warning(f"smart_prompt: YouTube search failed for '{q}': {e}")
 
-    # ── Step 2: Build Gemini contents ─────────────────────────────────────────
+    # ── Step 2: Fetch user's past prompt-mode thumbnails as few-shot examples ──
+    user_examples: list[str] = []
+    try:
+        hist = (
+            supabase.table("generated_images")
+            .select("prompt")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(80)
+            .execute()
+        )
+        for row in (hist.data or []):
+            raw = row.get("prompt") or ""
+            meta = decode_thumbnail_prefix(raw)
+            if meta and meta.get("mode") == "prompt":
+                p = meta["clean_prompt"].strip()
+                if p and len(p) > 50:
+                    user_examples.append(p)
+                    if len(user_examples) >= 6:
+                        break
+    except Exception as e:
+        logger.warning(f"smart_prompt: history fetch failed: {e}")
+
+    # ── Step 3: Build Gemini payload ──────────────────────────────────────────
     gemini_client = genai.Client(api_key=gemini_key)
     contents: list = []
 
@@ -1751,49 +1809,75 @@ async def generate_smart_prompt(
         mime = "image/png" if img_bytes[:4] == b"\x89PNG" else "image/jpeg"
         contents.append(types.Part.from_bytes(data=img_bytes, mime_type=mime))
 
+    # Reference section: tell Gemini what the images are and what to extract
     ref_section = ""
     if ref_images:
+        titles_str = " | ".join(f'"{t}"' for t in ref_titles[:6])
         ref_section = (
-            f"\n\nI'm showing you {len(ref_images)} top-performing YouTube thumbnails "
-            f"from the most-viewed videos when searching for '{search_query}'. "
-            "Study the visual patterns: compositions, colours, text placement, "
-            "emotional triggers, before/after splits, numbers, arrows, expressions."
+            f"\n\nI have attached {len(ref_images)} real top-performing YouTube thumbnails "
+            f"from the '{niche}' niche (video titles: {titles_str}). "
+            "These are proven high-click-rate thumbnails. Study and reuse their exact: "
+            "composition style, visual hooks (shock/contrast/pointing/number), "
+            "colour palette, lighting mood, text overlay style and placement."
         )
 
-    desc_section = f"\n- What happens in the video: {video_description}" if video_description.strip() else ""
+    # Few-shot section: the user's own past prompts define the desired output style
+    history_section = ""
+    if user_examples:
+        examples_str = "\n".join(f"EXAMPLE {i+1}: {ex}" for i, ex in enumerate(user_examples[:5]))
+        history_section = (
+            f"\n\nHere are {len(user_examples[:5])} thumbnail prompts this creator has "
+            "previously generated successfully. Match their level of specificity, vividness "
+            f"and style EXACTLY:\n{examples_str}"
+        )
+
+    desc_section = (
+        f"\n- Video description: {video_description}" if video_description.strip() else ""
+    )
 
     instruction = (
-        f"You are an elite YouTube thumbnail strategist. "
-        f"A creator wants to make a viral thumbnail for their video:\n"
-        f"- Niche/category: {niche}\n"
-        f"- Video topic: {video_title}{desc_section}"
-        f"{ref_section}\n\n"
-        "Based on proven visual patterns from successful thumbnails in this niche "
-        "AND the creator's specific video concept, write ONE perfect thumbnail "
-        "generation prompt.\n\n"
-        "The prompt MUST:\n"
-        "1. Capture the dominant visual style of top-performing thumbnails in this niche\n"
-        "2. Be tailored to the video topic (not generic)\n"
-        "3. Describe: main subject (use 'a person' not specific names), expression/pose, "
-        "background scene, colour palette, text overlay with exact wording, composition\n"
-        "4. Include at least one proven viral element for this niche "
-        "(e.g. dramatic before/after, bold number, person pointing at something shocking, "
-        "split screen, arrow showing transformation, etc.)\n"
-        "5. Be written as a direct image generation instruction — vivid, specific, actionable\n\n"
-        "Return ONLY the prompt. No preamble, no explanation, no bullet points. "
-        "Start directly with the visual description."
+        "You are an elite YouTube thumbnail strategist. "
+        "Your task: write ONE thumbnail generation prompt for this creator's video.\n\n"
+        f"CREATOR'S VIDEO:\n"
+        f"- Niche: {niche}\n"
+        f"- Title: {video_title}{desc_section}"
+        f"{ref_section}"
+        f"{history_section}\n\n"
+        "OUTPUT FORMAT — one paragraph, 4–6 sentences, NO bullet points, NO preamble:\n"
+        "Sentence 1: Overall 16:9 composition + the viral visual hook "
+        "(split screen, dramatic before/after, bold shocking number, "
+        "person pointing at something jaw-dropping, reaction face, arrow showing "
+        "transformation — pick the strongest one from the reference images).\n"
+        "Sentence 2: Person in the frame — describe ONLY: role (man/woman/person), "
+        "exact pose, gesture, facial expression, position in frame. "
+        "NEVER describe hair, skin tone, age, clothing colour — just mention clothing "
+        "type if essential (e.g. 'casual clothes', 'business attire').\n"
+        "Sentence 3: Background scene — be cinematic and specific "
+        "(exact setting, depth of field, time of day, environment).\n"
+        "Sentence 4: Non-human props and objects — money stacks, luxury cars, "
+        "product screens, before/after photos, charts, logos — "
+        "describe in precise detail.\n"
+        "Sentence 5: Colour palette and lighting style "
+        "(high-contrast, dark moody background, saturated neon, cinematic warm glow, etc.).\n"
+        "Sentence 6: Text overlay — EXACT wording in all-caps YouTube style "
+        "('$1,000,000', 'I WAS WRONG', 'NEVER DO THIS', 'BEFORE vs AFTER', etc.), "
+        "font weight, colour (white/yellow/red), placement (top/bottom/left/right).\n\n"
+        "The result must read like a description of a REAL viral YouTube thumbnail that "
+        "already exists — hyper-specific, zero stock-photo clichés, "
+        "zero generic phrases like 'professional setting' or 'business casual'. "
+        "Return ONLY the prompt. Start directly with the visual description."
     )
 
     contents.append(types.Part.from_text(text=instruction))
 
-    # ── Step 3: Generate prompt via Gemini ────────────────────────────────────
+    # ── Step 4: Generate via Gemini ───────────────────────────────────────────
     try:
         response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
             config=types.GenerateContentConfig(
-                temperature=0.85,
-                max_output_tokens=450,
+                temperature=0.92,
+                max_output_tokens=600,
             ),
         )
         generated = (response.text or "").strip()
@@ -1808,4 +1892,5 @@ async def generate_smart_prompt(
     return {
         "prompt": generated,
         "references_used": len(ref_images),
+        "history_examples_used": len(user_examples),
     }
