@@ -28,6 +28,7 @@ from app.core.supabase import supabase
 from app.models.user import User
 from app.services.credit_service import deduct_credits, get_balance, is_admin
 from app.services.product_analyzer import analyze_product_url, format_product_context
+from app.services.ad_concept_designer import design_ad_concept, concept_to_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -42,63 +43,91 @@ MAX_REFERENCE_IMAGES = 5  # forwarded to Gemini per generation
 # Aspect ratios the ad generator supports (Facebook/Instagram/TikTok friendly)
 SUPPORTED_RATIOS = {"1:1", "4:5", "9:16", "16:9", "3:4"}
 
-# Static prompt templates — each produces a distinctly different ad style.
-# The product identity lock is prepended automatically before sending to
-# Gemini so the generated image preserves the exact product.
+# Static prompt templates — each is a FACEBOOK/INSTAGRAM AD BRIEF, not a
+# catalogue product photo. Every template aims for scroll-stopping, ad-native
+# composition: people in frame where it makes sense, room for headline text,
+# emotional hook, problem/solution framing.
+# The product identity lock is prepended before sending to Gemini so the
+# generated image preserves the exact product.
 TEMPLATES: dict[str, dict] = {
+    "auto": {
+        "label": "Auto — AI finds winning concept",
+        # Sentinel: when this template is picked we call the ad_concept_designer
+        # service to research + design a custom brief instead of using a static
+        # prompt. See generate_ad() below.
+        "prompt": "",
+        "auto": True,
+    },
     "studio_white": {
-        "label": "Studio White",
+        "label": "Clean White Ad",
         "prompt": (
-            "Professional e-commerce product photography on a pure white "
-            "seamless background (#FFFFFF), soft studio lighting with gentle "
-            "drop shadow under the product, sharp focus, crisp details, "
-            "color-accurate, commercial product shot, 8K ultra-detailed, "
-            "no text, no watermark."
+            "High-end static Facebook ad creative on a pure white seamless "
+            "background. The product is hero-placed with deliberate negative "
+            "space on one side for headline text overlay. Soft studio lighting "
+            "with a subtle contact shadow, minimalist ad-style composition "
+            "(not a catalogue listing), premium DTC brand feel. Render a bold, "
+            "short sans-serif headline text in the negative-space area that "
+            "pitches a benefit. 8K, commercial, ad-native."
         ),
     },
     "lifestyle": {
-        "label": "Lifestyle",
+        "label": "Lifestyle In-Use",
         "prompt": (
-            "Lifestyle product photography: the product is the hero, placed "
-            "in a natural, aspirational everyday environment. Soft natural "
-            "window light, warm tones, shallow depth of field with subtle "
-            "bokeh, Instagram-ready editorial aesthetic, 8K, no text."
+            "Static Facebook/Instagram ad showing a real person (hands, arms, "
+            "or partial body in frame) actively USING the product in an "
+            "aspirational everyday environment — home, kitchen, bedroom, "
+            "outdoors or gym, whichever suits it. Feels candid and natural, "
+            "soft window light, warm editorial tones, shallow depth of field. "
+            "Composition leaves clear space on one edge for ad headline text "
+            "overlay. Scroll-stopping, magazine-ad quality, not a catalogue shot."
         ),
     },
     "ugc": {
-        "label": "UGC — Hand-held",
+        "label": "UGC Review",
         "prompt": (
-            "Authentic user-generated-content style photo: a human hand "
-            "holding the product up to the camera in a cozy indoor setting, "
-            "phone-camera look (slight grain, warm ambient light), casual "
-            "composition, feels real and relatable, social-media native."
+            "Authentic user-generated-content style Facebook ad: shot from the "
+            "perspective of a real customer on an iPhone, slightly imperfect "
+            "framing, natural ambient light, a visible hand or selfie-style "
+            "view holding or using the product in a cozy real-life setting. "
+            "Soft grain, honest real-world vibe, zero studio polish. Bottom "
+            "or top leaves room for a short testimonial-style overlay quote. "
+            "Feels like a true customer review post, not a staged photo."
         ),
     },
     "premium": {
-        "label": "Luxury Premium",
+        "label": "Luxury Hero",
         "prompt": (
-            "High-end luxury product photography, dramatic directional "
-            "lighting with specular highlights and rich deep shadows, dark "
-            "textured background (marble, brushed metal, or matte velvet), "
-            "cinematic commercial quality, 8K ultra-detailed, editorial."
+            "Cinematic static ad creative: dramatic directional lighting with "
+            "specular highlights on the product against a rich dark backdrop "
+            "(polished marble, brushed metal, matte velvet, or deep gradient). "
+            "Magazine-ad composition with bold negative space for a luxury "
+            "headline. Deep blacks, refined colour grade, Vogue/Apple-ad feel. "
+            "Render elegant serif or clean sans-serif headline text overlay. "
+            "High-end DTC brand aesthetic, 8K ultra-detailed."
         ),
     },
     "social_story": {
-        "label": "Social Story",
+        "label": "Bold Gradient Story",
         "prompt": (
-            "Vertical 9:16 social-media ad creative: the product centered "
-            "with bold negative space, bright modern gradient background "
-            "(punchy accent colors), dynamic composition, eye-catching, "
-            "thumb-stopping. High energy but clean."
+            "Vertical-friendly static ad creative for Instagram Stories/Reels "
+            "placement. Product centred on a punchy modern gradient or flat "
+            "bright colour block, dynamic diagonal composition, generous "
+            "negative space top and bottom. Render a short bold sans-serif "
+            "headline text above the product and a small CTA-style subhead "
+            "below, styled like a high-energy DTC social ad. Vibrant, "
+            "thumb-stopping, native to feed."
         ),
     },
     "outdoor": {
-        "label": "Outdoor Golden Hour",
+        "label": "Golden Hour In-Use",
         "prompt": (
-            "Outdoor product photography during golden hour, warm sunset "
-            "light wrapping around the product, soft natural bokeh in the "
-            "background, rich cinematic color grade, editorial lifestyle, "
-            "8K ultra-detailed."
+            "Cinematic outdoor Facebook ad during golden hour: a real person "
+            "(hands, body, or lifestyle framing) using the product in a "
+            "beautiful warm sunset setting — beach, park, rooftop, street, "
+            "or nature depending on context. Warm backlight and lens flare, "
+            "rich editorial colour grade, soft natural bokeh. Composition "
+            "leaves clear space on one side for short headline text overlay. "
+            "Feels aspirational, ad-native, scroll-stopping."
         ),
     },
 }
@@ -425,11 +454,15 @@ async def delete_product(
 async def generate_ad(
     current_user: Annotated[User, Depends(get_current_user)],
     product_id: str = Form(..., description="Trained product to feature"),
-    template: str = Form("studio_white", description="One of the predefined templates"),
+    template: str = Form("auto", description="One of the predefined templates, or 'auto' for AI research"),
     custom_prompt: str = Form("", description="Optional extra scene instructions"),
     aspect_ratio: str = Form("1:1"),
 ):
-    """Generate a static ad creative using a trained product + template."""
+    """Generate a static ad creative using a trained product + template.
+
+    When template == 'auto' we research the niche via Gemini 2.5 Pro with
+    Google Search grounding, design a bespoke ad concept, then render it.
+    """
     if template not in TEMPLATES:
         raise HTTPException(
             status_code=400,
@@ -487,6 +520,31 @@ async def generate_ad(
     context_block = format_product_context(product["name"], product_analysis)
     context_line = f" {context_block}" if context_block else ""
 
+    # Auto mode: research the niche + design a bespoke ad concept. If the
+    # research step fails for any reason (API hiccup, grounding refusal), fall
+    # back gracefully to the Lifestyle In-Use template so the user still gets
+    # an ad-style image rather than a 500.
+    concept: Optional[dict] = None
+    ad_brief: str
+    if tpl.get("auto"):
+        concept = await design_ad_concept(
+            name=product["name"],
+            category=product.get("category"),
+            description=product.get("description"),
+            features=product.get("features") or [],
+        )
+        if concept:
+            ad_brief = concept_to_prompt(concept)
+            logger.info(
+                f"Auto ad concept: '{concept.get('concept_name')}' — "
+                f"hook={concept.get('hook_overlay_text') or '(none)'}"
+            )
+        else:
+            logger.warning("Auto concept design failed — falling back to Lifestyle In-Use.")
+            ad_brief = TEMPLATES["lifestyle"]["prompt"]
+    else:
+        ad_brief = tpl["prompt"]
+
     identity_prompt = (
         "The reference images show a specific physical product. "
         "Generate a NEW photograph featuring THIS EXACT SAME PRODUCT. "
@@ -494,7 +552,7 @@ async def generate_ad(
         "colour, materials, branding, logos, text, proportions. "
         "Do NOT alter, redesign, or improve any detail of the product."
         f"{context_line} "
-        f"Scene and style: {tpl['prompt']}{extra_block}"
+        f"Scene and style: {ad_brief}{extra_block}"
     )
     gemini_contents.append(identity_prompt)
 
@@ -544,12 +602,21 @@ async def generate_ad(
             )
             image_url = supabase.storage.from_("avatars").get_public_url(storage_path)
 
+            # Record a useful human label for the history card. If auto
+            # produced a concept name we surface it there.
+            if concept and concept.get("concept_name"):
+                history_prompt = f"Auto: {concept['concept_name']}"
+                if extra:
+                    history_prompt = f"{history_prompt} — {extra}"
+            else:
+                history_prompt = extra or tpl["label"]
+
             supabase.table("generated_ads").insert({
                 "id": ad_id,
                 "user_id": current_user["id"],
                 "product_id": product_id,
                 "template": template,
-                "prompt": extra or tpl["label"],
+                "prompt": history_prompt,
                 "aspect_ratio": aspect_ratio,
                 "image_url": image_url,
                 "storage_path": storage_path,
@@ -573,6 +640,9 @@ async def generate_ad(
                 "image_url": image_url,
                 "cost_usd": COST_GEMINI_FLASH_IMAGE,
                 "engine": "gemini-3-pro-image-preview",
+                # Surface the auto-designed concept so the UI can show
+                # "Concept: UGC morning ritual — scroll-stopping testimonial"
+                "concept": concept,
             }
 
     raise HTTPException(status_code=500, detail="Gemini returned empty response.")
@@ -586,7 +656,11 @@ async def list_templates(current_user: Annotated[User, Depends(get_current_user)
     """Static list of supported ad templates with their labels."""
     return {
         "templates": [
-            {"id": tpl_id, "label": tpl["label"]}
+            {
+                "id": tpl_id,
+                "label": tpl["label"],
+                "auto": bool(tpl.get("auto")),
+            }
             for tpl_id, tpl in TEMPLATES.items()
         ],
         "aspect_ratios": sorted(SUPPORTED_RATIOS),

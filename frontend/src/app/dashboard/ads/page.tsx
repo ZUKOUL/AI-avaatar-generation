@@ -43,6 +43,7 @@ interface Product {
 interface Template {
   id: string;
   label: string;
+  auto?: boolean;
 }
 
 interface Ad {
@@ -66,12 +67,13 @@ const RATIOS: { value: string; label: string }[] = [
 // Hard-coded fallback template order so the picker still renders if /templates
 // hasn't loaded yet. The backend remains the source of truth for labels.
 const FALLBACK_TEMPLATES: Template[] = [
-  { id: "studio_white", label: "Studio White" },
-  { id: "lifestyle", label: "Lifestyle" },
-  { id: "ugc", label: "UGC — Hand-held" },
-  { id: "premium", label: "Luxury Premium" },
-  { id: "social_story", label: "Social Story" },
-  { id: "outdoor", label: "Outdoor Golden Hour" },
+  { id: "auto", label: "Auto — AI finds winning concept", auto: true },
+  { id: "studio_white", label: "Clean White Ad" },
+  { id: "lifestyle", label: "Lifestyle In-Use" },
+  { id: "ugc", label: "UGC Review" },
+  { id: "premium", label: "Luxury Hero" },
+  { id: "social_story", label: "Bold Gradient Story" },
+  { id: "outdoor", label: "Golden Hour In-Use" },
 ];
 
 interface PendingProduct {
@@ -89,7 +91,7 @@ export default function AdsPage() {
 
   const [showCreator, setShowCreator] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("studio_white");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("auto");
   const [aspect, setAspect] = useState("1:1");
   const [customPrompt, setCustomPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -99,6 +101,14 @@ export default function AdsPage() {
   // placeholder in the grid so the modal can close immediately.
   const [pendingProduct, setPendingProduct] = useState<PendingProduct | null>(null);
   const [trainError, setTrainError] = useState("");
+
+  // Last auto-generated concept — surfaced as a small "concept: ..." banner
+  // under the generate button so the user sees WHAT the AI designed.
+  const [lastConcept, setLastConcept] = useState<{
+    concept_name?: string;
+    why_it_converts?: string;
+    hook_overlay_text?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -143,13 +153,18 @@ export default function AdsPage() {
     if (!selectedProductId) return;
     setGenerating(true);
     setError("");
+    setLastConcept(null);
     try {
       const formData = new FormData();
       formData.append("product_id", selectedProductId);
       formData.append("template", selectedTemplate);
       formData.append("aspect_ratio", aspect);
       if (customPrompt.trim()) formData.append("custom_prompt", customPrompt.trim());
-      await adsAPI.generate(formData);
+      const res = await adsAPI.generate(formData);
+      const concept = res.data?.concept;
+      if (concept && typeof concept === "object") {
+        setLastConcept(concept);
+      }
       setCustomPrompt("");
       loadAds();
     } catch (err: unknown) {
@@ -478,8 +493,78 @@ export default function AdsPage() {
               >
                 Ad style
               </label>
+
+              {/* Auto hero card — takes the full row, styled differently so it
+                  reads as the recommended path. */}
+              {templates.filter((t) => t.auto).map((tpl) => {
+                const active = tpl.id === selectedTemplate;
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setSelectedTemplate(tpl.id)}
+                    className="w-full rounded-xl px-4 py-3.5 text-left transition-all mb-2 flex items-start gap-3"
+                    style={{
+                      background: active
+                        ? "linear-gradient(135deg, var(--text-primary), #3b3b3b)"
+                        : "var(--bg-tertiary)",
+                      border: `1.5px solid ${active ? "var(--text-primary)" : "var(--border-color)"}`,
+                      color: active ? "var(--bg-primary)" : "var(--text-primary)",
+                      boxShadow: active ? "0 6px 20px rgba(0,0,0,0.18)" : "none",
+                    }}
+                  >
+                    <div
+                      className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5"
+                      style={{
+                        background: active ? "rgba(255,255,255,0.15)" : "var(--bg-primary)",
+                        border: active ? "none" : "1px solid var(--border-color)",
+                      }}
+                    >
+                      <SparkleIcon size={15} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="block text-[13.5px] font-semibold">
+                        Generate winning ad
+                      </span>
+                      <span
+                        className="block text-[11.5px] mt-0.5"
+                        style={{
+                          color: active ? "rgba(255,255,255,0.75)" : "var(--text-muted)",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        AI researches top-performing ads in your niche and
+                        designs an original concept for this product.
+                      </span>
+                    </div>
+                    {active && (
+                      <span
+                        className="shrink-0 text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded"
+                        style={{
+                          background: "rgba(255,255,255,0.18)",
+                          color: "var(--bg-primary)",
+                        }}
+                      >
+                        SELECTED
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Divider — "Or pick a specific style" — only if we have non-auto
+                  templates available */}
+              {templates.some((t) => !t.auto) && (
+                <p
+                  className="text-[10px] uppercase tracking-wider mt-3 mb-2 px-1"
+                  style={{ color: "var(--text-muted)", fontWeight: 600 }}
+                >
+                  Or pick a specific style
+                </p>
+              )}
+
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
-                {templates.map((tpl) => {
+                {templates.filter((t) => !t.auto).map((tpl) => {
                   const active = tpl.id === selectedTemplate;
                   return (
                     <button
@@ -578,15 +663,78 @@ export default function AdsPage() {
                 {generating ? (
                   <>
                     <Spinner size={15} />
-                    Generating your ad…
+                    {selectedTemplate === "auto"
+                      ? "Researching concepts & generating…"
+                      : "Generating your ad…"}
                   </>
                 ) : (
                   <>
                     <SparkleIcon size={15} />
-                    Generate ad
+                    {selectedTemplate === "auto" ? "Generate winning ad" : "Generate ad"}
                   </>
                 )}
               </button>
+
+              {/* Concept banner — appears right after auto generation finishes
+                  so the user knows WHAT concept the AI landed on. */}
+              {lastConcept && lastConcept.concept_name && (
+                <div
+                  className="mt-4 rounded-xl p-3.5 flex items-start gap-3"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <div
+                    className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5"
+                    style={{
+                      background: "var(--bg-tertiary)",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <SparkleIcon size={13} style={{ color: "var(--text-primary)" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      AI concept used
+                    </p>
+                    <p
+                      className="text-[13px] font-semibold mt-0.5"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {lastConcept.concept_name}
+                    </p>
+                    {lastConcept.hook_overlay_text && (
+                      <p
+                        className="text-[12px] mt-1"
+                        style={{ color: "var(--text-secondary)", fontStyle: "italic" }}
+                      >
+                        &ldquo;{lastConcept.hook_overlay_text}&rdquo;
+                      </p>
+                    )}
+                    {lastConcept.why_it_converts && (
+                      <p
+                        className="text-[11.5px] mt-1.5"
+                        style={{ color: "var(--text-muted)", lineHeight: 1.5 }}
+                      >
+                        {lastConcept.why_it_converts}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLastConcept(null)}
+                    aria-label="Dismiss"
+                    className="shrink-0 p-1 rounded"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <XIcon size={13} />
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
