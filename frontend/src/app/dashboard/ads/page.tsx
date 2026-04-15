@@ -213,12 +213,37 @@ export default function AdsPage() {
     }
   };
 
-  const handleDeleteAd = async (adId: string) => {
+  /**
+   * Delete a generated ad. Optimistic UI: the row is removed from the grid
+   * immediately so the click feels responsive. If the API call fails, we
+   * restore the snapshot and surface the error to the user — silently
+   * swallowing the exception (like the previous version did) made the
+   * delete button look like it did nothing.
+   *
+   * Returns `true` on success so callers (e.g. the lightbox) can decide
+   * whether to close themselves.
+   */
+  const handleDeleteAd = async (adId: string): Promise<boolean> => {
+    const snapshot = ads;
+    setAds((prev) => prev.filter((a) => a.id !== adId));
     try {
       await adsAPI.delete(adId);
-      setAds((prev) => prev.filter((a) => a.id !== adId));
-    } catch {
-      /* silently fail */
+      return true;
+    } catch (err) {
+      console.error("Failed to delete ad:", err);
+      // Restore the row so the user doesn't lose anything.
+      setAds(snapshot);
+      const e = err as {
+        response?: { status?: number; data?: { detail?: string | { message?: string } } };
+        message?: string;
+      };
+      const detail = e.response?.data?.detail;
+      const msg =
+        typeof detail === "string"
+          ? detail
+          : detail?.message || e.message || "unknown error";
+      setError(`Couldn't delete ad: ${msg}`);
+      return false;
     }
   };
 
@@ -798,9 +823,9 @@ export default function AdsPage() {
           currentId={lightboxAdId}
           onSelectId={setLightboxAdId}
           onClose={() => setLightboxAdId(null)}
-          onDelete={(id) => {
-            void handleDeleteAd(id);
-            setLightboxAdId(null);
+          onDelete={async (id) => {
+            const ok = await handleDeleteAd(id);
+            if (ok) setLightboxAdId(null);
           }}
         />
       )}

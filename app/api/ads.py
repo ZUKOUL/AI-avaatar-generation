@@ -805,17 +805,26 @@ async def delete_ad(
     current_user: Annotated[User, Depends(get_current_user)],
     ad_id: str,
 ):
-    """Delete a generated ad (row + storage artefact)."""
+    """Delete a generated ad (row + storage artefact).
+
+    Ownership is enforced on BOTH the lookup AND the delete — using
+    `.single()` was raising `PGRST116` when a row was already gone from a
+    previous attempt, which the broad except turned into a 500 and made
+    the button look "broken" on the frontend. `.maybe_single()` returns
+    `None` cleanly so we can emit a proper 404 instead.
+    """
+    user_id = current_user["id"]
     try:
         res = (
             supabase.table("generated_ads")
             .select("id, storage_path, user_id")
             .eq("id", ad_id)
-            .eq("user_id", current_user["id"])
-            .single()
+            .eq("user_id", user_id)
+            .maybe_single()
             .execute()
         )
-        if not res.data:
+        if not res or not getattr(res, "data", None):
+            logger.info(f"Delete ad {ad_id}: row not found for user {user_id}")
             raise HTTPException(status_code=404, detail="Ad not found.")
 
         storage_path = res.data.get("storage_path")
@@ -825,11 +834,16 @@ async def delete_ad(
             except Exception as e:
                 logger.warning(f"Failed to remove ad storage for {ad_id}: {e}")
 
-        supabase.table("generated_ads").delete().eq("id", ad_id).execute()
+        # Defensive: scope the DELETE to user_id as well so a mis-scoped
+        # row never slips through even if RLS is misconfigured.
+        supabase.table("generated_ads").delete().eq("id", ad_id).eq(
+            "user_id", user_id
+        ).execute()
+        logger.info(f"Deleted ad {ad_id} for user {user_id}")
         return {"status": "deleted", "ad_id": ad_id}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete ad: {e}")
+        logger.error(f"Failed to delete ad {ad_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

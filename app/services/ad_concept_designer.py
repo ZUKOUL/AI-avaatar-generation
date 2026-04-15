@@ -25,18 +25,56 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 
-# Seed lines injected into the research prompt so concepts vary across
-# successive generations rather than always landing on the same "UGC
-# morning ritual" idea. We pick one at random per request.
+# Full taxonomy of static ad formats that actually perform in the Meta Ad
+# Library. We pick one at random per request so consecutive generations
+# don't collapse onto the same "before/after" or "UGC morning ritual"
+# pattern — that was the #1 complaint from users who generated 5 ads in a
+# row and got 5 before/afters.
+#
+# Keep this list BROAD. If you add an angle here it will start showing up
+# in rotation immediately — no other code change needed.
 _CONCEPT_ANGLES = [
-    "UGC-style, candid, shot like a real customer",
-    "problem/solution before-after narrative",
-    "lifestyle hero — product in aspirational everyday use",
-    "social-proof callout with visible testimonial cue",
-    "bold benefit-led composition with bright accent colour",
-    "minimalist luxury hero with dramatic lighting",
-    "in-use action shot capturing the key moment of value",
-    "unboxing / first-impression moment",
+    # People-centric / UGC
+    "UGC selfie — real-feeling customer holding the product with an iPhone, imperfect framing, bathroom or kitchen mirror",
+    "Founder-to-camera — visible creator/founder holding the product, warm eye-contact, trust-building",
+    "POV first-person — shot from the user's perspective, their hand using the product in context",
+    "Micro-influencer unboxing moment — hands pulling product out of packaging, emotional first-reaction vibe",
+    "Customer-in-action hero — real person mid-motion, using the product, captured in a candid moment of value",
+
+    # Problem / solution / comparison
+    "Problem close-up — macro shot of the pain the product solves (messy hair, dirty car seat, bad posture) with product entering the frame",
+    "Split-screen this-vs-that — problem on the left, solution on the right, labelled",
+    "Stacked comparison — product vs. competitor, side by side with clear labels and arrows",
+    "Before/after transformation split — classic two-panel change visualisation (only when the product genuinely shows a visible transformation)",
+
+    # Social proof / text-forward
+    "Testimonial screenshot overlay — fake review card (5 stars + customer quote) layered on a lifestyle shot",
+    "Reddit / TikTok comment screenshot — viral-feeling quote pulled from the audience, product visible alongside",
+    "Star-rating callout — giant ★★★★★ 4.9/5 rating block, product held or placed nearby",
+    "Social proof stack — 3–4 layered review cards fanning around the product",
+    "Big-number stat hero — dominant data point (e.g. '93% results in 7 days') as the focal headline, product supporting",
+
+    # Bold / typographic / interruption
+    "Text-heavy bold statement — oversized sans-serif headline occupying most of the frame, product small but striking",
+    "Interruption-pattern framing — deliberately unusual crop or extreme close-up that breaks the scroll",
+    "Bold colour-block backdrop — product hero against a single punchy flat colour for Stories/Reels placement",
+    "Infographic-style feature callout — bullet points with arrows pointing at specific product details",
+    "Meme-inspired format — culturally-relevant composition (safe-for-work), product tied into a familiar visual joke",
+
+    # Editorial / premium
+    "Magazine editorial — Vogue/Apple-ad feel, dramatic lighting, refined colour grade, generous negative space",
+    "Outdoor golden-hour cinematic — real person using product during sunset, warm backlight, lens flare, aspirational",
+    "Luxury still-life — product on polished marble/brushed metal/velvet, specular highlights, rich blacks",
+
+    # Product-forward
+    "Close-up texture / material macro — extreme detail shot emphasising craftsmanship and quality",
+    "Packaging-as-hero — the box / branded packaging itself is the creative, with product partly revealed",
+    "Variety group shot — every colourway or size of the product lined up, 'something for everyone' feel",
+
+    # Demonstration
+    "Sequential demo frames — 2–3 in-frame panels showing the product being used step-by-step",
+    "Hand-pointing callout — human hand pressing a button / pointing at a feature, demonstrating ease-of-use",
+    "Gift-reveal surprise — opening a box moment, birthday/holiday emotional pull, product emerging",
 ]
 
 
@@ -93,18 +131,23 @@ RULES
 
 
 _CONCEPT_PROMPT = """You are a top-tier performance marketer who has scaled \
-thousands of Facebook and Instagram ads for e-commerce and dropshipping brands.
+thousands of Facebook and Instagram ads for e-commerce and dropshipping brands. \
+You work like an analyst: study what's winning RIGHT NOW, then design accordingly.
 
 STRATEGIC BRIEF (already answered by the marketer — USE THIS to drive the concept):
 {brief_block}
 
-RESEARCH TASK
-1. Use Google Search to study examples of high-performing STATIC Facebook, \
-   Instagram, and Meta Ads Library creatives in the "{category}" niche \
-   (and adjacent niches if useful).
-2. Focus on successful DTC brands, TikTok-viral products, and Meta Ad Library \
-   repeat-spend winners. Note the recurring visual patterns that stop the scroll.
-3. Ignore video ads — only single-image creatives.
+RESEARCH TASK (use Google Search aggressively)
+1. Search the Meta Ad Library and top DTC brand accounts for STATIC image ads \
+   in the "{category}" niche — look for ads that have been live 30+ days \
+   (repeat-spend signal = it works).
+2. Also pull references from:
+   - TikTok Creative Center
+   - Foreplay.co / Motion.ai public ad swipes
+   - Top-performing Shopify / Dropshipping landing-page creatives
+3. Identify the VISUAL FORMATS that keep reappearing for this kind of \
+   product — NOT one format, the full spread.
+4. Ignore video ads. Only single-image creatives.
 
 PRODUCT TO ADVERTISE
 - Name: {name}
@@ -112,32 +155,42 @@ PRODUCT TO ADVERTISE
 - Description: {description}
 - Key features: {features}
 
-CREATIVE ANGLE TO LEAN INTO (seed): {angle}
+CREATIVE FORMAT TO USE (chosen at random from the winning-format library — \
+commit to this format, do NOT substitute a different one):
+
+{angle}
 
 YOUR OUTPUT
-Design ONE winning static ad concept for THIS product that EXECUTES on the \
-strategic brief above. The visual must show the BEFORE/AFTER contrast, \
-convey the KEY BENEFIT, pre-empt the MAIN OBJECTION, and hit the \
-EMOTIONAL ANGLE. Return ONLY a JSON object with these exact keys:
+Design ONE winning static ad concept in the format above, tailored to this \
+exact product and strategic brief. Convey the KEY BENEFIT, pre-empt the \
+MAIN OBJECTION, hit the EMOTIONAL ANGLE. Return ONLY a JSON object with \
+these exact keys:
 
-- "concept_name": 3-6 word descriptor (e.g. "UGC morning ritual", "Before/after split")
+- "concept_name": 3-6 word descriptor naming the format + the twist (e.g. \
+  "Testimonial overlay on lifestyle", "Magazine editorial macro", \
+  "Star-rating callout")
 - "visual_direction": 2-4 sentences describing exactly what the image shows — \
   setting, who is in frame (if anyone), what they are doing, where the product \
-  sits, and the overall feel. Be specific and visual, like a photographer brief. \
+  sits, the overall feel. Be specific and visual, like a photographer brief. \
   The scene must visually communicate the key benefit from the brief.
 - "composition": camera angle, framing, how negative space is used for text overlay
 - "mood_lighting": lighting style and mood in one short phrase
 - "hook_overlay_text": SHORT ad headline that goes on the image, max 7 words, \
   no emoji, title-case — pull from the brief's winning_hook_ideas and adapt. \
-  Use null only if the concept reads strictly better without text.
+  Use null ONLY when the chosen format genuinely reads better without text \
+  (rare — most ad formats want a headline).
 - "why_it_converts": one sentence tying the visual choice back to the \
   psychological trigger from the strategic brief
 
-RULES
-- The concept MUST look like a native Facebook/Instagram ad, not a sterile catalogue photo
-- Prefer people-in-frame, lifestyle, UGC, or problem/solution over isolated studio
-- Composition must leave room for headline text where relevant
-- Output MUST be valid JSON, no markdown fences, no prose around it
+HARD RULES
+- COMMIT to the chosen format. Do NOT default to before/after unless that \
+  format was specifically selected above. The user has complained that every \
+  ad comes out as a before/after split — break that pattern.
+- The concept MUST look like a native Facebook/Instagram ad, not a sterile \
+  catalogue photo.
+- Composition must leave room for headline text where the chosen format \
+  uses one.
+- Output MUST be valid JSON, no markdown fences, no prose around it.
 """
 
 
