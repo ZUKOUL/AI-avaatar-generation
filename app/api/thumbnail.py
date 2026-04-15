@@ -129,27 +129,27 @@ INSPIRATION_NICHES = {
     "business": {
         "label": "Business & Finance",
         "emoji": "💼",
-        "query": "how to make money online entrepreneur motivation 2024 viral",
+        "query": "entrepreneur business success finance investing wealth",
     },
     "sport": {
         "label": "Sport & Fitness",
         "emoji": "💪",
-        "category_id": "17",
+        "query": "fitness workout training sport performance athlete",
     },
     "entertainment": {
         "label": "Entertainment",
         "emoji": "🎭",
-        "category_id": "24",
+        "query": "entertainment comedy reaction viral funny experiment",
     },
     "mrbeast": {
         "label": "MrBeast Style",
         "emoji": "🏆",
-        "query": "challenge win money viral biggest 2024",
+        "query": "challenge biggest survival win money extreme impossible",
     },
     "gaming": {
         "label": "Gaming & Tech",
         "emoji": "🎮",
-        "category_id": "20",
+        "query": "gaming tips tricks best plays tutorial tech review",
     },
 }
 
@@ -1541,9 +1541,14 @@ async def get_inspiration(
     """
     Return top-performing YouTube thumbnails for the requested niche.
 
-    If no YOUTUBE_API_KEY is configured the endpoint still returns 200 with
-    `needs_api_key: True` so the frontend can show a friendly setup screen
-    instead of a generic error.
+    Quality filters applied automatically:
+    - Long-format only (videoDuration=long, i.e. >20 min) — eliminates all Shorts
+    - English-language results (relevanceLanguage=en)
+    - Western region (regionCode=US)
+    - Channels with ≥ 5 000 subscribers (secondary channel API call)
+
+    If no YOUTUBE_API_KEY is configured the endpoint returns 200 with
+    `needs_api_key: True` so the frontend shows a friendly setup screen.
     """
     niches_meta = _niches_metadata()
 
@@ -1559,7 +1564,8 @@ async def get_inspiration(
         niche = "business"
 
     limit = max(1, min(limit, 50))
-    cache_key = f"{niche}_{limit}"
+    # v2 prefix busts any cache entries created by the old endpoint logic.
+    cache_key = f"v2_{niche}_{limit}"
     _CACHE_TTL = 86400  # 24 hours
 
     cached = _inspiration_cache.get(cache_key)
@@ -1575,79 +1581,105 @@ async def get_inspiration(
     videos: list[dict] = []
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            if "query" in niche_cfg:
-                # Search endpoint for query-based niches.
-                resp = await client.get(
-                    "https://www.googleapis.com/youtube/v3/search",
-                    params={
-                        "part": "snippet",
-                        "q": niche_cfg["query"],
-                        "type": "video",
-                        "maxResults": limit,
-                        "order": "viewCount",
-                        "videoEmbeddable": "true",
-                        "key": api_key,
-                    },
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # ── Step 1: Search for long-format English videos ─────────────────
+            # Over-fetch so we have headroom after subscriber filtering.
+            fetch_count = min(limit * 3, 50)
+
+            search_resp = await client.get(
+                "https://www.googleapis.com/youtube/v3/search",
+                params={
+                    "part": "snippet",
+                    "q": niche_cfg["query"],
+                    "type": "video",
+                    "maxResults": fetch_count,
+                    "order": "viewCount",
+                    "videoEmbeddable": "true",
+                    "videoDuration": "long",   # >20 min — no Shorts, no quick clips
+                    "relevanceLanguage": "en", # English-language results only
+                    "regionCode": "US",        # Western region
+                    "key": api_key,
+                },
+            )
+
+            if search_resp.status_code != 200:
+                logger.warning(
+                    f"YouTube search API returned {search_resp.status_code} "
+                    f"for niche={niche}: {search_resp.text[:200]}"
                 )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for item in data.get("items", []):
-                        vid_id = item.get("id", {}).get("videoId")
-                        snippet = item.get("snippet", {})
-                        if not vid_id:
-                            continue
-                        videos.append(
-                            {
-                                "video_id": vid_id,
-                                "title": snippet.get("title", ""),
-                                "channel": snippet.get("channelTitle", ""),
-                                "thumbnail_url": f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg",
-                                "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
-                            }
-                        )
-                else:
-                    logger.warning(
-                        f"YouTube search API returned {resp.status_code} for niche={niche}: {resp.text[:200]}"
-                    )
             else:
-                # Trending endpoint for category-based niches.
-                resp = await client.get(
-                    "https://www.googleapis.com/youtube/v3/videos",
-                    params={
-                        "part": "snippet",
-                        "chart": "mostPopular",
-                        "categoryId": niche_cfg["category_id"],
-                        "maxResults": limit,
-                        "regionCode": "US",
-                        "key": api_key,
-                    },
+                items = search_resp.json().get("items", [])
+
+                # ── Step 2: Collect unique channel IDs ────────────────────────
+                channel_ids = list(
+                    {
+                        item["snippet"]["channelId"]
+                        for item in items
+                        if item.get("snippet", {}).get("channelId")
+                    }
                 )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for item in data.get("items", []):
-                        vid_id = item.get("id")
-                        snippet = item.get("snippet", {})
-                        if not vid_id:
-                            continue
-                        videos.append(
-                            {
-                                "video_id": vid_id,
-                                "title": snippet.get("title", ""),
-                                "channel": snippet.get("channelTitle", ""),
-                                "thumbnail_url": f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg",
-                                "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
-                            }
-                        )
-                else:
-                    logger.warning(
-                        f"YouTube trending API returned {resp.status_code} for niche={niche}: {resp.text[:200]}"
+
+                # ── Step 3: Fetch channel subscriber counts ───────────────────
+                sub_counts: dict[str, int] = {}
+                if channel_ids:
+                    ch_resp = await client.get(
+                        "https://www.googleapis.com/youtube/v3/channels",
+                        params={
+                            "part": "statistics",
+                            "id": ",".join(channel_ids[:50]),
+                            "key": api_key,
+                        },
                     )
+                    if ch_resp.status_code == 200:
+                        for ch in ch_resp.json().get("items", []):
+                            ch_id = ch.get("id", "")
+                            try:
+                                count = int(
+                                    ch.get("statistics", {}).get("subscriberCount", 0)
+                                )
+                            except (ValueError, TypeError):
+                                count = 0
+                            sub_counts[ch_id] = count
+                    else:
+                        logger.warning(
+                            f"YouTube channels API returned {ch_resp.status_code}: "
+                            f"{ch_resp.text[:200]}"
+                        )
+
+                # ── Step 4: Filter by subscriber count and build video list ───
+                MIN_SUBSCRIBERS = 5_000
+                for item in items:
+                    vid_id = item.get("id", {}).get("videoId")
+                    snippet = item.get("snippet", {})
+                    channel_id = snippet.get("channelId", "")
+
+                    if not vid_id:
+                        continue
+
+                    # Skip channels below the minimum subscriber threshold.
+                    # If we couldn't retrieve the count (sub_counts miss), allow
+                    # it through so a channels API failure doesn't blank the page.
+                    ch_subs = sub_counts.get(channel_id)
+                    if ch_subs is not None and ch_subs < MIN_SUBSCRIBERS:
+                        continue
+
+                    videos.append(
+                        {
+                            "video_id": vid_id,
+                            "title": snippet.get("title", ""),
+                            "channel": snippet.get("channelTitle", ""),
+                            "thumbnail_url": f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg",
+                            "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
+                        }
+                    )
+
+                    if len(videos) >= limit:
+                        break
+
     except httpx.HTTPError as e:
         logger.error(f"inspiration YouTube fetch error for niche={niche}: {e}")
 
-    # Cache even an empty result so we don't hammer the API on every request
-    # when YouTube is unhappy (e.g. quota exceeded).
+    # Cache even an empty result to avoid hammering the API on quota exceeded.
     _inspiration_cache[cache_key] = {"ts": time.time(), "videos": videos}
 
     return {
