@@ -302,6 +302,10 @@ export default function ThumbnailStudio() {
   // YouTube preview (debounced)
   const [ytPreview, setYtPreview] = useState<{ videoId: string; url: string } | null>(null);
   const ytDebounceRef = useRef<number | null>(null);
+  // Flips true as soon as a YouTube URL is being typed/pasted — stays true
+  // through the debounce + fetch so the input shows a loading bar and the
+  // user immediately feels that their paste "took".
+  const [loadingYtPreview, setLoadingYtPreview] = useState(false);
 
   /* ─── Auto-describe pasted YouTube URLs ───
    * When the user pastes a YouTube link into the prompt, we call the
@@ -1183,13 +1187,19 @@ export default function ThumbnailStudio() {
     if (mode !== "recreate") {
       setYtPreview(null);
       setSourceNaturalSize(null);
+      setLoadingYtPreview(false);
       return;
     }
     if (!youtubeUrl.trim()) {
       setYtPreview(null);
       setSourceNaturalSize(null);
+      setLoadingYtPreview(false);
       return;
     }
+    // Kick the loading indicator on immediately — the 350ms debounce
+    // before the actual fetch would otherwise feel like a dead moment
+    // right after a paste.
+    setLoadingYtPreview(true);
     if (ytDebounceRef.current) window.clearTimeout(ytDebounceRef.current);
     ytDebounceRef.current = window.setTimeout(async () => {
       try {
@@ -1202,6 +1212,8 @@ export default function ThumbnailStudio() {
         setError(null);
       } catch {
         setYtPreview(null);
+      } finally {
+        setLoadingYtPreview(false);
       }
     }, 350);
     return () => {
@@ -2850,10 +2862,11 @@ export default function ThumbnailStudio() {
                   YouTube URL
                 </label>
                 <div
-                  className="flex items-center gap-2 rounded-xl px-3"
+                  className="flex items-center gap-2 rounded-xl px-3 relative overflow-hidden"
                   style={{
                     background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
+                    border: `1px solid ${loadingYtPreview ? "rgba(59,130,246,0.55)" : "var(--border-color)"}`,
+                    transition: "border-color 0.2s ease",
                   }}
                 >
                   <LinkIcon size={16} />
@@ -2866,6 +2879,14 @@ export default function ThumbnailStudio() {
                     className="flex-1 bg-transparent outline-none py-3 text-[13px]"
                     style={{ color: "var(--text-primary)" }}
                   />
+                  {loadingYtPreview && (
+                    <span
+                      className="text-[11px] font-medium whitespace-nowrap"
+                      style={{ color: "#60a5fa" }}
+                    >
+                      Fetching preview…
+                    </span>
+                  )}
                   {youtubeUrl && (
                     <button
                       type="button"
@@ -2876,6 +2897,30 @@ export default function ThumbnailStudio() {
                     >
                       <XIcon size={14} />
                     </button>
+                  )}
+                  {/* Glowing blue progress bar that slides left→right while
+                      the YouTube thumbnail is being fetched. Purely decorative
+                      signal that the paste was registered and is processing. */}
+                  {loadingYtPreview && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 bottom-0 w-full pointer-events-none"
+                      style={{ height: 3 }}
+                    >
+                      <span
+                        className="block"
+                        style={{
+                          height: "100%",
+                          width: "35%",
+                          borderRadius: 2,
+                          background:
+                            "linear-gradient(90deg, rgba(59,130,246,0) 0%, rgba(96,165,250,0.9) 40%, #3b82f6 50%, rgba(96,165,250,0.9) 60%, rgba(59,130,246,0) 100%)",
+                          boxShadow:
+                            "0 0 10px rgba(59,130,246,0.75), 0 0 20px rgba(96,165,250,0.5)",
+                          animation: "shimmerSweep 1.15s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                        }}
+                      />
+                    </span>
                   )}
                 </div>
                 {ytPreview && (
