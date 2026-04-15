@@ -1564,8 +1564,8 @@ async def get_inspiration(
         niche = "business"
 
     limit = max(1, min(limit, 50))
-    # v2 prefix busts any cache entries created by the old endpoint logic.
-    cache_key = f"v2_{niche}_{limit}"
+    # v3 prefix busts old cache entries (medium duration filter change).
+    cache_key = f"v3_{niche}_{limit}"
     _CACHE_TTL = 86400  # 24 hours
 
     cached = _inspiration_cache.get(cache_key)
@@ -1595,7 +1595,7 @@ async def get_inspiration(
                     "maxResults": fetch_count,
                     "order": "viewCount",
                     "videoEmbeddable": "true",
-                    "videoDuration": "long",   # >20 min — no Shorts, no quick clips
+                    "videoDuration": "medium",  # 4–20 min — no Shorts, no quick clips
                     "relevanceLanguage": "en", # English-language results only
                     "regionCode": "US",        # Western region
                     "key": api_key,

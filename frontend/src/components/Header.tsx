@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getStoredUser, clearAuth } from "@/lib/auth";
-import { Zap, Settings, CreditCard, SignOut } from "@/components/Icons";
+import { Zap, Settings, CreditCard, SignOut, SparkleIcon } from "@/components/Icons";
 
 interface HeaderProps {
   title: string;
@@ -101,6 +101,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
                 </div>
 
                 {/* Menu items */}
+                <DropdownItem
+                  icon={<SparkleIcon size={16} />}
+                  label="Saved Thumbnails"
+                  onClick={() => { setShowDropdown(false); router.push("/dashboard/thumbnails/saved"); }}
+                />
                 <DropdownItem
                   icon={<Settings size={16} />}
                   label="Settings"

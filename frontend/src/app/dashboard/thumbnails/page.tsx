@@ -648,12 +648,28 @@ export default function ThumbnailStudio() {
     const ref = searchParams.get("ref");
     const yt = searchParams.get("yt");
     const seededPrompt = searchParams.get("prompt");
-    if (!ref && !yt && !seededPrompt) return;
+    // ytDescribe: navigate to prompt mode, auto-describe the YouTube thumbnail
+    const ytDescribe = searchParams.get("ytDescribe");
+    if (!ref && !yt && !seededPrompt && !ytDescribe) return;
     hydratedRef.current = true;
 
     if (seededPrompt) setPrompt(seededPrompt);
 
-    if (yt) {
+    if (ytDescribe) {
+      // Prompt mode — show the YouTube URL immediately, then replace it with
+      // an AI-generated description once the backend responds.
+      setMode("prompt");
+      setPrompt(ytDescribe);
+      thumbnailAPI
+        .describeYoutube(ytDescribe)
+        .then((res) => {
+          const desc = (res.data?.description || "").trim();
+          if (desc) setPrompt(desc);
+        })
+        .catch(() => {
+          // Leave the URL as-is if the describe call fails.
+        });
+    } else if (yt) {
       // Recreate mode — the backend re-fetches the YouTube frame so we
       // don't need to download `ref` ourselves. Setting the URL triggers
       // the existing preview effect.
