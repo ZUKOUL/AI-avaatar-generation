@@ -3199,18 +3199,144 @@ export default function ThumbnailStudio() {
             </button>
           </div>
 
-          {/* History */}
-          {history.length > 0 && (
+          {/* History — also visible during generation so the skeleton has a
+              home to land in. The skeleton occupies the top-left slot (where
+              the new thumbnail will appear once it arrives) so the user gets
+              a clear "your thumbnail is on its way" signal instead of a
+              spinner floating in blank space. */}
+          {(history.length > 0 || loading) && (
             <>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
                   Your thumbnails
                 </h3>
                 <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
+                  {loading && (
+                    <span className="mr-2" style={{ color: "#3b82f6" }}>
+                      Generating…
+                    </span>
+                  )}
                   {history.length} {history.length === 1 ? "thumbnail" : "thumbnails"}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* ── Pending skeleton tile ──
+                    Rendered while a generate request is in flight. Occupies
+                    the same footprint a finished thumbnail will take — same
+                    aspect ratio, same caption rail — so when the image pops
+                    in there's no layout jump. We resolve "auto" to either
+                    the source image's natural ratio or 16:9 so the skeleton
+                    is the correct shape. */}
+                {loading &&
+                  (() => {
+                    const pendingRatio: AspectRatio =
+                      aspectRatio === "auto"
+                        ? sourceNaturalSize
+                          ? closestRatio(
+                              sourceNaturalSize.w,
+                              sourceNaturalSize.h,
+                            )
+                          : "16:9"
+                        : aspectRatio;
+                    const ratioCss =
+                      pendingRatio === "9:16"
+                        ? "9 / 16"
+                        : pendingRatio === "1:1"
+                          ? "1 / 1"
+                          : pendingRatio === "4:3"
+                            ? "4 / 3"
+                            : pendingRatio === "3:4"
+                              ? "3 / 4"
+                              : "16 / 9";
+                    return (
+                      <div
+                        key="__pending_skeleton__"
+                        className="relative rounded-xl overflow-hidden"
+                        style={{
+                          background: "var(--bg-secondary)",
+                          border: "1px solid var(--border-color)",
+                        }}
+                        aria-busy="true"
+                        aria-label="Generating thumbnail"
+                      >
+                        <div
+                          className="relative w-full overflow-hidden"
+                          style={{
+                            aspectRatio: ratioCss,
+                            background: "var(--bg-primary)",
+                          }}
+                        >
+                          {/* Animated shimmer sweep — gives the skeleton
+                              the "something is happening" texture without
+                              needing a separate spinner. Pure CSS. */}
+                          <div
+                            className="absolute inset-0 animate-pulse"
+                            style={{
+                              background:
+                                "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%)",
+                            }}
+                          />
+                          {/* Uses the shared shimmerSweep keyframe from
+                              globals.css so the sweep matches the images
+                              and videos pages. Blue-tinted so it reads as
+                              an in-flight generation, not a passive skeleton. */}
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              zIndex: 10,
+                              background:
+                                "linear-gradient(90deg, transparent 25%, rgba(59,130,246,0.12) 50%, transparent 75%)",
+                              animation: "shimmerSweep 2s ease-in-out infinite",
+                            }}
+                          />
+                          {/* Mode chip (matches the position of the real
+                              one so the layout doesn't shift). */}
+                          <div
+                            className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10.5px] font-medium uppercase tracking-wide flex items-center gap-1.5"
+                            style={{
+                              background: "rgba(0,0,0,0.55)",
+                              color: "#fff",
+                              backdropFilter: "blur(6px)",
+                            }}
+                          >
+                            <Spinner size={10} />
+                            {mode}
+                          </div>
+                          {/* Center status */}
+                          <div
+                            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            <div className="flex flex-col items-center gap-2">
+                              <Spinner size={22} />
+                              <div className="text-[11px] font-medium">
+                                Painting your thumbnail…
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Caption rail skeleton */}
+                        <div className="px-3 py-2.5">
+                          <div
+                            className="h-3 rounded mb-1.5 animate-pulse"
+                            style={{
+                              width: "88%",
+                              background: "var(--bg-primary)",
+                            }}
+                          />
+                          <div
+                            className="h-3 rounded animate-pulse"
+                            style={{
+                              width: "62%",
+                              background: "var(--bg-primary)",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                 {history.map((t, idx) => (
                   <button
                     key={t.thumbnail_id}
