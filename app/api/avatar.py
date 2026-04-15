@@ -676,24 +676,22 @@ async def get_images(
     """
     Get generated image history from the database.
 
-    Returns a merged feed of:
-      • rows from `generated_images` (standard avatar/freestyle generations), and
-      • rows from `media` where `metadata.kind == 'thumbnail'` (thumbnails).
+    Thumbnails and standard avatar/freestyle generations all live in the
+    `generated_images` table — thumbnails are flagged by a `[thumbnail|…]`
+    prefix on the prompt column. The response's `kind` field reads that
+    prefix so the frontend can still badge thumbnails differently without
+    needing two round-trips or a separate endpoint.
 
-    ROBUSTNESS NOTE: the two sources are fetched in independent try/except
-    blocks so a transient failure on the thumbnails side can NEVER hide the
-    user's core image history — worst case we serve generated_images only and
-    log the thumbnail error. This endpoint is also called by the video
-    generator page's gallery picker, so any 500 here wipes videos too.
+    We use a single try/except with a safe fallback: on any DB failure we
+    return an empty list (not a 500) because this endpoint is also hit by
+    /dashboard/videos' gallery picker — a 500 here would blank BOTH pages.
 
-    - avatar_id (optional): filter by avatar (thumbnails excluded when set
-      because they're never bound to a specific character).
+    - avatar_id (optional): filter by avatar. Thumbnails are auto-excluded
+      when this is set (they're never bound to a character).
     - limit: max results (default 50, max 100).
     """
     limit = min(max(limit, 1), 100)
 
-    # ── 1. Avatar/freestyle images from `generated_images` ────────────────
-    gen_normalised: list[dict] = []
     try:
         query = (
             supabase.table("generated_images")
@@ -704,111 +702,35 @@ async def get_images(
         )
         if avatar_id:
             query = query.eq("avatar_id", avatar_id)
-        gen_rows = (query.execute().data) or []
-        gen_normalised = [
+        rows = (query.execute().data) or []
+    except Exception as err:
+        logger.error(f"/images: generated_images fetch failed: {err}")
+        rows = []
+
+    # Strip the `[thumbnail|mode|ratio]` prefix (and the legacy `[thumbnail:…]`
+    # variant) so users see clean prompt text in the gallery, and tag those
+    # rows with kind="thumbnail" for the frontend badge.
+    TAG_RE = re.compile(r"^\[thumbnail[|:][^\]]+\]\s*")
+
+    images = []
+    for row in rows:
+        prompt = row.get("prompt") or ""
+        is_thumbnail = bool(TAG_RE.match(prompt))
+        clean_prompt = TAG_RE.sub("", prompt) if is_thumbnail else prompt
+        images.append(
             {
-                "id": row["id"],
+                "image_id": row["id"],
                 "avatar_id": row.get("avatar_id"),
-                "prompt": row.get("prompt") or "",
+                "prompt": clean_prompt,
                 "image_url": row["image_url"],
                 "created_at": row.get("created_at"),
-                "kind": "image",
+                # Frontend badges this as "Thumb" when set; clients that
+                # ignore the field see identical behaviour to before.
+                "kind": "thumbnail" if is_thumbnail else "image",
             }
-            for row in gen_rows
-        ]
-    except Exception as gen_err:
-        # Don't 500 the whole response — just log and keep going. Better a
-        # partial list than an empty gallery.
-        logger.error(f"/images: generated_images fetch failed: {gen_err}")
+        )
 
-    # ── 2. Thumbnails from `media` (only when no avatar filter) ───────────
-    #
-    # Isolated in its own try/except so a schema mismatch, missing table,
-    # RLS issue or PostgREST oddity can't break the whole endpoint. The
-    # contract is: on any failure we return `gen_normalised` unchanged.
-    thumb_normalised: list[dict] = []
-    if not avatar_id:
-        try:
-            thumb_rows: list[dict] = []
-            try:
-                # Preferred: PostgREST JSONB operator filters server-side.
-                thumb_res = (
-                    supabase.table("media")
-                    .select("id, url, prompt, metadata, created_at")
-                    .eq("user_id", current_user["id"])
-                    .filter("metadata->>kind", "eq", "thumbnail")
-                    .order("created_at", desc=True)
-                    .limit(limit)
-                    .execute()
-                )
-                thumb_rows = thumb_res.data or []
-            except Exception as jsonb_err:
-                # Fallback: pull a window of recent rows and filter in Python.
-                logger.warning(
-                    f"/images: JSONB filter unsupported, falling back ({jsonb_err})"
-                )
-                fallback = (
-                    supabase.table("media")
-                    .select("id, url, prompt, metadata, created_at")
-                    .eq("user_id", current_user["id"])
-                    .order("created_at", desc=True)
-                    .limit(limit * 2)
-                    .execute()
-                )
-                thumb_rows = [
-                    r
-                    for r in (fallback.data or [])
-                    if (r.get("metadata") or {}).get("kind") == "thumbnail"
-                ][:limit]
-
-            # Strip the `[thumbnail:mode]` prefix we insert on generate so
-            # the gallery shows a clean prompt.
-            prefix_re = re.compile(r"^\[thumbnail:[^\]]+\]\s*")
-            for row in thumb_rows:
-                try:
-                    thumb_normalised.append(
-                        {
-                            "id": row["id"],
-                            "avatar_id": None,
-                            "prompt": prefix_re.sub("", row.get("prompt") or ""),
-                            "image_url": row["url"],
-                            "created_at": row.get("created_at"),
-                            "kind": "thumbnail",
-                        }
-                    )
-                except Exception as row_err:
-                    # Skip malformed rows instead of nuking the response.
-                    logger.warning(f"/images: skipping thumbnail row: {row_err}")
-                    continue
-        except Exception as thumb_err:
-            # Catch-all: any failure at all → thumbnails are silently omitted.
-            # The user still sees generated_images; thumbnail history is
-            # still visible in the Thumbnails tab via /thumbnail/history.
-            logger.error(
-                f"/images: thumbnail merge failed, returning generated_images only: {thumb_err}"
-            )
-            thumb_normalised = []
-
-    # ── 3. Merge, sort by created_at desc, apply limit ────────────────────
-    combined = gen_normalised + thumb_normalised
-    combined.sort(key=lambda r: r.get("created_at") or "", reverse=True)
-    combined = combined[:limit]
-
-    return {
-        "images": [
-            {
-                "image_id": img["id"],
-                "avatar_id": img.get("avatar_id"),
-                "prompt": img.get("prompt"),
-                "image_url": img["image_url"],
-                "created_at": img.get("created_at"),
-                # Lets the frontend badge thumbnails differently; clients
-                # that ignore the field are unaffected.
-                "kind": img.get("kind", "image"),
-            }
-            for img in combined
-        ]
-    }
+    return {"images": images}
 
 
 @router.get("/images/{image_id}")

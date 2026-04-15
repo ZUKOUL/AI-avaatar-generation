@@ -322,28 +322,33 @@ async def generate_thumbnail(
     )
     image_url = supabase.storage.from_("avatars").get_public_url(storage_path)
 
-    # Log this as a media row so it shows up in history. The `media` table is
-    # shared with image generation — we just tag the prompt with [thumbnail].
+    # Log this into `generated_images` so it shows up in both the thumbnail
+    # history AND the image generator gallery. We originally tried a
+    # separate `media` table but it was never migrated to production — that
+    # silent insert failure is why no thumbnails were appearing anywhere.
+    #
+    # Encoding scheme: the prompt column starts with a `[thumbnail|mode|ratio]`
+    # tag that the history endpoint splits back out. Using `|` as the
+    # delimiter (instead of `:`) keeps the tag unambiguous even when the
+    # aspect ratio itself contains a colon (e.g. "16:9"). The tag is
+    # stripped before display so users see their clean prompt.
     try:
-        supabase.table("media").insert(
+        supabase.table("generated_images").insert(
             {
+                "id": thumb_id,
                 "user_id": current_user["id"],
-                "type": "image",
-                "url": image_url,
-                "prompt": f"[thumbnail:{mode}] {prompt}",
-                "metadata": {
-                    "kind": "thumbnail",
-                    "mode": mode,
-                    "aspect_ratio": aspect_ratio,
-                    "youtube_url": used_youtube_url,
-                    "youtube_video_id": video_id,
-                    "title_text": title_text,
-                },
+                "avatar_id": None,  # thumbnails aren't bound to a character
+                "prompt": f"[thumbnail|{mode}|{aspect_ratio}] {prompt}",
+                "image_url": image_url,
+                "storage_path": storage_path,
             }
         ).execute()
     except Exception as db_err:
-        # Non-fatal — the image is still generated and downloadable.
-        logger.warning(f"media table insert failed (non-fatal): {db_err}")
+        # Non-fatal — the image is still generated and downloadable. But
+        # log loudly because this means history will be empty for this row.
+        logger.error(
+            f"generated_images insert failed for thumbnail {thumb_id}: {db_err}"
+        )
 
     if not is_admin(current_user):
         deduct_credits(
@@ -529,63 +534,79 @@ async def thumbnail_history(
     current_user: Annotated[User, Depends(get_current_user)],
     limit: int = 60,
 ):
-    """Fetch past thumbnails for the signed-in user, most recent first."""
+    """
+    Fetch past thumbnails for the signed-in user, most recent first.
+
+    Reads from `generated_images` (the same table that stores regular avatar
+    generations) and filters to rows whose prompt starts with our
+    `[thumbnail|mode|ratio]` tag. Using the shared table means thumbnails
+    automatically appear in the image-generator gallery as well, and
+    dodges the migration risk of a separate `media` table.
+    """
     limit = max(1, min(limit, 120))
     try:
-        # Filter by metadata.kind via PostgREST JSONB operator. Falls back to a
-        # Python-side filter if the DB client can't express the filter — the
-        # media table is not huge per user so the cost is negligible.
+        # Pull a window of rows and filter by the tag prefix in Python.
+        # Using LIKE server-side would also work but `ilike.like.[thumb...`
+        # syntax varies across supabase-py versions; the Python filter is
+        # trivially cheap per user (thousands of rows at most) and has no
+        # compatibility risk.
+        fetch_n = min(limit * 3, 300)
         try:
             res = (
-                supabase.table("media")
-                .select("id, url, prompt, metadata, created_at")
+                supabase.table("generated_images")
+                .select("id, prompt, image_url, created_at")
                 .eq("user_id", current_user["id"])
-                .filter("metadata->>kind", "eq", "thumbnail")
+                .is_("avatar_id", "null")
                 .order("created_at", desc=True)
-                .limit(limit)
+                .limit(fetch_n)
                 .execute()
             )
-            rows = res.data or []
-        except Exception:
-            res = (
-                supabase.table("media")
-                .select("id, url, prompt, metadata, created_at")
-                .eq("user_id", current_user["id"])
-                .order("created_at", desc=True)
-                .limit(limit * 2)
-                .execute()
-            )
-            rows = [
-                r
-                for r in (res.data or [])
-                if (r.get("metadata") or {}).get("kind") == "thumbnail"
-            ][:limit]
+            raw_rows = res.data or []
+        except Exception as fetch_err:
+            logger.error(f"/thumbnail/history: generated_images fetch failed: {fetch_err}")
+            raw_rows = []
 
-        def _clean_prompt(p: Optional[str]) -> str:
-            if not p:
-                return ""
-            return re.sub(r"^\[thumbnail:[^\]]+\]\s*", "", p)
+        # Accept both the new `[thumbnail|mode|ratio]` tag and the legacy
+        # `[thumbnail:mode]` format so older rows (if any were persisted
+        # during the brief window where this code existed) still render.
+        TAG_RE = re.compile(r"^\[thumbnail([|:])([^\]]+)\]\s*")
 
-        items = []
-        for row in rows:
-            meta = row.get("metadata") or {}
+        items: list[dict] = []
+        for row in raw_rows:
+            prompt = row.get("prompt") or ""
+            m = TAG_RE.match(prompt)
+            if not m:
+                continue
+            sep = m.group(1)
+            parts = m.group(2).split(sep)
+            mode = parts[0] if parts else "prompt"
+            aspect_ratio = parts[1] if len(parts) > 1 else "16:9"
             items.append(
                 {
                     "thumbnail_id": row["id"],
-                    "image_url": row["url"],
-                    "prompt": _clean_prompt(row.get("prompt")),
-                    "mode": meta.get("mode") or "prompt",
-                    "aspect_ratio": meta.get("aspect_ratio") or "16:9",
-                    "source_thumbnail_url": meta.get("youtube_url"),
-                    "youtube_video_id": meta.get("youtube_video_id"),
-                    "title_text": meta.get("title_text"),
+                    "image_url": row["image_url"],
+                    "prompt": TAG_RE.sub("", prompt),
+                    "mode": mode,
+                    "aspect_ratio": aspect_ratio,
+                    # These fields used to come from the `media.metadata`
+                    # JSONB column — we've intentionally dropped them from
+                    # storage to keep the table schema simple. The history
+                    # grid only uses mode + aspect ratio anyway.
+                    "source_thumbnail_url": None,
+                    "youtube_video_id": None,
+                    "title_text": None,
                     "created_at": row.get("created_at"),
                 }
             )
+            if len(items) >= limit:
+                break
+
         return {"thumbnails": items, "count": len(items)}
     except Exception as e:
+        # Never 500 the client — history is non-critical, a transient error
+        # shouldn't blank the grid. Log and return empty.
         logger.error(f"Failed to fetch thumbnail history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"thumbnails": [], "count": 0}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
