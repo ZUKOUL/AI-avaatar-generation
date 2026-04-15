@@ -19,13 +19,19 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          # Direct Postgres connection used by the auto-migration runner on
+          # boot. Grab the value from Supabase Dashboard → Settings →
+          # Database → Connect → Session pooler URI (replace [YOUR-PASSWORD]
+          # with the real password). Store as a GitHub repo secret named
+          # SUPABASE_DB_URL and it propagates to EC2 on every deploy.
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GEMINI_API_KEY,YOUTUBE_API_KEY
+          envs: GEMINI_API_KEY,YOUTUBE_API_KEY,SUPABASE_DB_URL
           script: |
             echo "========================================="
             echo "🚀 Starting deployment..."
@@ -54,6 +60,17 @@ jobs:
                 sed -i "s|^YOUTUBE_API_KEY=.*|YOUTUBE_API_KEY=$YOUTUBE_API_KEY|" .env
               else
                 echo "YOUTUBE_API_KEY=$YOUTUBE_API_KEY" >> .env
+              fi
+            fi
+
+            # Update SUPABASE_DB_URL in .env — enables auto-migrations on boot.
+            # Uses '|' as the sed delimiter because the URL contains '/' and '@'.
+            if [ -n "$SUPABASE_DB_URL" ]; then
+              echo "🔑 Updating SUPABASE_DB_URL..."
+              if [ -f .env ] && grep -q "^SUPABASE_DB_URL=" .env; then
+                sed -i "s|^SUPABASE_DB_URL=.*|SUPABASE_DB_URL=$SUPABASE_DB_URL|" .env
+              else
+                echo "SUPABASE_DB_URL=$SUPABASE_DB_URL" >> .env
               fi
             fi
 
