@@ -241,13 +241,24 @@ async def train_product(
             # error below if we still don't have enough photos.
             logger.warning(f"Product image scrape failed (ignored): {e}")
 
-    if len(file_bytes_list) < MIN_PRODUCT_IMAGES:
+    # Validation threshold depends on how we got here:
+    #   - Pure upload flow → keep the strict MIN_PRODUCT_IMAGES (3) rule.
+    #   - URL-only flow → accept any non-empty scrape result. Gemini 3
+    #     Pro Image locks product identity well from a single clean hero
+    #     shot, and many sites (AliExpress, Amazon) only surface the
+    #     `og:image` in their static HTML — forcing 3 would push the
+    #     feature back to "upload manually" which defeats the point.
+    url_only_flow = not uploaded_files and source_url_clean
+    min_required = 1 if url_only_flow else MIN_PRODUCT_IMAGES
+
+    if len(file_bytes_list) < min_required:
         if source_url_clean and not scraped_from_url:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Couldn't fetch enough product photos from the link. "
-                    f"Please upload at least {MIN_PRODUCT_IMAGES} photos manually."
+                    "Couldn't fetch product photos from that link. The page "
+                    "may be JavaScript-rendered or blocked. Please upload "
+                    f"at least {MIN_PRODUCT_IMAGES} photos manually."
                 ),
             )
         raise HTTPException(

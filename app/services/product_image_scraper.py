@@ -36,9 +36,11 @@ from app.services.product_analyzer import _BROWSER_HEADERS, _is_safe_url
 
 logger = logging.getLogger(__name__)
 
-# How many distinct candidate URLs we bother downloading. Most product
-# pages have 4-8 gallery shots; cap keeps us fast and polite.
-_MAX_CANDIDATES = 18
+# How many distinct candidate URLs we bother downloading. The regex-over-
+# raw-HTML fallback yields a lot of candidates (sprites, CDN variants,
+# thumbnails) so we budget generously — per-image download has its own
+# timeout cap and we stop as soon as `max_images` valid photos are kept.
+_MAX_CANDIDATES = 40
 
 # How many images we ultimately return to the caller. Matches the upper
 # bound of the training endpoint's MAX_PRODUCT_IMAGES (20).
@@ -46,8 +48,9 @@ _MAX_KEEP = 12
 
 # Minimum image dimensions to count as a real product photo (filters out
 # tiny thumbnails, tracking pixels, "1x1" spacers). Product gallery shots
-# are usually >= 500×500.
-_MIN_DIMENSION = 350
+# are usually >= 500×500 but AliExpress/Amazon thumbs can be 300–400px,
+# and those are still usable as training refs.
+_MIN_DIMENSION = 280
 
 # Maximum download size per image — defensive, prevents a 50 MB hero TIFF
 # from blowing up memory. Product photos are typically < 2 MB.
@@ -186,23 +189,81 @@ def _extract_meta_images(soup: BeautifulSoup, base_url: str) -> list[str]:
     return urls
 
 
+def _largest_from_srcset(srcset: str) -> Optional[str]:
+    """Pick the highest-resolution entry from a `srcset` attribute.
+    Descriptors look like "url 800w" or "url 2x" — we rank by the number
+    we can parse, fall back to the last entry (usually the biggest)."""
+    if not srcset:
+        return None
+    best_url: Optional[str] = None
+    best_score = -1.0
+    for chunk in srcset.split(","):
+        parts = chunk.strip().split()
+        if not parts:
+            continue
+        url = parts[0]
+        score = 0.0
+        if len(parts) > 1:
+            desc = parts[1].lower()
+            # "800w" → 800, "2x" → 2000 (rough heuristic so 2x beats 400w)
+            num = re.match(r"([\d.]+)", desc)
+            if num:
+                try:
+                    val = float(num.group(1))
+                    score = val * 1000 if desc.endswith("x") else val
+                except ValueError:
+                    score = 0.0
+        if score > best_score:
+            best_score = score
+            best_url = url
+    return best_url
+
+
 def _extract_img_tags(soup: BeautifulSoup, base_url: str) -> list[str]:
     """Fallback: every `<img>` tag on the page. We'll filter the list
     afterwards by downloading a handful and checking actual dimensions."""
     urls: list[str] = []
     for img in soup.find_all("img"):
-        # Prefer data-src (lazy-load) then srcset (first entry) then src
+        # Prefer data-src (lazy-load) then largest srcset entry then src
+        srcset_best = _largest_from_srcset(img.get("srcset", ""))
         candidate = (
             img.get("data-src")
             or img.get("data-lazy-src")
             or img.get("data-original")
-            or img.get("srcset", "").split(",")[0].strip().split(" ")[0]
+            or img.get("data-zoom-image")
+            or srcset_best
             or img.get("src")
         )
         if candidate:
             absolute = _absolutize(base_url, candidate)
             if absolute:
                 urls.append(absolute)
+    return urls
+
+
+# Regex to fish image URLs out of raw HTML — matches jpg/jpeg/png/webp with
+# an optional query string. Case-insensitive, doesn't span whitespace or
+# common delimiter characters. Necessary because AliExpress, Amazon, SHEIN,
+# Temu, etc. render galleries from JS and embed the real image URLs inside
+# `<script>` JSON blobs that BeautifulSoup's <img> walker never sees.
+_RAW_URL_RE = re.compile(
+    r'https?://[^\s"\'<>\\]+?\.(?:jpg|jpeg|png|webp)(?:_\d+x\d+[^\s"\'<>\\]*)?(?:\?[^\s"\'<>\\]*)?',
+    re.IGNORECASE,
+)
+
+
+def _extract_raw_html_urls(html: str) -> list[str]:
+    """Last-ditch regex scan over the whole HTML string. Picks up image
+    URLs embedded in inline JS, JSON `<script>` blobs (window.runParams on
+    AliExpress, ShopifyAnalytics.meta on Shopify, __NEXT_DATA__ on Next.js
+    sites), data-attributes the tag walker missed, etc. Cheap fallback —
+    we filter with `_looks_like_product_image` and PIL afterwards."""
+    urls: list[str] = []
+    for match in _RAW_URL_RE.finditer(html):
+        url = match.group(0)
+        # JSON often escapes slashes as \/ — normalise before dedupe
+        url = url.replace("\\/", "/")
+        urls.append(url)
     return urls
 
 
@@ -304,13 +365,18 @@ async def scrape_product_images(url: str, max_images: int = _MAX_KEEP) -> list[b
         logger.warning(f"HTML parse failed for image scrape: {e}")
         return []
 
-    # Priority-ordered candidate list
+    # Priority-ordered candidate list. Higher-priority extractors run first
+    # so their URLs survive dedupe; the regex fallback sweeps up anything
+    # hidden in JS/JSON blobs that the DOM walkers missed.
     candidates: list[str] = []
     candidates.extend(_extract_jsonld_images(soup, url))
     candidates.extend(_extract_meta_images(soup, url))
     candidates.extend(_extract_img_tags(soup, url))
+    candidates.extend(_extract_raw_html_urls(html))
     candidates = [u for u in candidates if _looks_like_product_image(u)]
     candidates = _dedupe_preserving_order(candidates)
+    # Bigger pool to download from — many JS-rendered sites need us to sift
+    # through a lot of sprite/thumbnail URLs before we find real product shots.
     candidates = candidates[:_MAX_CANDIDATES]
 
     if not candidates:
