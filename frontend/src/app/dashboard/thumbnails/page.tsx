@@ -315,6 +315,14 @@ export default function ThumbnailStudio() {
   const [subjectPopoverId, setSubjectPopoverId] = useState<string | null>(null);
   const [subjectPopoverSearch, setSubjectPopoverSearch] = useState("");
   const subjectPopoverRef = useRef<HTMLDivElement | null>(null);
+  // Which UI the popover shows: "character" = avatar picker, "describe" =
+  // free-form "what should happen with this thing?" input. `null` means
+  // "use the default for the box's kind" (person/custom → character,
+  // object/text/other → describe). The user can override either way.
+  const [subjectPopoverMode, setSubjectPopoverMode] = useState<
+    "character" | "describe" | null
+  >(null);
+  const [subjectDescribeText, setSubjectDescribeText] = useState("");
 
   const refInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
@@ -464,6 +472,37 @@ export default function ThumbnailStudio() {
       setSubjectPopoverSearch("");
     }
   }, [detectedSubjects, subjectPopoverId]);
+
+  /* ─── Reset popover-specific state when we switch boxes ───
+   * Otherwise "describe change" text from box A would bleed into box B. */
+  useEffect(() => {
+    setSubjectPopoverMode(null);
+    setSubjectDescribeText("");
+  }, [subjectPopoverId]);
+
+  /* ─── Close popovers on scroll ───
+   * The chip dropdown is `position: fixed` so when the user scrolls the main
+   * content, the dropdown stays glued to the same viewport coordinates
+   * instead of following the chip that spawned it — it looks like the menu
+   * is chasing the user down the page. The subject popover is `absolute`
+   * inside the preview so it normally scrolls with the image, but on short
+   * viewports the user can still scroll it off-screen. Easiest fix for both:
+   * dismiss on any scroll, capture-phase so we catch scrollable ancestors
+   * (the dashboard `.overflow-y-auto` wrapper, the page, etc.). */
+  useEffect(() => {
+    if (!chipDropdown && !subjectPopoverId) return;
+    const onScroll = () => {
+      if (chipDropdown) setChipDropdown(null);
+      if (subjectPopoverId) {
+        setSubjectPopoverId(null);
+        setSubjectPopoverSearch("");
+      }
+    };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll, { capture: true });
+    };
+  }, [chipDropdown, subjectPopoverId]);
 
   /* ─── Reference images (manual upload) ─── */
   const handleRefFiles = (files: FileList | File[]) => {
@@ -1445,11 +1484,16 @@ export default function ThumbnailStudio() {
       const p = findPairedAvatar(pairedSubject);
       status = `@${pairedSubject.mention_name} will be replaced by @${p?.name ?? "?"}. Click the box to change, or hit Generate.`;
     } else if (selected) {
-      status = `@${selected.mention_name} is selected — click the box again to pick a character, or type an avatar name after @${selected.mention_name} in the prompt.`;
+      status = `@${selected.mention_name} is selected — click it again to pick a character or describe a change.`;
     } else if (aiSubjects.length > 0 || customSubjects.length > 0) {
-      status = "Click a box to pick a character to swap it with. × removes a detection you don't want.";
+      // Nudge the user toward both affordances: click an existing box to act
+      // on it, and drag-to-draw when the AI missed someone (typical for
+      // people in crowd shots, small faces, or stylised art).
+      status = "Click a box to swap with a character or describe a change. Missed someone? Drag on the image to draw your own box.";
     } else {
-      status = "We'll remix this thumbnail based on your prompt below.";
+      status = detectionEnabled
+        ? "Nothing detected yet — drag on the image to mark a region to edit, or just describe your change below."
+        : "We'll remix this thumbnail based on your prompt below.";
     }
 
     return (
@@ -1676,11 +1720,23 @@ export default function ThumbnailStudio() {
           );
         })}
 
-        {/* ── Subject → avatar popover ──
+        {/* ── Subject action popover ──
             Anchored to the clicked detection box. Opens below when there's
-            room, flips above otherwise. Picking an avatar calls
-            pairSubjectWithAvatar which rewrites the prompt into the canonical
-            `@person1 @Nathan` pair so handleGenerate wires everything up. */}
+            room, flips above otherwise.
+
+            The popover has TWO modes, toggled via a tab row:
+              • "character" → avatar picker. pairSubjectWithAvatar rewrites
+                the prompt into the canonical `@person1 @Nathan` pair so
+                handleGenerate wires everything up.
+              • "describe" → free-form "what should happen with this thing?"
+                input. Useful when the box isn't a person (a car, a logo,
+                a background element). Appends a targeted directive to the
+                prompt like `@object1 change it to neon blue`.
+
+            The default mode is picked from the box's `kind`: person/custom
+            start in "character", everything else starts in "describe".
+            The user can flip either way — e.g., clicking a car and deciding
+            to replace it with a human avatar after all. */}
         {(() => {
           if (!subjectPopoverId) return null;
           const s = detectedSubjects.find((x) => x.id === subjectPopoverId);
@@ -1698,6 +1754,63 @@ export default function ThumbnailStudio() {
             ? avatars.filter((a) => a.name.toLowerCase().includes(q))
             : avatars;
           const paired = findPairedAvatar(s);
+          const isPersonLike = s.kind === "person" || s.kind === "custom";
+          const activeMode: "character" | "describe" =
+            subjectPopoverMode ?? (isPersonLike ? "character" : "describe");
+
+          // Append a directive line to the prompt, separated by a newline
+          // so the user can see the boundaries between targeted edits.
+          const appendDirective = (line: string) => {
+            setPrompt((p) => {
+              const trimmed = p.replace(/\s+$/, "");
+              if (!trimmed) return line;
+              return `${trimmed}\n${line}`;
+            });
+          };
+
+          const applyDescribe = () => {
+            const text = subjectDescribeText.trim();
+            if (!text) return;
+            appendDirective(`@${s.mention_name} ${text}`);
+            setSubjectPopoverId(null);
+            setSubjectPopoverSearch("");
+            setSubjectDescribeText("");
+            setSubjectPopoverMode(null);
+          };
+          const applyRemove = () => {
+            appendDirective(`Remove @${s.mention_name} from the image.`);
+            setSubjectPopoverId(null);
+            setSubjectPopoverSearch("");
+            setSubjectDescribeText("");
+            setSubjectPopoverMode(null);
+          };
+
+          // Kind-specific suggestions for the describe mode — pre-fill the
+          // textarea on click so the user can tweak before applying.
+          const describeSuggestions: string[] =
+            s.kind === "text"
+              ? [
+                  "change the text to ",
+                  "remove the text",
+                  "make the text larger and bolder",
+                ]
+              : s.kind === "object"
+              ? [
+                  "change the color to ",
+                  "replace it with ",
+                  "make it look brand new",
+                ]
+              : [
+                  "change it to ",
+                  "remove it from the image",
+                  "make it more dramatic",
+                ];
+
+          const titleForMode =
+            activeMode === "character"
+              ? `Replace @${s.mention_name}`
+              : `Change @${s.mention_name}`;
+
           return (
             <div
               ref={subjectPopoverRef}
@@ -1748,7 +1861,7 @@ export default function ThumbnailStudio() {
                     className="text-[12px] font-semibold leading-tight"
                     style={{ color: "var(--text-primary)" }}
                   >
-                    Replace @{s.mention_name}
+                    {titleForMode}
                   </div>
                   <div
                     className="text-[11px] leading-tight truncate"
@@ -1768,7 +1881,7 @@ export default function ThumbnailStudio() {
                   style={{
                     color: "var(--text-muted)",
                     background: "transparent",
-                    opacity: 0.7,
+                    opacity: 0.85,
                   }}
                   aria-label="Close"
                 >
@@ -1776,212 +1889,400 @@ export default function ThumbnailStudio() {
                 </button>
               </div>
 
-              {/* Paired-avatar banner (if any) — lets the user unpair in one
-                  click without having to open the prompt and delete it. */}
-              {paired && (
-                <div
-                  className="px-3 py-2 flex items-center gap-2"
-                  style={{
-                    background: "var(--bg-primary)",
-                    borderBottom: "1px solid var(--border-color)",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={paired.thumbnail}
-                    alt={paired.name}
-                    className="w-6 h-6 rounded-full object-cover"
-                    style={{ border: "1.5px solid var(--border-color)" }}
-                    draggable={false}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className="text-[11px] leading-tight"
-                      style={{ color: "var(--text-muted)" }}
+              {/* Mode tabs — let the user override the default for this kind.
+                  E.g., on a `text` box they can still pick "character" if
+                  they want to replace the text with an actual person. */}
+              <div
+                className="flex"
+                style={{ borderBottom: "1px solid var(--border-color)" }}
+              >
+                {(["character", "describe"] as const).map((m) => {
+                  const active = activeMode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setSubjectPopoverMode(m)}
+                      className="flex-1 text-[11.5px] font-medium py-2 transition-colors"
+                      style={{
+                        color: active ? accent : "var(--text-muted)",
+                        background: active
+                          ? `${accent}12`
+                          : "transparent",
+                        borderBottom: `2px solid ${active ? accent : "transparent"}`,
+                      }}
                     >
-                      Currently
-                    </div>
+                      {m === "character" ? "Swap character" : "Describe change"}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeMode === "character" ? (
+                <>
+                  {/* Paired-avatar banner (if any) — lets the user unpair in
+                      one click without having to open the prompt and delete
+                      it. */}
+                  {paired && (
                     <div
-                      className="text-[12px] font-semibold leading-tight truncate"
-                      style={{ color: "var(--text-primary)" }}
+                      className="px-3 py-2 flex items-center gap-2"
+                      style={{
+                        background: "var(--bg-primary)",
+                        borderBottom: "1px solid var(--border-color)",
+                      }}
                     >
-                      @{paired.name}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Strip the avatar mention out; keep the subject mention
-                      // so the user can still target the box.
-                      const avatarRe = new RegExp(
-                        `\\s*@${escReg(paired.name)}(?=\\s|$)`,
-                        "gi",
-                      );
-                      setPrompt((p) =>
-                        p.replace(avatarRe, "").replace(/\s{2,}/g, " ").trimStart(),
-                      );
-                      setMentionedAvatarIds((prev) =>
-                        prev.filter((id) => id !== paired.avatar_id),
-                      );
-                    }}
-                    className="text-[11px] rounded-md px-2 py-1"
-                    style={{
-                      color: "var(--text-muted)",
-                      background: "transparent",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    Unpair
-                  </button>
-                </div>
-              )}
-
-              {/* Search */}
-              {avatars.length > 3 && (
-                <div
-                  className="px-3 pt-2.5 pb-1.5"
-                  style={{ borderBottom: "1px solid var(--border-color)" }}
-                >
-                  <div
-                    className="flex items-center gap-1.5 px-2 rounded-md"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <Search size={12} />
-                    <input
-                      autoFocus
-                      type="text"
-                      value={subjectPopoverSearch}
-                      onChange={(e) => setSubjectPopoverSearch(e.target.value)}
-                      placeholder="Search characters…"
-                      className="flex-1 py-1.5 bg-transparent outline-none text-[12px]"
-                      style={{ color: "var(--text-primary)" }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Avatar list (compact rows, scrollable) */}
-              <div className="max-h-[220px] overflow-y-auto">
-                {avatars.length === 0 ? (
-                  <div
-                    className="px-3 py-5 text-center text-[12px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    No characters yet. Create one below.
-                  </div>
-                ) : visibleAvatars.length === 0 ? (
-                  <div
-                    className="px-3 py-5 text-center text-[12px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    No match for &quot;{subjectPopoverSearch}&quot;.
-                  </div>
-                ) : (
-                  visibleAvatars.map((a) => {
-                    const active = paired?.avatar_id === a.avatar_id;
-                    return (
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={paired.thumbnail}
+                        alt={paired.name}
+                        className="w-6 h-6 rounded-full object-cover"
+                        style={{ border: "1.5px solid var(--border-color)" }}
+                        draggable={false}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-[11px] leading-tight"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Currently
+                        </div>
+                        <div
+                          className="text-[12px] font-semibold leading-tight truncate"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          @{paired.name}
+                        </div>
+                      </div>
                       <button
-                        key={a.avatar_id}
                         type="button"
-                        onClick={() => pairSubjectWithAvatar(s, a)}
-                        className="w-full px-3 py-2 flex items-center gap-2.5 text-left hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          // Strip the avatar mention out; keep the subject
+                          // mention so the user can still target the box.
+                          const avatarRe = new RegExp(
+                            `\\s*@${escReg(paired.name)}(?=\\s|$)`,
+                            "gi",
+                          );
+                          setPrompt((p) =>
+                            p
+                              .replace(avatarRe, "")
+                              .replace(/\s{2,}/g, " ")
+                              .trimStart(),
+                          );
+                          setMentionedAvatarIds((prev) =>
+                            prev.filter((id) => id !== paired.avatar_id),
+                          );
+                        }}
+                        className="text-[11px] rounded-md px-2 py-1"
                         style={{
-                          background: active ? `${accent}1f` : "transparent",
-                          opacity: active ? 1 : 0.92,
+                          color: "var(--text-muted)",
+                          background: "transparent",
+                          border: "1px solid var(--border-color)",
                         }}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={a.thumbnail}
-                          alt={a.name}
-                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                          style={{ border: "1.5px solid var(--border-color)" }}
-                          draggable={false}
+                        Unpair
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Friendly nudge when the user opens "swap character" on
+                      a non-person box — the avatar picker still works but
+                      the result is less predictable. */}
+                  {!isPersonLike && !paired && (
+                    <div
+                      className="px-3 py-2 text-[11px]"
+                      style={{
+                        color: "var(--text-muted)",
+                        background: "var(--bg-primary)",
+                        borderBottom: "1px solid var(--border-color)",
+                      }}
+                    >
+                      This box isn&apos;t tagged as a person. Picking a character
+                      will try to replace it with one — works best on humans.
+                    </div>
+                  )}
+
+                  {/* Search */}
+                  {avatars.length > 3 && (
+                    <div
+                      className="px-3 pt-2.5 pb-1.5"
+                      style={{ borderBottom: "1px solid var(--border-color)" }}
+                    >
+                      <div
+                        className="flex items-center gap-1.5 px-2 rounded-md"
+                        style={{
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-color)",
+                        }}
+                      >
+                        <Search size={12} />
+                        <input
+                          autoFocus
+                          type="text"
+                          value={subjectPopoverSearch}
+                          onChange={(e) =>
+                            setSubjectPopoverSearch(e.target.value)
+                          }
+                          placeholder="Search characters…"
+                          className="flex-1 py-1.5 bg-transparent outline-none text-[12px]"
+                          style={{ color: "var(--text-primary)" }}
                         />
-                        <div className="min-w-0 flex-1">
-                          <div
-                            className="text-[12.5px] font-semibold leading-tight truncate"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {a.name}
-                          </div>
-                          <div
-                            className="text-[10.5px] leading-tight truncate"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            @{a.name}
-                          </div>
-                        </div>
-                        {active && (
-                          <div
-                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Avatar list (compact rows, scrollable) */}
+                  <div className="max-h-[220px] overflow-y-auto">
+                    {avatars.length === 0 ? (
+                      <div
+                        className="px-3 py-5 text-center text-[12px]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        No characters yet. Create one below.
+                      </div>
+                    ) : visibleAvatars.length === 0 ? (
+                      <div
+                        className="px-3 py-5 text-center text-[12px]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        No match for &quot;{subjectPopoverSearch}&quot;.
+                      </div>
+                    ) : (
+                      visibleAvatars.map((a) => {
+                        const active = paired?.avatar_id === a.avatar_id;
+                        return (
+                          <button
+                            key={a.avatar_id}
+                            type="button"
+                            onClick={() => pairSubjectWithAvatar(s, a)}
+                            className="w-full px-3 py-2 flex items-center gap-2.5 text-left hover:opacity-100 transition-opacity"
                             style={{
-                              background: accent,
-                              color: "#fff",
+                              background: active ? `${accent}1f` : "transparent",
+                              opacity: active ? 1 : 0.92,
                             }}
                           >
-                            ACTIVE
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={a.thumbnail}
+                              alt={a.name}
+                              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                              style={{
+                                border: "1.5px solid var(--border-color)",
+                              }}
+                              draggable={false}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div
+                                className="text-[12.5px] font-semibold leading-tight truncate"
+                                style={{ color: "var(--text-primary)" }}
+                              >
+                                {a.name}
+                              </div>
+                              <div
+                                className="text-[10.5px] leading-tight truncate"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                @{a.name}
+                              </div>
+                            </div>
+                            {active && (
+                              <div
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                                style={{
+                                  background: accent,
+                                  color: "#fff",
+                                }}
+                              >
+                                ACTIVE
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
 
-              {/* Footer actions */}
-              <div
-                className="flex items-stretch gap-0 border-t"
-                style={{ borderColor: "var(--border-color)" }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Open the existing "Add character" popover in Upload mode
-                    // and close this one — the user can create a new face and
-                    // then come back to wire it up.
-                    setSubjectPopoverId(null);
-                    setSubjectPopoverSearch("");
-                    setPickerTab("upload");
-                    setCharPickerOpen(true);
-                  }}
-                  className="flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 text-[11.5px] font-medium"
-                  style={{
-                    color: "var(--text-secondary)",
-                    background: "transparent",
-                  }}
-                >
-                  <Plus size={12} />
-                  New character
-                </button>
-                <div
-                  style={{
-                    width: 1,
-                    background: "var(--border-color)",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Fallback: just drop the @subject mention in the prompt
-                    // (old behavior) and let the user type the replacement.
-                    toggleSubjectMentionRef.current(s);
-                    setSubjectPopoverId(null);
-                    setSubjectPopoverSearch("");
-                  }}
-                  className="flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 text-[11.5px] font-medium"
-                  style={{
-                    color: "var(--text-secondary)",
-                    background: "transparent",
-                  }}
-                  title="Insert @mention only — type the replacement yourself"
-                >
-                  Just mention
-                </button>
-              </div>
+                  {/* Footer actions */}
+                  <div
+                    className="flex items-stretch gap-0 border-t"
+                    style={{ borderColor: "var(--border-color)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Open the existing "Add character" popover in Upload
+                        // mode and close this one — the user can create a new
+                        // face and then come back to wire it up.
+                        setSubjectPopoverId(null);
+                        setSubjectPopoverSearch("");
+                        setPickerTab("upload");
+                        setCharPickerOpen(true);
+                      }}
+                      className="flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 text-[11.5px] font-medium"
+                      style={{
+                        color: "var(--text-secondary)",
+                        background: "transparent",
+                      }}
+                    >
+                      <Plus size={12} />
+                      New character
+                    </button>
+                    <div
+                      style={{
+                        width: 1,
+                        background: "var(--border-color)",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Fallback: just drop the @subject mention in the
+                        // prompt and let the user type the replacement.
+                        toggleSubjectMentionRef.current(s);
+                        setSubjectPopoverId(null);
+                        setSubjectPopoverSearch("");
+                      }}
+                      className="flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 text-[11.5px] font-medium"
+                      style={{
+                        color: "var(--text-secondary)",
+                        background: "transparent",
+                      }}
+                      title="Insert @mention only — type the replacement yourself"
+                    >
+                      Just mention
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Describe-change body.
+                      A small textarea lets the user type what should happen
+                      with this region. On Apply we append a targeted
+                      directive (`@objectN <text>`) to the main prompt so
+                      handleGenerate still crops to this box via target_label
+                      — i.e., the AI knows WHERE to make the change, not just
+                      WHAT. */}
+                  <div className="p-3">
+                    <textarea
+                      autoFocus
+                      value={subjectDescribeText}
+                      onChange={(e) => setSubjectDescribeText(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Cmd/Ctrl+Enter submits — friendlier than hunting
+                        // for the Apply button.
+                        if (
+                          (e.metaKey || e.ctrlKey) &&
+                          e.key === "Enter"
+                        ) {
+                          e.preventDefault();
+                          applyDescribe();
+                        }
+                      }}
+                      placeholder={
+                        s.kind === "text"
+                          ? "e.g., change the text to 'HOT DEAL'"
+                          : s.kind === "object"
+                          ? "e.g., change the color to neon red"
+                          : "e.g., make it look brand new"
+                      }
+                      rows={3}
+                      className="w-full px-2.5 py-2 text-[12.5px] rounded-md resize-none outline-none"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                    {/* Quick-fill suggestions — tapping one pre-fills the
+                        textarea so the user can tweak and hit Apply. */}
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {describeSuggestions.map((sug) => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => setSubjectDescribeText(sug)}
+                          className="text-[10.5px] px-2 py-1 rounded"
+                          style={{
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {sug.trim() || "…"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Primary actions */}
+                  <div
+                    className="flex items-stretch gap-0 border-t"
+                    style={{ borderColor: "var(--border-color)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={applyRemove}
+                      className="flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 text-[11.5px] font-medium"
+                      style={{
+                        color: "var(--text-secondary)",
+                        background: "transparent",
+                      }}
+                      title="Remove this element from the image"
+                    >
+                      Remove from image
+                    </button>
+                    <div
+                      style={{
+                        width: 1,
+                        background: "var(--border-color)",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={applyDescribe}
+                      disabled={!subjectDescribeText.trim()}
+                      className="flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 text-[11.5px] font-semibold"
+                      style={{
+                        color: subjectDescribeText.trim()
+                          ? "#fff"
+                          : "var(--text-muted)",
+                        background: subjectDescribeText.trim()
+                          ? accent
+                          : "transparent",
+                        opacity: subjectDescribeText.trim() ? 1 : 0.5,
+                        cursor: subjectDescribeText.trim()
+                          ? "pointer"
+                          : "not-allowed",
+                      }}
+                      title="Apply this change — Cmd/Ctrl+Enter"
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  {/* Footer: fall back to raw @mention insertion */}
+                  <div
+                    className="border-t"
+                    style={{ borderColor: "var(--border-color)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleSubjectMentionRef.current(s);
+                        setSubjectPopoverId(null);
+                        setSubjectPopoverSearch("");
+                      }}
+                      className="w-full px-3 py-2 flex items-center justify-center gap-1.5 text-[11px]"
+                      style={{
+                        color: "var(--text-muted)",
+                        background: "transparent",
+                      }}
+                      title="Insert @mention only — type the replacement yourself"
+                    >
+                      Just insert @{s.mention_name}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           );
         })()}
