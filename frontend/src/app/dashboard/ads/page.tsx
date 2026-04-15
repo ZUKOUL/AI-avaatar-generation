@@ -107,6 +107,9 @@ const FALLBACK_TEMPLATES: Template[] = [
 interface PendingProduct {
   name: string;
   previewUrl: string | null;
+  /** True when training from a URL with no manual uploads — the skeleton
+   *  shows a "fetching photos from the link" copy instead of the default. */
+  fromUrlOnly?: boolean;
 }
 
 export default function AdsPage() {
@@ -230,8 +233,9 @@ export default function AdsPage() {
     formData: FormData,
     previewUrl: string | null,
     name: string,
+    fromUrlOnly: boolean,
   ) => {
-    setPendingProduct({ name, previewUrl });
+    setPendingProduct({ name, previewUrl, fromUrlOnly });
     setTrainError("");
     try {
       const res = await adsAPI.trainProduct(formData);
@@ -775,10 +779,10 @@ export default function AdsPage() {
       {showCreator && (
         <CreateProductModal
           onClose={() => setShowCreator(false)}
-          onSubmit={(formData, previewUrl, name) => {
+          onSubmit={(formData, previewUrl, name, fromUrlOnly) => {
             setShowCreator(false);
             // Fire-and-forget — the page shows a skeleton card until it resolves.
-            void handleTrainProduct(formData, previewUrl, name);
+            void handleTrainProduct(formData, previewUrl, name, fromUrlOnly);
           }}
         />
       )}
@@ -1122,12 +1126,16 @@ function SkeletonProductCard({ pending }: { pending: PendingProduct }) {
         style={{ color: "#fff" }}
       >
         <Spinner size={22} />
-        <p className="text-[12px] font-semibold tracking-wide">Training product…</p>
+        <p className="text-[12px] font-semibold tracking-wide">
+          {pending.fromUrlOnly ? "Fetching photos…" : "Training product…"}
+        </p>
         <p
           className="text-[10.5px]"
           style={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.35 }}
         >
-          Uploading photos and analysing the product. This takes ~20–40 s.
+          {pending.fromUrlOnly
+            ? "Reading the product page and pulling photos. This takes ~30–60 s."
+            : "Uploading photos and analysing the product. This takes ~20–40 s."}
         </p>
       </div>
 
@@ -1489,7 +1497,12 @@ function CreateProductModal({
 }: {
   onClose: () => void;
   /** Hands the form payload back to the page; modal closes immediately. */
-  onSubmit: (formData: FormData, previewUrl: string | null, name: string) => void;
+  onSubmit: (
+    formData: FormData,
+    previewUrl: string | null,
+    name: string,
+    fromUrlOnly: boolean,
+  ) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -1514,7 +1527,12 @@ function CreateProductModal({
   const hasPhotos = files.length > 0;
   const meetsMinimum = files.length >= 3;
   const recommended = files.length >= 8;
-  const canTrain = meetsMinimum && name.trim().length > 0;
+  // URL-only flow: when the user pastes a product link we allow them to skip
+  // uploads entirely — the backend will scrape photos from the page.
+  const hasUrl = sourceUrl.trim().length > 0;
+  const urlOnlyMode = hasUrl && files.length === 0;
+  const canTrain =
+    name.trim().length > 0 && (meetsMinimum || urlOnlyMode);
 
   const handleTrain = () => {
     if (!canTrain) return;
@@ -1523,7 +1541,12 @@ function CreateProductModal({
     if (category.trim()) formData.append("category", category.trim());
     if (sourceUrl.trim()) formData.append("source_url", sourceUrl.trim());
     files.forEach((f) => formData.append("files", f));
-    onSubmit(formData, previews[0] || null, name.trim());
+    onSubmit(
+      formData,
+      previews[0] || null,
+      name.trim(),
+      urlOnlyMode,
+    );
   };
 
   useEffect(() => {
@@ -1564,7 +1587,7 @@ function CreateProductModal({
               New product
             </h3>
             <p className="text-[12px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-              Upload photos from multiple angles so the AI can lock in the product identity.
+              Upload photos from multiple angles — or just paste the product link and let the AI fetch them.
             </p>
           </div>
           <button
@@ -1613,7 +1636,9 @@ function CreateProductModal({
                   Upload photos
                 </div>
                 <p className="text-[12px] mt-3" style={{ color: "var(--text-muted)" }}>
-                  Drop files here or click to browse — 8+ angles recommended
+                  {hasUrl
+                    ? "Optional — or leave empty and we'll fetch photos from the link"
+                    : "Drop files here or click to browse — 8+ angles recommended"}
                 </p>
               </div>
             ) : (
@@ -1752,8 +1777,9 @@ function CreateProductModal({
               className="text-[11px] mt-1.5"
               style={{ color: "var(--text-muted)", lineHeight: 1.45 }}
             >
-              Paste the AliExpress, Amazon or Shopify link — the AI reads the page to learn
-              what the product does, giving it better scene ideas.
+              Paste the AliExpress, Amazon or Shopify link — the AI reads the page,
+              pulls the product photos for you, and learns what it does for better
+              scene ideas. <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>You can skip the upload if you provide a link.</span>
             </p>
           </div>
 
@@ -1847,7 +1873,7 @@ function CreateProductModal({
             }}
           >
             <SparkleIcon size={14} />
-            Train product
+            {urlOnlyMode ? "Train from link" : "Train product"}
           </button>
         </div>
       </div>

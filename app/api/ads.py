@@ -28,6 +28,7 @@ from app.core.supabase import supabase
 from app.models.user import User
 from app.services.credit_service import deduct_credits, get_balance, is_admin
 from app.services.product_analyzer import analyze_product_url, format_product_context
+from app.services.product_image_scraper import scrape_product_images
 from app.services.ad_concept_designer import (
     design_ad_concept,
     design_marketing_brief,
@@ -177,38 +178,84 @@ async def train_product(
     name: str = Form(..., max_length=100, description="Product name"),
     category: str = Form("", max_length=60, description="Optional category"),
     source_url: str = Form("", max_length=2048, description="Optional product URL (AliExpress, Amazon, …) — analysed for extra context"),
-    files: List[UploadFile] = File(
-        ...,
-        description=f"{MIN_PRODUCT_IMAGES}–{MAX_PRODUCT_IMAGES} photos, different angles",
+    files: Optional[List[UploadFile]] = File(
+        None,
+        description=(
+            f"{MIN_PRODUCT_IMAGES}–{MAX_PRODUCT_IMAGES} photos, different angles. "
+            f"Optional when source_url is provided — the AI will scrape the photos."
+        ),
     ),
 ):
-    """Ingest product reference photos and generate a clean catalogue thumbnail."""
+    """Ingest product reference photos (or scrape them from `source_url`) and
+    generate a clean catalogue thumbnail.
+
+    Two supported flows:
+      1. **Upload flow** — user uploads 3–20 photos directly.
+      2. **URL-only flow** — user provides `source_url` and skips the upload.
+         We fetch the page, extract the product gallery (JSON-LD / OpenGraph
+         / `<img>` tags), and feed those bytes into the same training path as
+         if they'd been uploaded.
+
+    If both are supplied, uploads take priority and the URL is only used for
+    the metadata extraction (description, features, price).
+    """
     name_clean = name.strip()
     if not name_clean:
         raise HTTPException(status_code=400, detail="Product name is required.")
 
-    # ── Validate + read file bytes ─────────────────────────────────────────
-    if len(files) < MIN_PRODUCT_IMAGES:
+    source_url_clean = (source_url or "").strip() or None
+
+    # ── Read uploaded bytes first ──────────────────────────────────────────
+    uploaded_files: List[UploadFile] = files or []
+    if len(uploaded_files) > MAX_PRODUCT_IMAGES:
         raise HTTPException(
             status_code=400,
-            detail=f"At least {MIN_PRODUCT_IMAGES} photos required. You uploaded {len(files)}.",
-        )
-    if len(files) > MAX_PRODUCT_IMAGES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Maximum {MAX_PRODUCT_IMAGES} photos allowed. You uploaded {len(files)}.",
+            detail=f"Maximum {MAX_PRODUCT_IMAGES} photos allowed. You uploaded {len(uploaded_files)}.",
         )
 
     file_bytes_list: List[bytes] = []
-    for f in files:
+    for f in uploaded_files:
         content = await f.read()
         if content and len(content) > 100:
             file_bytes_list.append(content)
 
+    # ── URL-only fallback: scrape the product page if user skipped uploads ─
+    # Fires when:
+    #   - user provided < MIN_PRODUCT_IMAGES usable uploads, AND
+    #   - they gave us a source_url to work from.
+    # We only scrape up to the MAX so we never exceed what uploads would.
+    scraped_from_url = False
+    if len(file_bytes_list) < MIN_PRODUCT_IMAGES and source_url_clean:
+        try:
+            logger.info(f"URL-only training — scraping photos from {source_url_clean}")
+            scraped = await scrape_product_images(
+                source_url_clean,
+                max_images=MAX_PRODUCT_IMAGES - len(file_bytes_list),
+            )
+            if scraped:
+                file_bytes_list.extend(scraped)
+                scraped_from_url = True
+                logger.info(f"Scraped {len(scraped)} product photos from {source_url_clean}")
+        except Exception as e:
+            # Never let a scrape failure kill training — user gets a clear
+            # error below if we still don't have enough photos.
+            logger.warning(f"Product image scrape failed (ignored): {e}")
+
     if len(file_bytes_list) < MIN_PRODUCT_IMAGES:
+        if source_url_clean and not scraped_from_url:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Couldn't fetch enough product photos from the link. "
+                    f"Please upload at least {MIN_PRODUCT_IMAGES} photos manually."
+                ),
+            )
         raise HTTPException(
             status_code=400,
-            detail=f"At least {MIN_PRODUCT_IMAGES} valid photos required.",
+            detail=(
+                f"At least {MIN_PRODUCT_IMAGES} valid photos required. "
+                f"Either upload them or provide a product URL so we can fetch them."
+            ),
         )
 
     # ── Credit check (admin bypass) ────────────────────────────────────────
@@ -314,7 +361,6 @@ async def train_product(
         raise HTTPException(status_code=500, detail="Gemini returned empty response.")
 
     # ── 3. Analyse the product URL (best-effort — never blocks training) ──
-    source_url_clean = (source_url or "").strip() or None
     analysis: Optional[dict] = None
     if source_url_clean:
         try:
@@ -363,7 +409,10 @@ async def train_product(
         )
 
     thumbnail_url = supabase.storage.from_("avatars").get_public_url(thumbnail_path)
-    logger.info(f"Product trained. ID: {product_id}, Name: {name_clean}, Refs: {len(ref_paths)}")
+    logger.info(
+        f"Product trained. ID: {product_id}, Name: {name_clean}, "
+        f"Refs: {len(ref_paths)}, Scraped: {scraped_from_url}"
+    )
     return {
         "status": "Success",
         "product_id": product_id,
@@ -375,6 +424,7 @@ async def train_product(
         "description": row.get("description"),
         "features": row.get("features") or [],
         "price": row.get("price"),
+        "scraped_from_url": scraped_from_url,
         "cost_usd": COST_GEMINI_FLASH_IMAGE,
         "engine": "gemini-3-pro-image-preview",
     }
