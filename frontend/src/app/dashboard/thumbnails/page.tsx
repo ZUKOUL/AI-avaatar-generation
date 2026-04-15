@@ -329,6 +329,7 @@ export default function ThumbnailStudio() {
   const [smartTitle, setSmartTitle] = useState("");
   const [smartDesc, setSmartDesc] = useState("");
   const [generatingSmartPrompt, setGeneratingSmartPrompt] = useState(false);
+  const [showSmartPrompt, setShowSmartPrompt] = useState(false);
 
   /* ─── Subject detection on the source thumbnail ───
    * When a YouTube URL is validated or a source image is uploaded we ship
@@ -802,6 +803,35 @@ export default function ThumbnailStudio() {
         setPrompt(text);
         requestAnimationFrame(() => ta?.focus());
       }
+      // Also trigger YouTube URL auto-describe, same as keyboard Ctrl+V paste
+      const ytRe = /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/)|youtu\.be\/)[A-Za-z0-9_\-]{11}(?:[^\s]*)?)/g;
+      const urls = Array.from(text.matchAll(ytRe), (m) => m[1]);
+      for (const rawUrl of urls) {
+        const url = rawUrl.replace(/[),.;]+$/, "");
+        setDescribingYoutubeUrls((prev) => {
+          if (prev.has(url)) return prev;
+          return new Set(prev).add(url);
+        });
+        thumbnailAPI
+          .describeYoutube(url)
+          .then((res) => {
+            const desc = (res.data?.description || "").trim();
+            if (!desc) return;
+            setPrompt((p) => {
+              const idx = p.indexOf(url);
+              if (idx === -1) return p;
+              return p.slice(0, idx) + desc + p.slice(idx + url.length);
+            });
+          })
+          .catch((err) => console.warn("describeYoutube failed:", err))
+          .finally(() => {
+            setDescribingYoutubeUrls((prev) => {
+              const next = new Set(prev);
+              next.delete(url);
+              return next;
+            });
+          });
+      }
     } catch {
       // Clipboard API not available or permission denied — silently ignore
     }
@@ -819,7 +849,10 @@ export default function ThumbnailStudio() {
       if (smartDesc.trim()) form.append("video_description", smartDesc.trim());
       const res = await thumbnailAPI.smartPrompt(form);
       const generated = (res.data?.prompt || "").trim();
-      if (generated) setPrompt(generated);
+      if (generated) {
+        setPrompt(generated);
+        setShowSmartPrompt(false); // collapse the form so the prompt is visible
+      }
     } catch (err) {
       console.error("Smart prompt generation failed:", err);
     } finally {
@@ -3562,62 +3595,104 @@ export default function ThumbnailStudio() {
                 </div>
               )}
 
-              {/* Smart Prompt form (prompt mode) / Sample chips (other modes) */}
+              {/* Smart Prompt toggle (prompt mode) / Sample chips (other modes) */}
               {mode === "prompt" ? (
-                <div
-                  className="mt-3 rounded-xl overflow-hidden"
-                  style={{
-                    border: "1px solid var(--border-color)",
-                    background: "var(--bg-hover)",
-                  }}
-                >
-                  <div className="px-4 pt-3 pb-3 flex flex-col gap-2">
-                    <p className="text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                      ✦ Generate the perfect prompt from your video idea
-                    </p>
-                    <input
-                      type="text"
-                      placeholder="Your niche (Business, Fitness, Gaming…)"
-                      value={smartNiche}
-                      onChange={(e) => setSmartNiche(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-[12.5px] bg-transparent outline-none"
-                      style={{
-                        border: "1px solid var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Your video title or main topic"
-                      value={smartTitle}
-                      onChange={(e) => setSmartTitle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-[12.5px] bg-transparent outline-none"
-                      style={{
-                        border: "1px solid var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="What happens in your video? (optional)"
-                      value={smartDesc}
-                      onChange={(e) => setSmartDesc(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleSmartPrompt(); }}
-                      className="w-full px-3 py-2 rounded-lg text-[12.5px] bg-transparent outline-none"
-                      style={{
-                        border: "1px solid var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
+                <div className="mt-3">
+                  {!showSmartPrompt ? (
+                    /* Collapsed: just a small trigger button */
                     <button
-                      onClick={handleSmartPrompt}
-                      disabled={!smartNiche.trim() || !smartTitle.trim() || generatingSmartPrompt}
-                      className="w-full py-2 rounded-lg text-[12.5px] font-semibold transition-all disabled:opacity-40"
-                      style={{ background: "var(--accent)", color: "var(--btn-text)" }}
+                      type="button"
+                      onClick={() => setShowSmartPrompt(true)}
+                      className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg transition-all"
+                      style={{
+                        background: "var(--bg-hover)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-secondary)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "var(--accent)";
+                        e.currentTarget.style.color = "var(--text-primary)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border-color)";
+                        e.currentTarget.style.color = "var(--text-secondary)";
+                      }}
                     >
-                      {generatingSmartPrompt ? "Searching & generating…" : "Generate perfect prompt →"}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                      Generate from an idea
                     </button>
-                  </div>
+                  ) : (
+                    /* Expanded: full form */
+                    <div
+                      className="rounded-xl overflow-hidden"
+                      style={{
+                        border: "1px solid var(--border-color)",
+                        background: "var(--bg-hover)",
+                      }}
+                    >
+                      <div className="px-4 pt-3 pb-3 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                            ✦ Generate the perfect prompt from your video idea
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowSmartPrompt(false)}
+                            className="w-5 h-5 flex items-center justify-center rounded-md"
+                            style={{ color: "var(--text-muted)" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                          >
+                            <XIcon size={10} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Your niche (Business, Fitness, Gaming…)"
+                          value={smartNiche}
+                          onChange={(e) => setSmartNiche(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-[12.5px] bg-transparent outline-none"
+                          style={{
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Your video title or main topic"
+                          value={smartTitle}
+                          onChange={(e) => setSmartTitle(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-[12.5px] bg-transparent outline-none"
+                          style={{
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="What happens in your video? (optional)"
+                          value={smartDesc}
+                          onChange={(e) => setSmartDesc(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSmartPrompt(); }}
+                          className="w-full px-3 py-2 rounded-lg text-[12.5px] bg-transparent outline-none"
+                          style={{
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                          }}
+                        />
+                        <button
+                          onClick={handleSmartPrompt}
+                          disabled={!smartNiche.trim() || !smartTitle.trim() || generatingSmartPrompt}
+                          className="w-full py-2 rounded-lg text-[12.5px] font-semibold transition-all disabled:opacity-40"
+                          style={{ background: "var(--accent)", color: "var(--btn-text)" }}
+                        >
+                          {generatingSmartPrompt ? "Searching & generating…" : "Generate perfect prompt →"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1.5 mt-3">
