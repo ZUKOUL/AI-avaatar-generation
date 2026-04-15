@@ -637,6 +637,44 @@ async def update_character_nickname(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/characters/{character_id}")
+async def delete_character(
+    current_user: Annotated[User, Depends(get_current_user)],
+    character_id: str,
+):
+    """Delete a character and its associated storage files."""
+    try:
+        ch = (
+            supabase.table("characters")
+            .select("id, image_paths")
+            .eq("id", character_id)
+            .eq("user_id", current_user["id"])
+            .single()
+            .execute()
+        )
+        if not ch.data:
+            raise HTTPException(status_code=404, detail="Character not found.")
+
+        # Remove training images from storage (non-fatal)
+        image_paths = ch.data.get("image_paths") or []
+        if image_paths:
+            try:
+                supabase.storage.from_("avatars").remove(image_paths)
+            except Exception as storage_err:
+                logger.warning(f"Failed to remove storage files for character {character_id}: {storage_err}")
+
+        supabase.table("characters").delete().eq("id", character_id).execute()
+
+        logger.info(f"Deleted character {character_id} for user {current_user['id']}")
+        return {"status": "deleted", "character_id": character_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete character {character_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/avatars")
 async def get_avatars(current_user: Annotated[User, Depends(get_current_user)]):
     """List all avatars in the user's library (from characters table)."""

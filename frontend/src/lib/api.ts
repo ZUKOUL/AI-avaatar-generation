@@ -63,6 +63,8 @@ export const avatarAPI = {
   getImage: (imageId: string) => api.get(`/avatar/images/${imageId}`),
   updateNickname: (characterId: string, nickname: string) =>
     api.put(`/avatar/characters/${characterId}/nickname`, { nickname }),
+  deleteCharacter: (characterId: string) =>
+    api.delete(`/avatar/characters/${characterId}`),
   describeImage: (imageUrl: string) => {
     const formData = new FormData();
     formData.append("image_url", imageUrl);

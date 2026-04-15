@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { avatarAPI } from "@/lib/api";
 import {
@@ -8,6 +9,7 @@ import {
   Plus,
   SparkleIcon,
   Spinner,
+  Trash,
   Upload,
   UserCircle,
   XIcon,
@@ -130,7 +132,7 @@ export default function CharactersPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
                   {characters.map((c) => (
-                    <CharacterCard key={c.avatar_id} character={c} />
+                    <CharacterCard key={c.avatar_id} character={c} onDelete={loadCharacters} />
                   ))}
                 </div>
               </>
@@ -204,48 +206,197 @@ function HeroStack({ samples }: { samples: Character[] }) {
 
 /* ─── Character card in the gallery ─── */
 
-function CharacterCard({ character }: { character: Character }) {
+function CharacterCard({
+  character,
+  onDelete,
+}: {
+  character: Character;
+  onDelete: () => void;
+}) {
+  const router = useRouter();
+  const [hovered, setHovered] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleGenerate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/dashboard/images?character=${character.avatar_id}`);
+  };
+
+  const handleTrashClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowConfirm(true);
+  };
+
+  const handleDeleteConfirm = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleting(true);
+    try {
+      await avatarAPI.deleteCharacter(character.avatar_id);
+      setShowConfirm(false);
+      onDelete();
+    } catch {
+      /* silently fail — TODO: surface error */
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div
-      className="relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer"
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border-color)",
-        transition: "transform 0.18s ease, box-shadow 0.18s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.15)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      {character.thumbnail ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={character.thumbnail}
-          alt={character.name}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <UserCircle size={40} style={{ color: "var(--text-muted)" }} />
+    <>
+      <div
+        className="relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border-color)",
+          transition: "transform 0.18s ease, box-shadow 0.18s ease",
+          transform: hovered ? "translateY(-2px)" : "translateY(0)",
+          boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.15)" : "none",
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {character.thumbnail ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={character.thumbnail}
+            alt={character.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <UserCircle size={40} style={{ color: "var(--text-muted)" }} />
+          </div>
+        )}
+
+        {/* Hover overlay */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            background: "rgba(0,0,0,0.48)",
+            backdropFilter: "blur(2px)",
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.18s ease",
+            pointerEvents: hovered ? "auto" : "none",
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold"
+            style={{
+              background: "var(--text-primary)",
+              color: "var(--bg-primary)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+            }}
+          >
+            <SparkleIcon size={13} />
+            Generate
+          </button>
+        </div>
+
+        {/* Trash button — top-right corner, visible on hover */}
+        <button
+          type="button"
+          onClick={handleTrashClick}
+          aria-label="Delete character"
+          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            color: "#fff",
+            backdropFilter: "blur(4px)",
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.18s ease",
+            pointerEvents: hovered ? "auto" : "none",
+          }}
+        >
+          <Trash size={13} />
+        </button>
+
+        {/* Bottom gradient + centered name */}
+        <div
+          className="absolute inset-x-0 bottom-0 p-3"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)",
+          }}
+        >
+          <p className="text-white text-[13px] font-semibold truncate drop-shadow-sm text-center">
+            {character.name}
+          </p>
+        </div>
+      </div>
+
+      {/* Delete confirmation modal */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+          onClick={() => { if (!deleting) setShowConfirm(false); }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-6"
+            style={{
+              background: "var(--bg-primary)",
+              border: "1px solid var(--border-color)",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center mb-4"
+              style={{ background: "rgba(239,68,68,0.12)" }}
+            >
+              <Trash size={18} style={{ color: "rgb(239,68,68)" }} />
+            </div>
+            <h3
+              className="text-[16px] font-semibold mb-1.5"
+              style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}
+            >
+              Supprimer ce personnage ?
+            </h3>
+            <p className="text-[13px] mb-5" style={{ color: "var(--text-secondary)", lineHeight: 1.55 }}>
+              Êtes-vous sûr de vouloir supprimer{" "}
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+                {character.name}
+              </span>{" "}
+              ? Cette action est irréversible.
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-medium"
+                style={{
+                  background: "var(--bg-secondary)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border-color)",
+                  opacity: deleting ? 0.5 : 1,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-1.5"
+                style={{
+                  background: "rgb(239,68,68)",
+                  color: "#fff",
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleting ? <Spinner size={13} /> : <Trash size={13} />}
+                {deleting ? "Suppression…" : "Supprimer"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-      <div
-        className="absolute inset-x-0 bottom-0 p-3"
-        style={{
-          background:
-            "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)",
-        }}
-      >
-        <p className="text-white text-[13px] font-semibold truncate drop-shadow-sm">
-          {character.name}
-        </p>
-      </div>
-    </div>
+    </>
   );
 }
 

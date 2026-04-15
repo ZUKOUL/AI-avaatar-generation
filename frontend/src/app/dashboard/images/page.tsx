@@ -359,6 +359,24 @@ export default function ImageGenerator() {
 
   useEffect(() => { loadData(); }, []);
 
+  // Pre-select character from ?character=<avatar_id> URL param (e.g. from Characters page)
+  useEffect(() => {
+    if (!avatars.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const charId = params.get("character");
+    if (!charId) return;
+    const av = avatars.find((a) => a.avatar_id === charId);
+    if (av) {
+      setSelectedAvatar(av.avatar_id);
+      setPrompt((prev) => (prev ? prev : `@${av.name} `));
+      textareaRef.current?.focus();
+    }
+    // Remove the param from the URL so it doesn't re-trigger on re-renders
+    const url = new URL(window.location.href);
+    url.searchParams.delete("character");
+    window.history.replaceState({}, "", url.toString());
+  }, [avatars]);
+
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = () => { setShowRatioDropdown(false); setShowQualityDropdown(false); setShowModelDropdown(false); };
