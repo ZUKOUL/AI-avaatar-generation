@@ -74,6 +74,11 @@ const FALLBACK_TEMPLATES: Template[] = [
   { id: "outdoor", label: "Outdoor Golden Hour" },
 ];
 
+interface PendingProduct {
+  name: string;
+  previewUrl: string | null;
+}
+
 export default function AdsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -89,6 +94,11 @@ export default function AdsPage() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
+
+  // Skeleton-card state: while the product uploads/trains we show a live
+  // placeholder in the grid so the modal can close immediately.
+  const [pendingProduct, setPendingProduct] = useState<PendingProduct | null>(null);
+  const [trainError, setTrainError] = useState("");
 
   useEffect(() => {
     loadProducts();
@@ -165,6 +175,47 @@ export default function AdsPage() {
     }
   };
 
+  /**
+   * Kicks off product training from the creator modal.
+   * - Closes the modal immediately.
+   * - Shows a skeleton card (with the first photo as preview) in the grid
+   *   while the backend uploads + analyses.
+   * - Replaces the skeleton with the real product once the API returns.
+   */
+  const handleTrainProduct = async (
+    formData: FormData,
+    previewUrl: string | null,
+    name: string,
+  ) => {
+    setPendingProduct({ name, previewUrl });
+    setTrainError("");
+    try {
+      const res = await adsAPI.trainProduct(formData);
+      const newId = res.data.product_id as string;
+      await loadProducts();
+      setSelectedProductId(newId);
+    } catch (err: unknown) {
+      const e = err as {
+        response?: { status?: number; data?: { detail?: string | { message?: string; error?: string } } };
+        message?: string;
+      };
+      const detail = e.response?.data?.detail;
+      const status = e.response?.status;
+      let msg = "";
+      if (typeof detail === "string") msg = detail;
+      else if (detail && typeof detail === "object") {
+        msg = detail.message || detail.error || JSON.stringify(detail);
+      } else if (e.message) {
+        msg = e.message;
+      } else {
+        msg = "Training failed";
+      }
+      setTrainError(`[${status || "?"}] ${msg}`);
+    } finally {
+      setPendingProduct(null);
+    }
+  };
+
   return (
     <>
       <Header
@@ -218,8 +269,9 @@ export default function AdsPage() {
             </section>
           )}
 
-          {/* Products grid */}
-          {!loadingProducts && products.length > 0 && (
+          {/* Products grid — also rendered when a product is training so the
+              user sees the skeleton placeholder right away */}
+          {!loadingProducts && (products.length > 0 || pendingProduct) && (
             <section className="mb-10">
               <div className="flex items-baseline justify-between mb-4 px-1">
                 <h2
@@ -231,14 +283,22 @@ export default function AdsPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreator(true)}
+                  disabled={!!pendingProduct}
                   className="text-[12px] font-medium flex items-center gap-1.5"
-                  style={{ color: "var(--text-primary)" }}
+                  style={{
+                    color: "var(--text-primary)",
+                    opacity: pendingProduct ? 0.4 : 1,
+                    cursor: pendingProduct ? "not-allowed" : "pointer",
+                  }}
                 >
                   <Plus size={13} />
                   New product
                 </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+                {/* Skeleton lands first so the user sees it pop in where their
+                    new product will live. */}
+                {pendingProduct && <SkeletonProductCard pending={pendingProduct} />}
                 {products.map((p) => (
                   <ProductCard
                     key={p.product_id}
@@ -252,6 +312,27 @@ export default function AdsPage() {
                   />
                 ))}
               </div>
+
+              {trainError && (
+                <div
+                  className="mt-4 px-3 py-2 rounded-lg text-[12px] flex items-start justify-between gap-3"
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.25)",
+                    color: "var(--error)",
+                  }}
+                >
+                  <span>{trainError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setTrainError("")}
+                    aria-label="Dismiss"
+                    style={{ color: "var(--error)", opacity: 0.7 }}
+                  >
+                    <XIcon size={14} />
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
@@ -559,13 +640,91 @@ export default function AdsPage() {
       {showCreator && (
         <CreateProductModal
           onClose={() => setShowCreator(false)}
-          onCreated={(newId) => {
-            loadProducts();
-            setSelectedProductId(newId);
+          onSubmit={(formData, previewUrl, name) => {
+            setShowCreator(false);
+            // Fire-and-forget — the page shows a skeleton card until it resolves.
+            void handleTrainProduct(formData, previewUrl, name);
           }}
         />
       )}
     </>
+  );
+}
+
+/* ─── Skeleton product card (while training) ─── */
+
+function SkeletonProductCard({ pending }: { pending: PendingProduct }) {
+  return (
+    <div
+      className="relative aspect-[3/4] rounded-2xl overflow-hidden"
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1.5px dashed var(--border-color)",
+      }}
+      aria-busy="true"
+      aria-live="polite"
+    >
+      {/* Blurred preview of the first photo, faded so the shimmer reads on top */}
+      {pending.previewUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={pending.previewUrl}
+          alt=""
+          className="w-full h-full object-cover"
+          style={{ filter: "blur(6px) brightness(0.55)", transform: "scale(1.08)" }}
+        />
+      ) : (
+        <div className="w-full h-full" style={{ background: "var(--bg-tertiary)" }} />
+      )}
+
+      {/* Moving shimmer band — same trick used everywhere else in the app */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%)",
+          backgroundSize: "200% 100%",
+          animation: "adsSkeletonShimmer 1.6s linear infinite",
+        }}
+      />
+
+      {/* Centered status: spinner + "Training product..." */}
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center text-center px-3 gap-2"
+        style={{ color: "#fff" }}
+      >
+        <Spinner size={22} />
+        <p className="text-[12px] font-semibold tracking-wide">Training product…</p>
+        <p
+          className="text-[10.5px]"
+          style={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.35 }}
+        >
+          Uploading photos and analysing the product. This takes ~20–40 s.
+        </p>
+      </div>
+
+      {/* Bottom gradient + product name, matches the real card */}
+      <div
+        className="absolute inset-x-0 bottom-0 p-3"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)",
+        }}
+      >
+        <p className="text-white text-[13px] font-semibold truncate drop-shadow-sm text-center">
+          {pending.name}
+        </p>
+      </div>
+
+      {/* Scoped keyframes so we don't pollute globals */}
+      <style jsx>{`
+        @keyframes adsSkeletonShimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -879,10 +1038,11 @@ function AdCard({ ad, onDelete }: { ad: Ad; onDelete: () => void }) {
 
 function CreateProductModal({
   onClose,
-  onCreated,
+  onSubmit,
 }: {
   onClose: () => void;
-  onCreated: (productId: string) => void;
+  /** Hands the form payload back to the page; modal closes immediately. */
+  onSubmit: (formData: FormData, previewUrl: string | null, name: string) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -890,8 +1050,6 @@ function CreateProductModal({
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [isTraining, setIsTraining] = useState(false);
-  const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = (incoming: FileList | File[] | null) => {
@@ -909,54 +1067,31 @@ function CreateProductModal({
   const hasPhotos = files.length > 0;
   const meetsMinimum = files.length >= 3;
   const recommended = files.length >= 8;
-  const canTrain = meetsMinimum && name.trim().length > 0 && !isTraining;
+  const canTrain = meetsMinimum && name.trim().length > 0;
 
-  const handleTrain = async () => {
+  const handleTrain = () => {
     if (!canTrain) return;
-    setIsTraining(true);
-    setError("");
-    try {
-      const formData = new FormData();
-      formData.append("name", name.trim());
-      if (category.trim()) formData.append("category", category.trim());
-      if (sourceUrl.trim()) formData.append("source_url", sourceUrl.trim());
-      files.forEach((f) => formData.append("files", f));
-      const res = await adsAPI.trainProduct(formData);
-      const newId = res.data.product_id as string;
-      onCreated(newId);
-      onClose();
-    } catch (err: unknown) {
-      const e = err as {
-        response?: { status?: number; data?: { detail?: string | { message?: string; error?: string } } };
-        message?: string;
-      };
-      const detail = e.response?.data?.detail;
-      const status = e.response?.status;
-      let msg = "";
-      if (typeof detail === "string") msg = detail;
-      else if (detail && typeof detail === "object")
-        msg = detail.message || detail.error || JSON.stringify(detail);
-      else if (e.message) msg = e.message;
-      else msg = "Training failed";
-      setError(`[${status || "?"}] ${msg}`);
-    } finally {
-      setIsTraining(false);
-    }
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    if (category.trim()) formData.append("category", category.trim());
+    if (sourceUrl.trim()) formData.append("source_url", sourceUrl.trim());
+    files.forEach((f) => formData.append("files", f));
+    onSubmit(formData, previews[0] || null, name.trim());
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isTraining) onClose();
+      if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isTraining, onClose]);
+  }, [onClose]);
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
       style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
-      onClick={() => { if (!isTraining) onClose(); }}
+      onClick={onClose}
     >
       <div
         className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl"
@@ -988,13 +1123,8 @@ function CreateProductModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isTraining}
             className="p-1.5 rounded-lg transition-colors shrink-0 ml-3"
-            style={{
-              color: "var(--text-muted)",
-              opacity: isTraining ? 0.3 : 1,
-              cursor: isTraining ? "not-allowed" : "pointer",
-            }}
+            style={{ color: "var(--text-muted)", cursor: "pointer" }}
             aria-label="Close"
           >
             <XIcon size={18} />
@@ -1235,18 +1365,6 @@ function CreateProductModal({
             </div>
           </div>
 
-          {error && (
-            <div
-              className="px-3 py-2 rounded-lg text-[12px]"
-              style={{
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.25)",
-                color: "var(--error)",
-              }}
-            >
-              {error}
-            </div>
-          )}
         </div>
 
         <div
@@ -1259,13 +1377,11 @@ function CreateProductModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isTraining}
             className="px-4 py-2 rounded-lg text-[13px] font-medium"
             style={{
               background: "transparent",
               color: "var(--text-secondary)",
-              opacity: isTraining ? 0.5 : 1,
-              cursor: isTraining ? "not-allowed" : "pointer",
+              cursor: "pointer",
             }}
           >
             Cancel
@@ -1283,17 +1399,8 @@ function CreateProductModal({
               cursor: canTrain ? "pointer" : "not-allowed",
             }}
           >
-            {isTraining ? (
-              <>
-                <Spinner size={14} />
-                Training…
-              </>
-            ) : (
-              <>
-                <SparkleIcon size={14} />
-                Train product
-              </>
-            )}
+            <SparkleIcon size={14} />
+            Train product
           </button>
         </div>
       </div>
