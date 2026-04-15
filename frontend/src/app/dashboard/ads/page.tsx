@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
+import MediaDetailView from "@/components/MediaDetailView";
 import { adsAPI } from "@/lib/api";
 import {
   Check,
@@ -46,6 +47,29 @@ interface Template {
   auto?: boolean;
 }
 
+interface AdBrief {
+  problem_solved?: string;
+  target_audience?: string;
+  before_state?: string;
+  after_state?: string;
+  key_benefit?: string;
+  main_objection?: string;
+  objection_response?: string;
+  emotional_angle?: string;
+  winning_hook_ideas?: string[];
+  social_proof_cue?: string | null;
+  urgency_or_scarcity?: string | null;
+}
+
+interface AdConcept {
+  concept_name?: string;
+  visual_direction?: string;
+  composition?: string;
+  mood_lighting?: string;
+  hook_overlay_text?: string | null;
+  why_it_converts?: string;
+}
+
 interface Ad {
   id: string;
   product_id: string | null;
@@ -54,6 +78,10 @@ interface Ad {
   aspect_ratio: string;
   image_url: string;
   created_at: string;
+  metadata?: {
+    brief?: AdBrief | null;
+    concept?: AdConcept | null;
+  } | null;
 }
 
 const RATIOS: { value: string; label: string }[] = [
@@ -102,13 +130,13 @@ export default function AdsPage() {
   const [pendingProduct, setPendingProduct] = useState<PendingProduct | null>(null);
   const [trainError, setTrainError] = useState("");
 
-  // Last auto-generated concept — surfaced as a small "concept: ..." banner
-  // under the generate button so the user sees WHAT the AI designed.
-  const [lastConcept, setLastConcept] = useState<{
-    concept_name?: string;
-    why_it_converts?: string;
-    hook_overlay_text?: string | null;
-  } | null>(null);
+  // Last auto-generated brief + concept — surfaced in a panel right after
+  // generation so the user sees the full chain-of-thought (strategy + visual).
+  const [lastBrief, setLastBrief] = useState<AdBrief | null>(null);
+  const [lastConcept, setLastConcept] = useState<AdConcept | null>(null);
+
+  // Lightbox state — clicking an ad card opens MediaDetailView.
+  const [lightboxAdId, setLightboxAdId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -153,6 +181,7 @@ export default function AdsPage() {
     if (!selectedProductId) return;
     setGenerating(true);
     setError("");
+    setLastBrief(null);
     setLastConcept(null);
     try {
       const formData = new FormData();
@@ -161,10 +190,10 @@ export default function AdsPage() {
       formData.append("aspect_ratio", aspect);
       if (customPrompt.trim()) formData.append("custom_prompt", customPrompt.trim());
       const res = await adsAPI.generate(formData);
+      const brief = res.data?.brief;
       const concept = res.data?.concept;
-      if (concept && typeof concept === "object") {
-        setLastConcept(concept);
-      }
+      if (brief && typeof brief === "object") setLastBrief(brief);
+      if (concept && typeof concept === "object") setLastConcept(concept);
       setCustomPrompt("");
       loadAds();
     } catch (err: unknown) {
@@ -675,65 +704,18 @@ export default function AdsPage() {
                 )}
               </button>
 
-              {/* Concept banner — appears right after auto generation finishes
-                  so the user knows WHAT concept the AI landed on. */}
-              {lastConcept && lastConcept.concept_name && (
-                <div
-                  className="mt-4 rounded-xl p-3.5 flex items-start gap-3"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
+              {/* Chain-of-thought panel — shows the FULL strategic reasoning
+                  (brief + concept) so the user sees why the AI picked this
+                  angle, not just what it landed on. */}
+              {(lastConcept?.concept_name || lastBrief?.key_benefit) && (
+                <ChainOfThoughtPanel
+                  brief={lastBrief}
+                  concept={lastConcept}
+                  onDismiss={() => {
+                    setLastBrief(null);
+                    setLastConcept(null);
                   }}
-                >
-                  <div
-                    className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5"
-                    style={{
-                      background: "var(--bg-tertiary)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <SparkleIcon size={13} style={{ color: "var(--text-primary)" }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      AI concept used
-                    </p>
-                    <p
-                      className="text-[13px] font-semibold mt-0.5"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {lastConcept.concept_name}
-                    </p>
-                    {lastConcept.hook_overlay_text && (
-                      <p
-                        className="text-[12px] mt-1"
-                        style={{ color: "var(--text-secondary)", fontStyle: "italic" }}
-                      >
-                        &ldquo;{lastConcept.hook_overlay_text}&rdquo;
-                      </p>
-                    )}
-                    {lastConcept.why_it_converts && (
-                      <p
-                        className="text-[11.5px] mt-1.5"
-                        style={{ color: "var(--text-muted)", lineHeight: 1.5 }}
-                      >
-                        {lastConcept.why_it_converts}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setLastConcept(null)}
-                    aria-label="Dismiss"
-                    className="shrink-0 p-1 rounded"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <XIcon size={13} />
-                  </button>
-                </div>
+                />
               )}
             </section>
           )}
@@ -777,7 +759,12 @@ export default function AdsPage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
                 {ads.map((ad) => (
-                  <AdCard key={ad.id} ad={ad} onDelete={() => handleDeleteAd(ad.id)} />
+                  <AdCard
+                    key={ad.id}
+                    ad={ad}
+                    onDelete={() => handleDeleteAd(ad.id)}
+                    onOpen={() => setLightboxAdId(ad.id)}
+                  />
                 ))}
               </div>
             )}
@@ -795,7 +782,299 @@ export default function AdsPage() {
           }}
         />
       )}
+
+      {/* Lightbox — reuses MediaDetailView (same one the Images page uses) so
+          the strategic reasoning (brief + concept) renders in the prompt
+          panel on the right. Prev/next walks through the ads grid. */}
+      {lightboxAdId && (
+        <AdLightbox
+          ads={ads}
+          products={products}
+          templates={templates}
+          currentId={lightboxAdId}
+          onSelectId={setLightboxAdId}
+          onClose={() => setLightboxAdId(null)}
+          onDelete={(id) => {
+            void handleDeleteAd(id);
+            setLightboxAdId(null);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/* ─── Ad lightbox ─────────────────────────────────────────────────────────
+   Thin wrapper around MediaDetailView. Translates an Ad row (plus its
+   metadata + template label) into the MediaDetailItem shape the viewer
+   expects, then wires download / delete / prev / next against the parent's
+   ads list. The formatted `prompt` contains the whole chain-of-thought
+   (brief + concept + custom prompt) so the user can read the full strategy
+   behind each generated ad — and copy it to the clipboard.
+   ─────────────────────────────────────────────────────────────────── */
+
+function AdLightbox({
+  ads,
+  products,
+  templates,
+  currentId,
+  onSelectId,
+  onClose,
+  onDelete,
+}: {
+  ads: Ad[];
+  products: Product[];
+  templates: Template[];
+  currentId: string;
+  onSelectId: (id: string) => void;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+}) {
+  // Index into the ads list. Guards against the row being removed from
+  // under us (e.g. after a delete) — in that case we just close.
+  const index = ads.findIndex((a) => a.id === currentId);
+  if (index === -1) return null;
+
+  const ad = ads[index];
+  const total = ads.length;
+
+  // Resolve display-friendly template label (from /templates) so the
+  // details panel shows "Auto — AI finds winning concept" instead of
+  // the raw slug.
+  const templateLabel =
+    (ad.template && templates.find((t) => t.id === ad.template)?.label) ||
+    (ad.template ? ad.template.replace(/_/g, " ") : "");
+
+  // Pull the primary product photo as the "source image" reference so the
+  // lightbox's source block shows which product the ad was built from.
+  const product = products.find((p) => p.product_id === ad.product_id) || null;
+
+  // Cheap enough that a useMemo would only add ceremony — re-renders only
+  // happen when the user navigates between ads or closes the viewer.
+  const formattedPrompt = formatAdPrompt(ad, templateLabel);
+
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(ad.image_url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ad_${ad.id.slice(0, 8)}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(ad.image_url, "_blank");
+    }
+  };
+
+  return (
+    <MediaDetailView
+      item={{
+        id: ad.id,
+        type: "image",
+        url: ad.image_url,
+        prompt: formattedPrompt,
+        created_at: ad.created_at,
+        model: "Gemini 3 Pro Image",
+        aspect_ratio: ad.aspect_ratio,
+        quality: templateLabel || undefined,
+        source_image_url: product?.thumbnail || undefined,
+        source_label: product?.name ? `Product: ${product.name}` : undefined,
+      }}
+      position={total > 1 ? { index, total } : undefined}
+      onClose={onClose}
+      onPrev={index > 0 ? () => onSelectId(ads[index - 1].id) : undefined}
+      onNext={index < total - 1 ? () => onSelectId(ads[index + 1].id) : undefined}
+      onDownload={handleDownload}
+      onDelete={() => onDelete(ad.id)}
+    />
+  );
+}
+
+/**
+ * Renders the Ad's metadata (marketing brief + concept) plus its user-typed
+ * prompt into a single readable block. This becomes the `prompt` shown in
+ * the lightbox's details panel — the user can read the full AI strategy
+ * and copy it to the clipboard with one click.
+ */
+function formatAdPrompt(ad: Ad, templateLabel: string): string {
+  const lines: string[] = [];
+
+  if (templateLabel) {
+    lines.push(`Template: ${templateLabel}`);
+    lines.push("");
+  }
+
+  const brief = ad.metadata?.brief;
+  const concept = ad.metadata?.concept;
+
+  if (brief) {
+    lines.push("━━━ Marketing brief ━━━");
+    if (brief.problem_solved) lines.push(`• Problem solved: ${brief.problem_solved}`);
+    if (brief.target_audience) lines.push(`• Target audience: ${brief.target_audience}`);
+    if (brief.before_state) lines.push(`• Before state: ${brief.before_state}`);
+    if (brief.after_state) lines.push(`• After state: ${brief.after_state}`);
+    if (brief.key_benefit) lines.push(`• Key benefit: ${brief.key_benefit}`);
+    if (brief.main_objection) lines.push(`• Main objection: ${brief.main_objection}`);
+    if (brief.objection_response) lines.push(`• Objection response: ${brief.objection_response}`);
+    if (brief.emotional_angle) lines.push(`• Emotional angle: ${brief.emotional_angle}`);
+    if (brief.social_proof_cue) lines.push(`• Social proof: ${brief.social_proof_cue}`);
+    if (brief.urgency_or_scarcity) lines.push(`• Urgency: ${brief.urgency_or_scarcity}`);
+    if (brief.winning_hook_ideas && brief.winning_hook_ideas.length > 0) {
+      lines.push("• Winning hook ideas:");
+      brief.winning_hook_ideas.forEach((h) => lines.push(`    – ${h}`));
+    }
+    lines.push("");
+  }
+
+  if (concept) {
+    lines.push("━━━ Visual concept ━━━");
+    if (concept.concept_name) lines.push(`• Concept: ${concept.concept_name}`);
+    if (concept.visual_direction) lines.push(`• Visual direction: ${concept.visual_direction}`);
+    if (concept.composition) lines.push(`• Composition: ${concept.composition}`);
+    if (concept.mood_lighting) lines.push(`• Mood & lighting: ${concept.mood_lighting}`);
+    if (concept.hook_overlay_text) lines.push(`• Headline overlay: "${concept.hook_overlay_text}"`);
+    if (concept.why_it_converts) lines.push(`• Why it converts: ${concept.why_it_converts}`);
+    lines.push("");
+  }
+
+  if (ad.prompt) {
+    lines.push("━━━ User prompt ━━━");
+    lines.push(ad.prompt);
+  }
+
+  return lines.join("\n").trim() || ad.prompt || "(no prompt recorded)";
+}
+
+/* ─── Chain-of-thought panel ───────────────────────────────────────────────
+   Shows the full reasoning trail (marketing brief + visual concept) the AI
+   produced for an Auto-mode ad. Appears inline right after generation so
+   the user can see WHY the creative looks the way it does — not just what
+   concept name it picked. Every field is optional: we render only what the
+   model returned. If the whole thing is empty, the parent doesn't mount us.
+   ─────────────────────────────────────────────────────────────────────── */
+
+function ChainOfThoughtPanel({
+  brief,
+  concept,
+  onDismiss,
+}: {
+  brief: AdBrief | null;
+  concept: AdConcept | null;
+  onDismiss: () => void;
+}) {
+  // Pull only the fields we actually want to surface. Keeping this compact
+  // so the panel doesn't dominate the composer — full detail lives in the
+  // lightbox when the user clicks the generated ad.
+  const highlights: { label: string; value: string }[] = [];
+  if (brief?.key_benefit) highlights.push({ label: "Key benefit", value: brief.key_benefit });
+  if (brief?.target_audience) highlights.push({ label: "Target audience", value: brief.target_audience });
+  if (brief?.problem_solved) highlights.push({ label: "Problem solved", value: brief.problem_solved });
+  if (brief?.emotional_angle) highlights.push({ label: "Emotional angle", value: brief.emotional_angle });
+
+  return (
+    <div
+      className="mt-4 rounded-xl p-4"
+      style={{
+        background: "var(--bg-primary)",
+        border: "1px solid var(--border-color)",
+      }}
+    >
+      {/* Header row: sparkle icon + "AI strategy" label + dismiss */}
+      <div className="flex items-start gap-3">
+        <div
+          className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5"
+          style={{
+            background: "var(--bg-tertiary)",
+            border: "1px solid var(--border-color)",
+          }}
+        >
+          <SparkleIcon size={13} style={{ color: "var(--text-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-[10px] font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            AI strategy & concept
+          </p>
+          {concept?.concept_name && (
+            <p
+              className="text-[13px] font-semibold mt-0.5"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {concept.concept_name}
+            </p>
+          )}
+          {concept?.hook_overlay_text && (
+            <p
+              className="text-[12px] mt-1"
+              style={{ color: "var(--text-secondary)", fontStyle: "italic" }}
+            >
+              &ldquo;{concept.hook_overlay_text}&rdquo;
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="shrink-0 p-1 rounded"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <XIcon size={13} />
+        </button>
+      </div>
+
+      {/* Brief highlights — the strategic Q&A the AI did before designing */}
+      {highlights.length > 0 && (
+        <div
+          className="mt-3 pt-3 space-y-2"
+          style={{ borderTop: "1px solid var(--border-color)" }}
+        >
+          {highlights.map((h) => (
+            <div key={h.label} className="flex flex-col gap-0.5">
+              <span
+                className="text-[10px] font-semibold uppercase tracking-wider"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {h.label}
+              </span>
+              <span
+                className="text-[12px]"
+                style={{ color: "var(--text-secondary)", lineHeight: 1.5 }}
+              >
+                {h.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Why it converts — the through-line tying visual choice to strategy */}
+      {concept?.why_it_converts && (
+        <div
+          className="mt-3 pt-3"
+          style={{ borderTop: "1px solid var(--border-color)" }}
+        >
+          <span
+            className="text-[10px] font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Why it converts
+          </span>
+          <p
+            className="text-[12px] mt-1"
+            style={{ color: "var(--text-secondary)", lineHeight: 1.5 }}
+          >
+            {concept.why_it_converts}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1078,7 +1357,15 @@ function ProductCard({
 
 /* ─── Ad card (gallery) ─── */
 
-function AdCard({ ad, onDelete }: { ad: Ad; onDelete: () => void }) {
+function AdCard({
+  ad,
+  onDelete,
+  onOpen,
+}: {
+  ad: Ad;
+  onDelete: () => void;
+  onOpen: () => void;
+}) {
   const [hovered, setHovered] = useState(false);
 
   const handleDownload = async (e: React.MouseEvent) => {
@@ -1114,10 +1401,22 @@ function AdCard({ ad, onDelete }: { ad: Ad; onDelete: () => void }) {
 
   return (
     <div
-      className={`relative rounded-2xl overflow-hidden ${aspectClass}`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={`relative rounded-2xl overflow-hidden ${aspectClass} cursor-pointer`}
       style={{
         background: "var(--bg-secondary)",
         border: "1px solid var(--border-color)",
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
+        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.15)" : "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

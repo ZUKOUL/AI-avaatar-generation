@@ -28,7 +28,11 @@ from app.core.supabase import supabase
 from app.models.user import User
 from app.services.credit_service import deduct_credits, get_balance, is_admin
 from app.services.product_analyzer import analyze_product_url, format_product_context
-from app.services.ad_concept_designer import design_ad_concept, concept_to_prompt
+from app.services.ad_concept_designer import (
+    design_ad_concept,
+    design_marketing_brief,
+    concept_to_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -520,18 +524,41 @@ async def generate_ad(
     context_block = format_product_context(product["name"], product_analysis)
     context_line = f" {context_block}" if context_block else ""
 
-    # Auto mode: research the niche + design a bespoke ad concept. If the
-    # research step fails for any reason (API hiccup, grounding refusal), fall
-    # back gracefully to the Lifestyle In-Use template so the user still gets
-    # an ad-style image rather than a 500.
+    # Auto mode: chain-of-thought in two stages.
+    #   Stage 1 — design_marketing_brief(): the model steps into the shoes
+    #     of an e-commerce strategist and answers the foundational questions
+    #     (problem solved, audience, benefit, objection, emotional angle…).
+    #   Stage 2 — design_ad_concept(): with that brief in hand, the model
+    #     researches top-performing ads in the niche and synthesises a
+    #     visual concept that EXECUTES on the brief.
+    # Either stage can fail independently. If the concept fails, we fall
+    # back gracefully to a lifestyle template so the user still gets an
+    # ad-style image rather than a 500.
     concept: Optional[dict] = None
+    brief: Optional[dict] = None
     ad_brief: str
     if tpl.get("auto"):
+        brief = await design_marketing_brief(
+            name=product["name"],
+            category=product.get("category"),
+            description=product.get("description"),
+            features=product.get("features") or [],
+            price=product.get("price"),
+        )
+        if brief:
+            logger.info(
+                f"Marketing brief ready — key_benefit='{brief.get('key_benefit')}', "
+                f"emotion='{brief.get('emotional_angle')}'"
+            )
+        else:
+            logger.info("Marketing brief empty — concept stage will work from product info only.")
+
         concept = await design_ad_concept(
             name=product["name"],
             category=product.get("category"),
             description=product.get("description"),
             features=product.get("features") or [],
+            brief=brief,
         )
         if concept:
             ad_brief = concept_to_prompt(concept)
@@ -611,6 +638,16 @@ async def generate_ad(
             else:
                 history_prompt = extra or tpl["label"]
 
+            # Persist the chain-of-thought artefacts (brief + concept) so the
+            # lightbox can replay the strategic reasoning later. Null for
+            # non-auto templates — no need to bloat the row.
+            metadata_payload: Optional[dict] = None
+            if brief or concept:
+                metadata_payload = {
+                    "brief": brief,
+                    "concept": concept,
+                }
+
             supabase.table("generated_ads").insert({
                 "id": ad_id,
                 "user_id": current_user["id"],
@@ -620,6 +657,7 @@ async def generate_ad(
                 "aspect_ratio": aspect_ratio,
                 "image_url": image_url,
                 "storage_path": storage_path,
+                "metadata": metadata_payload,
             }).execute()
 
             if not is_admin(current_user):
@@ -640,8 +678,9 @@ async def generate_ad(
                 "image_url": image_url,
                 "cost_usd": COST_GEMINI_FLASH_IMAGE,
                 "engine": "gemini-3-pro-image-preview",
-                # Surface the auto-designed concept so the UI can show
-                # "Concept: UGC morning ritual — scroll-stopping testimonial"
+                # Surface the chain-of-thought so the UI can show both the
+                # strategic brief AND the visual concept the AI landed on.
+                "brief": brief,
                 "concept": concept,
             }
 
@@ -680,7 +719,10 @@ async def list_history(
     try:
         q = (
             supabase.table("generated_ads")
-            .select("id, product_id, template, prompt, aspect_ratio, image_url, created_at")
+            .select(
+                "id, product_id, template, prompt, aspect_ratio, "
+                "image_url, metadata, created_at"
+            )
             .eq("user_id", current_user["id"])
             .order("created_at", desc=True)
             .limit(max(1, min(limit, 500)))
