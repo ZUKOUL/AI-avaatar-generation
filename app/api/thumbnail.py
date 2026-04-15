@@ -246,6 +246,48 @@ def annotate_target_box(
         return img_bytes
 
 
+def describe_box_position(
+    box_x: float, box_y: float, box_w: float, box_h: float
+) -> str:
+    """
+    Convert fractional box coords to a short human-readable position string
+    (e.g. "center-right of the frame, occupying roughly 50%-90% horizontally
+    and 20%-80% vertically"). Fed to Gemini as spatial grounding so we can
+    steer edits to the right region without painting anything on the image.
+    """
+    cx = box_x + box_w / 2
+    cy = box_y + box_h / 2
+    # Horizontal zone
+    if cx < 0.33:
+        hpos = "left"
+    elif cx < 0.66:
+        hpos = "center"
+    else:
+        hpos = "right"
+    # Vertical zone
+    if cy < 0.33:
+        vpos = "upper"
+    elif cy < 0.66:
+        vpos = "middle"
+    else:
+        vpos = "lower"
+    if hpos == "center" and vpos == "middle":
+        zone = "center of the frame"
+    elif vpos == "middle":
+        zone = f"{hpos} side of the frame"
+    elif hpos == "center":
+        zone = f"{vpos} middle of the frame"
+    else:
+        zone = f"{vpos}-{hpos} area of the frame"
+    # Exact coord range
+    xl, xr = int(box_x * 100), int((box_x + box_w) * 100)
+    yt, yb = int(box_y * 100), int((box_y + box_h) * 100)
+    return (
+        f"{zone}, occupying roughly {xl}% to {xr}% horizontally and "
+        f"{yt}% to {yb}% vertically"
+    )
+
+
 def crop_region(
     img_bytes: bytes,
     box_x: float,
@@ -397,70 +439,88 @@ async def generate_thumbnail(
                 detail="Couldn't fetch a thumbnail for that YouTube video.",
             )
         used_youtube_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-        # If the user marked a region, paint it onto the thumbnail so Gemini
-        # can SEE what the prompt is pointing at. We keep the un-annotated
-        # bytes around for the persisted reference image — we want the
-        # saved/downloadable original, not one with a magenta square on it.
-        yt_bytes_for_model = yt_bytes
-        if has_target_box and mode == "recreate":
-            yt_bytes_for_model = annotate_target_box(
-                yt_bytes,
-                target_box_x,  # type: ignore[arg-type]
-                target_box_y,  # type: ignore[arg-type]
-                target_box_w,  # type: ignore[arg-type]
-                target_box_h,  # type: ignore[arg-type]
-                label=effective_target_label or None,
-            )
-            logger.info(
-                f"Recreate: annotated target box "
-                f"({target_box_x:.2f},{target_box_y:.2f},"
-                f"{target_box_w:.2f},{target_box_h:.2f})"
-            )
+        # Always send the clean, un-annotated YouTube thumbnail. We used to
+        # paint a bright magenta rectangle to mark the target region, but
+        # Gemini 3 Pro Image treats source images as faithful references and
+        # was rendering the rectangle AND its "TARGET: …" label directly
+        # into the final output. Instead we rely on (1) a cropped zoom of
+        # the region sent as an additional input, and (2) exact percentage
+        # coordinates in the text prompt.
         gemini_contents.append(
-            types.Part.from_bytes(
-                data=yt_bytes_for_model,
-                mime_type="image/png" if has_target_box else "image/jpeg",
-            )
+            types.Part.from_bytes(data=yt_bytes, mime_type="image/jpeg")
         )
         first_ref_bytes = yt_bytes
         first_ref_mime = "image/jpeg"
         logger.info(f"Recreate: seeded YouTube thumbnail for {video_id} ({len(yt_bytes)} bytes)")
 
+        # When the user drew/clicked a target region, attach a zoomed crop
+        # of that region as a SECOND image. The text prompt then references
+        # "the second image" as a region-of-interest preview that tells the
+        # model what to edit without any paint leaking into the output.
+        if has_target_box and mode == "recreate":
+            try:
+                crop_bytes = crop_region(
+                    yt_bytes,
+                    target_box_x,  # type: ignore[arg-type]
+                    target_box_y,  # type: ignore[arg-type]
+                    target_box_w,  # type: ignore[arg-type]
+                    target_box_h,  # type: ignore[arg-type]
+                )
+                if crop_bytes:
+                    gemini_contents.append(
+                        types.Part.from_bytes(data=crop_bytes, mime_type="image/png")
+                    )
+                    logger.info(
+                        f"Recreate: attached region crop "
+                        f"({target_box_x:.2f},{target_box_y:.2f},"
+                        f"{target_box_w:.2f},{target_box_h:.2f})"
+                    )
+            except Exception as e:
+                logger.warning(f"Recreate crop_region failed: {e}")
+
     # 2. User-uploaded references (character, style, or source image for edit).
+    # Track the FIRST uploaded file separately so we can append a region
+    # crop right after it when the user marked a target in edit mode —
+    # the crop needs to come before any character refs so the prompt's
+    # "second image is the region of interest" wording stays accurate.
+    edit_source_bytes: Optional[bytes] = None
     if files:
         for idx, f in enumerate(files):
             data = await f.read()
             if not data:
                 continue
             mime = f.content_type or "image/png"
-            # In edit mode the FIRST uploaded file is the source thumbnail —
-            # that's the one the user drew their box on. Annotate it with
-            # the magenta rectangle before handing it to Gemini so the
-            # model has a visual pointer to the region. Later files are
-            # character refs, leave them alone.
-            if mode == "edit" and idx == 0 and has_target_box:
-                try:
-                    annotated = annotate_target_box(
-                        data,
-                        target_box_x,  # type: ignore[arg-type]
-                        target_box_y,  # type: ignore[arg-type]
-                        target_box_w,  # type: ignore[arg-type]
-                        target_box_h,  # type: ignore[arg-type]
-                        label=effective_target_label or None,
-                    )
-                    gemini_contents.append(
-                        types.Part.from_bytes(data=annotated, mime_type="image/png")
-                    )
-                    logger.info(
-                        f"Edit: annotated target box on uploaded source "
-                        f"({target_box_x:.2f},{target_box_y:.2f},"
-                        f"{target_box_w:.2f},{target_box_h:.2f})"
-                    )
-                except Exception as e:
-                    logger.warning(f"Edit annotate failed, using raw: {e}")
-                    gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
-            else:
-                gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+            # Always send the raw source — we no longer paint anything on
+            # it. Gemini 3 Pro Image was rendering the magenta rectangle
+            # and its TARGET label straight into the output, which was
+            # horrible UX. Region hints now come from a separate crop +
+            # text coordinates.
+            gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+            if mode == "edit" and idx == 0:
+                edit_source_bytes = data
+                # Append the region-of-interest crop right after the source.
+                if has_target_box:
+                    try:
+                        crop_bytes = crop_region(
+                            data,
+                            target_box_x,  # type: ignore[arg-type]
+                            target_box_y,  # type: ignore[arg-type]
+                            target_box_w,  # type: ignore[arg-type]
+                            target_box_h,  # type: ignore[arg-type]
+                        )
+                        if crop_bytes:
+                            gemini_contents.append(
+                                types.Part.from_bytes(
+                                    data=crop_bytes, mime_type="image/png"
+                                )
+                            )
+                            logger.info(
+                                f"Edit: attached region crop "
+                                f"({target_box_x:.2f},{target_box_y:.2f},"
+                                f"{target_box_w:.2f},{target_box_h:.2f})"
+                            )
+                    except Exception as e:
+                        logger.warning(f"Edit crop_region failed: {e}")
             # Capture the first uploaded file as the "source" for edit mode
             # (recreate mode already filled first_ref_bytes with the YouTube
             # frame above, so we only overwrite if we don't have one yet).
@@ -481,7 +541,15 @@ async def generate_thumbnail(
     # source thumbnail), we know they intend to inject a specific person. The
     # prompt then has to treat the source as a *layout* reference rather than
     # locking the source's identity — otherwise face-swap requests get ignored.
-    has_character_refs = len([c for c in gemini_contents if not isinstance(c, str)]) > 1
+    # Count uploaded files only, ignoring any region-of-interest crop we
+    # added ourselves: for recreate, all uploaded files are character refs;
+    # for edit, the first file is the source and anything beyond that is
+    # character refs; for prompt, all uploaded files are character refs.
+    uploaded_count = len(files) if files else 0
+    if mode == "edit":
+        has_character_refs = uploaded_count > 1
+    else:
+        has_character_refs = uploaded_count > 0
 
     if mode == "prompt":
         full_prompt = (
@@ -496,53 +564,43 @@ async def generate_thumbnail(
             + f"Thumbnail concept: {prompt}"
         )
     elif mode == "recreate":
-        # Unified target label: prefer the new `target_label`, fall back to
-        # the legacy `person_to_replace_label`.
         effective_target = effective_target_label
-        # Build the targeting clause. The rule of thumb: if we have EITHER
-        # a box the user drew (visible magenta rectangle in the source) OR
-        # a textual label, we add a clause that pins the edit to that
-        # region. The old code only fired this clause when character refs
-        # were present, which is why "change the t-shirt colour" ignored
-        # the custom rectangle entirely.
-        if has_target_box and has_character_refs:
-            target_clause = (
-                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the first "
-                "image marking the region the user wants modified"
-                + (
-                    f" (described as: \"{effective_target}\")"
-                    if effective_target
-                    else ""
-                )
-                + ". Swap ONLY what is inside that rectangle with the "
-                "referenced person/content — match its position, pose, "
-                "scale, and lighting. Do NOT modify anything outside the "
-                "rectangle. The magenta rectangle itself is an annotation "
-                "and must NOT appear in the output. "
+
+        # Build the targeting clause using crop + text coordinates.
+        # No annotation is painted on the source image (that caused the
+        # model to render the marker rectangle in the output). Instead:
+        # • A zoomed crop of the region is sent as image 2 in gemini_contents
+        # • The text prompt describes the region with spatial percentages
+        # • The label (if any) names the subject in plain language
+        if has_target_box:
+            pos = describe_box_position(
+                target_box_x, target_box_y,  # type: ignore[arg-type]
+                target_box_w, target_box_h,  # type: ignore[arg-type]
             )
-        elif has_target_box:
+            label_part = f" (described as: \"{effective_target}\")" if effective_target else ""
             target_clause = (
-                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the first "
-                "image marking the region the user wants modified"
+                f"TARGET REGION: The second image is a zoomed-in preview of the "
+                f"specific area to edit{label_part}. This area is located at the "
+                f"{pos} of the first image. "
+                "Use the second image ONLY to identify WHERE and WHAT to edit — "
+                "do NOT reproduce the crop image as a standalone element in the output, "
+                "do NOT include any rectangles, borders or overlays. "
                 + (
-                    f" (described as: \"{effective_target}\")"
-                    if effective_target
-                    else ""
+                    "Swap the subject shown in the second image with the "
+                    "referenced person(s), matching their position, pose, scale and lighting. "
+                    if has_character_refs
+                    else
+                    "Apply the requested change ONLY to that region. "
+                    "Keep every other part of the composition — faces, text, background, "
+                    "colours, framing — pixel-identical to the first image. "
                 )
-                + ". Apply the requested change ONLY to what is inside "
-                "that rectangle. Do NOT modify anything outside the "
-                "rectangle — keep every other pixel of the composition, "
-                "faces, text, background, colour palette, and framing "
-                "identical to the original. The magenta rectangle itself "
-                "is an annotation and must NOT appear in the output. "
             )
         elif effective_target and has_character_refs:
             target_clause = (
                 f"The region to replace is described as: \"{effective_target}\". "
                 "Swap THAT specific subject/element (matching its position, "
-                "pose, scale, and lighting) for the referenced person/"
-                "content. Do not touch any other people or elements in the "
-                "frame. "
+                "pose, scale, and lighting) for the referenced person/content. "
+                "Do not touch any other people or elements in the frame. "
             )
         elif effective_target:
             target_clause = (
@@ -553,80 +611,84 @@ async def generate_thumbnail(
         else:
             target_clause = ""
 
-        if has_character_refs:
-            # Face-swap / person-injection: keep the ORIGINAL composition,
-            # lighting and background, but replace the subject with the
-            # reference person(s).
-            full_prompt = (
-                "The FIRST image is the ORIGINAL YouTube thumbnail — use it as "
-                "the compositional and stylistic reference (framing, lighting, "
-                "mood, background, colors). "
-                "The following reference images show the specific person(s) "
-                "the user wants featured. Reproduce their face and identity "
-                "EXACTLY — do NOT alter, beautify, or idealize facial features. "
-                f"{target_clause}"
-                "If the prompt asks you to replace someone in the original, "
-                "swap the corresponding subject so the referenced person "
-                "occupies that position, matching the original's pose, "
-                "lighting, and expression. Keep everything else identical. "
-                f"{base_style} "
-                f"Change to apply: {prompt}"
-            )
-        else:
-            full_prompt = (
-                "The first image is the ORIGINAL YouTube thumbnail. "
-                "Generate a NEW thumbnail that keeps the overall composition, "
-                "lighting, and subject framing but applies the requested "
-                "change literally — the user's instructions take priority "
-                "over preserving details. "
-                f"{target_clause}"
-                f"{base_style} "
-                f"Change to apply: {prompt}"
-            )
-    elif mode == "edit":
-        effective_target = effective_target_label
-        # Same dual-path logic as recreate: magenta-rectangle-first when we
-        # have box coords, text-only fallback otherwise, and the clause
-        # fires regardless of whether character refs are attached so
-        # pure describe-mode edits ("change the t-shirt to red") actually
-        # pick up the custom-drawn rectangle.
+        # Describe image ordering explicitly so the model knows which slot
+        # carries which role (source / region-crop / character refs).
         if has_target_box and has_character_refs:
-            target_clause = (
-                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the source "
-                "image marking the region the user wants modified"
-                + (
-                    f" (described as: \"{effective_target}\")"
-                    if effective_target
-                    else ""
-                )
-                + ". Swap ONLY what is inside that rectangle with the "
-                "referenced person/content. Do NOT modify anything outside "
-                "the rectangle. The magenta rectangle itself is an "
-                "annotation and must NOT appear in the output. "
+            img_roles = (
+                "IMAGE ROLES — Image 1: original YouTube thumbnail (composition reference). "
+                "Image 2: zoomed crop showing the region to edit (targeting aid only — "
+                "never reproduce this as an output element). "
+                "Images 3+: character reference photos — reproduce their face and "
+                "identity EXACTLY, do NOT alter, beautify, or idealize facial features. "
             )
         elif has_target_box:
+            img_roles = (
+                "IMAGE ROLES — Image 1: original YouTube thumbnail (composition reference). "
+                "Image 2: zoomed crop showing the region to edit (targeting aid only — "
+                "never reproduce this as an output element). "
+            )
+        elif has_character_refs:
+            img_roles = (
+                "IMAGE ROLES — Image 1: original YouTube thumbnail (composition reference). "
+                "Remaining images: character reference photos — reproduce their face and "
+                "identity EXACTLY, do NOT alter, beautify, or idealize facial features. "
+            )
+        else:
+            img_roles = "Image 1 is the ORIGINAL YouTube thumbnail — use it as the reference. "
+
+        full_prompt = (
+            f"{img_roles}"
+            f"{target_clause}"
+            + (
+                "If the prompt asks you to replace someone, swap the target region "
+                "so the referenced person occupies that position, matching the original's "
+                "pose, lighting, and expression. Keep everything else identical. "
+                if has_character_refs
+                else
+                "Keep the overall composition, lighting, and subject framing. "
+                "Apply the requested change literally — the user's instructions "
+                "take priority over preserving minor details. "
+            )
+            + f"{base_style} "
+            + f"Change to apply: {prompt}"
+        )
+    elif mode == "edit":
+        effective_target = effective_target_label
+
+        # Same crop-based approach as recreate — no annotation on the image.
+        # Image ordering in gemini_contents for edit mode:
+        #   [0] clean source thumbnail
+        #   [1] region crop (if has_target_box)
+        #   [2+] character refs (if any)
+        if has_target_box:
+            pos = describe_box_position(
+                target_box_x, target_box_y,  # type: ignore[arg-type]
+                target_box_w, target_box_h,  # type: ignore[arg-type]
+            )
+            label_part = f" (described as: \"{effective_target}\")" if effective_target else ""
             target_clause = (
-                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the source "
-                "image marking the region the user wants modified"
+                f"TARGET REGION: The second image is a zoomed-in preview of the "
+                f"specific area to edit{label_part}. This area is located at the "
+                f"{pos} of the first image. "
+                "Use the second image ONLY to identify WHERE and WHAT to edit — "
+                "do NOT reproduce the crop as a standalone element, do NOT include "
+                "any rectangles, borders or overlays in the output. "
                 + (
-                    f" (described as: \"{effective_target}\")"
-                    if effective_target
-                    else ""
+                    "Swap the subject shown in the second image with the referenced "
+                    "person(s), matching their position, pose, scale and lighting. "
+                    if has_character_refs
+                    else
+                    "Apply the requested change ONLY to that region. "
+                    "Keep every other part — faces, text, background, colours, framing — "
+                    "pixel-identical to the first image. "
                 )
-                + ". Apply the requested edit ONLY to what is inside that "
-                "rectangle. Do NOT modify anything outside the rectangle — "
-                "keep every other pixel of the composition, faces, text, "
-                "background, colour palette, and framing identical. The "
-                "magenta rectangle itself is an annotation and must NOT "
-                "appear in the output. "
             )
         elif effective_target and has_character_refs:
             target_clause = (
                 f"The region to replace is described as: \"{effective_target}\". "
                 "Swap THAT specific subject/element (matching its position, "
-                "pose, scale, and lighting) for the referenced person/"
-                "content. Do not touch any other people or elements in the "
-                "frame. "
+                "pose, scale, and lighting) for the referenced person/content. "
+                "Do not touch any other people or elements in the frame. "
             )
         elif effective_target:
             target_clause = (
@@ -636,17 +698,34 @@ async def generate_thumbnail(
             )
         else:
             target_clause = ""
-        full_prompt = (
-            "The first uploaded image is the source thumbnail — keep its "
-            "composition, lighting and overall look, then apply the requested "
-            "edit literally. "
-            + (
-                "Additional reference images show the specific person(s) "
-                "to feature; reproduce their face identity exactly when the "
-                "edit involves swapping or adding a character. "
-                if has_character_refs
-                else ""
+
+        if has_target_box and has_character_refs:
+            img_roles = (
+                "IMAGE ROLES — Image 1: source thumbnail (composition reference, do not alter). "
+                "Image 2: zoomed crop showing the region to edit (targeting aid only — "
+                "never reproduce as an output element). "
+                "Images 3+: character references — reproduce their face and identity "
+                "EXACTLY, do NOT alter, beautify, or idealize facial features. "
             )
+        elif has_target_box:
+            img_roles = (
+                "IMAGE ROLES — Image 1: source thumbnail (composition reference). "
+                "Image 2: zoomed crop showing the region to edit (targeting aid only — "
+                "never reproduce as an output element). "
+            )
+        elif has_character_refs:
+            img_roles = (
+                "IMAGE ROLES — Image 1: source thumbnail (composition reference). "
+                "Remaining images: character references — reproduce their face and "
+                "identity EXACTLY, do NOT alter, beautify, or idealize facial features. "
+            )
+        else:
+            img_roles = "The first uploaded image is the source thumbnail. "
+
+        full_prompt = (
+            f"{img_roles}"
+            "Keep its composition, lighting and overall look, then apply the "
+            "requested edit literally. "
             + target_clause
             + f"{base_style} "
             + f"Edit instructions: {prompt}"
