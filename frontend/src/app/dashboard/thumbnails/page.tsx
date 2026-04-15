@@ -87,15 +87,62 @@ interface GeneratedThumbnail {
  * A subject detected by Gemini 2.5 Flash (or drawn manually) in the source
  * thumbnail. Box is in fractional coordinates (0-1) relative to the rendered
  * image — we multiply by 100 to position the overlay with CSS percents.
- * `kind` is one of person/object/text/other for people AI detections, or
- * "custom" for user-drawn rectangles.
+ * `kind` is one of person/object/text/other for AI detections, or "custom"
+ * for user-drawn rectangles.
+ *
+ * `mention_name` is a short, stable handle like "person1", "text2", "object3"
+ * that the user can reference inside the prompt via `@person1`. Clicking a
+ * box inserts its mention_name at the cursor; typing `@person1` highlights
+ * the matching box. The label (full AI description) is what gets sent to
+ * the model as `target_label` when the prompt contains the mention.
  */
 interface DetectedSubject {
   id: string;
   label: string;
+  mention_name: string;
   kind: "person" | "object" | "text" | "other" | "custom";
   is_main: boolean;
   box: { x: number; y: number; w: number; h: number };
+}
+
+/**
+ * Assign a stable `mention_name` to every subject that doesn't have one yet.
+ * Existing names are preserved (so a user-mentioned `@person1` keeps pointing
+ * to the same box even after deletions). New ones get the next free number
+ * per kind: `person1, person2, object1, text1, custom1…`.
+ */
+function assignMentionNames(subjects: DetectedSubject[]): DetectedSubject[] {
+  const usedByKind: Record<string, Set<number>> = {};
+  for (const s of subjects) {
+    if (!s.mention_name) continue;
+    const m = s.mention_name.match(/^([a-z]+)(\d+)$/i);
+    if (!m) continue;
+    const kind = m[1].toLowerCase();
+    const n = parseInt(m[2], 10);
+    usedByKind[kind] = usedByKind[kind] || new Set();
+    usedByKind[kind].add(n);
+  }
+  const nextFree = (prefix: string): number => {
+    const used = usedByKind[prefix] || new Set();
+    let n = 1;
+    while (used.has(n)) n++;
+    used.add(n);
+    usedByKind[prefix] = used;
+    return n;
+  };
+  const prefixFor = (kind: DetectedSubject["kind"]): string => {
+    if (kind === "person") return "person";
+    if (kind === "object") return "object";
+    if (kind === "text") return "text";
+    if (kind === "custom") return "custom";
+    return "item";
+  };
+  return subjects.map((s) => {
+    if (s.mention_name) return s;
+    const prefix = prefixFor(s.kind);
+    const n = nextFree(prefix);
+    return { ...s, mention_name: `${prefix}${n}` };
+  });
 }
 
 const MODE_ITEMS: { key: Mode; label: string; Icon: React.FC<{ size?: number }> }[] = [
@@ -262,11 +309,30 @@ export default function ThumbnailStudio() {
   const refInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
 
-  const mentionFiltered =
+  /**
+   * An @-autocomplete option is either an avatar from the library (resolves
+   * to a face ref at submit time) or a subject detected in the source image
+   * (resolves to a `target_label` — "replace this thing"). Rendering and
+   * handler logic differ so we use a tagged union.
+   */
+  type MentionOption =
+    | { kind: "avatar"; avatar: Avatar }
+    | { kind: "subject"; subject: DetectedSubject };
+
+  const mentionFiltered: MentionOption[] =
     mentionQuery !== null
-      ? avatars
-          .filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase()))
-          .slice(0, 6)
+      ? [
+          // Detected subjects come first — they're usually what the user just
+          // clicked on, and they're contextual to this specific thumbnail.
+          ...detectedSubjects
+            .filter((s) =>
+              s.mention_name.toLowerCase().includes(mentionQuery.toLowerCase()),
+            )
+            .map((s): MentionOption => ({ kind: "subject", subject: s })),
+          ...avatars
+            .filter((a) => a.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+            .map((a): MentionOption => ({ kind: "avatar", avatar: a })),
+        ].slice(0, 8)
       : [];
 
   /* ─── Load avatars on mount ─── */
@@ -406,23 +472,29 @@ export default function ThumbnailStudio() {
     }
   };
 
-  const selectMention = (avatar: Avatar) => {
+  const selectMention = (opt: MentionOption) => {
     const start = mentionStartRef.current;
     if (start === null) return;
     const before = prompt.slice(0, start);
     const cursor = textareaRef.current?.selectionStart || prompt.length;
     const after = prompt.slice(cursor);
-    setPrompt(`${before}@${avatar.name}  ${after}`);
-    // Track the mentioned avatar so we can attach its photo at submit time.
-    setMentionedAvatarIds((prev) =>
-      prev.includes(avatar.avatar_id) ? prev : [...prev, avatar.avatar_id],
-    );
+    const name = opt.kind === "avatar" ? opt.avatar.name : opt.subject.mention_name;
+    setPrompt(`${before}@${name}  ${after}`);
+    if (opt.kind === "avatar") {
+      // Track the mentioned avatar so we can attach its photo at submit time.
+      setMentionedAvatarIds((prev) =>
+        prev.includes(opt.avatar.avatar_id) ? prev : [...prev, opt.avatar.avatar_id],
+      );
+    } else {
+      // Surfacing the box visually tells the user "this is what got picked".
+      setSelectedSubjectId(opt.subject.id);
+    }
     setMentionQuery(null);
     mentionStartRef.current = null;
     setTimeout(() => {
       const ta = textareaRef.current;
       if (ta) {
-        const pos = before.length + avatar.name.length + 3;
+        const pos = before.length + name.length + 3;
         ta.focus();
         ta.setSelectionRange(pos, pos);
       }
@@ -466,6 +538,68 @@ export default function ThumbnailStudio() {
     );
   }, [prompt, avatars]);
 
+  /**
+   * Toggle a detected subject's `@mention` inside the prompt. If it's already
+   * there, remove it and any surrounding whitespace. Otherwise append it at
+   * the cursor (or the end of the prompt if the textarea isn't focused).
+   * This is called by clicks on the overlay boxes.
+   */
+  const escReg = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const toggleSubjectMention = useCallback(
+    (subject: DetectedSubject) => {
+      const token = `@${subject.mention_name}`;
+      const re = new RegExp(`\\s*${escReg(token)}(?=\\s|$)`, "i");
+      if (re.test(prompt)) {
+        // Remove it.
+        setPrompt((p) =>
+          p.replace(re, "").replace(/\s{2,}/g, " ").trimStart(),
+        );
+        if (selectedSubjectId === subject.id) setSelectedSubjectId(null);
+        return;
+      }
+      // Insert at caret position if focused, else append.
+      const ta = textareaRef.current;
+      let insertion = token;
+      if (ta && document.activeElement === ta) {
+        const cursor = ta.selectionStart || prompt.length;
+        const before = prompt.slice(0, cursor);
+        const after = prompt.slice(cursor);
+        const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+        const needsTrailingSpace = after.length > 0 && !/^\s/.test(after);
+        insertion =
+          (needsLeadingSpace ? " " : "") +
+          token +
+          (needsTrailingSpace ? " " : " ");
+        const next = before + insertion + after;
+        setPrompt(next);
+        setTimeout(() => {
+          if (!ta) return;
+          ta.focus();
+          const pos = before.length + insertion.length;
+          ta.setSelectionRange(pos, pos);
+        }, 0);
+      } else {
+        const sep = prompt.length > 0 && !/\s$/.test(prompt) ? " " : "";
+        setPrompt(`${prompt}${sep}${token} `);
+      }
+      setSelectedSubjectId(subject.id);
+    },
+    [prompt, selectedSubjectId],
+  );
+
+  // Keep `selectedSubjectId` in sync with whatever subject mentions are
+  // present in the prompt. If the user types `@person1` manually or deletes
+  // a chip, the overlay selection follows.
+  useEffect(() => {
+    if (!detectedSubjects.length) return;
+    // Find the first subject whose mention is in the prompt.
+    const found = detectedSubjects.find((s) => {
+      const re = new RegExp(`@${escReg(s.mention_name)}(?=\\s|$)`, "i");
+      return re.test(prompt);
+    });
+    setSelectedSubjectId(found ? found.id : null);
+  }, [prompt, detectedSubjects]);
+
   const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionQuery !== null && mentionFiltered.length > 0) {
       if (e.key === "ArrowDown") {
@@ -501,22 +635,46 @@ export default function ThumbnailStudio() {
     }
   };
 
+  /**
+   * Color palette for subject pills by kind. Same hues as the overlay boxes
+   * so a `@person1` chip visually ties back to the highlighted person box.
+   */
+  const subjectColorFor = (kind: DetectedSubject["kind"]) => {
+    switch (kind) {
+      case "person":
+        return { fg: "#f97316", bg: "rgba(249,115,22,0.14)" }; // orange — stands out from blue avatars
+      case "object":
+        return { fg: "#a855f7", bg: "rgba(168,85,247,0.14)" };
+      case "text":
+        return { fg: "#f59e0b", bg: "rgba(245,158,11,0.14)" };
+      case "custom":
+        return { fg: "#10b981", bg: "rgba(16,185,129,0.14)" };
+      default:
+        return { fg: "#64748b", bg: "rgba(100,116,139,0.14)" };
+    }
+  };
+
   // Render prompt with highlighted @name chips as an overlay. The raw text
-  // layer above (textarea) stays transparent, caret preserved.
+  // layer above (textarea) stays transparent, caret preserved. Two kinds of
+  // chips can render: avatar mentions (blue, clickable to swap) and subject
+  // mentions (colour by kind, clickable to highlight the source-image box).
   const renderHighlightedPrompt = (text: string) => {
     if (!text) return null;
-    const names = avatars.map((a) => a.name).sort((a, b) => b.length - a.length);
-    if (!names.length) return <span style={{ color: "var(--text-primary)" }}>{text}</span>;
+    const avatarNames = avatars.map((a) => a.name);
+    const subjectNames = detectedSubjects.map((s) => s.mention_name);
+    const allNames = [...avatarNames, ...subjectNames].sort((a, b) => b.length - a.length);
+    if (!allNames.length) return <span style={{ color: "var(--text-primary)" }}>{text}</span>;
     const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const pattern = new RegExp(
-      `(@(?:${names.map(esc).join("|")}))(?=\\s|$)`,
+      `(@(?:${allNames.map(esc).join("|")}))(?=\\s|$)`,
       "gi",
     );
     const parts = text.split(pattern);
     return parts.map((part, i) => {
       const m = part.match(/^@(.+)$/);
       if (m) {
-        const av = avatars.find((a) => a.name.toLowerCase() === m[1].toLowerCase());
+        const name = m[1];
+        const av = avatars.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (av) {
           return (
             <span
@@ -555,6 +713,32 @@ export default function ThumbnailStudio() {
                   strokeLinejoin="round"
                 />
               </svg>
+            </span>
+          );
+        }
+        const subj = detectedSubjects.find(
+          (s) => s.mention_name.toLowerCase() === name.toLowerCase(),
+        );
+        if (subj) {
+          const { fg, bg } = subjectColorFor(subj.kind);
+          return (
+            <span
+              key={i}
+              className="relative rounded-[4px] pointer-events-auto cursor-pointer select-none"
+              style={{
+                background: bg,
+                color: fg,
+                fontWeight: 600,
+                padding: "2px 0",
+              }}
+              title={subj.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Clicking the chip spotlights the matching box.
+                setSelectedSubjectId(subj.id);
+              }}
+            >
+              {part}
             </span>
           );
         }
@@ -617,7 +801,8 @@ export default function ThumbnailStudio() {
 
     const fromDetection = (res: { data: { subjects?: DetectedSubject[]; people?: DetectedSubject[] } }) => {
       // Backend returns both keys for back-compat; prefer `subjects`.
-      return (res.data.subjects || res.data.people || []) as DetectedSubject[];
+      const raw = (res.data.subjects || res.data.people || []) as DetectedSubject[];
+      return assignMentionNames(raw);
     };
 
     if (mode === "recreate" && ytPreview?.videoId) {
@@ -772,7 +957,33 @@ export default function ThumbnailStudio() {
     try {
       const form = new FormData();
       form.append("mode", mode);
-      form.append("prompt", prompt.trim() || "Recreate with the same theme but a fresh take.");
+
+      /* ─── Subject mentions → target_label ───
+       * Scan the raw prompt for any `@subjectMention` that matches a detected
+       * subject. The first match becomes the `target_label` the backend uses
+       * to pin the edit. We also rewrite the prompt we send to the model:
+       * `@person1` is a UI-only handle; the model should see the subject's
+       * human-readable label instead. Avatar `@mentions` are left intact —
+       * those names are part of the user's vocabulary for characters. */
+      let targetedSubject: DetectedSubject | null = null;
+      let promptForModel = prompt.trim();
+      for (const s of detectedSubjects) {
+        const re = new RegExp(`@${escReg(s.mention_name)}(?=\\s|$)`, "i");
+        if (re.test(promptForModel)) {
+          if (!targetedSubject) targetedSubject = s;
+          // Replace each `@person1` with a human-readable reference so the
+          // model isn't confused by the raw token.
+          promptForModel = promptForModel.replace(
+            new RegExp(`@${escReg(s.mention_name)}(?=\\s|$)`, "gi"),
+            `the ${s.label}`,
+          );
+        }
+      }
+
+      form.append(
+        "prompt",
+        promptForModel || "Recreate with the same theme but a fresh take.",
+      );
       // Resolve "auto" to the source image's actual ratio (snapped to the
       // closest supported value). Falls back to 16:9 if we have no source.
       const effectiveRatio: AspectRatio =
@@ -788,12 +999,16 @@ export default function ThumbnailStudio() {
       if (mode === "title") {
         form.append("title_text", titleText.trim());
       }
-      // When the user clicked a detected subject (person/object/text/custom),
-      // pass its label so the backend can pin the face-swap / edit to exactly
-      // that region.
-      if (selectedSubjectId && (mode === "recreate" || mode === "edit")) {
-        const picked = detectedSubjects.find((s) => s.id === selectedSubjectId);
-        if (picked) form.append("target_label", picked.label);
+
+      // Prefer the prompt-scan target; fall back to the box click state for
+      // users who haven't discovered the mention flow yet.
+      const effectiveTarget =
+        targetedSubject ||
+        (selectedSubjectId
+          ? detectedSubjects.find((s) => s.id === selectedSubjectId) || null
+          : null);
+      if (effectiveTarget && (mode === "recreate" || mode === "edit")) {
+        form.append("target_label", effectiveTarget.label);
       }
       if (mode === "edit" && sourceFile) form.append("files", sourceFile);
       refs.forEach((f) => form.append("files", f));
@@ -925,22 +1140,50 @@ export default function ThumbnailStudio() {
     const newSubject: DetectedSubject = {
       id,
       label: "Custom selection",
+      mention_name: "",
       kind: "custom",
       is_main: false,
       box: { x, y, w: 0.001, h: 0.001 },
     };
-    setDetectedSubjects((prev) => [...prev, newSubject]);
+    setDetectedSubjects((prev) => assignMentionNames([...prev, newSubject]));
     setSelectedSubjectId(id);
     setDragState({ kind: "draw", id, startX: x, startY: y });
   };
+
+  // Tracks whether the current drag actually moved past a small threshold.
+  // If it didn't, we treat mousedown→mouseup as a click and toggle the
+  // subject's @mention instead of applying box movement.
+  const dragMovedRef = useRef(false);
+  // Latest-value refs so the drag effect can read current state without
+  // re-subscribing (which would tear down/re-add window listeners on every
+  // mousemove).
+  const detectedSubjectsRef = useRef(detectedSubjects);
+  const toggleSubjectMentionRef = useRef(toggleSubjectMention);
+  useEffect(() => {
+    detectedSubjectsRef.current = detectedSubjects;
+  }, [detectedSubjects]);
+  useEffect(() => {
+    toggleSubjectMentionRef.current = toggleSubjectMention;
+  }, [toggleSubjectMention]);
 
   // Global mousemove/up handlers while dragging. Use listeners on window so
   // the drag survives leaving the preview area momentarily.
   useEffect(() => {
     if (!dragState) return;
+    dragMovedRef.current = false;
     const onMove = (e: MouseEvent) => {
       e.preventDefault();
       const { x, y } = mouseToFrac(e);
+      // Threshold in fractional coords: ~1.5% of the container side is a
+      // reliable "user really intended to drag" signal that still feels
+      // responsive. Anything smaller, keep the box pristine so a tap still
+      // counts as a click.
+      if (!dragMovedRef.current) {
+        const dx = Math.abs(x - dragState.startX);
+        const dy = Math.abs(y - dragState.startY);
+        if (dx < 0.015 && dy < 0.015) return;
+        dragMovedRef.current = true;
+      }
       setDetectedSubjects((prev) =>
         prev.map((s) => {
           if (s.id !== dragState.id) return s;
@@ -998,8 +1241,23 @@ export default function ThumbnailStudio() {
       );
     };
     const onUp = () => {
-      // If a freshly-drawn box came out too small, drop it — usually a stray
-      // click on empty canvas instead of a real drag.
+      // No real drag happened — treat mousedown→mouseup as a tap.
+      if (!dragMovedRef.current) {
+        if (dragState.kind === "move") {
+          // Tap on an existing box → toggle its @mention in the prompt.
+          const target = detectedSubjectsRef.current.find((s) => s.id === dragState.id);
+          if (target) toggleSubjectMentionRef.current(target);
+        } else if (dragState.kind === "draw") {
+          // Tap on empty canvas (no drag) → discard the 1px box we
+          // tentatively created on mousedown.
+          setDetectedSubjects((prev) => prev.filter((s) => s.id !== dragState.id));
+          setSelectedSubjectId(null);
+        }
+        setDragState(null);
+        return;
+      }
+      // Drew/resized/moved something — finalize. Drop tiny freshly-drawn
+      // boxes (the user barely moved the mouse, intent was clearly a tap).
       if (dragState.kind === "draw") {
         setDetectedSubjects((prev) => {
           const drawn = prev.find((s) => s.id === dragState.id);
@@ -1034,11 +1292,11 @@ export default function ThumbnailStudio() {
     if (detecting) {
       status = "Detecting subjects in the source image…";
     } else if (!detectionEnabled && customSubjects.length === 0) {
-      status = "AI detection is off. Drag on the image to draw a custom target box, or just describe your edit below.";
+      status = "AI detection is off. Drag on the image to draw your own target, or just describe your edit below.";
     } else if (selected) {
-      status = `Targeting “${selected.label}” — describe the replacement below.`;
+      status = `@${selected.mention_name} is in the prompt — mention an avatar (@…) right after it to swap it in.`;
     } else if (aiSubjects.length > 0 || customSubjects.length > 0) {
-      status = "Click a box to target it, drag a corner to resize, or drag the empty area to draw a new one.";
+      status = "Click a box to drop its @mention into the prompt, then mention an avatar to replace it. × removes a detection.";
     } else {
       status = "We'll remix this thumbnail based on your prompt below.";
     }
@@ -1068,14 +1326,31 @@ export default function ThumbnailStudio() {
               {customSubjects.length > 0 && `${customSubjects.length} custom`}
             </span>
           )}
-          {selectedSubjectId && (
+          {(aiSubjects.length > 0 || customSubjects.length > 0) && (
             <button
               type="button"
-              onClick={() => setSelectedSubjectId(null)}
+              onClick={() => {
+                // Strip every subject @mention from the prompt before dropping
+                // the boxes — otherwise the prompt keeps orphan @person3 tags
+                // pointing to nothing.
+                setPrompt((p) => {
+                  let next = p;
+                  for (const s of detectedSubjects) {
+                    const re = new RegExp(
+                      `\\s*@${escReg(s.mention_name)}(?=\\s|$)`,
+                      "gi",
+                    );
+                    next = next.replace(re, "");
+                  }
+                  return next.replace(/\s{2,}/g, " ").trimStart();
+                });
+                setDetectedSubjects([]);
+                setSelectedSubjectId(null);
+              }}
               className="text-[11px] rounded-md px-2 h-6"
               style={{ color: "var(--text-muted)" }}
             >
-              Clear selection
+              Clear all
             </button>
           )}
         </div>
@@ -1114,21 +1389,11 @@ export default function ThumbnailStudio() {
 
         {detectedSubjects.map((s) => {
           const selected = selectedSubjectId === s.id;
-          const colorFor = (kind: DetectedSubject["kind"]) => {
-            switch (kind) {
-              case "person":
-                return "#3b82f6";
-              case "object":
-                return "#a855f7";
-              case "text":
-                return "#f59e0b";
-              case "custom":
-                return "#10b981";
-              default:
-                return "#ffffff";
-            }
-          };
-          const accent = colorFor(s.kind);
+          const { fg: accent } = subjectColorFor(s.kind);
+          // `mentioned` = this subject's @tag is currently inside the prompt.
+          // Visually we tie it together with `selected` — both states render
+          // the same way — but we keep the boolean for clarity.
+          const mentioned = selected;
           return (
             <div
               key={s.id}
@@ -1138,58 +1403,80 @@ export default function ThumbnailStudio() {
                 top: `${s.box.y * 100}%`,
                 width: `${s.box.w * 100}%`,
                 height: `${s.box.h * 100}%`,
-                border: selected
+                border: mentioned
                   ? `2.5px solid ${accent}`
                   : `2px solid rgba(255,255,255,0.85)`,
                 borderRadius: 8,
-                background: selected
+                background: mentioned
                   ? `${accent}2e` // hex alpha ~0.18
                   : "transparent",
-                boxShadow: selected
+                boxShadow: mentioned
                   ? `0 0 0 2px ${accent}40, 0 2px 8px rgba(0,0,0,0.3)`
                   : "0 1px 4px rgba(0,0,0,0.35)",
                 transition: dragState ? "none" : "background 0.15s ease, border-color 0.15s ease",
-                cursor: dragState?.id === s.id && dragState.kind === "move" ? "grabbing" : "grab",
+                cursor:
+                  dragState?.id === s.id && dragState.kind === "move"
+                    ? "grabbing"
+                    : "grab",
               }}
               onMouseDown={(e) => startMove(e, s)}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedSubjectId((prev) => (prev === s.id ? null : s.id));
-              }}
-              aria-label={`Select ${s.label}`}
-              title={s.label}
+              aria-label={`Mention @${s.mention_name} (${s.label})`}
+              title={`Click to mention @${s.mention_name} — ${s.label}`}
             >
-              {/* Label chip */}
-              <span
-                className="absolute left-0 -top-6 px-1.5 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap max-w-[180px] truncate pointer-events-none"
+              {/* Stacked label: bold `@mentionName` on top, full description
+                  below in smaller text. Users see "@person1" as the primary
+                  identifier they'll type in the prompt, and the AI's richer
+                  description as a sanity-check subtitle. */}
+              <div
+                className="absolute left-0 -top-[38px] px-1.5 py-0.5 rounded-md max-w-[200px] pointer-events-none"
                 style={{
-                  background: selected ? accent : "rgba(0,0,0,0.7)",
+                  background: mentioned ? accent : "rgba(0,0,0,0.78)",
                   color: "#fff",
                   backdropFilter: "blur(6px)",
                 }}
               >
-                {s.label}
-              </span>
-
-              {/* Delete button (custom or selected boxes only) */}
-              {(s.kind === "custom" || selected) && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDetectedSubjects((prev) => prev.filter((x) => x.id !== s.id));
-                    if (selectedSubjectId === s.id) setSelectedSubjectId(null);
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(0,0,0,0.85)", color: "#fff" }}
-                  aria-label="Remove box"
+                <div className="text-[10.5px] font-semibold leading-tight">
+                  @{s.mention_name}
+                </div>
+                <div
+                  className="text-[9px] leading-tight truncate"
+                  style={{ opacity: 0.82 }}
                 >
-                  <XIcon size={10} />
-                </button>
-              )}
+                  {s.label}
+                </div>
+              </div>
 
-              {/* Corner resize handles (only shown for selected box) */}
+              {/* Delete button — ALWAYS visible so the user can dismiss any
+                  unwanted detection (stray text, irrelevant object, etc.)
+                  without first having to click/select it. */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Also strip any @mention from the prompt so we don't leave
+                  // dangling tokens pointing to a box that no longer exists.
+                  const re = new RegExp(
+                    `\\s*@${escReg(s.mention_name)}(?=\\s|$)`,
+                    "i",
+                  );
+                  setPrompt((p) => p.replace(re, "").replace(/\s{2,}/g, " ").trimStart());
+                  setDetectedSubjects((prev) => prev.filter((x) => x.id !== s.id));
+                  if (selectedSubjectId === s.id) setSelectedSubjectId(null);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                style={{
+                  background: "rgba(0,0,0,0.85)",
+                  color: "#fff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                }}
+                aria-label={`Remove ${s.mention_name}`}
+              >
+                <XIcon size={10} />
+              </button>
+
+              {/* Corner resize handles (only shown for the currently-mentioned
+                  box to keep the canvas uncluttered). */}
               {selected && (
                 <>
                   {(["nw", "ne", "sw", "se"] as const).map((corner) => (
@@ -1520,42 +1807,98 @@ export default function ThumbnailStudio() {
                       maxWidth: 300,
                     }}
                   >
-                    {mentionFiltered.map((a, i) => (
-                      <button
-                        key={a.avatar_id}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
-                        style={{
-                          background: i === mentionIndex ? "var(--bg-tertiary)" : "transparent",
-                        }}
-                        onMouseEnter={() => setMentionIndex(i)}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectMention(a);
-                        }}
-                      >
-                        {a.thumbnail ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={a.thumbnail}
-                            alt={a.name}
-                            className="w-7 h-7 rounded-full object-cover shrink-0"
-                          />
-                        ) : (
-                          <div
-                            className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold"
-                            style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}
-                          >
-                            {a.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <span
-                          className="text-[13px] font-medium truncate"
-                          style={{ color: "var(--text-primary)" }}
+                    {mentionFiltered.map((opt, i) => {
+                      const key =
+                        opt.kind === "avatar" ? `a:${opt.avatar.avatar_id}` : `s:${opt.subject.id}`;
+                      const name =
+                        opt.kind === "avatar" ? opt.avatar.name : opt.subject.mention_name;
+                      const thumb = opt.kind === "avatar" ? opt.avatar.thumbnail : null;
+                      const subtitle =
+                        opt.kind === "subject"
+                          ? `${opt.subject.kind} · ${opt.subject.label}`
+                          : null;
+                      return (
+                        <button
+                          key={key}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
+                          style={{
+                            background:
+                              i === mentionIndex ? "var(--bg-tertiary)" : "transparent",
+                          }}
+                          onMouseEnter={() => setMentionIndex(i)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectMention(opt);
+                          }}
                         >
-                          {a.name}
-                        </span>
-                      </button>
-                    ))}
+                          {opt.kind === "avatar" && thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt={name}
+                              className="w-7 h-7 rounded-full object-cover shrink-0"
+                            />
+                          ) : opt.kind === "avatar" ? (
+                            <div
+                              className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold"
+                              style={{
+                                background: "var(--bg-tertiary)",
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              {name.charAt(0).toUpperCase()}
+                            </div>
+                          ) : (
+                            // Subject icon: small colored pill matching the box color
+                            <div
+                              className="w-7 h-7 rounded-md shrink-0 flex items-center justify-center text-[10px] font-bold"
+                              style={{
+                                background:
+                                  opt.subject.kind === "person"
+                                    ? "rgba(59,130,246,0.18)"
+                                    : opt.subject.kind === "object"
+                                      ? "rgba(168,85,247,0.18)"
+                                      : opt.subject.kind === "text"
+                                        ? "rgba(245,158,11,0.18)"
+                                        : "rgba(16,185,129,0.18)",
+                                color:
+                                  opt.subject.kind === "person"
+                                    ? "#3b82f6"
+                                    : opt.subject.kind === "object"
+                                      ? "#a855f7"
+                                      : opt.subject.kind === "text"
+                                        ? "#f59e0b"
+                                        : "#10b981",
+                              }}
+                            >
+                              {opt.subject.kind === "person"
+                                ? "P"
+                                : opt.subject.kind === "object"
+                                  ? "O"
+                                  : opt.subject.kind === "text"
+                                    ? "T"
+                                    : "•"}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className="text-[13px] font-medium truncate"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {name}
+                            </div>
+                            {subtitle && (
+                              <div
+                                className="text-[10.5px] truncate"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                {subtitle}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
