@@ -89,9 +89,16 @@ export const thumbnailAPI = {
     api.post("/thumbnail/detect-people", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
-  /** Fetch the user's past thumbnails, most recent first. */
-  list: (limit = 60) =>
+  /**
+   * Fetch the user's past thumbnails, most recent first.
+   *
+   * The backend caps at 1000 rows. Bump the default so the gallery shows
+   * the full catalogue instead of just the 60 most recent generations.
+   */
+  list: (limit = 500) =>
     api.get("/thumbnail/history", { params: { limit } }),
+  /** Delete a single thumbnail (row + storage artefacts) — used by bulk delete. */
+  delete: (thumbId: string) => api.delete(`/thumbnail/${thumbId}`),
 };
 
 // ── Video ──

@@ -16,12 +16,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
 import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
 import { avatarAPI, thumbnailAPI } from "@/lib/api";
 import {
+  Download,
   Eye,
   EyeSlash,
   LinkIcon,
@@ -29,8 +31,10 @@ import {
   PlaySquare,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Spinner,
+  Trash,
   Type,
   Upload,
   UserCircle,
@@ -257,6 +261,15 @@ export default function ThumbnailStudio() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
+  /* ─── Gallery selection (mirrors /dashboard/images) ───
+   * Checkmark on each tile drops the thumbnail into this Set. The header rail
+   * flips into an action bar as soon as something's selected so users can
+   * bulk reuse / download / delete without opening each lightbox. */
+  const [selectedThumbIds, setSelectedThumbIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   /* ─── Avatars library + @mentions ─── */
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   // IDs of avatars currently attached (from @mentions or the picker). These
@@ -334,6 +347,45 @@ export default function ThumbnailStudio() {
   >(null);
   const [subjectDescribeText, setSubjectDescribeText] = useState("");
 
+  /* ─── Popover anchor tracking ───
+   * We portalize the subject popover to <body> so it can't be clipped by
+   * the preview's `overflow: hidden`, and use `position: fixed` so it
+   * renders on top of every layer on the page. That means we have to
+   * compute its coordinates ourselves every time the preview moves — on
+   * scroll, resize, or when the box changes.
+   *
+   * `previewRect` is the preview container's viewport-space rect; the
+   * popover multiplies this by the subject's fractional box to get
+   * pixel-perfect anchor points. Updated via rAF whenever the popover is
+   * open so it tracks the box through any scroll container. */
+  const [previewRect, setPreviewRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!subjectPopoverId) {
+      setPreviewRect(null);
+      return;
+    }
+    let frame = 0;
+    const update = () => {
+      const el = previewContainerRef.current;
+      if (el) setPreviewRect(el.getBoundingClientRect());
+    };
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
+    };
+    update();
+    window.addEventListener("scroll", schedule, { capture: true, passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule, { capture: true });
+      window.removeEventListener("resize", schedule);
+    };
+  }, [subjectPopoverId]);
+
   const refInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
 
@@ -377,8 +429,11 @@ export default function ThumbnailStudio() {
    * previous session-only state. */
   useEffect(() => {
     setHistoryLoading(true);
+    // `500` matches the bumped backend cap — we want the full catalogue in
+    // the gallery, not just the most recent generations. Anything older
+    // than that can be paginated later if it becomes a concern.
     thumbnailAPI
-      .list(60)
+      .list(500)
       .then((res) => {
         type Row = {
           thumbnail_id: string;
@@ -494,40 +549,34 @@ export default function ThumbnailStudio() {
     setSubjectDescribeText("");
   }, [subjectPopoverId]);
 
-  /* ─── Close popovers on scroll ───
+  /* ─── Close the CHIP dropdown on scroll (subject popover sticks around) ───
    * The chip dropdown is `position: fixed` so when the user scrolls the main
-   * content, the dropdown stays glued to the same viewport coordinates
-   * instead of following the chip that spawned it — it looks like the menu
-   * is chasing the user down the page. The subject popover is `absolute`
-   * inside the preview so it normally scrolls with the image, but on short
-   * viewports the user can still scroll it off-screen.
+   * content, the dropdown would otherwise stay glued to the same viewport
+   * coordinates instead of following the chip that spawned it — it looks
+   * like the menu is chasing the user down the page. Easier to just close it.
    *
-   * Subtle bit: both popovers have an internal scrollable list (the avatar
-   * list, the suggestions). We DON'T want that internal scroll to close
-   * the popover — the user's trying to reach an item further down. So in
-   * capture phase we read `e.target` (the element that actually scrolled)
-   * and bail out if it's inside a popover root. Only scroll on the page,
-   * the dashboard wrapper, or the preview dismisses. */
+   * The subject popover used to close on scroll too, but users found that
+   * disruptive: scrolling inside the popover's avatar list or even just
+   * nudging the page down would dismiss their edit. It's now portalized
+   * and re-positioned against the preview's bounding rect on every scroll
+   * (see `popoverAnchor` effect below), so it follows the subject box
+   * through any kind of scroll without closing. */
   useEffect(() => {
-    if (!chipDropdown && !subjectPopoverId) return;
+    if (!chipDropdown) return;
     const onScroll = (e: Event) => {
+      // Scroll originated inside the chip dropdown itself → user is
+      // navigating the list, not trying to dismiss.
       const target = e.target as Node | null;
-      // Scroll originated inside one of the popovers → user is navigating
-      // the list, not trying to dismiss. Leave it open.
       if (target && target instanceof Element) {
         if (target.closest("[data-popover-root]")) return;
       }
-      if (chipDropdown) setChipDropdown(null);
-      if (subjectPopoverId) {
-        setSubjectPopoverId(null);
-        setSubjectPopoverSearch("");
-      }
+      setChipDropdown(null);
     };
     window.addEventListener("scroll", onScroll, { capture: true, passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll, { capture: true });
     };
-  }, [chipDropdown, subjectPopoverId]);
+  }, [chipDropdown]);
 
   /* ─── Reference images (manual upload) ─── */
   const handleRefFiles = (files: FileList | File[]) => {
@@ -1378,6 +1427,76 @@ export default function ThumbnailStudio() {
     }
   };
 
+  /* ─── Gallery selection handlers ─── */
+  const toggleThumbSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedThumbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearThumbSelection = () => setSelectedThumbIds(new Set());
+
+  /**
+   * Reuse the first-selected thumbnail's prompt + mode. Mirrors the lightbox's
+   * "Reuse prompt" action but skips opening the detail view, which is the
+   * faster path when the user already knows what they want to regenerate.
+   */
+  const handleBulkReuse = () => {
+    const first = history.find((t) => selectedThumbIds.has(t.thumbnail_id));
+    if (!first) return;
+    setPrompt(first.prompt);
+    setMode(first.mode);
+    if (first.mode === "recreate" && first.source_url) {
+      setYoutubeUrl(first.source_url);
+    }
+    clearThumbSelection();
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  /** Download every selected thumbnail sequentially. */
+  const handleBulkDownload = async () => {
+    const toDl = history.filter((t) => selectedThumbIds.has(t.thumbnail_id));
+    for (const t of toDl) {
+      await handleDownload(t);
+    }
+    clearThumbSelection();
+  };
+
+  /**
+   * Hit /thumbnail/:id for each selected row, then drop them from state.
+   * We fan out the requests with Promise.allSettled so a single transient
+   * failure doesn't abandon the rest — the UI still reflects whatever
+   * actually made it through.
+   */
+  const handleBulkDelete = async () => {
+    if (!selectedThumbIds.size) return;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        `Delete ${selectedThumbIds.size} thumbnail${selectedThumbIds.size === 1 ? "" : "s"}? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setBulkDeleting(true);
+    const ids = Array.from(selectedThumbIds);
+    const results = await Promise.allSettled(
+      ids.map((id) => thumbnailAPI.delete(id)),
+    );
+    const deleted = new Set<string>();
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled") deleted.add(ids[i]);
+    });
+    setHistory((prev) =>
+      prev.filter((t) => !deleted.has(t.thumbnail_id)),
+    );
+    clearThumbSelection();
+    setBulkDeleting(false);
+  };
+
   /* ─── Derived UI values ─── */
   const filteredLibrary = avatars.filter((a) =>
     a.name.toLowerCase().includes(librarySearch.toLowerCase()),
@@ -1931,26 +2050,49 @@ export default function ThumbnailStudio() {
               ? `Replace @${s.mention_name}`
               : `Change @${s.mention_name}`;
 
-          return (
+          // Compute fixed-viewport coordinates from the preview's bounding
+          // rect + the subject's fractional box. Without this the popover
+          // would be positioned inside the `overflow: hidden` preview and
+          // get clipped the moment it extends past the image bounds (the
+          // "list appears behind the dark overlay" bug users reported).
+          if (!previewRect || typeof document === "undefined") return null;
+          const POPOVER_WIDTH = 280;
+          const GAP = 8;
+          const VIEWPORT_PAD = 8;
+          const boxLeftPx = previewRect.left + s.box.x * previewRect.width;
+          const boxRightPx =
+            previewRect.left + (s.box.x + s.box.w) * previewRect.width;
+          const boxTopPx = previewRect.top + s.box.y * previewRect.height;
+          const boxBottomPx =
+            previewRect.top + (s.box.y + s.box.h) * previewRect.height;
+          // Anchor horizontally to whichever side of the box leaves more
+          // breathing room — on wide viewports we use the box's left edge,
+          // on narrow/cramped layouts we flip to the right.
+          const rawLeft = anchorRight
+            ? boxRightPx - POPOVER_WIDTH
+            : boxLeftPx;
+          const clampedLeft = Math.max(
+            VIEWPORT_PAD,
+            Math.min(window.innerWidth - POPOVER_WIDTH - VIEWPORT_PAD, rawLeft),
+          );
+          const verticalStyle: React.CSSProperties = flipUp
+            ? { bottom: window.innerHeight - boxTopPx + GAP }
+            : { top: boxBottomPx + GAP };
+
+          const popoverNode = (
             <div
               ref={subjectPopoverRef}
               data-popover-root
-              className="absolute z-20"
               style={{
-                ...(anchorRight
-                  ? {
-                      right: `${Math.max(0, 1 - (s.box.x + s.box.w)) * 100}%`,
-                    }
-                  : {
-                      left: `${Math.max(0, s.box.x) * 100}%`,
-                    }),
-                [flipUp ? "bottom" : "top"]: flipUp
-                  ? `${(1 - s.box.y) * 100}%`
-                  : `${(s.box.y + s.box.h) * 100}%`,
-                marginTop: flipUp ? 0 : 8,
-                marginBottom: flipUp ? 8 : 0,
-                width: 280,
-                maxWidth: "92%",
+                position: "fixed",
+                left: clampedLeft,
+                ...verticalStyle,
+                // Sit above the dashboard header, skeletons, and any dim
+                // overlays. 9999 is the same layer the @mention dropdown
+                // and chip switch menu use, so they all stack consistently.
+                zIndex: 9999,
+                width: POPOVER_WIDTH,
+                maxWidth: "92vw",
                 background: "var(--bg-secondary)",
                 border: `1px solid var(--border-color)`,
                 borderRadius: 12,
@@ -2406,6 +2548,7 @@ export default function ThumbnailStudio() {
               )}
             </div>
           );
+          return createPortal(popoverNode, document.body);
         })()}
       </>
     );
@@ -3328,18 +3471,119 @@ export default function ThumbnailStudio() {
               spinner floating in blank space. */}
           {(history.length > 0 || loading) && (
             <>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                  Your thumbnails
-                </h3>
-                <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-                  {loading && (
-                    <span className="mr-2" style={{ color: "#3b82f6" }}>
-                      Generating…
+              {/* Header flips into a bulk-actions bar as soon as the user
+                  picks any tile. Mirrors /dashboard/images so the two
+                  galleries stay consistent — reuse / download / delete with
+                  a dismissal X on the right. */}
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="text-[14px] font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                    {selectedThumbIds.size > 0
+                      ? `${selectedThumbIds.size} selected`
+                      : "Your thumbnails"}
+                  </h3>
+                  {selectedThumbIds.size === 0 && (
+                    <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
+                      {loading && (
+                        <span className="mr-2" style={{ color: "#3b82f6" }}>
+                          Generating…
+                        </span>
+                      )}
+                      {history.length} {history.length === 1 ? "thumbnail" : "thumbnails"}
                     </span>
                   )}
-                  {history.length} {history.length === 1 ? "thumbnail" : "thumbnails"}
-                </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedThumbIds.size > 0 ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          // "Select all" toggles on when there's a mixed or
+                          // partial selection; clicking it again clears.
+                          if (selectedThumbIds.size === history.length) {
+                            clearThumbSelection();
+                          } else {
+                            setSelectedThumbIds(
+                              new Set(history.map((t) => t.thumbnail_id)),
+                            );
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                        style={{
+                          color: "var(--text-primary)",
+                          background: "var(--btn-raised-bg)",
+                          border: "1px solid var(--btn-raised-border)",
+                          boxShadow: "var(--shadow-btn-raised)",
+                          transition: "box-shadow 0.25s ease",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
+                        title={selectedThumbIds.size === history.length ? "Deselect all" : "Select all"}
+                      >
+                        {selectedThumbIds.size === history.length ? "Deselect all" : "Select all"}
+                      </button>
+                      <button
+                        onClick={handleBulkReuse}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                        style={{
+                          color: "var(--text-primary)",
+                          background: "var(--btn-raised-bg)",
+                          border: "1px solid var(--btn-raised-border)",
+                          boxShadow: "var(--shadow-btn-raised)",
+                          transition: "box-shadow 0.25s ease",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
+                        title="Reuse prompt"
+                      >
+                        <RefreshCw size={13} /> Reuse
+                      </button>
+                      <button
+                        onClick={handleBulkDownload}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                        style={{
+                          color: "var(--text-primary)",
+                          background: "var(--btn-raised-bg)",
+                          border: "1px solid var(--btn-raised-border)",
+                          boxShadow: "var(--shadow-btn-raised)",
+                          transition: "box-shadow 0.25s ease",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
+                        title="Download"
+                      >
+                        <Download size={13} /> Download
+                      </button>
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={bulkDeleting}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium disabled:opacity-50"
+                        style={{
+                          color: "#ef4444",
+                          background: "var(--btn-raised-bg)",
+                          border: "1px solid rgba(239,68,68,0.25)",
+                          boxShadow: "var(--shadow-btn-raised)",
+                          transition: "box-shadow 0.25s ease, background 0.25s ease",
+                        }}
+                        onMouseEnter={(e) => { if (!bulkDeleting) { e.currentTarget.style.background = "rgba(239,68,68,0.1)"; e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)"; } }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--btn-raised-bg)"; e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)"; }}
+                        title="Delete"
+                      >
+                        {bulkDeleting ? <Spinner size={13} /> : <Trash size={13} />} Delete
+                      </button>
+                      <button
+                        onClick={clearThumbSelection}
+                        className="p-1.5 rounded-lg transition-colors"
+                        style={{ color: "var(--text-muted)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        title="Clear selection"
+                      >
+                        <XIcon size={14} />
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* ── Pending skeleton tile ──
@@ -3459,55 +3703,133 @@ export default function ThumbnailStudio() {
                     );
                   })()}
 
-                {history.map((t, idx) => (
-                  <button
-                    key={t.thumbnail_id}
-                    onClick={() => setLightboxIndex(idx)}
-                    className="group relative rounded-xl overflow-hidden text-left"
-                    style={{
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
+                {history.map((t, idx) => {
+                  const isSelected = selectedThumbIds.has(t.thumbnail_id);
+                  // Anything selected puts the grid into "select mode" — a
+                  // plain click then toggles selection instead of opening
+                  // the lightbox, which matches the image generator's UX.
+                  const selectMode = selectedThumbIds.size > 0;
+                  return (
                     <div
-                      className="relative w-full"
+                      key={t.thumbnail_id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        if (selectMode) toggleThumbSelect(t.thumbnail_id, e);
+                        else setLightboxIndex(idx);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          if (selectMode) {
+                            setSelectedThumbIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(t.thumbnail_id))
+                                next.delete(t.thumbnail_id);
+                              else next.add(t.thumbnail_id);
+                              return next;
+                            });
+                          } else {
+                            setLightboxIndex(idx);
+                          }
+                        }
+                      }}
+                      className="group relative rounded-xl overflow-hidden text-left cursor-pointer select-none"
                       style={{
-                        aspectRatio:
-                          t.aspect_ratio === "9:16"
-                            ? "9 / 16"
-                            : t.aspect_ratio === "1:1"
-                              ? "1 / 1"
-                              : t.aspect_ratio === "4:3"
-                                ? "4 / 3"
-                                : t.aspect_ratio === "3:4"
-                                  ? "3 / 4"
-                                  : "16 / 9",
-                        background: "var(--bg-primary)",
+                        background: "var(--bg-secondary)",
+                        border: "1px solid var(--border-color)",
+                        outline: isSelected ? "2px solid #3b82f6" : undefined,
+                        outlineOffset: isSelected ? "-2px" : undefined,
                       }}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={t.image_url} alt={t.prompt} className="w-full h-full object-cover" />
                       <div
-                        className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10.5px] font-medium uppercase tracking-wide"
+                        className="relative w-full"
                         style={{
-                          background: "rgba(0,0,0,0.55)",
-                          color: "#fff",
-                          backdropFilter: "blur(6px)",
+                          aspectRatio:
+                            t.aspect_ratio === "9:16"
+                              ? "9 / 16"
+                              : t.aspect_ratio === "1:1"
+                                ? "1 / 1"
+                                : t.aspect_ratio === "4:3"
+                                  ? "4 / 3"
+                                  : t.aspect_ratio === "3:4"
+                                    ? "3 / 4"
+                                    : "16 / 9",
+                          background: "var(--bg-primary)",
                         }}
                       >
-                        {t.mode}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={t.image_url}
+                          alt={t.prompt}
+                          className="w-full h-full object-cover pointer-events-none"
+                          draggable={false}
+                        />
+                        {/* Mode chip — pushed down to leave the top-left
+                            corner for the selection checkmark. */}
+                        <div
+                          className="absolute left-2 px-2 py-0.5 rounded-md text-[10.5px] font-medium uppercase tracking-wide pointer-events-none"
+                          style={{
+                            top: 34,
+                            background: "rgba(0,0,0,0.55)",
+                            color: "#fff",
+                            backdropFilter: "blur(6px)",
+                          }}
+                        >
+                          {t.mode}
+                        </div>
+                        {/* Checkmark — top-left, matches /dashboard/images.
+                            Visible on hover + always when something is
+                            selected in the grid (select mode). */}
+                        <button
+                          type="button"
+                          onClick={(e) => toggleThumbSelect(t.thumbnail_id, e)}
+                          className={`absolute top-2 left-2 w-5 h-5 rounded flex items-center justify-center transition-all ${isSelected || selectMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                          style={{
+                            background: isSelected ? "#3b82f6" : "rgba(0,0,0,0.5)",
+                            border: isSelected ? "none" : "1.5px solid rgba(255,255,255,0.6)",
+                          }}
+                          aria-label={isSelected ? "Deselect thumbnail" : "Select thumbnail"}
+                        >
+                          {isSelected && (
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                              <path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                        {/* Download — top-right, hover-reveal. Stops
+                            propagation so it never triggers select/open. */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(t);
+                          }}
+                          className="absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                          style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.8)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.6)")}
+                          aria-label="Download thumbnail"
+                          title="Download"
+                        >
+                          <Download size={14} />
+                        </button>
+                        {/* Subtle darken on hover mirrors the images page. */}
+                        {!isSelected && (
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all pointer-events-none" />
+                        )}
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <p
+                          className="text-[12px] leading-snug line-clamp-2"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {t.prompt}
+                        </p>
                       </div>
                     </div>
-                    <div className="px-3 py-2.5">
-                      <p
-                        className="text-[12px] leading-snug line-clamp-2"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {t.prompt}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
