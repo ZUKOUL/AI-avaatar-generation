@@ -6,6 +6,13 @@ load_dotenv()
 class Settings:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_KEY")
+    # Direct Postgres connection string used by the auto-migration runner
+    # on startup. Grab it from Supabase Dashboard → Settings → Database →
+    # Connection String → "URI" (use the Session pooler URL for long-lived
+    # app connections). Optional: if unset, auto-migrations are skipped
+    # and the app boots normally — migrations can still be run manually
+    # via the SQL Editor.
+    SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL", "")
     JWT_SECRET = os.getenv("JWT_SECRET", "")
     JWT_EXPIRE_SECONDS = int(os.getenv("JWT_EXPIRE_SECONDS", "604800"))  # 7 days
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRETE_KEY", "")

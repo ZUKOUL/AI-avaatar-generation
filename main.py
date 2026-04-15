@@ -68,15 +68,37 @@ app.include_router(
     dependencies=[Depends(get_current_user)],
 )
 
-# ── One-time startup migration ──
+# ── Startup: schema migrations (auto) + admin bootstrap ──
 @app.on_event("startup")
 async def startup_migration():
-    """Ensure admin account is set up properly."""
+    """
+    Runs in order, before the app starts serving traffic:
+
+    1. Schema auto-migrations — executes any pending SQL files from
+       `supabase/migrations/` so deploying a new feature no longer
+       requires opening the Supabase SQL Editor by hand. See
+       app/core/migrations.py for the full contract.
+    2. Admin bootstrap — keeps the founder account set up with admin
+       role + a floor of credits so we can log in even after a fresh
+       deploy.
+    """
     import logging
     logger = logging.getLogger("startup")
+
+    # 1. Schema migrations — never swallow: a bad schema is worse than
+    #    a crashed boot because it produces cryptic runtime errors later.
+    try:
+        from app.core.migrations import run_pending_migrations
+        run_pending_migrations()
+    except Exception as e:
+        logger.error(f"Auto-migrations failed: {e}")
+        raise  # crash boot rather than serve on a half-migrated schema
+
+    # 2. Admin bootstrap — soft-fail: we don't want a Supabase hiccup to
+    #    prevent the whole API from booting.
     try:
         from app.core.supabase import supabase
-        from app.services.credit_service import add_credits, get_balance
+        from app.services.credit_service import add_credits
 
         ADMIN_EMAIL = "anskoju@gmail.com"
         res = supabase.table("users").select("id, email, role, credit_balance").eq("email", ADMIN_EMAIL).limit(1).execute()
@@ -93,7 +115,7 @@ async def startup_migration():
                 add_credits(user_id, 120, "admin_grant", "Startup admin credit grant")
                 logger.info(f"Added 120 credits to {ADMIN_EMAIL}. Old balance: {balance}")
     except Exception as e:
-        logger.warning(f"Startup migration skipped: {e}")
+        logger.warning(f"Admin bootstrap skipped: {e}")
 
 
 # 3. Health Check / Root Endpoint
