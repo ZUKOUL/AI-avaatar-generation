@@ -124,6 +124,16 @@ export const thumbnailAPI = {
     }),
   inspiration: (niche = "business", limit = 12) =>
     api.get("/thumbnail/inspiration", { params: { niche, limit } }),
+  /**
+   * AI-powered prompt generator: pass the creator's niche + video title
+   * (+ optional description) and the backend searches YouTube for top
+   * thumbnails in that space, analyses them with Gemini, and returns a
+   * ready-to-use generation prompt personalised to the video concept.
+   */
+  smartPrompt: (formData: FormData) =>
+    api.post("/thumbnail/smart-prompt", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 // ── Video ──

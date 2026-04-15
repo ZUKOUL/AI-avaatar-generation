@@ -1566,8 +1566,8 @@ async def get_inspiration(
         niche = "business"
 
     limit = max(1, min(limit, 50))
-    # v4 prefix busts old cache entries (simplified filter, new queries).
-    cache_key = f"v4_{niche}_{limit}"
+    # v5 prefix busts old cache entries (Shorts filter + new queries).
+    cache_key = f"v5_{niche}_{limit}"
     _CACHE_TTL = 86400  # 24 hours
 
     cached = _inspiration_cache.get(cache_key)
@@ -1585,20 +1585,20 @@ async def get_inspiration(
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             # Search for the most-viewed English-language videos for this niche.
-            # We keep filters minimal to avoid YouTube returning empty result
-            # sets: relevanceLanguage filters for English content; safeSearch
-            # blocks explicit material; order=viewCount surfaces viral thumbnails.
-            # No videoDuration filter — combining it with other constraints
-            # causes YouTube's API to return 0 results for many niches.
+            # videoDuration=medium (4-20 min) eliminates Shorts without
+            # the excessive restrictions that previously caused 0 results.
+            # We no longer use regionCode (too restrictive) or a subscriber
+            # count filter (caused empty niches). safeSearch blocks bad content.
             search_resp = await client.get(
                 "https://www.googleapis.com/youtube/v3/search",
                 params={
                     "part": "snippet",
                     "q": niche_cfg["query"],
                     "type": "video",
-                    "maxResults": min(limit + 10, 50),  # small buffer for dedup
+                    "maxResults": min(limit * 2 + 5, 50),  # buffer for Shorts slip-through
                     "order": "viewCount",
                     "videoEmbeddable": "true",
+                    "videoDuration": "medium",   # 4–20 min: eliminates Shorts
                     "relevanceLanguage": "en",   # English results only
                     "safeSearch": "moderate",
                     "key": api_key,
@@ -1611,17 +1611,23 @@ async def get_inspiration(
                     f"for niche={niche}: {search_resp.text[:200]}"
                 )
             else:
+                _SHORTS_RE = re.compile(r"#shorts?", re.IGNORECASE)
                 items = search_resp.json().get("items", [])
 
                 for item in items:
                     vid_id = item.get("id", {}).get("videoId")
                     snippet = item.get("snippet", {})
+                    title = snippet.get("title", "")
 
                     if not vid_id:
                         continue
 
+                    # Secondary guard: skip anything with #Shorts in the title
+                    # in case a Short slips through the duration filter.
+                    if _SHORTS_RE.search(title):
+                        continue
+
                     # Use API-provided thumbnail URLs (guaranteed to exist).
-                    # Prefer maxres → standard → high.
                     thumbs = snippet.get("thumbnails", {})
                     thumb_url = (
                         thumbs.get("maxres", {}).get("url")
@@ -1633,7 +1639,7 @@ async def get_inspiration(
                     videos.append(
                         {
                             "video_id": vid_id,
-                            "title": snippet.get("title", ""),
+                            "title": title,
                             "channel": snippet.get("channelTitle", ""),
                             "thumbnail_url": thumb_url,
                             "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
@@ -1654,4 +1660,152 @@ async def get_inspiration(
         "niche": niche,
         "niches": niches_meta,
         "videos": videos,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST /thumbnail/smart-prompt
+# The user provides their niche + video title + optional description.
+# We search YouTube for top-performing videos in that space, download and
+# analyse their thumbnails with Gemini, then return a tailored generation
+# prompt that captures the visual DNA of what's already working in that niche.
+# ──────────────────────────────────────────────────────────────────────────────
+@router.post("/smart-prompt")
+async def generate_smart_prompt(
+    current_user: Annotated[User, Depends(get_current_user)],
+    niche: str = Form(...),
+    video_title: str = Form(...),
+    video_description: str = Form(""),
+):
+    """
+    AI-powered prompt generator: search YouTube for proven thumbnails in
+    the user's niche, analyse their visual patterns with Gemini, and return
+    a tailored generation prompt personalised to the user's video concept.
+    """
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not gemini_key:
+        raise HTTPException(status_code=500, detail="AI service not configured.")
+
+    youtube_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    search_query = f"{niche} {video_title}".strip()
+
+    # ── Step 1: Search YouTube for top videos matching the user's idea ────────
+    ref_images: list[bytes] = []
+    ref_titles: list[str] = []
+
+    if youtube_key:
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as yt_client:
+                resp = await yt_client.get(
+                    "https://www.googleapis.com/youtube/v3/search",
+                    params={
+                        "part": "snippet",
+                        "q": search_query,
+                        "type": "video",
+                        "maxResults": 8,
+                        "order": "viewCount",
+                        "relevanceLanguage": "en",
+                        "safeSearch": "moderate",
+                        "key": youtube_key,
+                    },
+                )
+                if resp.status_code == 200:
+                    thumb_queue: list[tuple[str, str]] = []
+                    for item in resp.json().get("items", []):
+                        vid_id = item.get("id", {}).get("videoId")
+                        snippet = item.get("snippet", {})
+                        if not vid_id:
+                            continue
+                        title = snippet.get("title", "")
+                        # Skip Shorts
+                        if re.search(r"#shorts?", title, re.IGNORECASE):
+                            continue
+                        thumbs = snippet.get("thumbnails", {})
+                        url = (
+                            thumbs.get("high", {}).get("url")
+                            or thumbs.get("medium", {}).get("url")
+                            or f"https://img.youtube.com/vi/{vid_id}/hqdefault.jpg"
+                        )
+                        thumb_queue.append((url, title))
+
+                    # Download up to 4 thumbnails for analysis
+                    async with httpx.AsyncClient(timeout=8.0) as img_client:
+                        for thumb_url, thumb_title in thumb_queue[:6]:
+                            if len(ref_images) >= 4:
+                                break
+                            try:
+                                r = await img_client.get(thumb_url)
+                                if r.status_code == 200 and len(r.content) > 2000:
+                                    ref_images.append(r.content)
+                                    ref_titles.append(thumb_title)
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.warning(f"smart_prompt: YouTube fetch failed: {e}")
+
+    # ── Step 2: Build Gemini contents ─────────────────────────────────────────
+    gemini_client = genai.Client(api_key=gemini_key)
+    contents: list = []
+
+    for img_bytes in ref_images:
+        mime = "image/png" if img_bytes[:4] == b"\x89PNG" else "image/jpeg"
+        contents.append(types.Part.from_bytes(data=img_bytes, mime_type=mime))
+
+    ref_section = ""
+    if ref_images:
+        ref_section = (
+            f"\n\nI'm showing you {len(ref_images)} top-performing YouTube thumbnails "
+            f"from the most-viewed videos when searching for '{search_query}'. "
+            "Study the visual patterns: compositions, colours, text placement, "
+            "emotional triggers, before/after splits, numbers, arrows, expressions."
+        )
+
+    desc_section = f"\n- What happens in the video: {video_description}" if video_description.strip() else ""
+
+    instruction = (
+        f"You are an elite YouTube thumbnail strategist. "
+        f"A creator wants to make a viral thumbnail for their video:\n"
+        f"- Niche/category: {niche}\n"
+        f"- Video topic: {video_title}{desc_section}"
+        f"{ref_section}\n\n"
+        "Based on proven visual patterns from successful thumbnails in this niche "
+        "AND the creator's specific video concept, write ONE perfect thumbnail "
+        "generation prompt.\n\n"
+        "The prompt MUST:\n"
+        "1. Capture the dominant visual style of top-performing thumbnails in this niche\n"
+        "2. Be tailored to the video topic (not generic)\n"
+        "3. Describe: main subject (use 'a person' not specific names), expression/pose, "
+        "background scene, colour palette, text overlay with exact wording, composition\n"
+        "4. Include at least one proven viral element for this niche "
+        "(e.g. dramatic before/after, bold number, person pointing at something shocking, "
+        "split screen, arrow showing transformation, etc.)\n"
+        "5. Be written as a direct image generation instruction — vivid, specific, actionable\n\n"
+        "Return ONLY the prompt. No preamble, no explanation, no bullet points. "
+        "Start directly with the visual description."
+    )
+
+    contents.append(types.Part.from_text(text=instruction))
+
+    # ── Step 3: Generate prompt via Gemini ────────────────────────────────────
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                temperature=0.85,
+                max_output_tokens=450,
+            ),
+        )
+        generated = (response.text or "").strip()
+        if not generated:
+            raise HTTPException(status_code=502, detail="Gemini returned an empty prompt.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"smart_prompt: Gemini failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate prompt.")
+
+    return {
+        "prompt": generated,
+        "references_used": len(ref_images),
     }
