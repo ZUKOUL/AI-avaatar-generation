@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
 import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
@@ -80,6 +80,15 @@ interface GeneratedThumbnail {
   prompt: string;
   created_at: string;
   source_thumbnail_url?: string | null;
+  /**
+   * Stable Supabase-hosted copy of the reference image (YouTube frame
+   * for recreate mode, uploaded source for edit mode). Preferred over
+   * `source_thumbnail_url` when present because the latter points at
+   * the YouTube CDN which can rot.
+   */
+  reference_image_url?: string | null;
+  /** Original YouTube URL — renders as a "Watch on YouTube" link. */
+  source_url?: string | null;
   youtube_video_id?: string | null;
 }
 
@@ -225,6 +234,7 @@ const SAMPLE_PROMPTS: Record<Mode, string[]> = {
 
 export default function ThumbnailStudio() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("prompt");
   const [prompt, setPrompt] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -378,6 +388,8 @@ export default function ThumbnailStudio() {
           aspect_ratio: AspectRatio;
           created_at: string;
           source_thumbnail_url?: string | null;
+          reference_image_url?: string | null;
+          source_url?: string | null;
           youtube_video_id?: string | null;
         };
         const rows: Row[] = res.data.thumbnails || [];
@@ -390,6 +402,8 @@ export default function ThumbnailStudio() {
             aspect_ratio: (r.aspect_ratio as AspectRatio) || "16:9",
             created_at: r.created_at,
             source_thumbnail_url: r.source_thumbnail_url ?? null,
+            reference_image_url: r.reference_image_url ?? null,
+            source_url: r.source_url ?? null,
             youtube_video_id: r.youtube_video_id ?? null,
           })),
         );
@@ -486,12 +500,23 @@ export default function ThumbnailStudio() {
    * instead of following the chip that spawned it — it looks like the menu
    * is chasing the user down the page. The subject popover is `absolute`
    * inside the preview so it normally scrolls with the image, but on short
-   * viewports the user can still scroll it off-screen. Easiest fix for both:
-   * dismiss on any scroll, capture-phase so we catch scrollable ancestors
-   * (the dashboard `.overflow-y-auto` wrapper, the page, etc.). */
+   * viewports the user can still scroll it off-screen.
+   *
+   * Subtle bit: both popovers have an internal scrollable list (the avatar
+   * list, the suggestions). We DON'T want that internal scroll to close
+   * the popover — the user's trying to reach an item further down. So in
+   * capture phase we read `e.target` (the element that actually scrolled)
+   * and bail out if it's inside a popover root. Only scroll on the page,
+   * the dashboard wrapper, or the preview dismisses. */
   useEffect(() => {
     if (!chipDropdown && !subjectPopoverId) return;
-    const onScroll = () => {
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      // Scroll originated inside one of the popovers → user is navigating
+      // the list, not trying to dismiss. Leave it open.
+      if (target && target instanceof Element) {
+        if (target.closest("[data-popover-root]")) return;
+      }
       if (chipDropdown) setChipDropdown(null);
       if (subjectPopoverId) {
         setSubjectPopoverId(null);
@@ -534,6 +559,55 @@ export default function ThumbnailStudio() {
     setSourcePreview(null);
     setSourceNaturalSize(null);
   };
+
+  /* ─── Hydrate from URL params ───
+   * When the user clicks "Reuse this source" from the image-gallery
+   * lightbox (on /dashboard/images) we navigate here with `?ref=<url>
+   * &yt=<url>&prompt=<text>`. Read those once on mount, pre-fill the
+   * composer, and strip them off the URL so a refresh doesn't re-apply
+   * them. The reused-from-thumbnails flow (the `onReuseSource` wired up
+   * in the lightbox here) mutates state directly and doesn't touch the
+   * URL — this hook is specifically for the cross-page entry. */
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    const ref = searchParams.get("ref");
+    const yt = searchParams.get("yt");
+    const seededPrompt = searchParams.get("prompt");
+    if (!ref && !yt && !seededPrompt) return;
+    hydratedRef.current = true;
+
+    if (seededPrompt) setPrompt(seededPrompt);
+
+    if (yt) {
+      // Recreate mode — the backend re-fetches the YouTube frame so we
+      // don't need to download `ref` ourselves. Setting the URL triggers
+      // the existing preview effect.
+      setMode("recreate");
+      setYoutubeUrl(yt);
+    } else if (ref) {
+      // Edit mode — pull the reference bytes and drop them into the
+      // source slot so the preview renders immediately.
+      setMode("edit");
+      fetch(ref)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const f = new File([blob], "reused-source.png", {
+            type: blob.type || "image/png",
+          });
+          handleSourceFile(f);
+        })
+        .catch(() => {
+          // Silent failure — the user still has an empty composer they
+          // can fill manually.
+        });
+    }
+
+    // Strip the params so reloads don't re-hydrate (which would clobber
+    // any edits the user made after landing here).
+    router.replace("/dashboard/thumbnails");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ─── @mention system ─── */
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -721,17 +795,27 @@ export default function ThumbnailStudio() {
 
   /**
    * Wire a detected subject to an avatar in one click: ensure both mentions
-   * exist in the prompt as a `@subject @avatar` pair, and add the avatar to
+   * exist in the prompt as a `@subject → @avatar` pair, and add the avatar to
    * `mentionedAvatarIds` so its thumbnail is shipped to Gemini as a ref at
    * generate time. If another avatar was previously paired with this subject,
    * it's swapped out (we keep only one pairing per subject).
-   */
+   *
+   * Why the arrow: before we inserted plain `@subject @avatar`, which read
+   * like two separate people — users said it looked like TWO people were
+   * being selected, not one replacing the other. The `→` makes the
+   * transformation intent visually explicit: the subject on the left gets
+   * replaced by the avatar on the right. The prompt-scan regex in
+   * handleGenerate still picks `@subject` up since the arrow sits between
+   * two whitespace-delimited tokens. */
   const pairSubjectWithAvatar = useCallback(
     (subject: DetectedSubject, avatar: Avatar) => {
       const subjectToken = `@${subject.mention_name}`;
       const avatarToken = `@${avatar.name}`;
+      // Match either the new `@subject → @avatar` format or the legacy
+      // `@subject @avatar` (or a naked `@subject`) so re-picking an avatar
+      // replaces the pair cleanly instead of stacking tokens.
       const subjRe = new RegExp(
-        `(^|\\s)@${escReg(subject.mention_name)}(\\s+@\\S+)?(?=\\s|$)`,
+        `(^|\\s)@${escReg(subject.mention_name)}(?:\\s+→)?(?:\\s+@\\S+)?(?=\\s|$)`,
         "i",
       );
       let next = prompt;
@@ -743,27 +827,28 @@ export default function ThumbnailStudio() {
         "",
       );
 
+      const pairText = `${subjectToken} → ${avatarToken}`;
+
       if (subjRe.test(next)) {
         // Subject already mentioned — replace whatever follows it (old avatar
-        // pairing, or nothing) with the new avatar.
+        // pairing, or nothing) with the new arrow-pair.
         next = next.replace(subjRe, (_m, lead) => {
-          return `${lead}${subjectToken} ${avatarToken}`;
+          return `${lead}${pairText}`;
         });
       } else {
         // Subject not mentioned yet — append both tokens at the cursor (or
         // at the end if textarea isn't focused).
         const ta = textareaRef.current;
-        const insert = `${subjectToken} ${avatarToken}`;
         if (ta && document.activeElement === ta) {
           const cursor = ta.selectionStart || next.length;
           const before = next.slice(0, cursor);
           const after = next.slice(cursor);
           const lead = before.length > 0 && !/\s$/.test(before) ? " " : "";
           const trail = after.length > 0 && !/^\s/.test(after) ? " " : " ";
-          next = `${before}${lead}${insert}${trail}${after}`;
+          next = `${before}${lead}${pairText}${trail}${after}`;
         } else {
           const sep = next.length > 0 && !/\s$/.test(next) ? " " : "";
-          next = `${next}${sep}${insert} `;
+          next = `${next}${sep}${pairText} `;
         }
       }
 
@@ -838,19 +923,49 @@ export default function ThumbnailStudio() {
   // layer above (textarea) stays transparent, caret preserved. Two kinds of
   // chips can render: avatar mentions (blue, clickable to swap) and subject
   // mentions (colour by kind, clickable to highlight the source-image box).
+  // Also: the `→` that `pairSubjectWithAvatar` inserts between the two chips
+  // is styled as a muted arrow so users read it as a transformation operator
+  // ("this becomes that"), not a random glyph.
   const renderHighlightedPrompt = (text: string) => {
     if (!text) return null;
     const avatarNames = avatars.map((a) => a.name);
     const subjectNames = detectedSubjects.map((s) => s.mention_name);
     const allNames = [...avatarNames, ...subjectNames].sort((a, b) => b.length - a.length);
-    if (!allNames.length) return <span style={{ color: "var(--text-primary)" }}>{text}</span>;
+    // Even with no mentions we still want to style arrows, so we build the
+    // pattern to always include the arrow branch.
     const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const mentionAlt = allNames.length
+      ? `(@(?:${allNames.map(esc).join("|")}))(?=\\s|$)`
+      : null;
+    // Match " → " (with surrounding spaces) as a single capturable segment.
+    const arrowAlt = `(\\s→\\s)`;
     const pattern = new RegExp(
-      `(@(?:${allNames.map(esc).join("|")}))(?=\\s|$)`,
+      mentionAlt ? `${mentionAlt}|${arrowAlt}` : arrowAlt,
       "gi",
     );
-    const parts = text.split(pattern);
+    const parts = text.split(pattern).filter((p) => p !== undefined);
+    if (!allNames.length && !/\s→\s/.test(text)) {
+      return <span style={{ color: "var(--text-primary)" }}>{text}</span>;
+    }
     return parts.map((part, i) => {
+      if (!part) return null;
+      // Styled arrow operator between paired subject ↔ avatar chips.
+      if (/^\s→\s$/.test(part)) {
+        return (
+          <span
+            key={i}
+            style={{
+              color: "var(--text-muted)",
+              opacity: 0.75,
+              fontWeight: 600,
+              padding: "0 1px",
+            }}
+            aria-label="becomes"
+          >
+            {part}
+          </span>
+        );
+      }
       const m = part.match(/^@(.+)$/);
       if (m) {
         const name = m[1];
@@ -1225,6 +1340,11 @@ export default function ThumbnailStudio() {
         prompt: prompt.trim() || "(recreate)",
         created_at: new Date().toISOString(),
         source_thumbnail_url: data.source_thumbnail_url ?? null,
+        reference_image_url:
+          data.reference_image_url ?? data.source_thumbnail_url ?? null,
+        source_url:
+          data.source_url ??
+          (mode === "recreate" && youtubeUrl.trim() ? youtubeUrl.trim() : null),
         youtube_video_id: data.youtube_video_id ?? null,
       };
       setHistory((prev) => [next, ...prev]);
@@ -1814,6 +1934,7 @@ export default function ThumbnailStudio() {
           return (
             <div
               ref={subjectPopoverRef}
+              data-popover-root
               className="absolute z-20"
               style={{
                 ...(anchorRight
@@ -2692,6 +2813,7 @@ export default function ThumbnailStudio() {
               {/* Chip switch dropdown — click an @name chip to swap it */}
               {chipDropdown && (
                 <div
+                  data-popover-root
                   className="fixed z-[9999] rounded-xl py-1 overflow-hidden"
                   style={{
                     top: chipDropdown.pos.top,
@@ -3433,6 +3555,17 @@ export default function ThumbnailStudio() {
           Create video actions, same as the image generator. */}
       {lightboxIndex !== null && history[lightboxIndex] && (() => {
         const t = history[lightboxIndex];
+        // Prefer the new Supabase-hosted reference URL (stable) over the
+        // legacy source_thumbnail_url (YouTube CDN, can rot). Falls back
+        // to the legacy field for rows persisted before the encoding
+        // upgrade so older thumbnails still show a reference.
+        const heroRef = t.reference_image_url ?? t.source_thumbnail_url ?? null;
+        const sourceLabel =
+          t.mode === "recreate"
+            ? "YouTube thumbnail"
+            : t.mode === "edit"
+            ? "Original upload"
+            : "Source";
         const item: MediaDetailItem = {
           id: t.thumbnail_id,
           type: "image",
@@ -3441,9 +3574,9 @@ export default function ThumbnailStudio() {
           created_at: t.created_at,
           aspect_ratio: t.aspect_ratio,
           model: "Google Nano Banana Pro",
-          references: t.source_thumbnail_url
-            ? [{ url: t.source_thumbnail_url, label: "Source thumbnail" }]
-            : undefined,
+          source_image_url: heroRef,
+          source_link_url: t.source_url ?? null,
+          source_label: sourceLabel,
         };
         return (
           <MediaDetailView
@@ -3463,15 +3596,13 @@ export default function ThumbnailStudio() {
             onDownload={() => handleDownload(t)}
             onReusePrompt={() => {
               // Recreate-with-same-prompt flow: prefill the prompt, switch to
-              // the same mode, and seed the source (YouTube URL if we have it,
-              // otherwise drop the generated image as a ref).
+              // the same mode, and restore the original YouTube URL when we
+              // have it (newer rows carry it, legacy ones fall back to
+              // leaving the URL field empty so the user can paste fresh).
               setPrompt(t.prompt);
               setMode(t.mode);
-              if (t.mode === "recreate" && t.source_thumbnail_url) {
-                // If we saved the YouTube URL we'd use it here; our backend
-                // stores the raw thumbnail URL instead. Stash it as a ref so
-                // the UI still has context.
-                setYoutubeUrl("");
+              if (t.mode === "recreate") {
+                setYoutubeUrl(t.source_url ?? "");
               }
               setLightboxIndex(null);
               setTimeout(() => textareaRef.current?.focus(), 0);
@@ -3493,6 +3624,38 @@ export default function ThumbnailStudio() {
               setLightboxIndex(null);
               setTimeout(() => textareaRef.current?.focus(), 0);
             }}
+            onReuseSource={
+              heroRef
+                ? () => {
+                    // User clicked the reference image itself → re-open
+                    // the composer from the SAME starting point. For
+                    // recreate mode we restore the YouTube URL so the
+                    // backend re-fetches the original frame; for edit
+                    // mode we fetch the stored reference bytes and drop
+                    // them straight into the source slot.
+                    setPrompt(t.prompt);
+                    if (t.mode === "recreate" && t.source_url) {
+                      setMode("recreate");
+                      setYoutubeUrl(t.source_url);
+                    } else {
+                      setMode("edit");
+                      fetch(heroRef)
+                        .then((r) => r.blob())
+                        .then((blob) => {
+                          const f = new File(
+                            [blob],
+                            `source-${t.thumbnail_id}.png`,
+                            { type: blob.type || "image/png" },
+                          );
+                          handleSourceFile(f);
+                        })
+                        .catch(() => {});
+                    }
+                    setLightboxIndex(null);
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }
+                : undefined
+            }
             onCreateVideo={() => {
               const params = new URLSearchParams();
               params.set("ref", t.image_url);

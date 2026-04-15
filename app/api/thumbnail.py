@@ -17,6 +17,7 @@ the scraped YouTube thumbnail back to Supabase).
 Credit cost: CREDIT_COST_THUMBNAIL (falls back to CREDIT_COST_IMAGE * 2).
 """
 
+import base64
 import json
 import os
 import re
@@ -35,6 +36,82 @@ from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
 from app.core.supabase import supabase
 from app.models.user import User
 from app.services.credit_service import deduct_credits, get_balance, is_admin
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Prompt-prefix encoding
+#
+# Every thumbnail row in `generated_images` has its prompt column prefixed
+# with `[thumbnail|mode|ratio]` (and now optionally a 4th base64-JSON slot
+# for extra metadata like the YouTube URL and reference-image URL). This
+# keeps the schema flat (no migration) while still letting /history and
+# /avatar/images recover everything the lightbox wants to show.
+# ──────────────────────────────────────────────────────────────────────────────
+def encode_thumbnail_prefix(
+    mode: str,
+    aspect_ratio: str,
+    *,
+    youtube_url: Optional[str] = None,
+    reference_image_url: Optional[str] = None,
+) -> str:
+    """
+    Build the `[thumbnail|mode|ratio|<b64meta>]` prefix string.
+
+    If no extra metadata is present, returns the shorter 3-slot legacy
+    form `[thumbnail|mode|ratio]` — keeps rows compact when there's
+    nothing to encode and matches what old parsers expected.
+    """
+    meta = {}
+    if youtube_url:
+        meta["yt"] = youtube_url
+    if reference_image_url:
+        meta["ref"] = reference_image_url
+    if meta:
+        raw = json.dumps(meta, separators=(",", ":")).encode()
+        b64 = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+        return f"[thumbnail|{mode}|{aspect_ratio}|{b64}]"
+    return f"[thumbnail|{mode}|{aspect_ratio}]"
+
+
+def decode_thumbnail_prefix(prompt: str) -> Optional[dict]:
+    """
+    Parse the prefix back into a dict of {mode, aspect_ratio, youtube_url,
+    reference_image_url, clean_prompt}. Returns None if the prompt doesn't
+    carry the prefix. Accepts both the new `|` delimiter and the legacy
+    `:` form, plus the optional 4th base64 slot.
+    """
+    if not prompt:
+        return None
+    m = re.match(r"^\[thumbnail([|:])([^\]]+)\]\s*", prompt)
+    if not m:
+        return None
+    sep = m.group(1)
+    parts = m.group(2).split(sep)
+    mode = parts[0] if parts else "prompt"
+    aspect_ratio = parts[1] if len(parts) > 1 else "16:9"
+    youtube_url: Optional[str] = None
+    reference_image_url: Optional[str] = None
+    if len(parts) > 2 and parts[2]:
+        try:
+            # Re-add padding stripped at encode time before decoding.
+            pad = "=" * (-len(parts[2]) % 4)
+            raw = base64.urlsafe_b64decode(parts[2] + pad).decode()
+            meta = json.loads(raw)
+            if isinstance(meta, dict):
+                youtube_url = meta.get("yt")
+                reference_image_url = meta.get("ref")
+        except Exception:
+            # Malformed metadata shouldn't break the whole row — treat it
+            # as if the extra slot wasn't there. Mode/ratio still come
+            # through cleanly.
+            pass
+    return {
+        "mode": mode,
+        "aspect_ratio": aspect_ratio,
+        "youtube_url": youtube_url,
+        "reference_image_url": reference_image_url,
+        "clean_prompt": prompt[m.end():],
+    }
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +215,13 @@ async def generate_thumbnail(
     gemini_contents: list = []
     used_youtube_url: Optional[str] = None
     video_id: Optional[str] = None
+    # First "source" image bytes — for edit mode this is the user's uploaded
+    # thumbnail, for recreate this is the fetched YouTube frame. We hold on
+    # to the bytes so we can re-upload the reference to Supabase storage and
+    # return a stable URL that the lightbox can display later. Without this
+    # hop, edit-mode thumbnails would have no persisted reference image.
+    first_ref_bytes: Optional[bytes] = None
+    first_ref_mime: str = "image/png"
 
     # 1. Recreate mode: pull the YouTube thumbnail and seed it as the first ref.
     if mode == "recreate":
@@ -155,16 +239,24 @@ async def generate_thumbnail(
             )
         used_youtube_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         gemini_contents.append(types.Part.from_bytes(data=yt_bytes, mime_type="image/jpeg"))
+        first_ref_bytes = yt_bytes
+        first_ref_mime = "image/jpeg"
         logger.info(f"Recreate: seeded YouTube thumbnail for {video_id} ({len(yt_bytes)} bytes)")
 
     # 2. User-uploaded references (character, style, or source image for edit).
     if files:
-        for f in files:
+        for idx, f in enumerate(files):
             data = await f.read()
             if not data:
                 continue
             mime = f.content_type or "image/png"
             gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+            # Capture the first uploaded file as the "source" for edit mode
+            # (recreate mode already filled first_ref_bytes with the YouTube
+            # frame above, so we only overwrite if we don't have one yet).
+            if first_ref_bytes is None and idx == 0:
+                first_ref_bytes = data
+                first_ref_mime = mime
         logger.info(f"Added {len(files)} user reference image(s)")
 
     # ── Mode-specific prompt engineering ────────────────────────────────────
@@ -322,23 +414,54 @@ async def generate_thumbnail(
     )
     image_url = supabase.storage.from_("avatars").get_public_url(storage_path)
 
+    # Persist the source reference image to Supabase so the lightbox can
+    # display it later (and let the user click it to re-open the composer
+    # with that same source pre-loaded). Recreate-mode already has a
+    # YouTube CDN URL but those can rot; uploading once gives us a stable
+    # URL we control. Edit-mode has no public URL at all without this step.
+    reference_image_url: Optional[str] = None
+    if first_ref_bytes:
+        ref_ext = "jpg" if first_ref_mime.endswith("jpeg") else "png"
+        ref_path = f"thumbnails/{current_user['id']}/{thumb_id}-ref.{ref_ext}"
+        try:
+            supabase.storage.from_("avatars").upload(
+                path=ref_path,
+                file=first_ref_bytes,
+                file_options={"content-type": first_ref_mime, "x-upsert": "true"},
+            )
+            reference_image_url = supabase.storage.from_("avatars").get_public_url(ref_path)
+        except Exception as upload_err:
+            # Non-fatal — the generated thumbnail still lands successfully,
+            # we just won't have a reference image in the lightbox.
+            logger.error(
+                f"reference-image upload failed for thumbnail {thumb_id}: {upload_err}"
+            )
+
     # Log this into `generated_images` so it shows up in both the thumbnail
     # history AND the image generator gallery. We originally tried a
     # separate `media` table but it was never migrated to production — that
     # silent insert failure is why no thumbnails were appearing anywhere.
     #
     # Encoding scheme: the prompt column starts with a `[thumbnail|mode|ratio]`
-    # tag that the history endpoint splits back out. Using `|` as the
+    # tag (plus an optional 4th base64-JSON slot carrying {yt,ref} URLs)
+    # that the history/images endpoints split back out. Using `|` as the
     # delimiter (instead of `:`) keeps the tag unambiguous even when the
     # aspect ratio itself contains a colon (e.g. "16:9"). The tag is
     # stripped before display so users see their clean prompt.
+    source_youtube_url = youtube_url.strip() if youtube_url else None
+    prefix = encode_thumbnail_prefix(
+        mode,
+        aspect_ratio,
+        youtube_url=source_youtube_url,
+        reference_image_url=reference_image_url,
+    )
     try:
         supabase.table("generated_images").insert(
             {
                 "id": thumb_id,
                 "user_id": current_user["id"],
                 "avatar_id": None,  # thumbnails aren't bound to a character
-                "prompt": f"[thumbnail|{mode}|{aspect_ratio}] {prompt}",
+                "prompt": f"{prefix} {prompt}",
                 "image_url": image_url,
                 "storage_path": storage_path,
             }
@@ -365,7 +488,15 @@ async def generate_thumbnail(
         "mode": mode,
         "aspect_ratio": aspect_ratio,
         "youtube_video_id": video_id,
+        # Legacy field — kept for existing frontends. Carries the YouTube
+        # CDN URL in recreate mode (which is what it always meant).
         "source_thumbnail_url": used_youtube_url,
+        # New fields that the lightbox uses: a stable Supabase-hosted copy
+        # of the reference image (works for both recreate and edit), plus
+        # the original YouTube link so we can render a "watch on YouTube"
+        # button in the details panel.
+        "reference_image_url": reference_image_url,
+        "source_url": source_youtube_url,
         "cost_usd": COST_GEMINI_FLASH_IMAGE,
         "engine": "gemini-3-pro-image-preview",
     }
@@ -566,34 +697,31 @@ async def thumbnail_history(
             logger.error(f"/thumbnail/history: generated_images fetch failed: {fetch_err}")
             raw_rows = []
 
-        # Accept both the new `[thumbnail|mode|ratio]` tag and the legacy
-        # `[thumbnail:mode]` format so older rows (if any were persisted
-        # during the brief window where this code existed) still render.
-        TAG_RE = re.compile(r"^\[thumbnail([|:])([^\]]+)\]\s*")
-
+        # Accept both the new `[thumbnail|mode|ratio|b64]` tag and the
+        # legacy `[thumbnail:mode]` / `[thumbnail|mode|ratio]` formats so
+        # rows persisted before we added reference-image encoding still
+        # render (they just won't have a reference image to show).
         items: list[dict] = []
         for row in raw_rows:
             prompt = row.get("prompt") or ""
-            m = TAG_RE.match(prompt)
-            if not m:
+            meta = decode_thumbnail_prefix(prompt)
+            if not meta:
                 continue
-            sep = m.group(1)
-            parts = m.group(2).split(sep)
-            mode = parts[0] if parts else "prompt"
-            aspect_ratio = parts[1] if len(parts) > 1 else "16:9"
+            # Recover the YouTube video ID from the stored URL when we have
+            # it — the frontend uses this to render a YouTube embed link.
+            yt_url = meta.get("youtube_url")
+            yt_id = extract_youtube_id(yt_url) if yt_url else None
             items.append(
                 {
                     "thumbnail_id": row["id"],
                     "image_url": row["image_url"],
-                    "prompt": TAG_RE.sub("", prompt),
-                    "mode": mode,
-                    "aspect_ratio": aspect_ratio,
-                    # These fields used to come from the `media.metadata`
-                    # JSONB column — we've intentionally dropped them from
-                    # storage to keep the table schema simple. The history
-                    # grid only uses mode + aspect ratio anyway.
-                    "source_thumbnail_url": None,
-                    "youtube_video_id": None,
+                    "prompt": meta["clean_prompt"],
+                    "mode": meta["mode"],
+                    "aspect_ratio": meta["aspect_ratio"],
+                    "source_thumbnail_url": meta.get("reference_image_url"),
+                    "reference_image_url": meta.get("reference_image_url"),
+                    "source_url": yt_url,
+                    "youtube_video_id": yt_id,
                     "title_text": None,
                     "created_at": row.get("created_at"),
                 }

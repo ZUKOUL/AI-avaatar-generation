@@ -45,6 +45,14 @@ interface GeneratedImage {
    * card so users know where a given image came from.
    */
   kind?: "image" | "thumbnail";
+  // Thumbnail-only metadata surfaced by the /avatar/images endpoint when
+  // the row was persisted with the new `[thumbnail|mode|ratio|b64]` prefix.
+  // The lightbox uses these to render the source block + YouTube link.
+  mode?: string | null;
+  aspect_ratio?: string | null;
+  reference_image_url?: string | null;
+  source_url?: string | null;
+  youtube_video_id?: string | null;
 }
 
 type ActiveTab = "image" | "video";
@@ -1241,6 +1249,15 @@ export default function ImageGenerator() {
         const refAvatar = lightboxImage.avatar_id
           ? avatars.find((a) => a.avatar_id === lightboxImage.avatar_id)
           : null;
+        const isThumb = lightboxImage.kind === "thumbnail";
+        const heroRef = isThumb ? lightboxImage.reference_image_url ?? null : null;
+        const sourceLabel = isThumb
+          ? lightboxImage.mode === "recreate"
+            ? "YouTube thumbnail"
+            : lightboxImage.mode === "edit"
+            ? "Original upload"
+            : "Source"
+          : undefined;
         return (
           <MediaDetailView
             item={{
@@ -1250,9 +1267,18 @@ export default function ImageGenerator() {
               prompt: lightboxImage.prompt,
               created_at: lightboxImage.created_at,
               avatar_id: lightboxImage.avatar_id,
+              // Show the avatar thumbnail as a secondary reference for
+              // avatar-bound generations. Thumbnail rows never have an
+              // avatar so this stays undefined for them.
               references: refAvatar?.thumbnail
                 ? [{ url: refAvatar.thumbnail, label: refAvatar.name }]
                 : undefined,
+              // Hero source block — only populated for thumbnail rows
+              // that carry the new prefix metadata. Regular image rows
+              // leave it undefined and the block doesn't render.
+              source_image_url: heroRef,
+              source_link_url: lightboxImage.source_url ?? null,
+              source_label: sourceLabel,
             }}
             position={{ index: idx, total: images.length }}
             onClose={() => setLightboxImage(null)}
@@ -1287,6 +1313,26 @@ export default function ImageGenerator() {
               setLightboxImage(null);
               textareaRef.current?.focus();
             }}
+            onReuseSource={
+              heroRef
+                ? () => {
+                    // Thumbnail row → hop to the thumbnails studio and
+                    // let that page reload the source. We pass the URL
+                    // and (if available) the YouTube link as query
+                    // params so the composer can re-hydrate itself.
+                    const params = new URLSearchParams();
+                    params.set("ref", heroRef);
+                    if (lightboxImage.source_url) {
+                      params.set("yt", lightboxImage.source_url);
+                    }
+                    if (lightboxImage.prompt) {
+                      params.set("prompt", lightboxImage.prompt);
+                    }
+                    setLightboxImage(null);
+                    router.push(`/dashboard/thumbnails?${params.toString()}`);
+                  }
+                : undefined
+            }
             onCreateVideo={() => {
               const params = new URLSearchParams();
               params.set("ref", lightboxImage.image_url);

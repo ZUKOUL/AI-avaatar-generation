@@ -16,6 +16,11 @@ from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
 from app.core.supabase import supabase
 from app.models.user import User
 from app.services.credit_service import deduct_credits, get_balance, is_admin
+# Thumbnail helpers — we reuse the prefix decoder and YouTube ID extractor
+# so /avatar/images can surface thumbnail metadata (YouTube URL, reference
+# image URL) without duplicating the parsing logic. No circular-import
+# risk because thumbnail.py doesn't import from avatar.py.
+from app.api.thumbnail import decode_thumbnail_prefix, extract_youtube_id
 
 logging.basicConfig(
     level=logging.INFO,
@@ -707,28 +712,38 @@ async def get_images(
         logger.error(f"/images: generated_images fetch failed: {err}")
         rows = []
 
-    # Strip the `[thumbnail|mode|ratio]` prefix (and the legacy `[thumbnail:…]`
-    # variant) so users see clean prompt text in the gallery, and tag those
-    # rows with kind="thumbnail" for the frontend badge.
-    TAG_RE = re.compile(r"^\[thumbnail[|:][^\]]+\]\s*")
-
+    # Parse the `[thumbnail|mode|ratio|b64]` prefix off thumbnail rows (and
+    # the legacy `[thumbnail:mode]` variant) so users see a clean prompt in
+    # the gallery, tag them with kind="thumbnail" for the badge, and —
+    # when the new 4th b64 slot is present — surface the YouTube URL and
+    # reference image URL too. The lightbox uses these to render the
+    # "Source" block and the clickable reference thumbnail.
     images = []
     for row in rows:
         prompt = row.get("prompt") or ""
-        is_thumbnail = bool(TAG_RE.match(prompt))
-        clean_prompt = TAG_RE.sub("", prompt) if is_thumbnail else prompt
-        images.append(
-            {
-                "image_id": row["id"],
-                "avatar_id": row.get("avatar_id"),
-                "prompt": clean_prompt,
-                "image_url": row["image_url"],
-                "created_at": row.get("created_at"),
-                # Frontend badges this as "Thumb" when set; clients that
-                # ignore the field see identical behaviour to before.
-                "kind": "thumbnail" if is_thumbnail else "image",
-            }
-        )
+        meta = decode_thumbnail_prefix(prompt)
+        is_thumbnail = meta is not None
+        clean_prompt = meta["clean_prompt"] if is_thumbnail else prompt
+        entry: dict = {
+            "image_id": row["id"],
+            "avatar_id": row.get("avatar_id"),
+            "prompt": clean_prompt,
+            "image_url": row["image_url"],
+            "created_at": row.get("created_at"),
+            # Frontend badges this as "Thumb" when set; clients that
+            # ignore the field see identical behaviour to before.
+            "kind": "thumbnail" if is_thumbnail else "image",
+        }
+        if is_thumbnail:
+            entry["mode"] = meta.get("mode")
+            entry["aspect_ratio"] = meta.get("aspect_ratio")
+            entry["reference_image_url"] = meta.get("reference_image_url")
+            yt_url = meta.get("youtube_url")
+            entry["source_url"] = yt_url
+            entry["youtube_video_id"] = (
+                extract_youtube_id(yt_url) if yt_url else None
+            )
+        images.append(entry)
 
     return {"images": images}
 

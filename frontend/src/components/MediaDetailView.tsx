@@ -28,7 +28,24 @@ export interface MediaDetailItem {
   model?: string;
   aspect_ratio?: string;
   quality?: string;
+  /** Small 56×56 thumbnail grid — legacy, fine for secondary refs. */
   references?: { url: string; label?: string }[];
+  /**
+   * The PRIMARY source image (YouTube frame or user-uploaded thumbnail)
+   * that fed the generation. Rendered bigger and clickable at the top of
+   * the details panel — this is the "image de référence" the user asked
+   * for. Separate from `references` because it's the hero reference, not
+   * one of N character refs.
+   */
+  source_image_url?: string | null;
+  /**
+   * External link for the source (e.g. original YouTube video URL). When
+   * present, rendered as a "Watch on YouTube" / "Open source" action next
+   * to the reference thumbnail so the user can jump back to the original.
+   */
+  source_link_url?: string | null;
+  /** Label shown next to the source block ("YouTube thumbnail", "Original upload", etc.). */
+  source_label?: string;
 }
 
 interface Props {
@@ -42,6 +59,33 @@ interface Props {
   onReusePrompt?: () => void;
   onEdit?: () => void;
   onCreateVideo?: () => void;
+  /**
+   * Called when the user clicks the reference image. Signals "re-open
+   * the composer with this source pre-loaded so I can make another
+   * variant from the same starting point". The caller decides which
+   * mode to open (recreate vs. edit).
+   */
+  onReuseSource?: () => void;
+}
+
+/**
+ * Human-friendly label for a source URL in the details panel. Recognizes
+ * YouTube specifically so recreate-mode thumbnails read "Watch on YouTube"
+ * instead of showing the raw URL; everything else falls back to the host
+ * or a generic "Open source" label. Keeps the source block compact and
+ * readable for long tracking-parameter-laden URLs.
+ */
+function friendlySourceLabel(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtube.com" || host === "youtu.be") {
+      return "Watch on YouTube";
+    }
+    return `Open on ${host}`;
+  } catch {
+    return "Open source";
+  }
 }
 
 function timeAgo(iso: string): string {
@@ -75,6 +119,7 @@ export default function MediaDetailView({
   onReusePrompt,
   onEdit,
   onCreateVideo,
+  onReuseSource,
 }: Props) {
   const [tab, setTab] = useState<"details" | "comments">("details");
   const [copied, setCopied] = useState(false);
@@ -331,6 +376,113 @@ export default function MediaDetailView({
                 <Chip>{qualityLabel}</Chip>
               </div>
             </div>
+
+            {/* Source — the hero reference image that fed this generation.
+                Rendered big (full-width card) and clickable when the caller
+                wired up onReuseSource, because the user's primary question
+                when they open the details panel is "what did I start from?"
+                and their natural next action is "use that same source
+                again". The external link (YouTube URL) sits right next to
+                the thumbnail so they can jump back to the original. */}
+            {item.source_image_url && (
+              <div>
+                <span
+                  className="text-[12px] font-semibold uppercase tracking-wider block mb-2"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {item.source_label || "Source"}
+                </span>
+                <div
+                  className="rounded-xl overflow-hidden flex flex-col"
+                  style={{
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-secondary)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onReuseSource) onReuseSource();
+                    }}
+                    className="relative w-full block group"
+                    style={{
+                      aspectRatio: "16 / 9",
+                      cursor: onReuseSource ? "pointer" : "default",
+                    }}
+                    aria-label={
+                      onReuseSource
+                        ? "Re-open the composer with this source"
+                        : "Source image"
+                    }
+                    disabled={!onReuseSource}
+                  >
+                    <img
+                      src={item.source_image_url}
+                      alt={item.source_label || "source"}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                    />
+                    {onReuseSource && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{
+                          background: "rgba(0,0,0,0.55)",
+                        }}
+                      >
+                        <div
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                          style={{
+                            background: "rgba(255,255,255,0.95)",
+                            color: "#0a0a0c",
+                          }}
+                        >
+                          <Pencil size={13} />
+                          Reuse this source
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                  {item.source_link_url && (
+                    <a
+                      href={item.source_link_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between px-3 py-2 text-[12px] transition-colors"
+                      style={{
+                        color: "var(--text-secondary)",
+                        borderTop: "1px solid var(--border-color)",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.color = "var(--text-primary)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.color = "var(--text-secondary)")
+                      }
+                    >
+                      <span className="truncate">
+                        {friendlySourceLabel(item.source_link_url)}
+                      </span>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        aria-hidden
+                        style={{ flexShrink: 0, marginLeft: 8 }}
+                      >
+                        <path
+                          d="M3 9l6-6M4 3h5v5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* References */}
             {item.references && item.references.length > 0 && (
