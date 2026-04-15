@@ -99,6 +99,18 @@ export const thumbnailAPI = {
     api.get("/thumbnail/history", { params: { limit } }),
   /** Delete a single thumbnail (row + storage artefacts) — used by bulk delete. */
   delete: (thumbId: string) => api.delete(`/thumbnail/${thumbId}`),
+  /**
+   * Fetch a rich description of the YouTube video's thumbnail so we can
+   * turn a pasted URL into a ready-to-generate prompt. Backend grabs the
+   * image from img.youtube.com and runs it through Gemini 2.5 Flash.
+   */
+  describeYoutube: (url: string) => {
+    const formData = new FormData();
+    formData.append("url", url);
+    return api.post("/thumbnail/describe-youtube-thumbnail", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 };
 
 // ── Video ──

@@ -303,6 +303,18 @@ export default function ThumbnailStudio() {
   const [ytPreview, setYtPreview] = useState<{ videoId: string; url: string } | null>(null);
   const ytDebounceRef = useRef<number | null>(null);
 
+  /* ─── Auto-describe pasted YouTube URLs ───
+   * When the user pastes a YouTube link into the prompt, we call the
+   * backend's /describe-youtube-thumbnail endpoint which fetches the
+   * video's thumbnail, runs it through Gemini, and returns a rich prompt.
+   * We then swap the raw URL in the prompt state with the description —
+   * preserving any text before/after the paste. The set tracks which
+   * URLs are currently being described so we can show a spinner inline
+   * and so a rapid double-paste doesn't fire twice. */
+  const [describingYoutubeUrls, setDescribingYoutubeUrls] = useState<Set<string>>(
+    new Set(),
+  );
+
   /* ─── Subject detection on the source thumbnail ───
    * When a YouTube URL is validated or a source image is uploaded we ship
    * the bytes to Gemini 2.5 Flash, get back bounding boxes for people,
@@ -338,6 +350,13 @@ export default function ThumbnailStudio() {
   const [subjectPopoverId, setSubjectPopoverId] = useState<string | null>(null);
   const [subjectPopoverSearch, setSubjectPopoverSearch] = useState("");
   const subjectPopoverRef = useRef<HTMLDivElement | null>(null);
+  // Viewport coordinates of the click that opened the popover. Anchoring to
+  // the click point (not the box edges) means the popover always appears
+  // "where the user just pointed", which matters for tall detection boxes
+  // whose top/bottom edges can be far apart — otherwise a click near the
+  // bottom of a tall box could spawn a popover anchored near the top edge
+  // and end up half-off-screen.
+  const clickPosRef = useRef<{ x: number; y: number } | null>(null);
   // Which UI the popover shows: "character" = avatar picker, "describe" =
   // free-form "what should happen with this thing?" input. `null` means
   // "use the default for the box's kind" (person/custom → character,
@@ -657,6 +676,70 @@ export default function ThumbnailStudio() {
     router.replace("/dashboard/thumbnails");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ─── Auto-describe YouTube URLs pasted into the prompt ───
+   * This intercepts paste events *without* preventing them — the raw URL
+   * still lands in the textarea so the user sees immediate feedback. Then
+   * we fire a background request to the backend that returns a rich
+   * description of the video's thumbnail. Once the description comes back,
+   * we replace the URL in the prompt with the description, preserving any
+   * surrounding text the user typed before/after.
+   *
+   * Matches every youtube.com / youtu.be / shorts / embed variant — same
+   * regex the backend uses so the two are guaranteed to agree on what
+   * counts as a "YouTube URL".
+   *
+   * If the backend call fails (network, quota, private video), we just
+   * leave the URL in place — that's strictly better than wiping the
+   * paste silently. */
+  const YT_URL_RE =
+    /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/)|youtu\.be\/)[A-Za-z0-9_\-]{11}(?:[^\s]*)?)/g;
+
+  const handlePromptPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    if (!pasted) return;
+    // Pull out every YouTube URL from the paste. Usually there's exactly
+    // one, but users sometimes paste a comment thread with multiple links.
+    const urls = Array.from(pasted.matchAll(YT_URL_RE), (m) => m[1]);
+    if (urls.length === 0) return;
+
+    // Let the default paste happen so the user sees the URL immediately.
+    // We dispatch the description fetches in the background.
+    for (const rawUrl of urls) {
+      // Strip trailing punctuation the regex may have swept up ("watch?…,").
+      const url = rawUrl.replace(/[),.;]+$/, "");
+      if (describingYoutubeUrls.has(url)) continue;
+      setDescribingYoutubeUrls((prev) => new Set(prev).add(url));
+      thumbnailAPI
+        .describeYoutube(url)
+        .then((res) => {
+          const desc = (res.data?.description || "").trim();
+          if (!desc) return;
+          // Replace the URL (first occurrence) with the description in the
+          // current prompt state. Using the functional updater guarantees
+          // we operate on the latest state even if other edits happened
+          // while the request was in flight.
+          setPrompt((p) => {
+            const idx = p.indexOf(url);
+            if (idx === -1) return p;
+            return p.slice(0, idx) + desc + p.slice(idx + url.length);
+          });
+        })
+        .catch((err) => {
+          // Surface the failure to the console but don't disrupt the user.
+          // Leaving the URL in place means they can still hit Generate —
+          // the recreate-mode URL field + our prompt both work.
+          console.warn("describeYoutube failed:", err);
+        })
+        .finally(() => {
+          setDescribingYoutubeUrls((prev) => {
+            const next = new Set(prev);
+            next.delete(url);
+            return next;
+          });
+        });
+    }
+  };
 
   /* ─── @mention system ─── */
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1530,6 +1613,11 @@ export default function ThumbnailStudio() {
     e.preventDefault();
     e.stopPropagation();
     const { x, y } = mouseToFrac(e);
+    // Remember the raw viewport coordinates of this mousedown. If it turns
+    // out to be a tap (no drag), the popover is anchored to the click point
+    // rather than the box edges — so clicking low in a tall box opens the
+    // popover low, not all the way up at the box's top.
+    clickPosRef.current = { x: e.clientX, y: e.clientY };
     setDragState({ kind: "move", id: subject.id, startX: x, startY: y, origBox: subject.box });
     setSelectedSubjectId(subject.id);
   };
@@ -2058,26 +2146,58 @@ export default function ThumbnailStudio() {
           if (!previewRect || typeof document === "undefined") return null;
           const POPOVER_WIDTH = 280;
           const GAP = 8;
-          const VIEWPORT_PAD = 8;
+          const VIEWPORT_PAD = 12;
           const boxLeftPx = previewRect.left + s.box.x * previewRect.width;
           const boxRightPx =
             previewRect.left + (s.box.x + s.box.w) * previewRect.width;
           const boxTopPx = previewRect.top + s.box.y * previewRect.height;
           const boxBottomPx =
             previewRect.top + (s.box.y + s.box.h) * previewRect.height;
-          // Anchor horizontally to whichever side of the box leaves more
-          // breathing room — on wide viewports we use the box's left edge,
-          // on narrow/cramped layouts we flip to the right.
+          // Anchor to the click point if we have one, otherwise fall back to
+          // the box's horizontal center / vertical edges. Anchoring to the
+          // click matters for tall boxes: clicking low should spawn the
+          // popover low, not all the way at the top edge where the user
+          // can't see it on short viewports.
+          const clickX = clickPosRef.current?.x ?? (boxLeftPx + boxRightPx) / 2;
+          const clickY = clickPosRef.current?.y ?? (boxTopPx + boxBottomPx) / 2;
+          // Horizontal: bias towards the side of the box with more room, but
+          // anchor to the click X so the popover feels attached to the
+          // pointer. Clamp inside viewport.
           const rawLeft = anchorRight
-            ? boxRightPx - POPOVER_WIDTH
-            : boxLeftPx;
+            ? clickX - POPOVER_WIDTH + 40
+            : clickX - 40;
           const clampedLeft = Math.max(
             VIEWPORT_PAD,
             Math.min(window.innerWidth - POPOVER_WIDTH - VIEWPORT_PAD, rawLeft),
           );
-          const verticalStyle: React.CSSProperties = flipUp
-            ? { bottom: window.innerHeight - boxTopPx + GAP }
-            : { top: boxBottomPx + GAP };
+          // Vertical: pick whichever side of the click has more room, cap
+          // the popover's maxHeight so it never spills off the viewport, and
+          // let the avatar list scroll internally when space is tight. This
+          // replaces the old bottom-anchor approach (which could push the
+          // top edge above the viewport when the popover was taller than
+          // the gap between the box top and the viewport top).
+          const spaceBelow =
+            window.innerHeight - clickY - VIEWPORT_PAD - GAP;
+          const spaceAbove = clickY - VIEWPORT_PAD - GAP;
+          // Prefer below the click unless above has noticeably more space —
+          // matches how users expect dropdowns to open.
+          const placeBelow =
+            spaceBelow >= 260 || spaceBelow >= spaceAbove - 40;
+          const availableSpace = placeBelow ? spaceBelow : spaceAbove;
+          const maxHeightPx = Math.max(
+            180,
+            Math.min(520, availableSpace),
+          );
+          const verticalStyle: React.CSSProperties = placeBelow
+            ? { top: clickY + GAP, maxHeight: maxHeightPx }
+            : {
+                bottom: window.innerHeight - clickY + GAP,
+                maxHeight: maxHeightPx,
+              };
+          // Preserve the `flipUp` variable for parts of the UI that still
+          // reference it (keeps the edit tight). The new placement flag is
+          // what actually drives positioning now.
+          void flipUp;
 
           const popoverNode = (
             <div
@@ -2099,6 +2219,12 @@ export default function ThumbnailStudio() {
                 boxShadow:
                   "0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.18)",
                 overflow: "hidden",
+                // Flex column so the avatar list can claim whatever vertical
+                // space is left inside the clamped maxHeight and scroll
+                // internally. Without this the child `max-h` would stack
+                // on top of everything else and blow past the viewport.
+                display: "flex",
+                flexDirection: "column",
               }}
               onMouseDown={(e) => {
                 // Keep the preview-level mousedown (which starts a new draw)
@@ -2293,8 +2419,17 @@ export default function ThumbnailStudio() {
                     </div>
                   )}
 
-                  {/* Avatar list (compact rows, scrollable) */}
-                  <div className="max-h-[220px] overflow-y-auto">
+                  {/* Avatar list (compact rows, scrollable).
+                      flex-1 + minHeight:0 lets this section shrink/grow to
+                      fill whatever vertical space is left inside the outer
+                      popover's clamped maxHeight — and then its own
+                      overflow-y-auto takes over for long lists. This is
+                      what keeps the list visible on short viewports where
+                      the whole popover would otherwise overflow. */}
+                  <div
+                    className="overflow-y-auto"
+                    style={{ flex: "1 1 auto", minHeight: 0 }}
+                  >
                     {avatars.length === 0 ? (
                       <div
                         className="px-3 py-5 text-center text-[12px]"
@@ -2819,12 +2954,13 @@ export default function ThumbnailStudio() {
                   onChange={handlePromptChange}
                   onKeyDown={handlePromptKeyDown}
                   onScroll={handleTextareaScroll}
+                  onPaste={handlePromptPaste}
                   placeholder={
                     mode === "recreate"
                       ? "Make it more dramatic, add neon lighting…"
                       : mode === "edit"
                         ? "Remove the logo, brighten the subject…"
-                        : "Describe the thumbnail you want to create…"
+                        : "Describe the thumbnail you want to create… (tip: paste a YouTube link and we'll describe its thumbnail for you)"
                   }
                   rows={3}
                   className="relative w-full px-4 py-3 text-[13.5px] resize-none outline-none bg-transparent border-0 min-h-[96px]"
@@ -2835,6 +2971,31 @@ export default function ThumbnailStudio() {
                     zIndex: 1,
                   }}
                 />
+                {/* In-flight indicator for YouTube URL auto-describe.
+                    Sits in the top-right corner of the textarea shell so
+                    it doesn't obscure the typed text. The small spinner +
+                    "Describing YouTube thumbnail…" label is enough signal
+                    that the URL the user just pasted is being processed. */}
+                {describingYoutubeUrls.size > 0 && (
+                  <div
+                    className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium"
+                    style={{
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-secondary)",
+                      zIndex: 3,
+                    }}
+                  >
+                    <span
+                      className="inline-block w-3 h-3 rounded-full border-2 animate-spin"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        borderTopColor: "var(--text-primary)",
+                      }}
+                    />
+                    Describing YouTube thumbnail…
+                  </div>
+                )}
                 <div
                   ref={overlayRef}
                   className="absolute inset-0 px-4 py-3 text-[13.5px] pointer-events-none whitespace-pre-wrap break-words overflow-hidden"

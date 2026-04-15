@@ -852,3 +852,108 @@ async def youtube_preview(url: str):
             "mq": f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
         },
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST /thumbnail/describe-youtube-thumbnail
+# Given a YouTube URL, fetch the video's thumbnail image and ask Gemini to
+# describe it in rich detail — composition, subject, lighting, colour palette,
+# text overlays, mood. The frontend pipes this description straight back into
+# the prompt textarea whenever a user pastes a YouTube link, so the prompt
+# becomes "make me a thumbnail that looks like this" without the user having
+# to type anything themselves.
+#
+# Free endpoint (no credits deducted) — this is purely a helper that makes
+# the prompt UX nicer.
+# ──────────────────────────────────────────────────────────────────────────────
+@router.post("/describe-youtube-thumbnail")
+async def describe_youtube_thumbnail(
+    current_user: Annotated[User, Depends(get_current_user)],
+    url: str = Form(..., description="Any YouTube URL — watch, shorts, youtu.be, embed"),
+):
+    video_id = extract_youtube_id(url)
+    if not video_id:
+        raise HTTPException(status_code=400, detail="Not a valid YouTube URL.")
+
+    img_bytes = await fetch_youtube_thumbnail(video_id)
+    if not img_bytes:
+        raise HTTPException(
+            status_code=404,
+            detail="Couldn't fetch a thumbnail for that video.",
+        )
+
+    # YouTube thumbnails are always JPEG.
+    mime = "image/jpeg"
+    if img_bytes[:8].startswith(b"\x89PNG"):
+        mime = "image/png"
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        logger.error("GEMINI_API_KEY is not set!")
+        raise HTTPException(status_code=500, detail="AI service not configured.")
+
+    client = genai.Client(api_key=api_key)
+
+    # Prompt tuned for YouTube-thumbnail semantics: we want the description
+    # to be rich enough to feed directly into Nano Banana Pro as a
+    # standalone prompt. Emphasise the elements that matter for YouTube
+    # CTR: composition, subject pose/expression, colour palette, lighting,
+    # any visible text, overall mood. Output stays paragraph-form (not a
+    # bulleted list) because it slots into the prompt textarea as-is.
+    prompt_text = (
+        "Describe this YouTube thumbnail in precise detail so that an AI image "
+        "generator could recreate it. Format: one paragraph, 3-5 sentences, "
+        "no bullet points. Cover: (1) composition and 16:9 framing, (2) the "
+        "main subject(s) — people, objects — their pose, expression and "
+        "placement, (3) colour palette and lighting style (saturated/moody/"
+        "high-contrast/etc.), (4) any text overlay including wording, font "
+        "style and colour, (5) overall mood and visual style (cinematic, "
+        "cartoonish, MrBeast-style, photorealistic, etc.). Be specific and "
+        "vivid — describe what you see, not what you think it means. Do not "
+        "add any preamble like 'Here is the description'; just write the "
+        "description directly."
+    )
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type=mime),
+                prompt_text,
+            ],
+        )
+        description = ""
+        if response and response.text:
+            description = response.text.strip()
+        if not description:
+            raise HTTPException(
+                status_code=502,
+                detail="Gemini returned an empty description.",
+            )
+
+        # Scrub any leading boilerplate the model sometimes still adds despite
+        # the instruction ("Here's a description:", "This thumbnail shows…").
+        # We keep the rest of the paragraph intact.
+        description = re.sub(
+            r"^(?:here(?:'s| is)?(?: a| the)?\s+description[:.]?\s*|"
+            r"this (?:youtube )?thumbnail (?:shows|depicts|features)\s+)",
+            "",
+            description,
+            flags=re.IGNORECASE,
+        ).strip()
+
+        return {
+            "description": description,
+            "video_id": video_id,
+        }
+    except HTTPException:
+        raise
+    except APIError as e:
+        logger.error(f"Gemini describe-youtube-thumbnail failed: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI description failed: {e}",
+        )
+    except Exception as e:
+        logger.error(f"describe-youtube-thumbnail unexpected error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Describe failed: {str(e)}")
