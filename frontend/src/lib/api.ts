@@ -111,6 +111,17 @@ export const thumbnailAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
+  /**
+   * Ask the backend to describe what's inside a fractional bounding box on
+   * a source thumbnail. Used right after the user draws a custom rectangle
+   * so the "Custom selection" placeholder gets replaced with a meaningful
+   * noun phrase (e.g. "blue cotton t-shirt") — which then flows into the
+   * generator as `target_label`.
+   */
+  describeRegion: (formData: FormData) =>
+    api.post("/thumbnail/describe-region", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 // ── Video ──

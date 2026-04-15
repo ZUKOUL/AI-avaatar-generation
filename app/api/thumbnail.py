@@ -18,6 +18,7 @@ Credit cost: CREDIT_COST_THUMBNAIL (falls back to CREDIT_COST_IMAGE * 2).
 """
 
 import base64
+import io
 import json
 import os
 import re
@@ -30,6 +31,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
+from PIL import Image, ImageDraw
 
 from app.core.auth import get_current_user
 from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
@@ -162,6 +164,132 @@ async def fetch_youtube_thumbnail(video_id: str) -> Optional[bytes]:
     return None
 
 
+def annotate_target_box(
+    img_bytes: bytes,
+    box_x: float,
+    box_y: float,
+    box_w: float,
+    box_h: float,
+    label: Optional[str] = None,
+) -> bytes:
+    """
+    Draw a bright magenta rectangle on `img_bytes` at the given fractional
+    coordinates (0-1 of image width/height) and return the annotated PNG
+    bytes. This is what lets Gemini *see* which region the user drew on
+    top of the thumbnail — without it, `target_label` alone is just text
+    and the model has to guess which element of the frame it refers to.
+
+    We use magenta (#ff00ff) because it's rarely present in real photos,
+    so the marker pops out visually. The stroke width scales with the
+    image so it's readable at any resolution.
+
+    Falls back to the original bytes if Pillow can't parse the image —
+    better to ship an un-annotated generation than to 500 the whole call.
+    """
+    try:
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        w, h = img.size
+        # Clamp box inside the image so we never try to draw outside bounds.
+        x0 = max(0, min(w - 2, int(box_x * w)))
+        y0 = max(0, min(h - 2, int(box_y * h)))
+        x1 = max(x0 + 2, min(w, int((box_x + box_w) * w)))
+        y1 = max(y0 + 2, min(h, int((box_y + box_h) * h)))
+
+        # Scale the stroke with image size so it stays visible on 1280×720
+        # YouTube frames but doesn't overwhelm small uploads.
+        stroke = max(4, min(w, h) // 160)
+
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        # Double-stroke: bright magenta outline + thin white halo so the
+        # rectangle reads clearly on both dark and light backgrounds.
+        draw.rectangle(
+            [x0, y0, x1, y1],
+            outline=(255, 255, 255, 255),
+            width=stroke + 2,
+        )
+        draw.rectangle(
+            [x0, y0, x1, y1],
+            outline=(255, 0, 255, 255),
+            width=stroke,
+        )
+
+        # Small "TARGET" tag in the top-left corner of the rectangle so the
+        # model has a textual hint too. Cheap belt-and-braces against the
+        # model missing the magenta colour.
+        tag_text = f"TARGET: {label}" if label else "TARGET"
+        try:
+            # Default PIL font is bitmap; good enough for a corner tag.
+            tag_pad = 4
+            tw = max(60, len(tag_text) * 6)
+            th = 14
+            draw.rectangle(
+                [x0, max(0, y0 - th - 2), x0 + tw + tag_pad * 2, y0],
+                fill=(255, 0, 255, 230),
+            )
+            draw.text(
+                (x0 + tag_pad, max(0, y0 - th - 1)),
+                tag_text,
+                fill=(255, 255, 255, 255),
+            )
+        except Exception:
+            # Font rendering on some minimal images (e.g. 16-bit palette)
+            # can fail — skip the tag rather than failing the whole call.
+            pass
+
+        composed = Image.alpha_composite(img, overlay).convert("RGB")
+        out = io.BytesIO()
+        composed.save(out, format="PNG")
+        return out.getvalue()
+    except Exception as e:
+        logger.warning(f"annotate_target_box failed: {e}")
+        return img_bytes
+
+
+def crop_region(
+    img_bytes: bytes,
+    box_x: float,
+    box_y: float,
+    box_w: float,
+    box_h: float,
+    *,
+    max_side: int = 768,
+    pad: float = 0.04,
+) -> Optional[bytes]:
+    """
+    Crop `img_bytes` to the given fractional box with a small padding so the
+    cropped image includes enough context around the object to describe
+    it (e.g. a t-shirt with a sliver of the person wearing it). Returns
+    PNG bytes, or None if the crop is degenerate.
+
+    Used by `/thumbnail/describe-region` to generate a meaningful label
+    for custom-drawn boxes.
+    """
+    try:
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        w, h = img.size
+        # Expand the box by `pad` on each side, clamped to the image bounds.
+        ex = max(0.0, box_x - pad)
+        ey = max(0.0, box_y - pad)
+        ew = min(1.0 - ex, box_w + pad * 2)
+        eh = min(1.0 - ey, box_h + pad * 2)
+        x0 = int(ex * w)
+        y0 = int(ey * h)
+        x1 = int((ex + ew) * w)
+        y1 = int((ey + eh) * h)
+        if x1 - x0 < 8 or y1 - y0 < 8:
+            return None
+        crop = img.crop((x0, y0, x1, y1))
+        # Downscale enormous crops so the Gemini call stays fast & cheap.
+        crop.thumbnail((max_side, max_side), Image.LANCZOS)
+        out = io.BytesIO()
+        crop.save(out, format="PNG")
+        return out.getvalue()
+    except Exception as e:
+        logger.warning(f"crop_region failed: {e}")
+        return None
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # POST /thumbnail/generate
 # ──────────────────────────────────────────────────────────────────────────────
@@ -180,6 +308,15 @@ async def generate_thumbnail(
     target_label: Optional[str] = Form(None, description="Short description of the region to replace/edit"),
     # Kept for backward compatibility with the first-wave frontend.
     person_to_replace_label: Optional[str] = Form(None, description="Legacy alias of target_label"),
+    # Fractional box coordinates (0-1) of the region the user marked on the
+    # source thumbnail. When present we draw a magenta rectangle on the
+    # source image before feeding it to Gemini, so the model has a VISUAL
+    # pointer to the region instead of relying on text alone — this is the
+    # fix for custom-drawn boxes whose label is just "Custom selection".
+    target_box_x: Optional[float] = Form(None, description="Box left edge as fraction of image width (0-1)"),
+    target_box_y: Optional[float] = Form(None, description="Box top edge as fraction of image height (0-1)"),
+    target_box_w: Optional[float] = Form(None, description="Box width as fraction of image width (0-1)"),
+    target_box_h: Optional[float] = Form(None, description="Box height as fraction of image height (0-1)"),
     files: List[UploadFile] = File(default=[], description="Reference images (character, style, source thumbnail for edit)"),
 ):
     """Generate a thumbnail. Mode-aware prompt engineering + optional refs."""
@@ -211,6 +348,28 @@ async def generate_thumbnail(
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
+    # Decide whether the caller supplied a valid fractional box so we can
+    # visually annotate the source with a magenta rectangle. Reject boxes
+    # with zero area or coordinates outside [0,1] — those would either be
+    # invisible or signal a bug on the client. Only used in recreate/edit;
+    # in `prompt`/`title` there's no source to annotate.
+    has_target_box = (
+        target_box_x is not None
+        and target_box_y is not None
+        and target_box_w is not None
+        and target_box_h is not None
+        and 0.0 <= target_box_x <= 1.0
+        and 0.0 <= target_box_y <= 1.0
+        and target_box_w > 0.005
+        and target_box_h > 0.005
+        and target_box_x + target_box_w <= 1.001
+        and target_box_y + target_box_h <= 1.001
+    )
+    # Is there enough label context to describe the target, OR just the
+    # visual rectangle? Both are strong enough on their own to steer the
+    # model; together they're ideal.
+    effective_target_label = (target_label or person_to_replace_label or "").strip()
+
     # ── Assemble Gemini multimodal input ────────────────────────────────────
     gemini_contents: list = []
     used_youtube_url: Optional[str] = None
@@ -238,7 +397,31 @@ async def generate_thumbnail(
                 detail="Couldn't fetch a thumbnail for that YouTube video.",
             )
         used_youtube_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-        gemini_contents.append(types.Part.from_bytes(data=yt_bytes, mime_type="image/jpeg"))
+        # If the user marked a region, paint it onto the thumbnail so Gemini
+        # can SEE what the prompt is pointing at. We keep the un-annotated
+        # bytes around for the persisted reference image — we want the
+        # saved/downloadable original, not one with a magenta square on it.
+        yt_bytes_for_model = yt_bytes
+        if has_target_box and mode == "recreate":
+            yt_bytes_for_model = annotate_target_box(
+                yt_bytes,
+                target_box_x,  # type: ignore[arg-type]
+                target_box_y,  # type: ignore[arg-type]
+                target_box_w,  # type: ignore[arg-type]
+                target_box_h,  # type: ignore[arg-type]
+                label=effective_target_label or None,
+            )
+            logger.info(
+                f"Recreate: annotated target box "
+                f"({target_box_x:.2f},{target_box_y:.2f},"
+                f"{target_box_w:.2f},{target_box_h:.2f})"
+            )
+        gemini_contents.append(
+            types.Part.from_bytes(
+                data=yt_bytes_for_model,
+                mime_type="image/png" if has_target_box else "image/jpeg",
+            )
+        )
         first_ref_bytes = yt_bytes
         first_ref_mime = "image/jpeg"
         logger.info(f"Recreate: seeded YouTube thumbnail for {video_id} ({len(yt_bytes)} bytes)")
@@ -250,7 +433,34 @@ async def generate_thumbnail(
             if not data:
                 continue
             mime = f.content_type or "image/png"
-            gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+            # In edit mode the FIRST uploaded file is the source thumbnail —
+            # that's the one the user drew their box on. Annotate it with
+            # the magenta rectangle before handing it to Gemini so the
+            # model has a visual pointer to the region. Later files are
+            # character refs, leave them alone.
+            if mode == "edit" and idx == 0 and has_target_box:
+                try:
+                    annotated = annotate_target_box(
+                        data,
+                        target_box_x,  # type: ignore[arg-type]
+                        target_box_y,  # type: ignore[arg-type]
+                        target_box_w,  # type: ignore[arg-type]
+                        target_box_h,  # type: ignore[arg-type]
+                        label=effective_target_label or None,
+                    )
+                    gemini_contents.append(
+                        types.Part.from_bytes(data=annotated, mime_type="image/png")
+                    )
+                    logger.info(
+                        f"Edit: annotated target box on uploaded source "
+                        f"({target_box_x:.2f},{target_box_y:.2f},"
+                        f"{target_box_w:.2f},{target_box_h:.2f})"
+                    )
+                except Exception as e:
+                    logger.warning(f"Edit annotate failed, using raw: {e}")
+                    gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+            else:
+                gemini_contents.append(types.Part.from_bytes(data=data, mime_type=mime))
             # Capture the first uploaded file as the "source" for edit mode
             # (recreate mode already filled first_ref_bytes with the YouTube
             # frame above, so we only overwrite if we don't have one yet).
@@ -288,15 +498,61 @@ async def generate_thumbnail(
     elif mode == "recreate":
         # Unified target label: prefer the new `target_label`, fall back to
         # the legacy `person_to_replace_label`.
-        effective_target = (target_label or person_to_replace_label or "").strip()
-        target_clause = (
-            f"The region to replace is described as: \"{effective_target}\". "
-            "Swap THAT specific subject/element (matching its position, pose, "
-            "scale, and lighting) for the referenced person/content. Do not "
-            "touch any other people or elements in the frame. "
-            if effective_target and has_character_refs
-            else ""
-        )
+        effective_target = effective_target_label
+        # Build the targeting clause. The rule of thumb: if we have EITHER
+        # a box the user drew (visible magenta rectangle in the source) OR
+        # a textual label, we add a clause that pins the edit to that
+        # region. The old code only fired this clause when character refs
+        # were present, which is why "change the t-shirt colour" ignored
+        # the custom rectangle entirely.
+        if has_target_box and has_character_refs:
+            target_clause = (
+                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the first "
+                "image marking the region the user wants modified"
+                + (
+                    f" (described as: \"{effective_target}\")"
+                    if effective_target
+                    else ""
+                )
+                + ". Swap ONLY what is inside that rectangle with the "
+                "referenced person/content — match its position, pose, "
+                "scale, and lighting. Do NOT modify anything outside the "
+                "rectangle. The magenta rectangle itself is an annotation "
+                "and must NOT appear in the output. "
+            )
+        elif has_target_box:
+            target_clause = (
+                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the first "
+                "image marking the region the user wants modified"
+                + (
+                    f" (described as: \"{effective_target}\")"
+                    if effective_target
+                    else ""
+                )
+                + ". Apply the requested change ONLY to what is inside "
+                "that rectangle. Do NOT modify anything outside the "
+                "rectangle — keep every other pixel of the composition, "
+                "faces, text, background, colour palette, and framing "
+                "identical to the original. The magenta rectangle itself "
+                "is an annotation and must NOT appear in the output. "
+            )
+        elif effective_target and has_character_refs:
+            target_clause = (
+                f"The region to replace is described as: \"{effective_target}\". "
+                "Swap THAT specific subject/element (matching its position, "
+                "pose, scale, and lighting) for the referenced person/"
+                "content. Do not touch any other people or elements in the "
+                "frame. "
+            )
+        elif effective_target:
+            target_clause = (
+                f"The region to modify is described as: \"{effective_target}\". "
+                "Apply the requested change ONLY to that specific element. "
+                "Do not modify anything else in the frame. "
+            )
+        else:
+            target_clause = ""
+
         if has_character_refs:
             # Face-swap / person-injection: keep the ORIGINAL composition,
             # lighting and background, but replace the subject with the
@@ -323,19 +579,63 @@ async def generate_thumbnail(
                 "lighting, and subject framing but applies the requested "
                 "change literally — the user's instructions take priority "
                 "over preserving details. "
+                f"{target_clause}"
                 f"{base_style} "
                 f"Change to apply: {prompt}"
             )
     elif mode == "edit":
-        effective_target = (target_label or person_to_replace_label or "").strip()
-        target_clause = (
-            f"The region to replace is described as: \"{effective_target}\". "
-            "Swap THAT specific subject/element (matching its position, pose, "
-            "scale, and lighting) for the referenced person/content. Do not "
-            "touch any other people or elements in the frame. "
-            if effective_target and has_character_refs
-            else ""
-        )
+        effective_target = effective_target_label
+        # Same dual-path logic as recreate: magenta-rectangle-first when we
+        # have box coords, text-only fallback otherwise, and the clause
+        # fires regardless of whether character refs are attached so
+        # pure describe-mode edits ("change the t-shirt to red") actually
+        # pick up the custom-drawn rectangle.
+        if has_target_box and has_character_refs:
+            target_clause = (
+                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the source "
+                "image marking the region the user wants modified"
+                + (
+                    f" (described as: \"{effective_target}\")"
+                    if effective_target
+                    else ""
+                )
+                + ". Swap ONLY what is inside that rectangle with the "
+                "referenced person/content. Do NOT modify anything outside "
+                "the rectangle. The magenta rectangle itself is an "
+                "annotation and must NOT appear in the output. "
+            )
+        elif has_target_box:
+            target_clause = (
+                "IMPORTANT: A MAGENTA RECTANGLE has been drawn on the source "
+                "image marking the region the user wants modified"
+                + (
+                    f" (described as: \"{effective_target}\")"
+                    if effective_target
+                    else ""
+                )
+                + ". Apply the requested edit ONLY to what is inside that "
+                "rectangle. Do NOT modify anything outside the rectangle — "
+                "keep every other pixel of the composition, faces, text, "
+                "background, colour palette, and framing identical. The "
+                "magenta rectangle itself is an annotation and must NOT "
+                "appear in the output. "
+            )
+        elif effective_target and has_character_refs:
+            target_clause = (
+                f"The region to replace is described as: \"{effective_target}\". "
+                "Swap THAT specific subject/element (matching its position, "
+                "pose, scale, and lighting) for the referenced person/"
+                "content. Do not touch any other people or elements in the "
+                "frame. "
+            )
+        elif effective_target:
+            target_clause = (
+                f"The region to modify is described as: \"{effective_target}\". "
+                "Apply the requested edit ONLY to that specific element. "
+                "Do not modify anything else in the frame. "
+            )
+        else:
+            target_clause = ""
         full_prompt = (
             "The first uploaded image is the source thumbnail — keep its "
             "composition, lighting and overall look, then apply the requested "
@@ -957,3 +1257,131 @@ async def describe_youtube_thumbnail(
     except Exception as e:
         logger.error(f"describe-youtube-thumbnail unexpected error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Describe failed: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST /thumbnail/describe-region
+# Given a source image (YouTube URL, arbitrary URL, or uploaded file) and a
+# fractional bounding box, return a short label describing what's inside it.
+# The frontend calls this whenever the user draws a CUSTOM rectangle on the
+# source thumbnail so the box's default "Custom selection" label is replaced
+# with something meaningful like "blue t-shirt" or "red coffee mug". That
+# label then feeds into /thumbnail/generate as `target_label` so the AI
+# actually knows what the rectangle covers.
+# ──────────────────────────────────────────────────────────────────────────────
+@router.post("/describe-region")
+async def describe_region(
+    current_user: Annotated[User, Depends(get_current_user)],
+    box_x: float = Form(..., description="Fractional left edge (0-1)"),
+    box_y: float = Form(..., description="Fractional top edge (0-1)"),
+    box_w: float = Form(..., description="Fractional width (0-1)"),
+    box_h: float = Form(..., description="Fractional height (0-1)"),
+    youtube_url: Optional[str] = Form(None, description="YouTube URL — we'll fetch the video's thumbnail"),
+    image_url: Optional[str] = Form(None, description="Direct image URL"),
+    files: List[UploadFile] = File(default=[], description="Uploaded source image"),
+):
+    # Validate the box rectangle first so bogus inputs fail fast.
+    if not (
+        0.0 <= box_x <= 1.0
+        and 0.0 <= box_y <= 1.0
+        and box_w > 0.005
+        and box_h > 0.005
+        and box_x + box_w <= 1.001
+        and box_y + box_h <= 1.001
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Box coordinates must be fractions in [0,1] with width/height > 0.005.",
+        )
+
+    # Resolve the source image to bytes. We support three inputs — the same
+    # set the /detect-people endpoint accepts — so the frontend can reuse
+    # whatever it has on hand.
+    img_bytes: Optional[bytes] = None
+    real_files = [f for f in files if f.filename and f.size and f.size > 0]
+    if real_files:
+        img_bytes = await real_files[0].read()
+    elif youtube_url:
+        vid = extract_youtube_id(youtube_url)
+        if not vid:
+            raise HTTPException(status_code=400, detail="Not a valid YouTube URL.")
+        img_bytes = await fetch_youtube_thumbnail(vid)
+        if not img_bytes:
+            raise HTTPException(
+                status_code=404,
+                detail="Couldn't fetch that video's thumbnail.",
+            )
+    elif image_url:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as c:
+                r = await c.get(image_url)
+            if r.status_code != 200:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Couldn't fetch image (HTTP {r.status_code}).",
+                )
+            img_bytes = r.content
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=400, detail=f"Fetch failed: {e}")
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide a YouTube URL, image URL, or uploaded file.",
+        )
+
+    if not img_bytes or len(img_bytes) < 500:
+        raise HTTPException(status_code=400, detail="Source image is empty.")
+
+    # Crop to the box (with a small padding for context).
+    crop_bytes = crop_region(img_bytes, box_x, box_y, box_w, box_h)
+    if not crop_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Couldn't crop the selected region.",
+        )
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="AI service not configured.")
+
+    client = genai.Client(api_key=api_key)
+    # Short, concrete label — this plugs straight into target_label so it
+    # needs to read like a noun phrase, not a sentence. Examples we
+    # optimise for: "blue cotton t-shirt", "red coffee mug", "bold white
+    # title text", "subject's face".
+    prompt_text = (
+        "Describe the main object visible in this cropped image as a short "
+        "noun phrase (3-8 words max). Focus on colour, material, and the "
+        "single most salient object — not the whole scene. Do not include "
+        "any preamble; output only the noun phrase. Examples of the "
+        "desired style: 'blue cotton t-shirt', 'red coffee mug on desk', "
+        "'bold yellow title text', 'blond man's face'."
+    )
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=crop_bytes, mime_type="image/png"),
+                prompt_text,
+            ],
+        )
+        label = ""
+        if response and response.text:
+            label = response.text.strip()
+        # Strip obvious boilerplate + trailing punctuation.
+        label = re.sub(r"^(?:the\s+)?", "", label, flags=re.IGNORECASE).strip(" .\"'")
+        # Cap the length defensively — models occasionally produce a whole
+        # paragraph despite the instruction. Taking the first sentence is
+        # almost always the noun phrase we asked for.
+        if len(label) > 80:
+            label = label.split(".")[0].strip()
+        if not label:
+            label = "selected region"
+        return {"label": label}
+    except APIError as e:
+        logger.error(f"describe-region Gemini error: {e}")
+        raise HTTPException(status_code=502, detail=f"AI description failed: {e}")
+    except Exception as e:
+        logger.error(f"describe-region unexpected error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Describe failed: {e}")

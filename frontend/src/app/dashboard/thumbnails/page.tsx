@@ -1276,6 +1276,83 @@ export default function ThumbnailStudio() {
     };
   }, [mode, ytPreview, sourceFile, youtubeUrl, detectionEnabled]);
 
+  /* ─── Auto-describe custom-drawn boxes ───
+   * When the user drags a fresh rectangle on the source thumbnail, the
+   * box lands in state with the placeholder label "Custom selection" —
+   * which tells the downstream generator nothing about what's inside.
+   * This effect watches for those placeholders, crops the source image
+   * to the box, and asks Gemini for a short noun phrase describing the
+   * object (e.g. "blue cotton t-shirt"). The returned label replaces
+   * "Custom selection" so the eventual generate call ships a useful
+   * `target_label`.
+   *
+   * Guarded against re-firing mid-drag and against double-requests via
+   * a ref-tracked set. If the call fails we leave the placeholder in
+   * place so the rectangle still works (just with weaker targeting). */
+  const describedCustomIdsRef = useRef<Set<string>>(new Set());
+  const [describingCustomIds, setDescribingCustomIds] = useState<Set<string>>(
+    new Set(),
+  );
+  useEffect(() => {
+    // Don't fire while a drag is still in progress — the box is still
+    // being resized and firing now would describe an intermediate state.
+    if (dragState) return;
+    const pending = detectedSubjects.filter(
+      (s) =>
+        s.kind === "custom" &&
+        s.label === "Custom selection" &&
+        !describedCustomIdsRef.current.has(s.id),
+    );
+    if (pending.length === 0) return;
+
+    // We need a source image to crop. Recreate → YouTube URL; Edit →
+    // uploaded file. In other modes the preview isn't visible anyway.
+    const hasRecreateSource = mode === "recreate" && !!ytPreview?.videoId;
+    const hasEditSource = mode === "edit" && !!sourceFile;
+    if (!hasRecreateSource && !hasEditSource) return;
+
+    for (const s of pending) {
+      describedCustomIdsRef.current.add(s.id);
+      setDescribingCustomIds((prev) => new Set(prev).add(s.id));
+
+      const fd = new FormData();
+      fd.append("box_x", s.box.x.toFixed(4));
+      fd.append("box_y", s.box.y.toFixed(4));
+      fd.append("box_w", s.box.w.toFixed(4));
+      fd.append("box_h", s.box.h.toFixed(4));
+      if (hasRecreateSource) {
+        fd.append("youtube_url", youtubeUrl.trim());
+      } else if (hasEditSource && sourceFile) {
+        fd.append("files", sourceFile);
+      }
+
+      thumbnailAPI
+        .describeRegion(fd)
+        .then((res) => {
+          const label = (res.data?.label || "").trim();
+          if (!label) return;
+          setDetectedSubjects((prev) =>
+            prev.map((x) => (x.id === s.id ? { ...x, label } : x)),
+          );
+        })
+        .catch((err) => {
+          console.warn("describeRegion failed:", err);
+          // Roll out of the "already described" set so the user can
+          // nudge the box (which bumps it through the effect again)
+          // to retry. Otherwise a transient failure would permanently
+          // leave "Custom selection" stuck.
+          describedCustomIdsRef.current.delete(s.id);
+        })
+        .finally(() => {
+          setDescribingCustomIds((prev) => {
+            const next = new Set(prev);
+            next.delete(s.id);
+            return next;
+          });
+        });
+    }
+  }, [detectedSubjects, dragState, mode, ytPreview, sourceFile, youtubeUrl]);
+
   /* ─── Cleanup object URLs on unmount ─── */
   useEffect(() => {
     return () => {
@@ -1436,6 +1513,17 @@ export default function ThumbnailStudio() {
           : null);
       if (effectiveTarget && (mode === "recreate" || mode === "edit")) {
         form.append("target_label", effectiveTarget.label);
+        // Ship the box coordinates too so the backend can draw a magenta
+        // rectangle on the source image before handing it to Gemini.
+        // Without this the AI only sees the text label — which is often
+        // too generic to locate the region (especially for custom boxes
+        // whose default label is "Custom selection"). The visual marker
+        // is what makes "change the t-shirt colour" actually change the
+        // t-shirt and not some unrelated element.
+        form.append("target_box_x", effectiveTarget.box.x.toFixed(4));
+        form.append("target_box_y", effectiveTarget.box.y.toFixed(4));
+        form.append("target_box_w", effectiveTarget.box.w.toFixed(4));
+        form.append("target_box_h", effectiveTarget.box.h.toFixed(4));
       }
       if (mode === "edit" && sourceFile) form.append("files", sourceFile);
       refs.forEach((f) => form.append("files", f));
@@ -1984,10 +2072,27 @@ export default function ThumbnailStudio() {
                     {paired ? `→ @${paired.name}` : `@${s.mention_name}`}
                   </div>
                   <div
-                    className="text-[9px] leading-tight truncate"
+                    className="text-[9px] leading-tight truncate flex items-center gap-1"
                     style={{ opacity: 0.82 }}
                   >
-                    {s.label}
+                    {/* Tiny inline spinner while describeRegion is in
+                        flight so the user can tell the label is about
+                        to update — rather than thinking the detection
+                        is stuck on "Custom selection". */}
+                    {describingCustomIds.has(s.id) && (
+                      <span
+                        className="inline-block w-2 h-2 rounded-full border animate-spin"
+                        style={{
+                          borderColor: "rgba(255,255,255,0.4)",
+                          borderTopColor: "#fff",
+                        }}
+                      />
+                    )}
+                    <span className="truncate">
+                      {describingCustomIds.has(s.id)
+                        ? "Identifying…"
+                        : s.label}
+                    </span>
                   </div>
                 </div>
               </div>
