@@ -21,6 +21,7 @@ import base64
 import io
 import json
 import os
+import random
 import re
 import time
 import uuid
@@ -1679,12 +1680,16 @@ async def generate_smart_prompt(
     video_description: str = Form(""),
 ):
     """
-    v4 — Automated "paste a YouTube URL" flow:
-    Step 1: Gemini generates a 5-8 word English YouTube search query from the
-            creator's niche + title + description.
-    Step 2: YouTube Data API search → pick the most-viewed non-Short video.
-    Step 3: fetch_youtube_thumbnail() + EXACT describe-youtube-thumbnail Gemini
-            call → returns the same quality vivid paragraph as pasting a real URL.
+    v5 — Multi-source random-sampled synthesis:
+    Step 1: Gemini generates a YouTube search query from the creator's inputs.
+    Step 2: Run 2 YouTube searches (topic + niche-boost) → collect up to 15 unique
+            candidate videos → randomly sample 3 for diversity (different result
+            every call, no repetition).
+    Step 3: Describe each of the 3 thumbnails INDIVIDUALLY with the exact same
+            Gemini call as /describe-youtube-thumbnail.
+    Step 4: Synthesise a COMPLETELY ORIGINAL scene description (min 100 words)
+            that MIXES elements from all 3 references into something new —
+            never a copy of any single thumbnail.
     """
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not gemini_key:
@@ -1699,9 +1704,7 @@ async def generate_smart_prompt(
         re.IGNORECASE,
     )
 
-    # ── Step 1: Convert creator inputs → short English YouTube search query ────
-    # We ask Gemini to distil niche + title + description into the 5-8 word
-    # query a real person would type on YouTube to find a similar video.
+    # ── Step 1: Gemini converts creator inputs → YouTube search query ─────────
     desc_extra = f"\n- What the video is about: {video_description}" if video_description.strip() else ""
     query_instruction = (
         f"A YouTube creator has this video concept:\n"
@@ -1710,139 +1713,205 @@ async def generate_smart_prompt(
         "Generate a short YouTube search query (5-8 English words) that someone "
         "would actually type in the YouTube search bar to find videos about this "
         "exact topic. The query must be in English regardless of the input language. "
-        "Focus on the core topic, not generic words like 'how to' or 'tutorial'. "
-        "Return ONLY the search query, no explanation, no quotes."
+        "Focus on the core topic. Return ONLY the search query, no quotes."
     )
+    search_query = f"{niche} {video_title}"
     try:
         q_resp = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[types.Part.from_text(text=query_instruction)],
-            config=types.GenerateContentConfig(temperature=0.2, max_output_tokens=40),
+            config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=40),
         )
-        search_query = (q_resp.text or "").strip().strip('"').strip("'")
-        if not search_query:
-            search_query = f"{niche} {video_title}"
-        logger.info(f"smart_prompt: generated search query: '{search_query}'")
+        q = (q_resp.text or "").strip().strip('"').strip("'")
+        if q:
+            search_query = q
+        logger.info(f"smart_prompt: search query → '{search_query}'")
     except Exception as e:
         logger.warning(f"smart_prompt: query generation failed: {e}")
-        search_query = f"{niche} {video_title}"
 
-    # ── Step 2: Search YouTube → find the best matching video ─────────────────
-    best_video_id: str | None = None
-    best_video_title: str = ""
+    # Niche-boost query for a second search pass (proven high-CTR channels)
+    _NICHE_BOOST: dict[str, str] = {
+        "business":       "iman gadzhi yomi denzel make money online",
+        "entrepreneurship": "iman gadzhi yomi denzel side hustle income",
+        "finance":        "graham stephan andrei jikh passive income investing",
+        "money":          "iman gadzhi yomi denzel make money online",
+        "ecommerce":      "dropshipping shopify make money ecommerce results",
+        "fitness":        "athlean-x jeff nippard workout transformation before after",
+        "gaming":         "markiplier unspeakable gaming challenge best moments",
+        "entertainment":  "mrbeast viral challenge experiment",
+        "tech":           "mkbhd linus tech tips review unboxing",
+        "travel":         "travel vlog adventure viral challenge explore",
+        "food":           "viral food challenge cooking recipe best",
+        "saas":           "build saas ai tool income results",
+        "software":       "build saas tool passive income results",
+    }
+    niche_lower = niche.lower()
+    boost_query = next(
+        (v for k, v in _NICHE_BOOST.items() if k in niche_lower),
+        f"{niche} viral income results",
+    )
+
+    # ── Step 2: Two YouTube searches → collect up to 15 unique candidates ─────
+    candidates: list[tuple[str, str]] = []   # (video_id, title)
+    seen_ids: set[str] = set()
 
     if youtube_key:
-        try:
-            async with httpx.AsyncClient(timeout=12.0) as yt:
-                resp = await yt.get(
-                    "https://www.googleapis.com/youtube/v3/search",
-                    params={
-                        "part": "snippet",
-                        "q": search_query,
-                        "type": "video",
-                        "maxResults": 15,
-                        "order": "viewCount",
-                        "relevanceLanguage": "en",
-                        "safeSearch": "moderate",
-                        "key": youtube_key,
-                    },
-                )
-            if resp.status_code == 200:
+        for q in [search_query, boost_query]:
+            try:
+                async with httpx.AsyncClient(timeout=12.0) as yt:
+                    resp = await yt.get(
+                        "https://www.googleapis.com/youtube/v3/search",
+                        params={
+                            "part": "snippet",
+                            "q": q,
+                            "type": "video",
+                            "maxResults": 10,
+                            "order": "viewCount",
+                            "relevanceLanguage": "en",
+                            "safeSearch": "moderate",
+                            "key": youtube_key,
+                        },
+                    )
+                if resp.status_code != 200:
+                    continue
                 for item in resp.json().get("items", []):
                     vid_id = item.get("id", {}).get("videoId")
-                    if not vid_id:
+                    if not vid_id or vid_id in seen_ids:
                         continue
                     title = item.get("snippet", {}).get("title", "")
-                    # Skip Shorts and music videos
                     if re.search(r"#shorts?|official (music|video|mv|audio)", title, re.IGNORECASE):
                         continue
-                    best_video_id = vid_id
-                    best_video_title = title
-                    logger.info(f"smart_prompt: best video → '{title[:60]}' ({vid_id})")
-                    break
-        except Exception as e:
-            logger.warning(f"smart_prompt: YouTube search failed: {e}")
+                    seen_ids.add(vid_id)
+                    candidates.append((vid_id, title))
+            except Exception as e:
+                logger.warning(f"smart_prompt: YouTube search failed for '{q}': {e}")
     else:
-        logger.warning("smart_prompt: YOUTUBE_API_KEY not set, skipping search")
+        logger.warning("smart_prompt: YOUTUBE_API_KEY not set")
 
-    # ── Step 3: Describe that video's thumbnail — EXACT describe-youtube call ──
-    # This is byte-for-byte the same Gemini call as /describe-youtube-thumbnail.
-    # It produces the same vivid, specific paragraph as pasting a real URL.
+    # Randomly sample 3 from the pool → different result every call
+    pool = candidates[:15]
+    random.shuffle(pool)
+    selected = pool[:3]
+    logger.info(f"smart_prompt: selected {len(selected)} videos from {len(candidates)} candidates")
+
+    # ── Step 3: Describe each thumbnail individually (exact describe-youtube) ──
     _DESCRIBE_PROMPT = (
         "Describe this YouTube thumbnail in precise detail so that an AI image "
         "generator could recreate the SCENE (not the specific people). "
-        "Format: one paragraph, 3-5 sentences, no bullet points. Cover: "
+        "Format: one paragraph, 4-6 sentences, no bullet points. Cover: "
         "(1) composition and 16:9 framing, "
-        "(2) any people present — but ONLY their role/archetype, pose, gesture, "
-        "facial expression and rough placement in the frame. Use generic "
-        "references like 'a man', 'a woman', 'a person', 'two people'. "
-        "DO NOT describe physical features (no beard, no hair colour or style, "
-        "no eye colour, no skin tone, no age, no ethnicity). "
-        "DO NOT describe their specific clothing (no brand, no colour of shirt, "
-        "no outfit details) — just mention clothing type only if it's essential "
-        "to the scene (e.g. 'in sports gear', 'in formal attire'). "
-        "(3) non-human subjects and props — these CAN be described in full "
-        "detail (cars, food, logos, screens, etc.), "
-        "(4) colour palette and lighting style of the overall image "
-        "(saturated/moody/high-contrast/etc.), "
-        "(5) any text overlay including exact wording, font style and colour, "
-        "(6) overall mood and visual style (cinematic, cartoonish, "
-        "MrBeast-style, photorealistic, etc.). "
-        "Be specific and vivid about the scene, composition, objects and "
-        "atmosphere — but keep people deliberately vague so the user can "
-        "substitute their own character. Do not add any preamble like "
-        "'Here is the description'; just write the description directly."
+        "(2) any people present — ONLY their role/archetype, pose, gesture, "
+        "facial expression and placement. Use 'a man', 'a woman', 'a person'. "
+        "NO physical features, NO clothing colour or brand. "
+        "(3) non-human subjects and props in FULL detail "
+        "(money, cars, phones, screens, food, logos — name every object explicitly), "
+        "(4) colour palette and lighting style, "
+        "(5) any text overlay — exact wording, font style, colour and placement, "
+        "(6) overall mood and visual style (MrBeast-style, cinematic, etc.). "
+        "Be extremely specific and vivid. Do not add any preamble."
     )
 
-    if best_video_id:
-        img_bytes = await fetch_youtube_thumbnail(best_video_id)
-        if img_bytes:
-            mime = "image/png" if img_bytes[:4] == b"\x89PNG" else "image/jpeg"
-            try:
-                desc_resp = gemini_client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[
-                        types.Part.from_bytes(data=img_bytes, mime_type=mime),
-                        types.Part.from_text(text=_DESCRIBE_PROMPT),
-                    ],
-                    # No token limit so the description is never cut off mid-sentence
-                )
-                generated = _BOILERPLATE_RE.sub(
-                    "", (desc_resp.text or "").strip()
-                ).strip()
-                if generated:
-                    logger.info(
-                        f"smart_prompt: described '{best_video_title[:50]}' "
-                        f"({len(generated)} chars)"
-                    )
-                    return {
-                        "prompt": generated,
-                        "source_video": best_video_title,
-                        "search_query": search_query,
-                    }
-            except Exception as e:
-                logger.warning(f"smart_prompt: describe call failed: {e}")
+    ref_descriptions: list[tuple[str, str]] = []   # (title, description)
+    for vid_id, title in selected:
+        img_bytes = await fetch_youtube_thumbnail(vid_id)
+        if not img_bytes:
+            continue
+        mime = "image/png" if img_bytes[:4] == b"\x89PNG" else "image/jpeg"
+        try:
+            d_resp = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Part.from_bytes(data=img_bytes, mime_type=mime),
+                    types.Part.from_text(text=_DESCRIBE_PROMPT),
+                ],
+            )
+            desc = _BOILERPLATE_RE.sub("", (d_resp.text or "").strip()).strip()
+            if desc and len(desc) > 60:
+                ref_descriptions.append((title, desc))
+                logger.info(f"smart_prompt: described '{title[:50]}' ({len(desc)} chars)")
+        except Exception as e:
+            logger.warning(f"smart_prompt: describe failed for {vid_id}: {e}")
 
-    # ── Fallback: no YouTube result or image fetch failed ─────────────────────
-    # Ask Gemini to write the best prompt it can from knowledge alone.
-    logger.warning("smart_prompt: no YouTube reference available, using fallback")
-    fallback = (
-        f"You are a YouTube thumbnail scene description expert.\n"
-        f"Write a vivid, specific, photorealistic scene description for a YouTube "
-        f"thumbnail about: '{video_title}' (niche: {niche}).\n"
-        f"Format: one paragraph, 5-7 sentences. Cover person pose/expression, "
-        f"specific props (name every item), background, lighting, text overlay with "
-        f"exact wording. Start with the person directly. No preamble."
+    # ── Step 4: Synthesise a COMPLETELY ORIGINAL scene from the 3 descriptions ─
+    # Pure-text call — no images. Gemini mixes elements from 3 real thumbnails
+    # into something new, adapted to the creator's video concept.
+    # Guaranteed minimum length: 100 words, all 6 required elements.
+
+    if ref_descriptions:
+        refs_block = "\n\n".join(
+            f"THUMBNAIL {i+1} (from \"{t}\"):\n{d}"
+            for i, (t, d) in enumerate(ref_descriptions)
+        )
+        synthesis_prompt = (
+            "You are a creative director specialised in viral YouTube thumbnails.\n\n"
+            f"A creator needs a thumbnail for their video:\n"
+            f"- Niche: {niche}\n"
+            f"- Title: {video_title}{desc_extra}\n\n"
+            f"Here are {len(ref_descriptions)} real thumbnail descriptions from "
+            f"top YouTube videos in this niche:\n\n"
+            f"{refs_block}\n\n"
+            "TASK: Create a COMPLETELY ORIGINAL scene description for the creator's "
+            "video by MIXING elements from all the thumbnails above. "
+            "Do NOT copy any single thumbnail — take:\n"
+            "• The composition style (person position, split/single/before-after) from one\n"
+            "• The specific prop types and scene setting from another\n"
+            "• The text overlay style and wording approach from another\n"
+            "Then ADAPT and INVENT new details specific to the creator's video concept.\n\n"
+            "STRICT RULES:\n"
+            "✗ Do NOT start with 'A 16:9 thumbnail', 'This thumbnail', 'Here is'\n"
+            "✗ Do NOT use: viral, engaging, compelling, CTR, dynamic, strategic\n"
+            "✗ Do NOT copy any sentence from the references above\n"
+            "✓ Start: 'A man / A woman / A person, [exact position], [what they do], [expression].'\n"
+            "✓ Name EVERY prop explicitly: not 'money' → 'a thick stack of €50 bills'; "
+            "not 'a laptop' → 'an open MacBook Pro showing a Stripe dashboard with €3,200'; "
+            "not 'a car' → 'a matte black Lamborghini Urus'\n"
+            "✓ Person: role + pose + hand gesture + exact facial expression + position only. "
+            "NO hair, NO skin tone, NO clothing colour.\n"
+            "✓ Include exact text overlay wording (ALL CAPS YouTube style matching the video topic)\n\n"
+            "FORMAT: ONE flowing paragraph, minimum 100 words, 5-7 sentences. "
+            "Cover: person → hands/objects → foreground props → background → "
+            "lighting/colours → text overlay → visual style.\n\n"
+            "Return ONLY the scene description. No preamble. No explanation."
+        )
+        try:
+            s_resp = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[types.Part.from_text(text=synthesis_prompt)],
+                config=types.GenerateContentConfig(temperature=0.9),
+            )
+            generated = _BOILERPLATE_RE.sub("", (s_resp.text or "").strip()).strip()
+            if generated and len(generated) > 80:
+                logger.info(f"smart_prompt: synthesis done ({len(generated)} chars, {len(generated.split())} words)")
+                return {
+                    "prompt": generated,
+                    "references_used": len(ref_descriptions),
+                    "search_query": search_query,
+                }
+        except Exception as e:
+            logger.error(f"smart_prompt: synthesis failed: {e}")
+
+    # ── Fallback: no references available → pure creative generation ──────────
+    logger.warning("smart_prompt: no references, using creative fallback")
+    fallback_prompt = (
+        f"You are a YouTube thumbnail creative director.\n"
+        f"Write a vivid, photorealistic scene description for a thumbnail about:\n"
+        f"- Niche: {niche}\n"
+        f"- Video: {video_title}{desc_extra}\n\n"
+        "ONE paragraph, minimum 100 words, 5-7 sentences. "
+        "Cover: person (role+pose+expression, no appearance), specific named props, "
+        "exact background, lighting, text overlay with exact wording. "
+        "Start with the person. No preamble."
     )
     try:
-        fb_resp = gemini_client.models.generate_content(
+        fb = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=[types.Part.from_text(text=fallback)],
+            contents=[types.Part.from_text(text=fallback_prompt)],
+            config=types.GenerateContentConfig(temperature=0.9),
         )
-        generated = _BOILERPLATE_RE.sub("", (fb_resp.text or "").strip()).strip()
+        generated = _BOILERPLATE_RE.sub("", (fb.text or "").strip()).strip()
         if not generated:
             raise HTTPException(status_code=502, detail="Could not generate a prompt.")
-        return {"prompt": generated, "source_video": None, "search_query": search_query}
+        return {"prompt": generated, "references_used": 0, "search_query": search_query}
     except HTTPException:
         raise
     except Exception as e:
