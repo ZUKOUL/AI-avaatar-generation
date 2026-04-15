@@ -1200,18 +1200,36 @@ async def describe_youtube_thumbnail(
     # CTR: composition, subject pose/expression, colour palette, lighting,
     # any visible text, overall mood. Output stays paragraph-form (not a
     # bulleted list) because it slots into the prompt textarea as-is.
+    #
+    # IMPORTANT — people are described GENERICALLY. The user will plug in
+    # their own avatar via @mention, so we must NOT lock in the original
+    # person's physical attributes (beard, hair colour, eye colour, skin
+    # tone, age, specific clothing). Otherwise those details conflict with
+    # the avatar at generation time. Stick to role + pose + expression.
     prompt_text = (
         "Describe this YouTube thumbnail in precise detail so that an AI image "
-        "generator could recreate it. Format: one paragraph, 3-5 sentences, "
-        "no bullet points. Cover: (1) composition and 16:9 framing, (2) the "
-        "main subject(s) — people, objects — their pose, expression and "
-        "placement, (3) colour palette and lighting style (saturated/moody/"
-        "high-contrast/etc.), (4) any text overlay including wording, font "
-        "style and colour, (5) overall mood and visual style (cinematic, "
-        "cartoonish, MrBeast-style, photorealistic, etc.). Be specific and "
-        "vivid — describe what you see, not what you think it means. Do not "
-        "add any preamble like 'Here is the description'; just write the "
-        "description directly."
+        "generator could recreate the SCENE (not the specific people). "
+        "Format: one paragraph, 3-5 sentences, no bullet points. Cover: "
+        "(1) composition and 16:9 framing, "
+        "(2) any people present — but ONLY their role/archetype, pose, gesture, "
+        "facial expression and rough placement in the frame. Use generic "
+        "references like 'a man', 'a woman', 'a person', 'two people'. "
+        "DO NOT describe physical features (no beard, no hair colour or style, "
+        "no eye colour, no skin tone, no age, no ethnicity). "
+        "DO NOT describe their specific clothing (no brand, no colour of shirt, "
+        "no outfit details) — just mention clothing type only if it's essential "
+        "to the scene (e.g. 'in sports gear', 'in formal attire'). "
+        "(3) non-human subjects and props — these CAN be described in full "
+        "detail (cars, food, logos, screens, etc.), "
+        "(4) colour palette and lighting style of the overall image "
+        "(saturated/moody/high-contrast/etc.), "
+        "(5) any text overlay including exact wording, font style and colour, "
+        "(6) overall mood and visual style (cinematic, cartoonish, "
+        "MrBeast-style, photorealistic, etc.). "
+        "Be specific and vivid about the scene, composition, objects and "
+        "atmosphere — but keep people deliberately vague so the user can "
+        "substitute their own character. Do not add any preamble like "
+        "'Here is the description'; just write the description directly."
     )
 
     try:
