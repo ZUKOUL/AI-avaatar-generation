@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import uuid
 import time
 import logging
@@ -674,12 +675,22 @@ async def get_images(
 ):
     """
     Get generated image history from the database.
-    - avatar_id (optional): Filter by avatar
+
+    Returns a merged feed of:
+      • rows from `generated_images` (standard avatar/freestyle generations), and
+      • rows from `media` where `metadata.kind == 'thumbnail'` (thumbnails).
+
+    The two sources are normalised to the same shape so the client can render
+    them in a single gallery. Thumbnails are skipped when `avatar_id` is
+    specified because they're never bound to a specific character.
+
+    - avatar_id (optional): Filter by avatar (thumbnails excluded when set)
     - limit: Max results (default 50, max 100)
     """
     try:
         limit = min(limit, 100)
 
+        # ── 1. Avatar/freestyle images from `generated_images` ─────────────
         query = (
             supabase.table("generated_images")
             .select("id, avatar_id, prompt, image_url, created_at")
@@ -687,11 +698,73 @@ async def get_images(
             .order("created_at", desc=True)
             .limit(limit)
         )
-
         if avatar_id:
             query = query.eq("avatar_id", avatar_id)
+        gen_rows = (query.execute().data) or []
 
-        res = query.execute()
+        gen_normalised = [
+            {
+                "id": row["id"],
+                "avatar_id": row.get("avatar_id"),
+                "prompt": row.get("prompt") or "",
+                "image_url": row["image_url"],
+                "created_at": row.get("created_at"),
+                "kind": "image",
+            }
+            for row in gen_rows
+        ]
+
+        # ── 2. Thumbnails from `media` (only when no avatar filter) ────────
+        thumb_normalised: list[dict] = []
+        if not avatar_id:
+            try:
+                # Use PostgREST's JSONB operator to filter by metadata.kind.
+                thumb_res = (
+                    supabase.table("media")
+                    .select("id, url, prompt, metadata, created_at")
+                    .eq("user_id", current_user["id"])
+                    .filter("metadata->>kind", "eq", "thumbnail")
+                    .order("created_at", desc=True)
+                    .limit(limit)
+                    .execute()
+                )
+                thumb_rows = thumb_res.data or []
+            except Exception:
+                # Fallback: grab recent media rows and filter in Python if the
+                # JSONB filter isn't supported by this Supabase client.
+                fallback = (
+                    supabase.table("media")
+                    .select("id, url, prompt, metadata, created_at")
+                    .eq("user_id", current_user["id"])
+                    .order("created_at", desc=True)
+                    .limit(limit * 2)
+                    .execute()
+                )
+                thumb_rows = [
+                    r
+                    for r in (fallback.data or [])
+                    if (r.get("metadata") or {}).get("kind") == "thumbnail"
+                ][:limit]
+
+            # Strip the `[thumbnail:mode]` prefix we insert on generate so the
+            # gallery shows a clean prompt.
+            prefix_re = re.compile(r"^\[thumbnail:[^\]]+\]\s*")
+            for row in thumb_rows:
+                thumb_normalised.append(
+                    {
+                        "id": row["id"],
+                        "avatar_id": None,
+                        "prompt": prefix_re.sub("", row.get("prompt") or ""),
+                        "image_url": row["url"],
+                        "created_at": row.get("created_at"),
+                        "kind": "thumbnail",
+                    }
+                )
+
+        # ── 3. Merge, sort by created_at desc, apply limit ─────────────────
+        combined = gen_normalised + thumb_normalised
+        combined.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+        combined = combined[:limit]
 
         return {
             "images": [
@@ -701,8 +774,12 @@ async def get_images(
                     "prompt": img.get("prompt"),
                     "image_url": img["image_url"],
                     "created_at": img.get("created_at"),
+                    # Lets the frontend badge thumbnails differently if it
+                    # wants to; existing code that ignores the field is
+                    # unaffected.
+                    "kind": img.get("kind", "image"),
                 }
-                for img in (res.data or [])
+                for img in combined
             ]
         }
 

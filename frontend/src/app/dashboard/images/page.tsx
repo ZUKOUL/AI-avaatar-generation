@@ -32,7 +32,20 @@ import {
 
 /* ─── Types ─── */
 interface Avatar { avatar_id: string; name: string; thumbnail: string; }
-interface GeneratedImage { image_id: string; avatar_id?: string; prompt: string; image_url: string; created_at: string; }
+interface GeneratedImage {
+  image_id: string;
+  avatar_id?: string;
+  prompt: string;
+  image_url: string;
+  created_at: string;
+  /**
+   * "thumbnail" for rows coming from the Thumbnail Studio, "image" for
+   * regular avatar / freestyle generations. The backend merges both into
+   * a single /avatar/images response; we use this flag only to badge the
+   * card so users know where a given image came from.
+   */
+  kind?: "image" | "thumbnail";
+}
 
 type ActiveTab = "image" | "video";
 type GridSize = "small" | "medium" | "large";
@@ -1046,6 +1059,18 @@ export default function ImageGenerator() {
                           <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1 p-2">
                             <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>G</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>2K</span>
+                            {img.kind === "thumbnail" && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide"
+                                style={{
+                                  background: "rgba(234,88,12,0.9)",
+                                  color: "#fff",
+                                }}
+                                title="Generated in the Thumbnail Studio"
+                              >
+                                Thumb
+                              </span>
+                            )}
                           </div>
                           {/* Checkbox — top left */}
                           <button
