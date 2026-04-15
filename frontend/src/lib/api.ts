@@ -81,14 +81,17 @@ export const thumbnailAPI = {
   youtubePreview: (url: string) =>
     api.get("/thumbnail/youtube-preview", { params: { url } }),
   /**
-   * Detect people in a source thumbnail so the UI can show clickable boxes
-   * over each person. Pass one of: `file` (uploaded image), `youtube_url`,
-   * or `image_url`.
+   * Detect subjects (people, objects, text) in a source thumbnail so the UI
+   * can show clickable/editable bounding boxes. Pass one of: `file`
+   * (uploaded image), `youtube_url`, or `image_url`.
    */
   detectPeople: (formData: FormData) =>
     api.post("/thumbnail/detect-people", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  /** Fetch the user's past thumbnails, most recent first. */
+  list: (limit = 60) =>
+    api.get("/thumbnail/history", { params: { limit } }),
 };
 
 // ── Video ──

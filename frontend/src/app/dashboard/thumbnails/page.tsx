@@ -16,11 +16,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
+import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
 import { avatarAPI, thumbnailAPI } from "@/lib/api";
 import {
-  Download,
+  Eye,
+  EyeSlash,
   LinkIcon,
   MagicWand,
   PlaySquare,
@@ -36,6 +39,32 @@ import {
 
 type Mode = "prompt" | "recreate" | "edit" | "title";
 type AspectRatio = "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
+type AspectChoice = AspectRatio | "auto";
+
+/** Supported ratios ordered by descending w/h — used to snap an arbitrary
+ *  source ratio to the closest supported value when "auto" is selected. */
+const SUPPORTED_RATIOS: AspectRatio[] = ["16:9", "4:3", "1:1", "3:4", "9:16"];
+
+function ratioValue(r: AspectRatio): number {
+  const [w, h] = r.split(":").map(Number);
+  return w / h;
+}
+
+/** Pick the supported ratio closest to a measured width/height pair. */
+function closestRatio(width: number, height: number): AspectRatio {
+  if (!width || !height) return "16:9";
+  const target = width / height;
+  let best: AspectRatio = "16:9";
+  let bestDelta = Number.POSITIVE_INFINITY;
+  for (const r of SUPPORTED_RATIOS) {
+    const delta = Math.abs(Math.log(ratioValue(r)) - Math.log(target));
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = r;
+    }
+  }
+  return best;
+}
 
 interface Avatar {
   avatar_id: string;
@@ -55,13 +84,16 @@ interface GeneratedThumbnail {
 }
 
 /**
- * A person detected by Gemini 2.5 Flash in the source thumbnail. Box is in
- * fractional coordinates (0-1) relative to the rendered image — we multiply
- * by 100 to position the overlay with CSS percents.
+ * A subject detected by Gemini 2.5 Flash (or drawn manually) in the source
+ * thumbnail. Box is in fractional coordinates (0-1) relative to the rendered
+ * image — we multiply by 100 to position the overlay with CSS percents.
+ * `kind` is one of person/object/text/other for people AI detections, or
+ * "custom" for user-drawn rectangles.
  */
-interface DetectedPerson {
+interface DetectedSubject {
   id: string;
   label: string;
+  kind: "person" | "object" | "text" | "other" | "custom";
   is_main: boolean;
   box: { x: number; y: number; w: number; h: number };
 }
@@ -102,7 +134,18 @@ function RatioIcon({ ratio }: { ratio: AspectRatio }) {
   );
 }
 
-const ASPECT_ITEMS: { key: AspectRatio; icon: React.ReactNode }[] = [
+/** "Auto" icon: two interlocking rectangles suggesting shape-matching. */
+function AutoRatioIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="2" y="4" width="9" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.55" />
+      <rect x="7" y="7" width="9" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+    </svg>
+  );
+}
+
+const ASPECT_ITEMS: { key: AspectChoice; icon: React.ReactNode }[] = [
+  { key: "auto", icon: <AutoRatioIcon /> },
   { key: "16:9", icon: <RatioIcon ratio="16:9" /> },
   { key: "9:16", icon: <RatioIcon ratio="9:16" /> },
   { key: "1:1", icon: <RatioIcon ratio="1:1" /> },
@@ -134,19 +177,28 @@ const SAMPLE_PROMPTS: Record<Mode, string[]> = {
 };
 
 export default function ThumbnailStudio() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("prompt");
   const [prompt, setPrompt] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [titleText, setTitleText] = useState("");
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
+  /**
+   * "auto" = match the source image's ratio at submit time (falls back to 16:9
+   * if we don't have a source yet). Anything else is sent verbatim.
+   */
+  const [aspectRatio, setAspectRatio] = useState<AspectChoice>("auto");
   const [refs, setRefs] = useState<File[]>([]);
   const [refPreviews, setRefPreviews] = useState<string[]>([]);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourcePreview, setSourcePreview] = useState<string | null>(null);
+  /** Natural (pixel) dimensions of whatever source image we're showing in the
+   *  editor (uploaded file or YouTube preview). Used for the "auto" ratio. */
+  const [sourceNaturalSize, setSourceNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<GeneratedThumbnail[]>([]);
-  const [lightbox, setLightbox] = useState<GeneratedThumbnail | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   /* ─── Avatars library + @mentions ─── */
   const [avatars, setAvatars] = useState<Avatar[]>([]);
@@ -181,17 +233,31 @@ export default function ThumbnailStudio() {
   const [ytPreview, setYtPreview] = useState<{ videoId: string; url: string } | null>(null);
   const ytDebounceRef = useRef<number | null>(null);
 
-  /* ─── Person detection on the source thumbnail ───
+  /* ─── Subject detection on the source thumbnail ───
    * When a YouTube URL is validated or a source image is uploaded we ship
-   * the bytes to Gemini 2.5 Flash, get back bounding boxes, and let the user
-   * click the human they want to replace. That click becomes the
-   * `person_to_replace_label` hint on the generation call. */
-  const [detectedPeople, setDetectedPeople] = useState<DetectedPerson[]>([]);
+   * the bytes to Gemini 2.5 Flash, get back bounding boxes for people,
+   * objects and text, and let the user click the one they want to replace.
+   * The selected label becomes the `target_label` hint on generate.
+   *
+   * The user can also disable detection entirely (toggle) if their source has
+   * no humans/objects worth targeting, or draw their own boxes manually. */
+  const [detectionEnabled, setDetectionEnabled] = useState(true);
+  const [detectedSubjects, setDetectedSubjects] = useState<DetectedSubject[]>([]);
   const [detecting, setDetecting] = useState(false);
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   // Which source image hash has already been detected — avoids re-running on
   // every render. Keyed by youtube videoId or object URL.
   const lastDetectedKey = useRef<string | null>(null);
+
+  /* ─── Interactive box editing ───
+   * Boxes can be dragged by their body, resized from any of 4 corners, and
+   * new custom boxes can be drawn by click-dragging on the empty preview. */
+  type DragState =
+    | { kind: "move"; id: string; startX: number; startY: number; origBox: DetectedSubject["box"] }
+    | { kind: "resize"; id: string; corner: "nw" | "ne" | "sw" | "se"; startX: number; startY: number; origBox: DetectedSubject["box"] }
+    | { kind: "draw"; id: string; startX: number; startY: number };
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
 
   const refInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +275,45 @@ export default function ThumbnailStudio() {
       .list()
       .then((res) => setAvatars(res.data.avatars || []))
       .catch(() => setAvatars([]));
+  }, []);
+
+  /* ─── Load persistent thumbnail history on mount ───
+   * The backend stores every generated thumbnail in the media table; hitting
+   * /thumbnail/history returns the user's full catalogue. This replaces the
+   * previous session-only state. */
+  useEffect(() => {
+    setHistoryLoading(true);
+    thumbnailAPI
+      .list(60)
+      .then((res) => {
+        type Row = {
+          thumbnail_id: string;
+          image_url: string;
+          prompt: string;
+          mode: Mode;
+          aspect_ratio: AspectRatio;
+          created_at: string;
+          source_thumbnail_url?: string | null;
+          youtube_video_id?: string | null;
+        };
+        const rows: Row[] = res.data.thumbnails || [];
+        setHistory(
+          rows.map((r) => ({
+            thumbnail_id: r.thumbnail_id,
+            image_url: r.image_url,
+            prompt: r.prompt || "",
+            mode: (r.mode as Mode) || "prompt",
+            aspect_ratio: (r.aspect_ratio as AspectRatio) || "16:9",
+            created_at: r.created_at,
+            source_thumbnail_url: r.source_thumbnail_url ?? null,
+            youtube_video_id: r.youtube_video_id ?? null,
+          })),
+        );
+      })
+      .catch(() => {
+        // Swallow — history is additive, not critical.
+      })
+      .finally(() => setHistoryLoading(false));
   }, []);
 
   /* ─── Close picker on outside click ─── */
@@ -263,11 +368,13 @@ export default function ThumbnailStudio() {
     if (sourcePreview) URL.revokeObjectURL(sourcePreview);
     setSourceFile(file);
     setSourcePreview(URL.createObjectURL(file));
+    setSourceNaturalSize(null);
   };
   const clearSource = () => {
     if (sourcePreview) URL.revokeObjectURL(sourcePreview);
     setSourceFile(null);
     setSourcePreview(null);
+    setSourceNaturalSize(null);
   };
 
   /* ─── @mention system ─── */
@@ -464,10 +571,12 @@ export default function ThumbnailStudio() {
   useEffect(() => {
     if (mode !== "recreate") {
       setYtPreview(null);
+      setSourceNaturalSize(null);
       return;
     }
     if (!youtubeUrl.trim()) {
       setYtPreview(null);
+      setSourceNaturalSize(null);
       return;
     }
     if (ytDebounceRef.current) window.clearTimeout(ytDebounceRef.current);
@@ -478,6 +587,7 @@ export default function ThumbnailStudio() {
           videoId: res.data.video_id,
           url: res.data.thumbnail_urls.maxres,
         });
+        setSourceNaturalSize(null);
         setError(null);
       } catch {
         setYtPreview(null);
@@ -488,13 +598,27 @@ export default function ThumbnailStudio() {
     };
   }, [youtubeUrl, mode]);
 
-  /* ─── Detect people in the source thumbnail ───
+  /* ─── Detect subjects in the source thumbnail ───
    * Fires whenever we have a new YouTube preview (recreate) or a newly
    * uploaded source file (edit). Each source is keyed so switching back and
-   * forth doesn't re-burn credits. */
+   * forth doesn't re-burn credits. Respects the detection toggle — skipping
+   * the call entirely when the user has opted out. */
   useEffect(() => {
+    // If detection is disabled, keep any user-drawn custom boxes but skip the
+    // API call. Resetting subjects to [] would wipe user work.
+    if (!detectionEnabled) {
+      setDetecting(false);
+      setDetectedSubjects((prev) => prev.filter((s) => s.kind === "custom"));
+      return;
+    }
+
     let key: string | null = null;
     let run: (() => Promise<void>) | null = null;
+
+    const fromDetection = (res: { data: { subjects?: DetectedSubject[]; people?: DetectedSubject[] } }) => {
+      // Backend returns both keys for back-compat; prefer `subjects`.
+      return (res.data.subjects || res.data.people || []) as DetectedSubject[];
+    };
 
     if (mode === "recreate" && ytPreview?.videoId) {
       key = `yt:${ytPreview.videoId}`;
@@ -502,7 +626,7 @@ export default function ThumbnailStudio() {
         const fd = new FormData();
         fd.append("youtube_url", youtubeUrl.trim());
         const res = await thumbnailAPI.detectPeople(fd);
-        setDetectedPeople(res.data.people || []);
+        setDetectedSubjects(fromDetection(res));
       };
     } else if (mode === "edit" && sourceFile) {
       key = `edit:${sourceFile.name}:${sourceFile.size}:${sourceFile.lastModified}`;
@@ -510,19 +634,19 @@ export default function ThumbnailStudio() {
         const fd = new FormData();
         fd.append("file", sourceFile);
         const res = await thumbnailAPI.detectPeople(fd);
-        setDetectedPeople(res.data.people || []);
+        setDetectedSubjects(fromDetection(res));
       };
     } else {
-      setDetectedPeople([]);
-      setSelectedPersonId(null);
+      setDetectedSubjects([]);
+      setSelectedSubjectId(null);
       lastDetectedKey.current = null;
       return;
     }
 
     if (key === lastDetectedKey.current) return;
     lastDetectedKey.current = key;
-    setSelectedPersonId(null);
-    setDetectedPeople([]);
+    setSelectedSubjectId(null);
+    setDetectedSubjects([]);
     setDetecting(true);
 
     let cancelled = false;
@@ -530,7 +654,7 @@ export default function ThumbnailStudio() {
       try {
         await run!();
       } catch {
-        if (!cancelled) setDetectedPeople([]);
+        if (!cancelled) setDetectedSubjects([]);
       } finally {
         if (!cancelled) setDetecting(false);
       }
@@ -538,7 +662,7 @@ export default function ThumbnailStudio() {
     return () => {
       cancelled = true;
     };
-  }, [mode, ytPreview, sourceFile, youtubeUrl]);
+  }, [mode, ytPreview, sourceFile, youtubeUrl, detectionEnabled]);
 
   /* ─── Cleanup object URLs on unmount ─── */
   useEffect(() => {
@@ -649,18 +773,27 @@ export default function ThumbnailStudio() {
       const form = new FormData();
       form.append("mode", mode);
       form.append("prompt", prompt.trim() || "Recreate with the same theme but a fresh take.");
-      form.append("aspect_ratio", aspectRatio);
+      // Resolve "auto" to the source image's actual ratio (snapped to the
+      // closest supported value). Falls back to 16:9 if we have no source.
+      const effectiveRatio: AspectRatio =
+        aspectRatio === "auto"
+          ? sourceNaturalSize
+            ? closestRatio(sourceNaturalSize.w, sourceNaturalSize.h)
+            : "16:9"
+          : aspectRatio;
+      form.append("aspect_ratio", effectiveRatio);
       if (mode === "recreate" && youtubeUrl.trim()) {
         form.append("youtube_url", youtubeUrl.trim());
       }
       if (mode === "title") {
         form.append("title_text", titleText.trim());
       }
-      // When the user clicked a detected person, pass its label so the
-      // backend can pin the face-swap to exactly that subject.
-      if (selectedPersonId && (mode === "recreate" || mode === "edit")) {
-        const picked = detectedPeople.find((p) => p.id === selectedPersonId);
-        if (picked) form.append("person_to_replace_label", picked.label);
+      // When the user clicked a detected subject (person/object/text/custom),
+      // pass its label so the backend can pin the face-swap / edit to exactly
+      // that region.
+      if (selectedSubjectId && (mode === "recreate" || mode === "edit")) {
+        const picked = detectedSubjects.find((s) => s.id === selectedSubjectId);
+        if (picked) form.append("target_label", picked.label);
       }
       if (mode === "edit" && sourceFile) form.append("files", sourceFile);
       refs.forEach((f) => form.append("files", f));
@@ -711,7 +844,7 @@ export default function ThumbnailStudio() {
     } finally {
       setLoading(false);
     }
-  }, [mode, prompt, aspectRatio, youtubeUrl, titleText, sourceFile, refs, mentionedAvatarIds, avatars, selectedPersonId, detectedPeople]);
+  }, [mode, prompt, aspectRatio, sourceNaturalSize, youtubeUrl, titleText, sourceFile, refs, mentionedAvatarIds, avatars, selectedSubjectId, detectedSubjects]);
 
   const handleDownload = async (t: GeneratedThumbnail) => {
     try {
@@ -738,72 +871,346 @@ export default function ThumbnailStudio() {
     .map((id) => avatars.find((a) => a.avatar_id === id))
     .filter((a): a is Avatar => !!a);
 
-  /**
-   * Clickable boxes that sit on top of the source thumbnail image. The parent
-   * wrapper must be `position: relative` and sized — the boxes position
-   * themselves with percent-based left/top/width/height so they stay aligned
-   * when the wrapper resizes.
-   */
-  const renderPeopleOverlay = () => {
-    if (detecting) {
-      return (
-        <div
-          className="absolute top-2 left-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] font-medium pointer-events-none"
-          style={{
-            background: "rgba(0,0,0,0.6)",
-            color: "#fff",
-            backdropFilter: "blur(6px)",
-          }}
-        >
-          <Spinner size={10} />
-          Detecting people…
-        </div>
+  /* ─── Draggable / resizable box overlay ───
+   * The preview container is the coordinate reference — we capture mouse
+   * positions relative to its bounding rect and clamp to [0,1]. Boxes are
+   * stored in fractional coordinates so they stay aligned when the container
+   * resizes (responsive). */
+
+  // Helper: normalize a mouse event to 0-1 coordinates within the container.
+  const mouseToFrac = (e: MouseEvent | React.MouseEvent): { x: number; y: number } => {
+    const el = previewContainerRef.current;
+    if (!el) return { x: 0, y: 0 };
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  };
+
+  // Begin dragging (move) a subject's box.
+  const startMove = (
+    e: React.MouseEvent<HTMLDivElement>,
+    subject: DetectedSubject,
+  ) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { x, y } = mouseToFrac(e);
+    setDragState({ kind: "move", id: subject.id, startX: x, startY: y, origBox: subject.box });
+    setSelectedSubjectId(subject.id);
+  };
+
+  // Begin resizing from a corner handle.
+  const startResize = (
+    e: React.MouseEvent<HTMLDivElement>,
+    subject: DetectedSubject,
+    corner: "nw" | "ne" | "sw" | "se",
+  ) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { x, y } = mouseToFrac(e);
+    setDragState({ kind: "resize", id: subject.id, corner, startX: x, startY: y, origBox: subject.box });
+    setSelectedSubjectId(subject.id);
+  };
+
+  // Begin drawing a brand-new custom box. Triggered by mousedown on empty
+  // container space (i.e. not on an existing box).
+  const startDraw = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    // Ignore if the click originated inside an existing box — those have
+    // their own handlers that stop propagation.
+    const { x, y } = mouseToFrac(e);
+    const id = `custom-${Date.now()}`;
+    const newSubject: DetectedSubject = {
+      id,
+      label: "Custom selection",
+      kind: "custom",
+      is_main: false,
+      box: { x, y, w: 0.001, h: 0.001 },
+    };
+    setDetectedSubjects((prev) => [...prev, newSubject]);
+    setSelectedSubjectId(id);
+    setDragState({ kind: "draw", id, startX: x, startY: y });
+  };
+
+  // Global mousemove/up handlers while dragging. Use listeners on window so
+  // the drag survives leaving the preview area momentarily.
+  useEffect(() => {
+    if (!dragState) return;
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault();
+      const { x, y } = mouseToFrac(e);
+      setDetectedSubjects((prev) =>
+        prev.map((s) => {
+          if (s.id !== dragState.id) return s;
+          if (dragState.kind === "move") {
+            const dx = x - dragState.startX;
+            const dy = y - dragState.startY;
+            const nx = Math.max(0, Math.min(1 - dragState.origBox.w, dragState.origBox.x + dx));
+            const ny = Math.max(0, Math.min(1 - dragState.origBox.h, dragState.origBox.y + dy));
+            return { ...s, box: { ...s.box, x: nx, y: ny } };
+          }
+          if (dragState.kind === "resize") {
+            const { origBox, corner } = dragState;
+            let { x: bx, y: by, w: bw, h: bh } = origBox;
+            if (corner === "nw") {
+              const nx = Math.min(x, origBox.x + origBox.w - 0.02);
+              const ny = Math.min(y, origBox.y + origBox.h - 0.02);
+              bw = origBox.x + origBox.w - nx;
+              bh = origBox.y + origBox.h - ny;
+              bx = nx;
+              by = ny;
+            } else if (corner === "ne") {
+              const nx2 = Math.max(x, origBox.x + 0.02);
+              const ny = Math.min(y, origBox.y + origBox.h - 0.02);
+              bw = nx2 - origBox.x;
+              bh = origBox.y + origBox.h - ny;
+              by = ny;
+            } else if (corner === "sw") {
+              const nx = Math.min(x, origBox.x + origBox.w - 0.02);
+              const ny2 = Math.max(y, origBox.y + 0.02);
+              bw = origBox.x + origBox.w - nx;
+              bh = ny2 - origBox.y;
+              bx = nx;
+            } else {
+              const nx2 = Math.max(x, origBox.x + 0.02);
+              const ny2 = Math.max(y, origBox.y + 0.02);
+              bw = nx2 - origBox.x;
+              bh = ny2 - origBox.y;
+            }
+            // Clamp inside [0,1]
+            bx = Math.max(0, bx);
+            by = Math.max(0, by);
+            bw = Math.min(1 - bx, bw);
+            bh = Math.min(1 - by, bh);
+            return { ...s, box: { x: bx, y: by, w: bw, h: bh } };
+          }
+          if (dragState.kind === "draw") {
+            const nx = Math.min(dragState.startX, x);
+            const ny = Math.min(dragState.startY, y);
+            const nw = Math.abs(x - dragState.startX);
+            const nh = Math.abs(y - dragState.startY);
+            return { ...s, box: { x: nx, y: ny, w: nw, h: nh } };
+          }
+          return s;
+        }),
       );
+    };
+    const onUp = () => {
+      // If a freshly-drawn box came out too small, drop it — usually a stray
+      // click on empty canvas instead of a real drag.
+      if (dragState.kind === "draw") {
+        setDetectedSubjects((prev) => {
+          const drawn = prev.find((s) => s.id === dragState.id);
+          if (drawn && (drawn.box.w < 0.02 || drawn.box.h < 0.02)) {
+            setSelectedSubjectId(null);
+            return prev.filter((s) => s.id !== dragState.id);
+          }
+          return prev;
+        });
+      }
+      setDragState(null);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [dragState]);
+
+  /**
+   * Toggle strip + status text below the preview. Lets the user disable AI
+   * detection entirely (for thumbnails with no humans/objects worth
+   * targeting) and summarises what's happening / what to do next.
+   */
+  const renderDetectionControls = () => {
+    const aiSubjects = detectedSubjects.filter((s) => s.kind !== "custom");
+    const customSubjects = detectedSubjects.filter((s) => s.kind === "custom");
+    const selected = detectedSubjects.find((s) => s.id === selectedSubjectId) || null;
+
+    let status = "";
+    if (detecting) {
+      status = "Detecting subjects in the source image…";
+    } else if (!detectionEnabled && customSubjects.length === 0) {
+      status = "AI detection is off. Drag on the image to draw a custom target box, or just describe your edit below.";
+    } else if (selected) {
+      status = `Targeting “${selected.label}” — describe the replacement below.`;
+    } else if (aiSubjects.length > 0 || customSubjects.length > 0) {
+      status = "Click a box to target it, drag a corner to resize, or drag the empty area to draw a new one.";
+    } else {
+      status = "We'll remix this thumbnail based on your prompt below.";
     }
-    if (detectedPeople.length === 0) return null;
+
+    return (
+      <div className="mt-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setDetectionEnabled((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 h-7 text-[11.5px] font-medium"
+            style={{
+              background: detectionEnabled ? "rgba(59,130,246,0.12)" : "var(--bg-primary)",
+              border: `1px solid ${detectionEnabled ? "rgba(59,130,246,0.4)" : "var(--border-color)"}`,
+              color: detectionEnabled ? "#3b82f6" : "var(--text-secondary)",
+            }}
+            aria-pressed={detectionEnabled}
+            title={detectionEnabled ? "AI detection is on" : "AI detection is off"}
+          >
+            {detectionEnabled ? <Eye size={12} /> : <EyeSlash size={12} />}
+            AI detection {detectionEnabled ? "on" : "off"}
+          </button>
+          {(aiSubjects.length > 0 || customSubjects.length > 0) && (
+            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              {aiSubjects.length > 0 && `${aiSubjects.length} detected`}
+              {aiSubjects.length > 0 && customSubjects.length > 0 && " · "}
+              {customSubjects.length > 0 && `${customSubjects.length} custom`}
+            </span>
+          )}
+          {selectedSubjectId && (
+            <button
+              type="button"
+              onClick={() => setSelectedSubjectId(null)}
+              className="text-[11px] rounded-md px-2 h-6"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Clear selection
+            </button>
+          )}
+        </div>
+        <p className="text-[11.5px] mt-1.5" style={{ color: "var(--text-muted)" }}>
+          {status}
+        </p>
+      </div>
+    );
+  };
+
+  const renderSubjectsOverlay = () => {
     return (
       <>
-        {detectedPeople.map((p) => {
-          const selected = selectedPersonId === p.id;
+        {/* The empty-canvas draw surface sits behind all existing boxes so
+            mousedown on any box goes to that box, and mousedown on empty
+            pixels falls through here to start drawing a new one. */}
+        <div
+          className="absolute inset-0"
+          style={{ cursor: detectedSubjects.length === 0 ? "crosshair" : "crosshair" }}
+          onMouseDown={startDraw}
+        />
+
+        {detecting && (
+          <div
+            className="absolute top-2 left-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] font-medium pointer-events-none z-10"
+            style={{
+              background: "rgba(0,0,0,0.6)",
+              color: "#fff",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <Spinner size={10} />
+            Detecting subjects…
+          </div>
+        )}
+
+        {detectedSubjects.map((s) => {
+          const selected = selectedSubjectId === s.id;
+          const colorFor = (kind: DetectedSubject["kind"]) => {
+            switch (kind) {
+              case "person":
+                return "#3b82f6";
+              case "object":
+                return "#a855f7";
+              case "text":
+                return "#f59e0b";
+              case "custom":
+                return "#10b981";
+              default:
+                return "#ffffff";
+            }
+          };
+          const accent = colorFor(s.kind);
           return (
-            <button
-              key={p.id}
-              type="button"
+            <div
+              key={s.id}
+              className="absolute"
+              style={{
+                left: `${s.box.x * 100}%`,
+                top: `${s.box.y * 100}%`,
+                width: `${s.box.w * 100}%`,
+                height: `${s.box.h * 100}%`,
+                border: selected
+                  ? `2.5px solid ${accent}`
+                  : `2px solid rgba(255,255,255,0.85)`,
+                borderRadius: 8,
+                background: selected
+                  ? `${accent}2e` // hex alpha ~0.18
+                  : "transparent",
+                boxShadow: selected
+                  ? `0 0 0 2px ${accent}40, 0 2px 8px rgba(0,0,0,0.3)`
+                  : "0 1px 4px rgba(0,0,0,0.35)",
+                transition: dragState ? "none" : "background 0.15s ease, border-color 0.15s ease",
+                cursor: dragState?.id === s.id && dragState.kind === "move" ? "grabbing" : "grab",
+              }}
+              onMouseDown={(e) => startMove(e, s)}
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedPersonId((prev) => (prev === p.id ? null : p.id));
+                setSelectedSubjectId((prev) => (prev === s.id ? null : s.id));
               }}
-              className="absolute group"
-              style={{
-                left: `${p.box.x * 100}%`,
-                top: `${p.box.y * 100}%`,
-                width: `${p.box.w * 100}%`,
-                height: `${p.box.h * 100}%`,
-                border: selected
-                  ? "2.5px solid #3b82f6"
-                  : "2px solid rgba(255,255,255,0.85)",
-                borderRadius: 8,
-                background: selected ? "rgba(59,130,246,0.18)" : "transparent",
-                boxShadow: selected
-                  ? "0 0 0 2px rgba(59,130,246,0.25), 0 2px 8px rgba(0,0,0,0.3)"
-                  : "0 1px 4px rgba(0,0,0,0.35)",
-                transition: "background 0.15s ease, border-color 0.15s ease",
-                cursor: "pointer",
-              }}
-              aria-label={`Select ${p.label}`}
-              title={p.label}
+              aria-label={`Select ${s.label}`}
+              title={s.label}
             >
+              {/* Label chip */}
               <span
-                className="absolute left-0 -top-6 px-1.5 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap max-w-[180px] truncate"
+                className="absolute left-0 -top-6 px-1.5 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap max-w-[180px] truncate pointer-events-none"
                 style={{
-                  background: selected ? "#3b82f6" : "rgba(0,0,0,0.7)",
+                  background: selected ? accent : "rgba(0,0,0,0.7)",
                   color: "#fff",
                   backdropFilter: "blur(6px)",
                 }}
               >
-                {p.label}
+                {s.label}
               </span>
-            </button>
+
+              {/* Delete button (custom or selected boxes only) */}
+              {(s.kind === "custom" || selected) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDetectedSubjects((prev) => prev.filter((x) => x.id !== s.id));
+                    if (selectedSubjectId === s.id) setSelectedSubjectId(null);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(0,0,0,0.85)", color: "#fff" }}
+                  aria-label="Remove box"
+                >
+                  <XIcon size={10} />
+                </button>
+              )}
+
+              {/* Corner resize handles (only shown for selected box) */}
+              {selected && (
+                <>
+                  {(["nw", "ne", "sw", "se"] as const).map((corner) => (
+                    <div
+                      key={corner}
+                      onMouseDown={(e) => startResize(e, s, corner)}
+                      className="absolute w-3 h-3 rounded-sm"
+                      style={{
+                        background: "#fff",
+                        border: `1.5px solid ${accent}`,
+                        top: corner.startsWith("n") ? -6 : "auto",
+                        bottom: corner.startsWith("s") ? -6 : "auto",
+                        left: corner.endsWith("w") ? -6 : "auto",
+                        right: corner.endsWith("e") ? -6 : "auto",
+                        cursor: `${corner}-resize`,
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
           );
         })}
       </>
@@ -897,6 +1304,7 @@ export default function ThumbnailStudio() {
                 {ytPreview && (
                   <div className="mt-4">
                     <div
+                      ref={mode === "recreate" ? previewContainerRef : null}
                       className="relative rounded-xl overflow-hidden"
                       style={{
                         aspectRatio: "16 / 9",
@@ -908,7 +1316,14 @@ export default function ThumbnailStudio() {
                       <img
                         src={ytPreview.url}
                         alt="YouTube thumbnail preview"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover pointer-events-none select-none"
+                        draggable={false}
+                        onLoad={(e) => {
+                          const img = e.currentTarget;
+                          if (img.naturalWidth && img.naturalHeight) {
+                            setSourceNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+                          }
+                        }}
                         onError={(e) => {
                           const el = e.currentTarget;
                           if (el.src.includes("maxresdefault")) {
@@ -918,15 +1333,9 @@ export default function ThumbnailStudio() {
                           }
                         }}
                       />
-                      {renderPeopleOverlay()}
+                      {renderSubjectsOverlay()}
                     </div>
-                    <p className="text-[11.5px] mt-2" style={{ color: "var(--text-muted)" }}>
-                      {detectedPeople.length > 0
-                        ? selectedPersonId
-                          ? "Person selected — add a character below and generate to swap."
-                          : "Click a highlighted person to target them for replacement."
-                        : "We'll remix this thumbnail based on your prompt below."}
-                    </p>
+                    {renderDetectionControls()}
                   </div>
                 )}
               </div>
@@ -940,18 +1349,33 @@ export default function ThumbnailStudio() {
                 {sourcePreview ? (
                   <>
                     <div
+                      ref={mode === "edit" ? previewContainerRef : null}
                       className="relative rounded-xl overflow-hidden"
                       style={{
-                        aspectRatio: "16 / 9",
+                        aspectRatio: sourceNaturalSize
+                          ? `${sourceNaturalSize.w} / ${sourceNaturalSize.h}`
+                          : "16 / 9",
                         background: "var(--bg-primary)",
                         border: "1px solid var(--border-color)",
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={sourcePreview} alt="Source thumbnail" className="w-full h-full object-cover" />
-                      {renderPeopleOverlay()}
+                      <img
+                        src={sourcePreview}
+                        alt="Source thumbnail"
+                        className="w-full h-full object-cover pointer-events-none select-none"
+                        draggable={false}
+                        onLoad={(e) => {
+                          const img = e.currentTarget;
+                          if (img.naturalWidth && img.naturalHeight) {
+                            setSourceNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+                          }
+                        }}
+                      />
+                      {renderSubjectsOverlay()}
                       <button
                         onClick={clearSource}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center z-10"
                         style={{
                           background: "rgba(0,0,0,0.55)",
@@ -963,13 +1387,7 @@ export default function ThumbnailStudio() {
                         <XIcon size={14} />
                       </button>
                     </div>
-                    {detectedPeople.length > 0 && (
-                      <p className="text-[11.5px] mt-2" style={{ color: "var(--text-muted)" }}>
-                        {selectedPersonId
-                          ? "Person selected — add a character below and generate to swap."
-                          : "Click a highlighted person to target them for replacement."}
-                      </p>
-                    )}
+                    {renderDetectionControls()}
                   </>
                 ) : (
                   <div
@@ -1286,7 +1704,7 @@ export default function ThumbnailStudio() {
                 <SegmentToggle
                   size="sm"
                   selected={aspectRatio}
-                  onSelect={(k) => setAspectRatio(k as AspectRatio)}
+                  onSelect={(k) => setAspectRatio(k as AspectChoice)}
                   items={ASPECT_ITEMS}
                 />
               </div>
@@ -1660,14 +2078,14 @@ export default function ThumbnailStudio() {
                   Your thumbnails
                 </h3>
                 <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-                  {history.length} generated this session
+                  {history.length} {history.length === 1 ? "thumbnail" : "thumbnails"}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {history.map((t) => (
+                {history.map((t, idx) => (
                   <button
                     key={t.thumbnail_id}
-                    onClick={() => setLightbox(t)}
+                    onClick={() => setLightboxIndex(idx)}
                     className="group relative rounded-xl overflow-hidden text-left"
                     style={{
                       background: "var(--bg-secondary)",
@@ -1717,7 +2135,7 @@ export default function ThumbnailStudio() {
             </>
           )}
 
-          {history.length === 0 && !loading && (
+          {history.length === 0 && !loading && !historyLoading && (
             <div
               className="rounded-2xl px-6 py-10 text-center"
               style={{
@@ -1739,90 +2157,97 @@ export default function ThumbnailStudio() {
               </p>
             </div>
           )}
+
+          {history.length === 0 && historyLoading && (
+            <div
+              className="rounded-2xl px-6 py-10 text-center flex flex-col items-center gap-2"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px dashed var(--border-color)",
+                color: "var(--text-muted)",
+              }}
+            >
+              <Spinner size={18} />
+              <span className="text-[12.5px]">Loading your thumbnails…</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6"
-          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(6px)" }}
-          onClick={() => setLightbox(null)}
-        >
-          <div
-            className="relative rounded-2xl overflow-hidden flex flex-col"
-            style={{
-              // Keep the lightbox compact so the generated image is always
-              // visible in full without scrolling — users were complaining the
-              // previous 1100px wide panel filled their screen.
-              width: "min(88vw, 680px)",
-              maxHeight: "78vh",
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-color)",
+      {/* Detail view — shared modal component with Copy prompt / Reuse /
+          Create video actions, same as the image generator. */}
+      {lightboxIndex !== null && history[lightboxIndex] && (() => {
+        const t = history[lightboxIndex];
+        const item: MediaDetailItem = {
+          id: t.thumbnail_id,
+          type: "image",
+          url: t.image_url,
+          prompt: t.prompt,
+          created_at: t.created_at,
+          aspect_ratio: t.aspect_ratio,
+          model: "Google Nano Banana Pro",
+          references: t.source_thumbnail_url
+            ? [{ url: t.source_thumbnail_url, label: "Source thumbnail" }]
+            : undefined,
+        };
+        return (
+          <MediaDetailView
+            item={item}
+            position={{ index: lightboxIndex, total: history.length }}
+            onClose={() => setLightboxIndex(null)}
+            onPrev={
+              lightboxIndex > 0
+                ? () => setLightboxIndex((i) => (i !== null ? i - 1 : i))
+                : undefined
+            }
+            onNext={
+              lightboxIndex < history.length - 1
+                ? () => setLightboxIndex((i) => (i !== null ? i + 1 : i))
+                : undefined
+            }
+            onDownload={() => handleDownload(t)}
+            onReusePrompt={() => {
+              // Recreate-with-same-prompt flow: prefill the prompt, switch to
+              // the same mode, and seed the source (YouTube URL if we have it,
+              // otherwise drop the generated image as a ref).
+              setPrompt(t.prompt);
+              setMode(t.mode);
+              if (t.mode === "recreate" && t.source_thumbnail_url) {
+                // If we saved the YouTube URL we'd use it here; our backend
+                // stores the raw thumbnail URL instead. Stash it as a ref so
+                // the UI still has context.
+                setYoutubeUrl("");
+              }
+              setLightboxIndex(null);
+              setTimeout(() => textareaRef.current?.focus(), 0);
             }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="flex items-center justify-between px-5 h-12 shrink-0"
-              style={{ borderBottom: "1px solid var(--border-color)" }}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-md"
-                  style={{
-                    background: "var(--bg-primary)",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--border-color)",
-                  }}
-                >
-                  {lightbox.mode}
-                </span>
-                <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-                  {lightbox.aspect_ratio}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleDownload(lightbox)}
-                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12.5px]"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <Download size={14} />
-                  Download
-                </button>
-                <button
-                  onClick={() => setLightbox(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg"
-                  style={{ color: "var(--text-muted)" }}
-                  aria-label="Close"
-                >
-                  <XIcon size={16} />
-                </button>
-              </div>
-            </div>
-            <div
-              className="flex-1 flex items-center justify-center p-4 overflow-hidden"
-              style={{ background: "var(--bg-primary)" }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lightbox.image_url}
-                alt={lightbox.prompt}
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-            </div>
-            <div className="px-5 py-3 shrink-0" style={{ borderTop: "1px solid var(--border-color)" }}>
-              <p className="text-[12.5px]" style={{ color: "var(--text-secondary)" }}>
-                {lightbox.prompt}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+            onEdit={() => {
+              // Load the generated thumbnail into Edit mode so the user can
+              // further modify it.
+              setMode("edit");
+              setPrompt(t.prompt);
+              fetch(t.image_url)
+                .then((r) => r.blob())
+                .then((blob) => {
+                  const f = new File([blob], `thumb-${t.thumbnail_id}.png`, {
+                    type: blob.type || "image/png",
+                  });
+                  handleSourceFile(f);
+                })
+                .catch(() => {});
+              setLightboxIndex(null);
+              setTimeout(() => textareaRef.current?.focus(), 0);
+            }}
+            onCreateVideo={() => {
+              const params = new URLSearchParams();
+              params.set("ref", t.image_url);
+              if (t.prompt) params.set("prompt", t.prompt);
+              setLightboxIndex(null);
+              router.push(`/dashboard/videos?${params.toString()}`);
+            }}
+          />
+        );
+      })()}
     </>
   );
 }

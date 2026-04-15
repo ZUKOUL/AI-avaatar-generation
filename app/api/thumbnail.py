@@ -96,11 +96,13 @@ async def generate_thumbnail(
     youtube_url: Optional[str] = Form(None, description="Required for mode=recreate"),
     title_text: Optional[str] = Form(None, description="Optional bold overlay text"),
     aspect_ratio: str = Form("16:9", description="16:9 (default), 9:16, 1:1, 4:3, 3:4"),
-    # Visual person-to-replace hint. When the user clicks a detected person on
-    # the source thumbnail, the frontend sends us the short label Gemini
-    # produced during detection (e.g. "Blond man on left") so we can wire it
-    # straight into the generation prompt.
-    person_to_replace_label: Optional[str] = Form(None, description="Short description of the person to swap out"),
+    # Visual target hint. When the user clicks (or draws) a region on the
+    # source thumbnail, the frontend sends us a short label for what occupies
+    # that region (e.g. "Blond man on left", "Red product box", "Title text
+    # HOW I GOT RICH") so we can wire it straight into the generation prompt.
+    target_label: Optional[str] = Form(None, description="Short description of the region to replace/edit"),
+    # Kept for backward compatibility with the first-wave frontend.
+    person_to_replace_label: Optional[str] = Form(None, description="Legacy alias of target_label"),
     files: List[UploadFile] = File(default=[], description="Reference images (character, style, source thumbnail for edit)"),
 ):
     """Generate a thumbnail. Mode-aware prompt engineering + optional refs."""
@@ -192,14 +194,15 @@ async def generate_thumbnail(
             + f"Thumbnail concept: {prompt}"
         )
     elif mode == "recreate":
-        # When the frontend sent us a clicked person ("Blond man on left"),
-        # pin the swap to that specific subject so Gemini knows who to replace.
+        # Unified target label: prefer the new `target_label`, fall back to
+        # the legacy `person_to_replace_label`.
+        effective_target = (target_label or person_to_replace_label or "").strip()
         target_clause = (
-            f"The subject to replace is described as: \"{person_to_replace_label}\". "
-            "Swap THAT specific subject (matching their position, pose, scale, "
-            "and lighting) for the referenced person. Do not touch any other "
-            "people or elements in the frame. "
-            if person_to_replace_label and has_character_refs
+            f"The region to replace is described as: \"{effective_target}\". "
+            "Swap THAT specific subject/element (matching its position, pose, "
+            "scale, and lighting) for the referenced person/content. Do not "
+            "touch any other people or elements in the frame. "
+            if effective_target and has_character_refs
             else ""
         )
         if has_character_refs:
@@ -232,12 +235,13 @@ async def generate_thumbnail(
                 f"Change to apply: {prompt}"
             )
     elif mode == "edit":
+        effective_target = (target_label or person_to_replace_label or "").strip()
         target_clause = (
-            f"The subject to replace is described as: \"{person_to_replace_label}\". "
-            "Swap THAT specific subject (matching their position, pose, scale, "
-            "and lighting) for the referenced person. Do not touch any other "
-            "people or elements in the frame. "
-            if person_to_replace_label and has_character_refs
+            f"The region to replace is described as: \"{effective_target}\". "
+            "Swap THAT specific subject/element (matching its position, pose, "
+            "scale, and lighting) for the referenced person/content. Do not "
+            "touch any other people or elements in the frame. "
+            if effective_target and has_character_refs
             else ""
         )
         full_prompt = (
@@ -369,18 +373,22 @@ async def generate_thumbnail(
 # user can click the person they want to replace instead of typing a prompt.
 # ──────────────────────────────────────────────────────────────────────────────
 DETECT_PROMPT = (
-    "Detect every distinct human person visible in this image. "
+    "Detect every distinct identifiable subject in this thumbnail — humans, "
+    "animals, prominent objects, products, and large readable text blocks. "
     "Return a JSON array where each element has:\n"
-    "- \"label\": a short natural-language description (3-8 words) that "
-    "uniquely identifies that person — use distinguishing features such as "
-    "hair color, clothing, position, known identity if obvious. Examples: "
-    "\"Blond man on left\", \"Woman with red jacket\", \"MrBeast center\".\n"
-    "- \"box_2d\": the bounding box as [ymin, xmin, ymax, xmax] normalized "
-    "to a 0-1000 scale.\n"
-    "- \"is_main\": true if they are the primary/most prominent subject, "
-    "false otherwise.\n"
-    "Include only people, not cartoons or logos. If there are no people, "
-    "return an empty array []. Return ONLY the JSON array, nothing else."
+    "- \"label\": a short description (3-8 words). For people prefer "
+    "distinguishing features (hair color, clothing, position, known identity). "
+    "For text, quote the first few words. For objects state what they are. "
+    "Examples: \"Blond man on left\", \"Red sports car\", "
+    "\"Title text: HOW I GOT RICH\".\n"
+    "- \"kind\": one of \"person\", \"object\", \"text\", \"other\".\n"
+    "- \"box_2d\": bounding box as [ymin, xmin, ymax, xmax] normalized to "
+    "a 0-1000 scale.\n"
+    "- \"is_main\": true for the single most prominent subject, false "
+    "otherwise.\n"
+    "Ignore tiny incidental details. Return at most 8 subjects. If nothing "
+    "identifiable is present, return an empty array []. Return ONLY the "
+    "JSON array, nothing else."
 )
 
 
@@ -489,10 +497,14 @@ async def detect_people(
         xmax = max(0.0, min(1000.0, xmax))
         if ymax <= ymin or xmax <= xmin:
             continue
+        raw_kind = str(item.get("kind") or "person").lower().strip()
+        if raw_kind not in {"person", "object", "text", "other"}:
+            raw_kind = "other"
         people.append(
             {
-                "id": f"person_{idx}",
-                "label": str(item.get("label") or f"Person {idx + 1}").strip()[:80],
+                "id": f"subject_{idx}",
+                "label": str(item.get("label") or f"Subject {idx + 1}").strip()[:80],
+                "kind": raw_kind,
                 "is_main": bool(item.get("is_main", False)),
                 "box": {
                     "x": xmin / 1000.0,
@@ -503,7 +515,77 @@ async def detect_people(
             }
         )
 
-    return {"people": people, "count": len(people)}
+    # Keep "people" key for backward compat with the first frontend wave.
+    return {"subjects": people, "people": people, "count": len(people)}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GET /thumbnail/history
+# Returns the user's past thumbnails (persistent across sessions) so the
+# frontend can render a proper gallery instead of session-only state.
+# ──────────────────────────────────────────────────────────────────────────────
+@router.get("/history")
+async def thumbnail_history(
+    current_user: Annotated[User, Depends(get_current_user)],
+    limit: int = 60,
+):
+    """Fetch past thumbnails for the signed-in user, most recent first."""
+    limit = max(1, min(limit, 120))
+    try:
+        # Filter by metadata.kind via PostgREST JSONB operator. Falls back to a
+        # Python-side filter if the DB client can't express the filter — the
+        # media table is not huge per user so the cost is negligible.
+        try:
+            res = (
+                supabase.table("media")
+                .select("id, url, prompt, metadata, created_at")
+                .eq("user_id", current_user["id"])
+                .filter("metadata->>kind", "eq", "thumbnail")
+                .order("created_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
+            rows = res.data or []
+        except Exception:
+            res = (
+                supabase.table("media")
+                .select("id, url, prompt, metadata, created_at")
+                .eq("user_id", current_user["id"])
+                .order("created_at", desc=True)
+                .limit(limit * 2)
+                .execute()
+            )
+            rows = [
+                r
+                for r in (res.data or [])
+                if (r.get("metadata") or {}).get("kind") == "thumbnail"
+            ][:limit]
+
+        def _clean_prompt(p: Optional[str]) -> str:
+            if not p:
+                return ""
+            return re.sub(r"^\[thumbnail:[^\]]+\]\s*", "", p)
+
+        items = []
+        for row in rows:
+            meta = row.get("metadata") or {}
+            items.append(
+                {
+                    "thumbnail_id": row["id"],
+                    "image_url": row["url"],
+                    "prompt": _clean_prompt(row.get("prompt")),
+                    "mode": meta.get("mode") or "prompt",
+                    "aspect_ratio": meta.get("aspect_ratio") or "16:9",
+                    "source_thumbnail_url": meta.get("youtube_url"),
+                    "youtube_video_id": meta.get("youtube_video_id"),
+                    "title_text": meta.get("title_text"),
+                    "created_at": row.get("created_at"),
+                }
+            )
+        return {"thumbnails": items, "count": len(items)}
+    except Exception as e:
+        logger.error(f"Failed to fetch thumbnail history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
