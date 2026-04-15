@@ -17,6 +17,7 @@ the scraped YouTube thumbnail back to Supabase).
 Credit cost: CREDIT_COST_THUMBNAIL (falls back to CREDIT_COST_IMAGE * 2).
 """
 
+import json
 import os
 import re
 import uuid
@@ -95,6 +96,11 @@ async def generate_thumbnail(
     youtube_url: Optional[str] = Form(None, description="Required for mode=recreate"),
     title_text: Optional[str] = Form(None, description="Optional bold overlay text"),
     aspect_ratio: str = Form("16:9", description="16:9 (default), 9:16, 1:1, 4:3, 3:4"),
+    # Visual person-to-replace hint. When the user clicks a detected person on
+    # the source thumbnail, the frontend sends us the short label Gemini
+    # produced during detection (e.g. "Blond man on left") so we can wire it
+    # straight into the generation prompt.
+    person_to_replace_label: Optional[str] = Form(None, description="Short description of the person to swap out"),
     files: List[UploadFile] = File(default=[], description="Reference images (character, style, source thumbnail for edit)"),
 ):
     """Generate a thumbnail. Mode-aware prompt engineering + optional refs."""
@@ -186,6 +192,16 @@ async def generate_thumbnail(
             + f"Thumbnail concept: {prompt}"
         )
     elif mode == "recreate":
+        # When the frontend sent us a clicked person ("Blond man on left"),
+        # pin the swap to that specific subject so Gemini knows who to replace.
+        target_clause = (
+            f"The subject to replace is described as: \"{person_to_replace_label}\". "
+            "Swap THAT specific subject (matching their position, pose, scale, "
+            "and lighting) for the referenced person. Do not touch any other "
+            "people or elements in the frame. "
+            if person_to_replace_label and has_character_refs
+            else ""
+        )
         if has_character_refs:
             # Face-swap / person-injection: keep the ORIGINAL composition,
             # lighting and background, but replace the subject with the
@@ -197,6 +213,7 @@ async def generate_thumbnail(
                 "The following reference images show the specific person(s) "
                 "the user wants featured. Reproduce their face and identity "
                 "EXACTLY — do NOT alter, beautify, or idealize facial features. "
+                f"{target_clause}"
                 "If the prompt asks you to replace someone in the original, "
                 "swap the corresponding subject so the referenced person "
                 "occupies that position, matching the original's pose, "
@@ -215,6 +232,14 @@ async def generate_thumbnail(
                 f"Change to apply: {prompt}"
             )
     elif mode == "edit":
+        target_clause = (
+            f"The subject to replace is described as: \"{person_to_replace_label}\". "
+            "Swap THAT specific subject (matching their position, pose, scale, "
+            "and lighting) for the referenced person. Do not touch any other "
+            "people or elements in the frame. "
+            if person_to_replace_label and has_character_refs
+            else ""
+        )
         full_prompt = (
             "The first uploaded image is the source thumbnail — keep its "
             "composition, lighting and overall look, then apply the requested "
@@ -226,6 +251,7 @@ async def generate_thumbnail(
                 if has_character_refs
                 else ""
             )
+            + target_clause
             + f"{base_style} "
             + f"Edit instructions: {prompt}"
         )
@@ -334,6 +360,150 @@ async def generate_thumbnail(
         "cost_usd": COST_GEMINI_FLASH_IMAGE,
         "engine": "gemini-3-pro-image-preview",
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST /thumbnail/detect-people
+# Uses Gemini 2.5 Flash's bounding-box mode to locate every human visible in
+# the source thumbnail. The frontend overlays the boxes on the preview so the
+# user can click the person they want to replace instead of typing a prompt.
+# ──────────────────────────────────────────────────────────────────────────────
+DETECT_PROMPT = (
+    "Detect every distinct human person visible in this image. "
+    "Return a JSON array where each element has:\n"
+    "- \"label\": a short natural-language description (3-8 words) that "
+    "uniquely identifies that person — use distinguishing features such as "
+    "hair color, clothing, position, known identity if obvious. Examples: "
+    "\"Blond man on left\", \"Woman with red jacket\", \"MrBeast center\".\n"
+    "- \"box_2d\": the bounding box as [ymin, xmin, ymax, xmax] normalized "
+    "to a 0-1000 scale.\n"
+    "- \"is_main\": true if they are the primary/most prominent subject, "
+    "false otherwise.\n"
+    "Include only people, not cartoons or logos. If there are no people, "
+    "return an empty array []. Return ONLY the JSON array, nothing else."
+)
+
+
+def _parse_detection_response(raw: str) -> list[dict]:
+    """Pull a JSON array out of Gemini's response, tolerating ```json fences."""
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    # Strip markdown fences if the model ignored response_mime_type.
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
+        cleaned = re.sub(r"```$", "", cleaned).strip()
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError:
+        # Last-resort: grab the first array-looking substring.
+        m = re.search(r"\[.*\]", cleaned, re.DOTALL)
+        if not m:
+            return []
+        try:
+            data = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            return []
+    return data if isinstance(data, list) else []
+
+
+@router.post("/detect-people")
+async def detect_people(
+    current_user: Annotated[User, Depends(get_current_user)],
+    youtube_url: Optional[str] = Form(None, description="YouTube URL to scrape"),
+    image_url: Optional[str] = Form(None, description="Already-hosted image URL"),
+    file: Optional[UploadFile] = File(None, description="Uploaded image"),
+):
+    """Detect people in a thumbnail. Accepts one of: upload, youtube_url, image_url."""
+    image_bytes: Optional[bytes] = None
+    mime_type = "image/jpeg"
+
+    if file is not None:
+        image_bytes = await file.read()
+        mime_type = file.content_type or "image/jpeg"
+    elif youtube_url:
+        vid = extract_youtube_id(youtube_url)
+        if not vid:
+            raise HTTPException(status_code=400, detail="Invalid YouTube URL.")
+        image_bytes = await fetch_youtube_thumbnail(vid)
+        if not image_bytes:
+            raise HTTPException(status_code=404, detail="Couldn't fetch thumbnail for that video.")
+    elif image_url:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(image_url)
+                if r.status_code != 200:
+                    raise HTTPException(status_code=400, detail="Couldn't fetch image_url.")
+                image_bytes = r.content
+                mime_type = r.headers.get("content-type", "image/jpeg")
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=400, detail=f"Fetch failed: {e}")
+
+    if not image_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide one of: file upload, youtube_url, or image_url.",
+        )
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                DETECT_PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.0,
+            ),
+        )
+    except APIError as e:
+        logger.error(f"detect-people Gemini error: {e}")
+        raise HTTPException(status_code=400, detail=f"Detection failed: {e}")
+    except Exception as e:
+        logger.error(f"detect-people unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Detection failed: {e}")
+
+    raw = response.text or ""
+    detections = _parse_detection_response(raw)
+
+    # Normalize into a format the frontend can render directly. Gemini returns
+    # [ymin, xmin, ymax, xmax] on a 0-1000 scale; we convert to 0-1 fractional
+    # {x, y, w, h} so the frontend can position boxes with CSS percents.
+    people = []
+    for idx, item in enumerate(detections):
+        if not isinstance(item, dict):
+            continue
+        box = item.get("box_2d") or item.get("box") or []
+        if not (isinstance(box, list) and len(box) == 4):
+            continue
+        try:
+            ymin, xmin, ymax, xmax = (float(v) for v in box)
+        except (TypeError, ValueError):
+            continue
+        # Clamp + normalize.
+        ymin = max(0.0, min(1000.0, ymin))
+        xmin = max(0.0, min(1000.0, xmin))
+        ymax = max(0.0, min(1000.0, ymax))
+        xmax = max(0.0, min(1000.0, xmax))
+        if ymax <= ymin or xmax <= xmin:
+            continue
+        people.append(
+            {
+                "id": f"person_{idx}",
+                "label": str(item.get("label") or f"Person {idx + 1}").strip()[:80],
+                "is_main": bool(item.get("is_main", False)),
+                "box": {
+                    "x": xmin / 1000.0,
+                    "y": ymin / 1000.0,
+                    "w": (xmax - xmin) / 1000.0,
+                    "h": (ymax - ymin) / 1000.0,
+                },
+            }
+        )
+
+    return {"people": people, "count": len(people)}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -54,6 +54,18 @@ interface GeneratedThumbnail {
   youtube_video_id?: string | null;
 }
 
+/**
+ * A person detected by Gemini 2.5 Flash in the source thumbnail. Box is in
+ * fractional coordinates (0-1) relative to the rendered image — we multiply
+ * by 100 to position the overlay with CSS percents.
+ */
+interface DetectedPerson {
+  id: string;
+  label: string;
+  is_main: boolean;
+  box: { x: number; y: number; w: number; h: number };
+}
+
 const MODE_ITEMS: { key: Mode; label: string; Icon: React.FC<{ size?: number }> }[] = [
   { key: "prompt", label: "Prompt", Icon: MagicWand },
   { key: "recreate", label: "Recreate", Icon: LinkIcon },
@@ -168,6 +180,18 @@ export default function ThumbnailStudio() {
   // YouTube preview (debounced)
   const [ytPreview, setYtPreview] = useState<{ videoId: string; url: string } | null>(null);
   const ytDebounceRef = useRef<number | null>(null);
+
+  /* ─── Person detection on the source thumbnail ───
+   * When a YouTube URL is validated or a source image is uploaded we ship
+   * the bytes to Gemini 2.5 Flash, get back bounding boxes, and let the user
+   * click the human they want to replace. That click becomes the
+   * `person_to_replace_label` hint on the generation call. */
+  const [detectedPeople, setDetectedPeople] = useState<DetectedPerson[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  // Which source image hash has already been detected — avoids re-running on
+  // every render. Keyed by youtube videoId or object URL.
+  const lastDetectedKey = useRef<string | null>(null);
 
   const refInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
@@ -464,6 +488,58 @@ export default function ThumbnailStudio() {
     };
   }, [youtubeUrl, mode]);
 
+  /* ─── Detect people in the source thumbnail ───
+   * Fires whenever we have a new YouTube preview (recreate) or a newly
+   * uploaded source file (edit). Each source is keyed so switching back and
+   * forth doesn't re-burn credits. */
+  useEffect(() => {
+    let key: string | null = null;
+    let run: (() => Promise<void>) | null = null;
+
+    if (mode === "recreate" && ytPreview?.videoId) {
+      key = `yt:${ytPreview.videoId}`;
+      run = async () => {
+        const fd = new FormData();
+        fd.append("youtube_url", youtubeUrl.trim());
+        const res = await thumbnailAPI.detectPeople(fd);
+        setDetectedPeople(res.data.people || []);
+      };
+    } else if (mode === "edit" && sourceFile) {
+      key = `edit:${sourceFile.name}:${sourceFile.size}:${sourceFile.lastModified}`;
+      run = async () => {
+        const fd = new FormData();
+        fd.append("file", sourceFile);
+        const res = await thumbnailAPI.detectPeople(fd);
+        setDetectedPeople(res.data.people || []);
+      };
+    } else {
+      setDetectedPeople([]);
+      setSelectedPersonId(null);
+      lastDetectedKey.current = null;
+      return;
+    }
+
+    if (key === lastDetectedKey.current) return;
+    lastDetectedKey.current = key;
+    setSelectedPersonId(null);
+    setDetectedPeople([]);
+    setDetecting(true);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await run!();
+      } catch {
+        if (!cancelled) setDetectedPeople([]);
+      } finally {
+        if (!cancelled) setDetecting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, ytPreview, sourceFile, youtubeUrl]);
+
   /* ─── Cleanup object URLs on unmount ─── */
   useEffect(() => {
     return () => {
@@ -580,6 +656,12 @@ export default function ThumbnailStudio() {
       if (mode === "title") {
         form.append("title_text", titleText.trim());
       }
+      // When the user clicked a detected person, pass its label so the
+      // backend can pin the face-swap to exactly that subject.
+      if (selectedPersonId && (mode === "recreate" || mode === "edit")) {
+        const picked = detectedPeople.find((p) => p.id === selectedPersonId);
+        if (picked) form.append("person_to_replace_label", picked.label);
+      }
       if (mode === "edit" && sourceFile) form.append("files", sourceFile);
       refs.forEach((f) => form.append("files", f));
 
@@ -618,7 +700,9 @@ export default function ThumbnailStudio() {
         youtube_video_id: data.youtube_video_id ?? null,
       };
       setHistory((prev) => [next, ...prev]);
-      setLightbox(next);
+      // We used to auto-open the lightbox here, but it was fullscreen noise.
+      // The new thumbnail lands at the top of the history grid and the user
+      // can click it if they want the close-up.
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string | { message?: string } } } };
       const detail = err?.response?.data?.detail;
@@ -627,7 +711,7 @@ export default function ThumbnailStudio() {
     } finally {
       setLoading(false);
     }
-  }, [mode, prompt, aspectRatio, youtubeUrl, titleText, sourceFile, refs, mentionedAvatarIds, avatars]);
+  }, [mode, prompt, aspectRatio, youtubeUrl, titleText, sourceFile, refs, mentionedAvatarIds, avatars, selectedPersonId, detectedPeople]);
 
   const handleDownload = async (t: GeneratedThumbnail) => {
     try {
@@ -653,6 +737,78 @@ export default function ThumbnailStudio() {
   const mentionedAvatars = mentionedAvatarIds
     .map((id) => avatars.find((a) => a.avatar_id === id))
     .filter((a): a is Avatar => !!a);
+
+  /**
+   * Clickable boxes that sit on top of the source thumbnail image. The parent
+   * wrapper must be `position: relative` and sized — the boxes position
+   * themselves with percent-based left/top/width/height so they stay aligned
+   * when the wrapper resizes.
+   */
+  const renderPeopleOverlay = () => {
+    if (detecting) {
+      return (
+        <div
+          className="absolute top-2 left-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] font-medium pointer-events-none"
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            color: "#fff",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <Spinner size={10} />
+          Detecting people…
+        </div>
+      );
+    }
+    if (detectedPeople.length === 0) return null;
+    return (
+      <>
+        {detectedPeople.map((p) => {
+          const selected = selectedPersonId === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedPersonId((prev) => (prev === p.id ? null : p.id));
+              }}
+              className="absolute group"
+              style={{
+                left: `${p.box.x * 100}%`,
+                top: `${p.box.y * 100}%`,
+                width: `${p.box.w * 100}%`,
+                height: `${p.box.h * 100}%`,
+                border: selected
+                  ? "2.5px solid #3b82f6"
+                  : "2px solid rgba(255,255,255,0.85)",
+                borderRadius: 8,
+                background: selected ? "rgba(59,130,246,0.18)" : "transparent",
+                boxShadow: selected
+                  ? "0 0 0 2px rgba(59,130,246,0.25), 0 2px 8px rgba(0,0,0,0.3)"
+                  : "0 1px 4px rgba(0,0,0,0.35)",
+                transition: "background 0.15s ease, border-color 0.15s ease",
+                cursor: "pointer",
+              }}
+              aria-label={`Select ${p.label}`}
+              title={p.label}
+            >
+              <span
+                className="absolute left-0 -top-6 px-1.5 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap max-w-[180px] truncate"
+                style={{
+                  background: selected ? "#3b82f6" : "rgba(0,0,0,0.7)",
+                  color: "#fff",
+                  backdropFilter: "blur(6px)",
+                }}
+              >
+                {p.label}
+              </span>
+            </button>
+          );
+        })}
+      </>
+    );
+  };
 
   return (
     <>
@@ -762,9 +918,14 @@ export default function ThumbnailStudio() {
                           }
                         }}
                       />
+                      {renderPeopleOverlay()}
                     </div>
                     <p className="text-[11.5px] mt-2" style={{ color: "var(--text-muted)" }}>
-                      We&apos;ll remix this thumbnail based on your prompt below.
+                      {detectedPeople.length > 0
+                        ? selectedPersonId
+                          ? "Person selected — add a character below and generate to swap."
+                          : "Click a highlighted person to target them for replacement."
+                        : "We'll remix this thumbnail based on your prompt below."}
                     </p>
                   </div>
                 )}
@@ -777,29 +938,39 @@ export default function ThumbnailStudio() {
                   Source thumbnail
                 </label>
                 {sourcePreview ? (
-                  <div
-                    className="relative rounded-xl overflow-hidden"
-                    style={{
-                      aspectRatio: "16 / 9",
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={sourcePreview} alt="Source thumbnail" className="w-full h-full object-cover" />
-                    <button
-                      onClick={clearSource}
-                      className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center"
+                  <>
+                    <div
+                      className="relative rounded-xl overflow-hidden"
                       style={{
-                        background: "rgba(0,0,0,0.55)",
-                        color: "#fff",
-                        backdropFilter: "blur(8px)",
+                        aspectRatio: "16 / 9",
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-color)",
                       }}
-                      aria-label="Remove source"
                     >
-                      <XIcon size={14} />
-                    </button>
-                  </div>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sourcePreview} alt="Source thumbnail" className="w-full h-full object-cover" />
+                      {renderPeopleOverlay()}
+                      <button
+                        onClick={clearSource}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center z-10"
+                        style={{
+                          background: "rgba(0,0,0,0.55)",
+                          color: "#fff",
+                          backdropFilter: "blur(8px)",
+                        }}
+                        aria-label="Remove source"
+                      >
+                        <XIcon size={14} />
+                      </button>
+                    </div>
+                    {detectedPeople.length > 0 && (
+                      <p className="text-[11.5px] mt-2" style={{ color: "var(--text-muted)" }}>
+                        {selectedPersonId
+                          ? "Person selected — add a character below and generate to swap."
+                          : "Click a highlighted person to target them for replacement."}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <div
                     onClick={() => sourceInputRef.current?.click()}
