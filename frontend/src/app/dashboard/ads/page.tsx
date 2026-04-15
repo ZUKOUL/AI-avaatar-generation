@@ -112,6 +112,21 @@ interface PendingProduct {
   fromUrlOnly?: boolean;
 }
 
+/**
+ * One in-flight ad generation. We keep a list of these so the user can
+ * kick off multiple generations in parallel without the Generate button
+ * going dead, and so each one renders as its own skeleton in the grid
+ * while the backend crunches.
+ */
+interface PendingAd {
+  clientId: string;
+  productId: string;
+  productName: string;
+  productThumbnail: string | null;
+  templateLabel: string;
+  aspectRatio: string;
+}
+
 export default function AdsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -125,7 +140,11 @@ export default function AdsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("auto");
   const [aspect, setAspect] = useState("1:1");
   const [customPrompt, setCustomPrompt] = useState("");
-  const [generating, setGenerating] = useState(false);
+  // List of in-flight generation jobs — replaces the old single `generating`
+  // boolean. Multiple jobs can run concurrently, each showing its own
+  // skeleton card at the top of the history grid, and the Generate button
+  // stays clickable the whole time.
+  const [pendingAds, setPendingAds] = useState<PendingAd[]>([]);
   const [error, setError] = useState("");
 
   // Skeleton-card state: while the product uploads/trains we show a live
@@ -180,37 +199,76 @@ export default function AdsPage() {
 
   const selectedProduct = products.find((p) => p.product_id === selectedProductId) || null;
 
-  const handleGenerate = async () => {
+  /**
+   * Fire off an ad generation WITHOUT blocking the UI. Multiple calls can
+   * be in flight simultaneously — each one adds a skeleton card to the
+   * grid and removes itself when it resolves (success or error). The
+   * Generate button stays clickable the whole time so the user can queue
+   * several variants without waiting 30-60s between each.
+   */
+  const handleGenerate = () => {
     if (!selectedProductId) return;
-    setGenerating(true);
+    const product = products.find((p) => p.product_id === selectedProductId);
+    if (!product) return;
+
+    // Resolve the human template label now so the skeleton shows "UGC Review"
+    // instead of the raw slug "ugc".
+    const templateLabel =
+      templates.find((t) => t.id === selectedTemplate)?.label ||
+      selectedTemplate.replace(/_/g, " ");
+
+    const clientId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const pending: PendingAd = {
+      clientId,
+      productId: selectedProductId,
+      productName: product.name,
+      productThumbnail: product.thumbnail || null,
+      templateLabel,
+      aspectRatio: aspect,
+    };
+
+    // Snapshot the current custom prompt so re-clicking Generate with a
+    // different custom prompt doesn't bleed values between parallel jobs.
+    const customPromptSnapshot = customPrompt.trim();
+
     setError("");
-    setLastBrief(null);
-    setLastConcept(null);
-    try {
-      const formData = new FormData();
-      formData.append("product_id", selectedProductId);
-      formData.append("template", selectedTemplate);
-      formData.append("aspect_ratio", aspect);
-      if (customPrompt.trim()) formData.append("custom_prompt", customPrompt.trim());
-      const res = await adsAPI.generate(formData);
-      const brief = res.data?.brief;
-      const concept = res.data?.concept;
-      if (brief && typeof brief === "object") setLastBrief(brief);
-      if (concept && typeof concept === "object") setLastConcept(concept);
-      setCustomPrompt("");
-      loadAds();
-    } catch (err: unknown) {
-      const e = err as {
-        response?: { status?: number; data?: { detail?: string | { message?: string } } };
-      };
-      const detail = e.response?.data?.detail;
-      let msg = "Generation failed";
-      if (typeof detail === "string") msg = detail;
-      else if (detail && typeof detail === "object" && "message" in detail) msg = detail.message || msg;
-      setError(msg);
-    } finally {
-      setGenerating(false);
-    }
+    setPendingAds((prev) => [pending, ...prev]);
+    // Clear the custom prompt textbox right away so the user can type the
+    // next variant while this one is crunching — matches the "queue a
+    // variant without waiting" UX goal.
+    setCustomPrompt("");
+
+    void (async () => {
+      try {
+        const formData = new FormData();
+        formData.append("product_id", pending.productId);
+        formData.append("template", selectedTemplate);
+        formData.append("aspect_ratio", pending.aspectRatio);
+        if (customPromptSnapshot) formData.append("custom_prompt", customPromptSnapshot);
+        const res = await adsAPI.generate(formData);
+        const brief = res.data?.brief;
+        const concept = res.data?.concept;
+        if (brief && typeof brief === "object") setLastBrief(brief);
+        if (concept && typeof concept === "object") setLastConcept(concept);
+        await loadAds();
+      } catch (err: unknown) {
+        const e = err as {
+          response?: { status?: number; data?: { detail?: string | { message?: string } } };
+        };
+        const detail = e.response?.data?.detail;
+        let msg = "Generation failed";
+        if (typeof detail === "string") msg = detail;
+        else if (detail && typeof detail === "object" && "message" in detail)
+          msg = detail.message || msg;
+        setError(msg);
+      } finally {
+        setPendingAds((prev) => prev.filter((p) => p.clientId !== clientId));
+      }
+    })();
   };
 
   /**
@@ -709,28 +767,21 @@ export default function AdsPage() {
               <button
                 type="button"
                 onClick={handleGenerate}
-                disabled={generating}
+                disabled={!selectedProductId}
                 className="w-full py-3 rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2"
                 style={{
-                  background: generating ? "var(--bg-tertiary)" : "var(--text-primary)",
-                  color: generating ? "var(--text-muted)" : "var(--bg-primary)",
-                  cursor: generating ? "not-allowed" : "pointer",
-                  boxShadow: generating ? "none" : "0 4px 20px rgba(0,0,0,0.18)",
+                  background: !selectedProductId ? "var(--bg-tertiary)" : "var(--text-primary)",
+                  color: !selectedProductId ? "var(--text-muted)" : "var(--bg-primary)",
+                  cursor: !selectedProductId ? "not-allowed" : "pointer",
+                  boxShadow: !selectedProductId ? "none" : "0 4px 20px rgba(0,0,0,0.18)",
                 }}
               >
-                {generating ? (
-                  <>
-                    <Spinner size={15} />
-                    {selectedTemplate === "auto"
-                      ? "Researching concepts & generating…"
-                      : "Generating your ad…"}
-                  </>
-                ) : (
-                  <>
-                    <SparkleIcon size={15} />
-                    {selectedTemplate === "auto" ? "Generate winning ad" : "Generate ad"}
-                  </>
-                )}
+                <SparkleIcon size={15} />
+                {pendingAds.length > 0
+                  ? `Generate another (${pendingAds.length} in progress)`
+                  : selectedTemplate === "auto"
+                    ? "Generate winning ad"
+                    : "Generate ad"}
               </button>
 
               {/* Chain-of-thought panel — shows the FULL strategic reasoning
@@ -749,7 +800,9 @@ export default function AdsPage() {
             </section>
           )}
 
-          {/* Gallery */}
+          {/* Gallery — includes in-flight skeletons at the top so the user
+              can see their pending generations taking shape where the real
+              ad will land, instead of watching a spinner on a dead button. */}
           <section>
             <div className="flex items-baseline justify-between mb-4 px-1">
               <h2
@@ -765,11 +818,11 @@ export default function AdsPage() {
               )}
             </div>
 
-            {loadingAds ? (
+            {loadingAds && pendingAds.length === 0 ? (
               <div className="flex items-center justify-center py-10">
                 <Spinner size={22} />
               </div>
-            ) : ads.length === 0 ? (
+            ) : ads.length === 0 && pendingAds.length === 0 ? (
               <div
                 className="text-center py-12 rounded-2xl"
                 style={{
@@ -787,6 +840,9 @@ export default function AdsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                {pendingAds.map((p) => (
+                  <SkeletonAdCard key={p.clientId} pending={p} />
+                ))}
                 {ads.map((ad) => (
                   <AdCard
                     key={ad.id}
@@ -1180,6 +1236,102 @@ function SkeletonProductCard({ pending }: { pending: PendingProduct }) {
       {/* Scoped keyframes so we don't pollute globals */}
       <style jsx>{`
         @keyframes adsSkeletonShimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ─── Skeleton ad card (while a generation is in flight) ──────────────── */
+
+/**
+ * Placeholder that sits in the ads grid while a generation is running.
+ * Uses the product thumbnail as a blurred preview so the user sees
+ * "this is the slot where my next creative will land" rather than a
+ * generic grey box. Matches the aspect-ratio the user picked so the
+ * grid doesn't reflow when the real ad lands.
+ */
+function SkeletonAdCard({ pending }: { pending: PendingAd }) {
+  const aspectClass =
+    pending.aspectRatio === "9:16"
+      ? "aspect-[9/16]"
+      : pending.aspectRatio === "16:9"
+        ? "aspect-[16/9]"
+        : pending.aspectRatio === "4:5"
+          ? "aspect-[4/5]"
+          : pending.aspectRatio === "3:4"
+            ? "aspect-[3/4]"
+            : "aspect-square";
+
+  return (
+    <div
+      className={`relative ${aspectClass} rounded-xl overflow-hidden`}
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1.5px dashed var(--border-color)",
+      }}
+      aria-busy="true"
+      aria-live="polite"
+    >
+      {/* Blurred product thumbnail so the skeleton feels tied to what the
+          user just clicked, not a generic grey box. */}
+      {pending.productThumbnail ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={pending.productThumbnail}
+          alt=""
+          className="w-full h-full object-cover"
+          style={{ filter: "blur(10px) brightness(0.45)", transform: "scale(1.15)" }}
+        />
+      ) : (
+        <div className="w-full h-full" style={{ background: "var(--bg-tertiary)" }} />
+      )}
+
+      {/* Moving shimmer band — matches the training skeleton so the app
+          has one consistent "work in progress" visual language. */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%)",
+          backgroundSize: "200% 100%",
+          animation: "adsGenSkeletonShimmer 1.6s linear infinite",
+        }}
+      />
+
+      {/* Centered status */}
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center text-center px-3 gap-2"
+        style={{ color: "#fff" }}
+      >
+        <Spinner size={22} />
+        <p className="text-[12px] font-semibold tracking-wide">Generating ad…</p>
+        <p
+          className="text-[10.5px]"
+          style={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.35 }}
+        >
+          {pending.templateLabel} · ~30–60 s
+        </p>
+      </div>
+
+      {/* Bottom gradient + product name, matches the real AdCard */}
+      <div
+        className="absolute inset-x-0 bottom-0 p-3"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)",
+        }}
+      >
+        <p className="text-white text-[12px] font-semibold truncate drop-shadow-sm text-center">
+          {pending.productName}
+        </p>
+      </div>
+
+      <style jsx>{`
+        @keyframes adsGenSkeletonShimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
