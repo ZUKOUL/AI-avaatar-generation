@@ -680,17 +680,21 @@ async def get_images(
       • rows from `generated_images` (standard avatar/freestyle generations), and
       • rows from `media` where `metadata.kind == 'thumbnail'` (thumbnails).
 
-    The two sources are normalised to the same shape so the client can render
-    them in a single gallery. Thumbnails are skipped when `avatar_id` is
-    specified because they're never bound to a specific character.
+    ROBUSTNESS NOTE: the two sources are fetched in independent try/except
+    blocks so a transient failure on the thumbnails side can NEVER hide the
+    user's core image history — worst case we serve generated_images only and
+    log the thumbnail error. This endpoint is also called by the video
+    generator page's gallery picker, so any 500 here wipes videos too.
 
-    - avatar_id (optional): Filter by avatar (thumbnails excluded when set)
-    - limit: Max results (default 50, max 100)
+    - avatar_id (optional): filter by avatar (thumbnails excluded when set
+      because they're never bound to a specific character).
+    - limit: max results (default 50, max 100).
     """
-    try:
-        limit = min(limit, 100)
+    limit = min(max(limit, 1), 100)
 
-        # ── 1. Avatar/freestyle images from `generated_images` ─────────────
+    # ── 1. Avatar/freestyle images from `generated_images` ────────────────
+    gen_normalised: list[dict] = []
+    try:
         query = (
             supabase.table("generated_images")
             .select("id, avatar_id, prompt, image_url, created_at")
@@ -701,7 +705,6 @@ async def get_images(
         if avatar_id:
             query = query.eq("avatar_id", avatar_id)
         gen_rows = (query.execute().data) or []
-
         gen_normalised = [
             {
                 "id": row["id"],
@@ -713,12 +716,22 @@ async def get_images(
             }
             for row in gen_rows
         ]
+    except Exception as gen_err:
+        # Don't 500 the whole response — just log and keep going. Better a
+        # partial list than an empty gallery.
+        logger.error(f"/images: generated_images fetch failed: {gen_err}")
 
-        # ── 2. Thumbnails from `media` (only when no avatar filter) ────────
-        thumb_normalised: list[dict] = []
-        if not avatar_id:
+    # ── 2. Thumbnails from `media` (only when no avatar filter) ───────────
+    #
+    # Isolated in its own try/except so a schema mismatch, missing table,
+    # RLS issue or PostgREST oddity can't break the whole endpoint. The
+    # contract is: on any failure we return `gen_normalised` unchanged.
+    thumb_normalised: list[dict] = []
+    if not avatar_id:
+        try:
+            thumb_rows: list[dict] = []
             try:
-                # Use PostgREST's JSONB operator to filter by metadata.kind.
+                # Preferred: PostgREST JSONB operator filters server-side.
                 thumb_res = (
                     supabase.table("media")
                     .select("id, url, prompt, metadata, created_at")
@@ -729,9 +742,11 @@ async def get_images(
                     .execute()
                 )
                 thumb_rows = thumb_res.data or []
-            except Exception:
-                # Fallback: grab recent media rows and filter in Python if the
-                # JSONB filter isn't supported by this Supabase client.
+            except Exception as jsonb_err:
+                # Fallback: pull a window of recent rows and filter in Python.
+                logger.warning(
+                    f"/images: JSONB filter unsupported, falling back ({jsonb_err})"
+                )
                 fallback = (
                     supabase.table("media")
                     .select("id, url, prompt, metadata, created_at")
@@ -746,46 +761,54 @@ async def get_images(
                     if (r.get("metadata") or {}).get("kind") == "thumbnail"
                 ][:limit]
 
-            # Strip the `[thumbnail:mode]` prefix we insert on generate so the
-            # gallery shows a clean prompt.
+            # Strip the `[thumbnail:mode]` prefix we insert on generate so
+            # the gallery shows a clean prompt.
             prefix_re = re.compile(r"^\[thumbnail:[^\]]+\]\s*")
             for row in thumb_rows:
-                thumb_normalised.append(
-                    {
-                        "id": row["id"],
-                        "avatar_id": None,
-                        "prompt": prefix_re.sub("", row.get("prompt") or ""),
-                        "image_url": row["url"],
-                        "created_at": row.get("created_at"),
-                        "kind": "thumbnail",
-                    }
-                )
+                try:
+                    thumb_normalised.append(
+                        {
+                            "id": row["id"],
+                            "avatar_id": None,
+                            "prompt": prefix_re.sub("", row.get("prompt") or ""),
+                            "image_url": row["url"],
+                            "created_at": row.get("created_at"),
+                            "kind": "thumbnail",
+                        }
+                    )
+                except Exception as row_err:
+                    # Skip malformed rows instead of nuking the response.
+                    logger.warning(f"/images: skipping thumbnail row: {row_err}")
+                    continue
+        except Exception as thumb_err:
+            # Catch-all: any failure at all → thumbnails are silently omitted.
+            # The user still sees generated_images; thumbnail history is
+            # still visible in the Thumbnails tab via /thumbnail/history.
+            logger.error(
+                f"/images: thumbnail merge failed, returning generated_images only: {thumb_err}"
+            )
+            thumb_normalised = []
 
-        # ── 3. Merge, sort by created_at desc, apply limit ─────────────────
-        combined = gen_normalised + thumb_normalised
-        combined.sort(key=lambda r: r.get("created_at") or "", reverse=True)
-        combined = combined[:limit]
+    # ── 3. Merge, sort by created_at desc, apply limit ────────────────────
+    combined = gen_normalised + thumb_normalised
+    combined.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    combined = combined[:limit]
 
-        return {
-            "images": [
-                {
-                    "image_id": img["id"],
-                    "avatar_id": img.get("avatar_id"),
-                    "prompt": img.get("prompt"),
-                    "image_url": img["image_url"],
-                    "created_at": img.get("created_at"),
-                    # Lets the frontend badge thumbnails differently if it
-                    # wants to; existing code that ignores the field is
-                    # unaffected.
-                    "kind": img.get("kind", "image"),
-                }
-                for img in combined
-            ]
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to fetch image history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "images": [
+            {
+                "image_id": img["id"],
+                "avatar_id": img.get("avatar_id"),
+                "prompt": img.get("prompt"),
+                "image_url": img["image_url"],
+                "created_at": img.get("created_at"),
+                # Lets the frontend badge thumbnails differently; clients
+                # that ignore the field are unaffected.
+                "kind": img.get("kind", "image"),
+            }
+            for img in combined
+        ]
+    }
 
 
 @router.get("/images/{image_id}")
