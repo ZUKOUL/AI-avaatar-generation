@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { thumbnailAPI } from "@/lib/api";
+import { LinkIcon, Pencil, SparkleIcon, XIcon } from "@/components/Icons";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -36,20 +37,13 @@ function SkeletonCard() {
       className="rounded-xl overflow-hidden"
       style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
     >
-      {/* 16:9 placeholder */}
       <div
         className="w-full animate-pulse"
         style={{ paddingTop: "56.25%", background: "var(--bg-hover)" }}
       />
       <div className="p-3 space-y-2">
-        <div
-          className="h-3.5 rounded animate-pulse"
-          style={{ background: "var(--bg-hover)", width: "80%" }}
-        />
-        <div
-          className="h-3 rounded animate-pulse"
-          style={{ background: "var(--bg-hover)", width: "50%" }}
-        />
+        <div className="h-3.5 rounded animate-pulse" style={{ background: "var(--bg-hover)", width: "80%" }} />
+        <div className="h-3 rounded animate-pulse" style={{ background: "var(--bg-hover)", width: "50%" }} />
       </div>
     </div>
   );
@@ -57,70 +51,57 @@ function SkeletonCard() {
 
 // ── Thumbnail card ─────────────────────────────────────────────────────────
 
-function ThumbnailCard({ video, onRecreate }: { video: VideoItem; onRecreate: () => void }) {
+function ThumbnailCard({ video, onSelect }: { video: VideoItem; onSelect: () => void }) {
   const [imgSrc, setImgSrc] = useState(video.thumbnail_url);
   const [hovered, setHovered] = useState(false);
 
   return (
     <div
-      className="rounded-xl overflow-hidden flex flex-col cursor-default"
+      className="rounded-xl overflow-hidden flex flex-col cursor-pointer"
       style={{
         background: "var(--bg-secondary)",
         border: "1px solid var(--border-color)",
         transition: "box-shadow 0.2s ease, transform 0.2s ease",
-        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.18)" : "none",
-        transform: hovered ? "translateY(-2px)" : "none",
+        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.22)" : "none",
+        transform: hovered ? "translateY(-3px)" : "none",
       }}
+      onClick={onSelect}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Thumbnail image — 16:9 */}
+      {/* Thumbnail — 16:9 */}
       <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
           alt={video.title}
           onError={() => {
-            // Fallback from maxresdefault → hqdefault
             if (!imgSrc.includes("hqdefault")) {
-              setImgSrc(
-                `https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg`
-              );
+              setImgSrc(`https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg`);
             }
           }}
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Hover overlay with Recreate button */}
+        {/* Hover overlay */}
         <div
           className="absolute inset-0 flex items-center justify-center transition-opacity duration-200"
           style={{
-            background: "rgba(0,0,0,0.55)",
+            background: "rgba(0,0,0,0.52)",
             opacity: hovered ? 1 : 0,
-            pointerEvents: hovered ? "auto" : "none",
+            pointerEvents: "none",
           }}
         >
-          <button
-            onClick={onRecreate}
-            className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
-            style={{
-              background: "var(--accent)",
-              color: "#fff",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.88";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
+          <span
+            className="px-4 py-2 rounded-lg text-[13px] font-semibold"
+            style={{ background: "var(--accent)", color: "#fff" }}
           >
             Recreate →
-          </button>
+          </span>
         </div>
       </div>
 
       {/* Card body */}
-      <div className="p-3 flex flex-col gap-1.5 flex-1">
+      <div className="p-3 flex flex-col gap-1 flex-1">
         <p
           className="text-[13px] font-medium leading-snug line-clamp-2"
           style={{ color: "var(--text-primary)" }}
@@ -130,28 +111,146 @@ function ThumbnailCard({ video, onRecreate }: { video: VideoItem; onRecreate: ()
         <p className="text-[12px] truncate" style={{ color: "var(--text-muted)" }}>
           {video.channel}
         </p>
-        <div className="mt-auto pt-2">
+      </div>
+    </div>
+  );
+}
+
+// ── Recreate modal ─────────────────────────────────────────────────────────
+
+function RecreateModal({
+  video,
+  onClose,
+  onRecreateFromPrompt,
+  onEditImage,
+}: {
+  video: VideoItem;
+  onClose: () => void;
+  onRecreateFromPrompt: () => void;
+  onEditImage: () => void;
+}) {
+  const [imgSrc, setImgSrc] = useState(video.thumbnail_url);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.72)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border-color)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.45)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Thumbnail preview */}
+        <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imgSrc}
+            alt={video.title}
+            onError={() => {
+              if (!imgSrc.includes("hqdefault")) {
+                setImgSrc(`https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg`);
+              }
+            }}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Close button */}
           <button
-            onClick={onRecreate}
-            className="w-full py-1.5 rounded-lg text-[12px] font-medium transition-all"
-            style={{
-              background: "var(--bg-hover)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border-color)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--accent)";
-              e.currentTarget.style.color = "#fff";
-              e.currentTarget.style.borderColor = "transparent";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--bg-hover)";
-              e.currentTarget.style.color = "var(--text-secondary)";
-              e.currentTarget.style.borderColor = "var(--border-color)";
-            }}
+            onClick={onClose}
+            className="absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full"
+            style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
           >
-            Recreate →
+            <XIcon size={14} />
           </button>
+        </div>
+
+        {/* Info + actions */}
+        <div className="p-4">
+          <p
+            className="text-[13px] font-semibold leading-snug line-clamp-2 mb-0.5"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {video.title}
+          </p>
+          <p className="text-[12px] mb-4" style={{ color: "var(--text-muted)" }}>
+            {video.channel}
+          </p>
+
+          <p className="text-[11px] font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+            How do you want to recreate this?
+          </p>
+
+          <div className="flex flex-col gap-2.5">
+            {/* Option 1 — Recreate from prompt (YouTube URL) */}
+            <button
+              onClick={onRecreateFromPrompt}
+              className="flex items-start gap-3 p-3.5 rounded-xl text-left w-full transition-all"
+              style={{
+                background: "var(--bg-hover)",
+                border: "1px solid var(--border-color)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.background = "var(--bg-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-color)";
+                e.currentTarget.style.background = "var(--bg-hover)";
+              }}
+            >
+              <span style={{ color: "var(--accent)", marginTop: 2, flexShrink: 0 }}>
+                <LinkIcon size={16} />
+              </span>
+              <div>
+                <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                  Recreate from prompt
+                </p>
+                <p className="text-[12px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                  Load the YouTube video and customise the generation prompt
+                </p>
+              </div>
+            </button>
+
+            {/* Option 2 — Edit the image directly */}
+            <button
+              onClick={onEditImage}
+              className="flex items-start gap-3 p-3.5 rounded-xl text-left w-full transition-all"
+              style={{
+                background: "var(--bg-hover)",
+                border: "1px solid var(--border-color)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-color)";
+              }}
+            >
+              <span style={{ color: "var(--accent)", marginTop: 2, flexShrink: 0 }}>
+                <Pencil size={16} />
+              </span>
+              <div>
+                <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                  Edit this image
+                </p>
+                <p className="text-[12px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                  Start directly from the thumbnail and modify it with AI
+                </p>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -165,68 +264,28 @@ function ApiKeySetup({ niches }: { niches: NicheMeta[] }) {
     <div className="flex flex-col items-center py-16 px-4">
       <div
         className="w-full max-w-lg rounded-2xl p-8 text-center"
-        style={{
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border-color)",
-        }}
+        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
       >
-        <div className="text-4xl mb-4">🔑</div>
-        <h3
-          className="text-[18px] font-semibold mb-2"
-          style={{ color: "var(--text-primary)" }}
-        >
+        <div className="flex justify-center mb-4" style={{ color: "var(--accent)" }}>
+          <SparkleIcon size={32} />
+        </div>
+        <h3 className="text-[18px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
           YouTube API key required
         </h3>
-        <p
-          className="text-[13px] leading-relaxed mb-6"
-          style={{ color: "var(--text-secondary)" }}
-        >
+        <p className="text-[13px] leading-relaxed mb-6" style={{ color: "var(--text-secondary)" }}>
           To show real top-performing thumbnails, this feature uses the YouTube
           Data API v3. Set it up in under 2 minutes:
         </p>
 
-        <ol
-          className="text-left space-y-3 mb-8"
-          style={{ color: "var(--text-secondary)" }}
-        >
+        <ol className="text-left space-y-3 mb-8" style={{ color: "var(--text-secondary)" }}>
           {[
-            <>
-              Go to{" "}
-              <a
-                href="https://console.cloud.google.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-                style={{ color: "var(--accent)" }}
-              >
-                console.cloud.google.com
-              </a>{" "}
-              and create or open a project.
-            </>,
+            <>Go to{" "}<a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent)" }}>console.cloud.google.com</a>{" "}and create or open a project.</>,
             <>Enable the <strong style={{ color: "var(--text-primary)" }}>YouTube Data API v3</strong> in the API Library.</>,
             <>Go to <strong style={{ color: "var(--text-primary)" }}>Credentials</strong> and create an API key.</>,
-            <>
-              Add{" "}
-              <code
-                className="px-1.5 py-0.5 rounded text-[12px]"
-                style={{
-                  background: "var(--bg-hover)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                YOUTUBE_API_KEY=your_key_here
-              </code>{" "}
-              to your server&apos;s <code className="px-1 py-0.5 rounded text-[12px]" style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}>.env</code> and restart the backend.
-            </>,
+            <>Add{" "}<code className="px-1.5 py-0.5 rounded text-[12px]" style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}>YOUTUBE_API_KEY=your_key_here</code>{" "}to your server&apos;s <code className="px-1 py-0.5 rounded text-[12px]" style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}>.env</code> and restart the backend.</>,
           ].map((step, i) => (
             <li key={i} className="flex gap-3 items-start text-[13px]">
-              <span
-                className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5"
-                style={{
-                  background: "var(--accent)",
-                  color: "#fff",
-                }}
-              >
+              <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5" style={{ background: "var(--accent)", color: "#fff" }}>
                 {i + 1}
               </span>
               <span>{step}</span>
@@ -239,10 +298,7 @@ function ApiKeySetup({ niches }: { niches: NicheMeta[] }) {
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity"
-          style={{
-            background: "var(--accent)",
-            color: "#fff",
-          }}
+          style={{ background: "var(--accent)", color: "#fff" }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
         >
@@ -269,6 +325,7 @@ export default function InspirationPage() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [needsApiKey, setNeedsApiKey] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
 
   const fetchInspiration = async (niche: string) => {
     setLoading(true);
@@ -291,33 +348,36 @@ export default function InspirationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNiche]);
 
-  const handleRecreate = (youtubeUrl: string) => {
-    router.push(
-      `/dashboard/thumbnails?mode=recreate&url=${encodeURIComponent(youtubeUrl)}`
-    );
+  // Navigate to thumbnails in recreate mode — the page reads ?yt= to pre-fill the URL
+  const handleRecreateFromPrompt = (youtubeUrl: string) => {
+    router.push(`/dashboard/thumbnails?yt=${encodeURIComponent(youtubeUrl)}`);
   };
+
+  // Navigate to thumbnails in edit mode — the page reads ?ref= to pre-load the image
+  const handleEditImage = (thumbnailUrl: string) => {
+    router.push(`/dashboard/thumbnails?ref=${encodeURIComponent(thumbnailUrl)}`);
+  };
+
+  const DEFAULT_NICHES: NicheMeta[] = [
+    { key: "business",      label: "Business & Finance", emoji: "💼" },
+    { key: "sport",         label: "Sport & Fitness",    emoji: "💪" },
+    { key: "entertainment", label: "Entertainment",      emoji: "🎭" },
+    { key: "mrbeast",       label: "MrBeast Style",      emoji: "🏆" },
+    { key: "gaming",        label: "Gaming & Tech",      emoji: "🎮" },
+  ];
+
+  const displayNiches = niches.length > 0 ? niches : DEFAULT_NICHES;
 
   return (
     <>
-      <Header
-        title="Inspiration"
-        subtitle="Top-performing YouTube thumbnails by niche"
-      />
+      <Header title="Inspiration" subtitle="Top-performing YouTube thumbnails by niche" />
+
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-10">
 
           {/* Niche pills */}
           <div className="flex flex-wrap gap-2 mb-8">
-            {(niches.length > 0
-              ? niches
-              : [
-                  { key: "business", label: "Business & Finance", emoji: "💼" },
-                  { key: "sport", label: "Sport & Fitness", emoji: "💪" },
-                  { key: "entertainment", label: "Entertainment", emoji: "🎭" },
-                  { key: "mrbeast", label: "MrBeast Style", emoji: "🏆" },
-                  { key: "gaming", label: "Gaming & Tech", emoji: "🎮" },
-                ]
-            ).map((n) => {
+            {displayNiches.map((n) => {
               const active = n.key === activeNiche;
               return (
                 <button
@@ -325,20 +385,18 @@ export default function InspirationPage() {
                   onClick={() => setActiveNiche(n.key)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-all"
                   style={{
-                    background: active ? "var(--accent)" : "var(--bg-secondary)",
-                    color: active ? "#fff" : "var(--text-secondary)",
+                    background: active ? "var(--accent)" : "var(--bg-hover)",
+                    color: active ? "#fff" : "var(--text-primary)",
                     border: `1px solid ${active ? "transparent" : "var(--border-color)"}`,
                   }}
                   onMouseEnter={(e) => {
                     if (!active) {
-                      e.currentTarget.style.background = "var(--bg-hover)";
-                      e.currentTarget.style.color = "var(--text-primary)";
+                      e.currentTarget.style.borderColor = "var(--accent)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!active) {
-                      e.currentTarget.style.background = "var(--bg-secondary)";
-                      e.currentTarget.style.color = "var(--text-secondary)";
+                      e.currentTarget.style.borderColor = "var(--border-color)";
                     }
                   }}
                 >
@@ -351,12 +409,10 @@ export default function InspirationPage() {
 
           {/* Content area */}
           {needsApiKey ? (
-            <ApiKeySetup niches={niches} />
+            <ApiKeySetup niches={displayNiches} />
           ) : loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
+              {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : videos.length === 0 ? (
             <div
@@ -374,13 +430,23 @@ export default function InspirationPage() {
                 <ThumbnailCard
                   key={v.video_id}
                   video={v}
-                  onRecreate={() => handleRecreate(v.youtube_url)}
+                  onSelect={() => setSelectedVideo(v)}
                 />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Recreate modal */}
+      {selectedVideo && (
+        <RecreateModal
+          video={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
+          onRecreateFromPrompt={() => handleRecreateFromPrompt(selectedVideo.youtube_url)}
+          onEditImage={() => handleEditImage(selectedVideo.thumbnail_url)}
+        />
+      )}
     </>
   );
 }

@@ -129,27 +129,27 @@ INSPIRATION_NICHES = {
     "business": {
         "label": "Business & Finance",
         "emoji": "💼",
-        "query": "entrepreneur business success finance investing wealth",
+        "query": "entrepreneur business success finance investing wealth USA UK",
     },
     "sport": {
         "label": "Sport & Fitness",
         "emoji": "💪",
-        "query": "fitness workout training sport performance athlete",
+        "query": "fitness workout training sport performance athlete USA UK",
     },
     "entertainment": {
         "label": "Entertainment",
         "emoji": "🎭",
-        "query": "entertainment comedy reaction viral funny experiment",
+        "query": "entertainment comedy reaction viral funny experiment USA UK",
     },
     "mrbeast": {
         "label": "MrBeast Style",
         "emoji": "🏆",
-        "query": "challenge biggest survival win money extreme impossible",
+        "query": "challenge biggest survival win money extreme impossible USA UK",
     },
     "gaming": {
         "label": "Gaming & Tech",
         "emoji": "🎮",
-        "query": "gaming tips tricks best plays tutorial tech review",
+        "query": "gaming best plays tutorial tips tech review USA UK",
     },
 }
 
@@ -1663,12 +1663,23 @@ async def get_inspiration(
                     if ch_subs is not None and ch_subs < MIN_SUBSCRIBERS:
                         continue
 
+                    # Use API-provided thumbnail URLs (guaranteed to exist).
+                    # Prefer maxres → standard → high; fall back to hqdefault
+                    # constructed URL only as a last resort.
+                    thumbs = snippet.get("thumbnails", {})
+                    thumb_url = (
+                        thumbs.get("maxres", {}).get("url")
+                        or thumbs.get("standard", {}).get("url")
+                        or thumbs.get("high", {}).get("url")
+                        or f"https://img.youtube.com/vi/{vid_id}/hqdefault.jpg"
+                    )
+
                     videos.append(
                         {
                             "video_id": vid_id,
                             "title": snippet.get("title", ""),
                             "channel": snippet.get("channelTitle", ""),
-                            "thumbnail_url": f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg",
+                            "thumbnail_url": thumb_url,
                             "youtube_url": f"https://www.youtube.com/watch?v={vid_id}",
                         }
                     )

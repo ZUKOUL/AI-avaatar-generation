@@ -19,7 +19,6 @@ import {
   XIcon,
   MagicWand,
   PlaySquare,
-  SparkleIcon,
 } from "@/components/Icons";
 
 type NavDef = {
@@ -37,7 +36,6 @@ const NAV_TOOLS: NavDef[] = [
   { href: "/dashboard/avatars", label: "Avatar Creator", icon: MagicWand },
   { href: "/dashboard/images", label: "Image Generator", icon: ImageSquare },
   { href: "/dashboard/thumbnails", label: "Thumbnails", icon: PlaySquare },
-  { href: "/dashboard/thumbnails/inspiration", label: "Inspiration", icon: SparkleIcon },
   { href: "/dashboard/videos", label: "Video Generator", icon: VideoCamera },
 ];
 

@@ -34,6 +34,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  SparkleIcon,
   Spinner,
   Trash,
   Type,
@@ -2877,7 +2878,7 @@ export default function ThumbnailStudio() {
                 e.currentTarget.style.background = "var(--bg-secondary)";
               }}
             >
-              <span>✨</span>
+              <SparkleIcon size={13} />
               <span>Inspiration</span>
             </Link>
           </div>
