@@ -745,6 +745,31 @@ export default function ThumbnailStudio() {
     }
   };
 
+  /* ─── Paste from clipboard button ─── */
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      // If textarea is focused, insert at cursor; otherwise replace the whole value.
+      const ta = textareaRef.current;
+      if (ta && document.activeElement === ta) {
+        const start = ta.selectionStart ?? prompt.length;
+        const end = ta.selectionEnd ?? prompt.length;
+        const next = prompt.slice(0, start) + text + prompt.slice(end);
+        setPrompt(next);
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = start + text.length;
+          ta.focus();
+        });
+      } else {
+        setPrompt(text);
+        requestAnimationFrame(() => ta?.focus());
+      }
+    } catch {
+      // Clipboard API not available or permission denied — silently ignore
+    }
+  }, [prompt]);
+
   /* ─── @mention system ─── */
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -2838,6 +2863,7 @@ export default function ThumbnailStudio() {
               selected={mode}
               onSelect={(k) => {
                 setMode(k as Mode);
+                setPrompt("");
                 setError(null);
               }}
               items={MODE_ITEMS.map((m) => ({
@@ -3079,18 +3105,76 @@ export default function ThumbnailStudio() {
 
             {/* Prompt textarea + overlay */}
             <div className="p-5">
-              <label className="text-[12px] font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
-                {mode === "recreate"
-                  ? "What should we change?"
-                  : mode === "edit"
-                    ? "Edit instructions"
-                    : "Thumbnail concept"}
-                {avatars.length > 0 && (
-                  <span className="ml-1" style={{ color: "var(--text-muted)" }}>
-                    — type <span style={{ fontFamily: "monospace" }}>@</span> to mention a character
-                  </span>
-                )}
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  {mode === "recreate"
+                    ? "What should we change?"
+                    : mode === "edit"
+                      ? "Edit instructions"
+                      : "Thumbnail concept"}
+                  {avatars.length > 0 && (
+                    <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                      — type <span style={{ fontFamily: "monospace" }}>@</span> to mention a character
+                    </span>
+                  )}
+                </label>
+                <div className="flex items-center gap-1">
+                  {/* Paste from clipboard */}
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    title="Paste from clipboard"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors"
+                    style={{
+                      color: "var(--text-muted)",
+                      background: "transparent",
+                      border: "1px solid var(--border-color)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = "var(--text-primary)";
+                      e.currentTarget.style.background = "var(--bg-primary)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = "var(--text-muted)";
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {/* Clipboard icon */}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="2" width="6" height="4" rx="1"/>
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    </svg>
+                    Paste
+                  </button>
+                  {/* Clear — only when there's something to clear */}
+                  {prompt.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => { setPrompt(""); textareaRef.current?.focus(); }}
+                      title="Clear prompt"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors"
+                      style={{
+                        color: "var(--text-muted)",
+                        background: "transparent",
+                        border: "1px solid var(--border-color)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "#f87171";
+                        e.currentTarget.style.background = "rgba(248,113,113,0.08)";
+                        e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "var(--text-muted)";
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.borderColor = "var(--border-color)";
+                      }}
+                    >
+                      <XIcon size={10} />
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
               <div
                 className="relative rounded-xl overflow-hidden"
                 style={{
