@@ -6,6 +6,7 @@ import { adsAPI } from "@/lib/api";
 import {
   Check,
   Download,
+  LinkIcon,
   Megaphone,
   Package,
   Plus,
@@ -33,6 +34,10 @@ interface Product {
   category: string | null;
   thumbnail: string | null;
   created_at: string;
+  source_url?: string | null;
+  description?: string | null;
+  features?: string[];
+  price?: string | null;
 }
 
 interface Template {
@@ -311,6 +316,80 @@ export default function AdsPage() {
                 </button>
               </div>
 
+              {/* Extracted product metadata — only shown when AI grabbed useful info */}
+              {(selectedProduct.description ||
+                (selectedProduct.features && selectedProduct.features.length > 0) ||
+                selectedProduct.price ||
+                selectedProduct.source_url) && (
+                <div
+                  className="rounded-xl p-3.5 mb-5"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <SparkleIcon size={12} style={{ color: "var(--text-muted)" }} />
+                    <p
+                      className="text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      AI product context
+                    </p>
+                  </div>
+
+                  {selectedProduct.description && (
+                    <p
+                      className="text-[12.5px] mb-2.5"
+                      style={{ color: "var(--text-secondary)", lineHeight: 1.55 }}
+                    >
+                      {selectedProduct.description}
+                    </p>
+                  )}
+
+                  {selectedProduct.features && selectedProduct.features.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                      {selectedProduct.features.map((f, i) => (
+                        <span
+                          key={i}
+                          className="text-[11px] px-2 py-0.5 rounded-md"
+                          style={{
+                            background: "var(--bg-tertiary)",
+                            color: "var(--text-secondary)",
+                            border: "1px solid var(--border-color)",
+                          }}
+                        >
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {selectedProduct.price && (
+                      <span
+                        className="text-[11.5px] font-semibold"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        {selectedProduct.price}
+                      </span>
+                    )}
+                    {selectedProduct.source_url && (
+                      <a
+                        href={selectedProduct.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] flex items-center gap-1 hover:underline"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <LinkIcon size={11} />
+                        Source page
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Templates grid */}
               <label
                 className="text-[11px] font-semibold uppercase tracking-wider block mb-2"
@@ -568,6 +647,21 @@ function ProductCard({
           </div>
         )}
 
+        {/* URL badge — shown when product has source metadata */}
+        {!selected && product.source_url && (
+          <div
+            className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center"
+            style={{
+              background: "rgba(0,0,0,0.55)",
+              color: "#fff",
+              backdropFilter: "blur(4px)",
+            }}
+            title="Analysed from product URL"
+          >
+            <LinkIcon size={11} />
+          </div>
+        )}
+
         {/* Trash icon top-right on hover */}
         <button
           type="button"
@@ -795,6 +889,7 @@ function CreateProductModal({
   const [dragging, setDragging] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [isTraining, setIsTraining] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -824,6 +919,7 @@ function CreateProductModal({
       const formData = new FormData();
       formData.append("name", name.trim());
       if (category.trim()) formData.append("category", category.trim());
+      if (sourceUrl.trim()) formData.append("source_url", sourceUrl.trim());
       files.forEach((f) => formData.append("files", f));
       const res = await adsAPI.trainProduct(formData);
       const newId = res.data.product_id as string;
@@ -1043,6 +1139,45 @@ function CreateProductModal({
                 color: "var(--text-primary)",
               }}
             />
+          </div>
+
+          {/* Product URL — lets the AI analyse the full listing (AliExpress, Amazon…) */}
+          <div>
+            <label
+              className="text-[11px] font-semibold uppercase tracking-wider block mb-2 flex items-center gap-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <LinkIcon size={11} />
+              Product URL <span style={{ fontWeight: 400, textTransform: "none" }}>(optional, but recommended)</span>
+            </label>
+            <div className="relative">
+              <div
+                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <LinkIcon size={13} />
+              </div>
+              <input
+                type="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://www.aliexpress.com/item/..."
+                maxLength={2048}
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg text-[13px]"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+            <p
+              className="text-[11px] mt-1.5"
+              style={{ color: "var(--text-muted)", lineHeight: 1.45 }}
+            >
+              Paste the AliExpress, Amazon or Shopify link — the AI reads the page to learn
+              what the product does, giving it better scene ideas.
+            </p>
           </div>
 
           {/* Category */}

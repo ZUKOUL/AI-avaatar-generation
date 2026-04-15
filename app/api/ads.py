@@ -27,6 +27,7 @@ from app.core.pricing import COST_GEMINI_FLASH_IMAGE, CREDIT_COST_IMAGE
 from app.core.supabase import supabase
 from app.models.user import User
 from app.services.credit_service import deduct_credits, get_balance, is_admin
+from app.services.product_analyzer import analyze_product_url, format_product_context
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,10 @@ def _product_or_404(product_id: str, user_id: str) -> dict:
     """Fetch a product owned by `user_id` or raise 404."""
     res = (
         supabase.table("products")
-        .select("id, name, image_paths, user_id")
+        .select(
+            "id, name, image_paths, user_id, "
+            "description, features, category, price, source_url"
+        )
         .eq("id", product_id)
         .eq("user_id", user_id)
         .single()
@@ -139,6 +143,7 @@ async def train_product(
     current_user: Annotated[User, Depends(get_current_user)],
     name: str = Form(..., max_length=100, description="Product name"),
     category: str = Form("", max_length=60, description="Optional category"),
+    source_url: str = Form("", max_length=2048, description="Optional product URL (AliExpress, Amazon, …) — analysed for extra context"),
     files: List[UploadFile] = File(
         ...,
         description=f"{MIN_PRODUCT_IMAGES}–{MAX_PRODUCT_IMAGES} photos, different angles",
@@ -275,14 +280,39 @@ async def train_product(
         _rollback_paths(ref_paths)
         raise HTTPException(status_code=500, detail="Gemini returned empty response.")
 
-    # ── 3. Persist product row — thumbnail FIRST so it's the display image ──
+    # ── 3. Analyse the product URL (best-effort — never blocks training) ──
+    source_url_clean = (source_url or "").strip() or None
+    analysis: Optional[dict] = None
+    if source_url_clean:
+        try:
+            analysis = await analyze_product_url(source_url_clean)
+            if analysis:
+                logger.info(
+                    f"Extracted metadata for {product_id}: "
+                    f"category='{analysis.get('category')}', "
+                    f"features={len(analysis.get('features') or [])}"
+                )
+            else:
+                logger.info(f"No extractable metadata for {source_url_clean}")
+        except Exception as e:
+            logger.warning(f"Product URL analysis failed (ignored): {e}")
+
+    # ── 4. Persist product row — thumbnail FIRST so it's the display image ──
     category_clean = (category or "").strip() or None
+    # URL-extracted category wins only if the user didn't set one explicitly
+    if analysis and not category_clean and analysis.get("category"):
+        category_clean = analysis["category"]
+
     row = {
         "id": product_id,
         "user_id": current_user["id"],
         "name": name_clean,
         "category": category_clean,
         "image_paths": [thumbnail_path] + ref_paths,
+        "source_url": source_url_clean,
+        "description": (analysis or {}).get("description") or None,
+        "features": (analysis or {}).get("features") or [],
+        "price": (analysis or {}).get("price") or None,
     }
     try:
         supabase.table("products").insert(row).execute()
@@ -290,7 +320,7 @@ async def train_product(
         _rollback_paths([thumbnail_path] + ref_paths)
         raise HTTPException(status_code=500, detail=f"Failed to save product: {db_err}")
 
-    # ── 4. Deduct credits (admin bypass) ───────────────────────────────────
+    # ── 5. Deduct credits (admin bypass) ───────────────────────────────────
     if not is_admin(current_user):
         deduct_credits(
             current_user["id"],
@@ -308,6 +338,10 @@ async def train_product(
         "category": category_clean,
         "thumbnail": thumbnail_url,
         "reference_count": len(ref_paths),
+        "source_url": source_url_clean,
+        "description": row.get("description"),
+        "features": row.get("features") or [],
+        "price": row.get("price"),
         "cost_usd": COST_GEMINI_FLASH_IMAGE,
         "engine": "gemini-3-pro-image-preview",
     }
@@ -322,7 +356,10 @@ async def list_products(current_user: Annotated[User, Depends(get_current_user)]
     try:
         res = (
             supabase.table("products")
-            .select("id, name, category, image_paths, created_at")
+            .select(
+                "id, name, category, image_paths, created_at, "
+                "source_url, description, features, price"
+            )
             .eq("user_id", current_user["id"])
             .order("created_at", desc=True)
             .execute()
@@ -340,6 +377,10 @@ async def list_products(current_user: Annotated[User, Depends(get_current_user)]
                 "category": p.get("category"),
                 "thumbnail": thumb_url,
                 "created_at": p.get("created_at"),
+                "source_url": p.get("source_url"),
+                "description": p.get("description"),
+                "features": p.get("features") or [],
+                "price": p.get("price"),
             })
         return {"products": products}
     except Exception as e:
@@ -430,16 +471,29 @@ async def generate_ad(
     if not gemini_contents:
         raise HTTPException(status_code=500, detail="Failed to load product references from storage.")
 
-    # Build a fused prompt — identity lock first, then template + custom extras
+    # Build a fused prompt — identity lock first, then product context (if we
+    # extracted any from the source URL), then template + custom extras.
     tpl = TEMPLATES[template]
     extra = (custom_prompt or "").strip()
     extra_block = f" Additional direction: {extra}" if extra else ""
+
+    # Re-assemble the analysis dict from the DB columns so we can reuse the
+    # formatter that already handles empties gracefully.
+    product_analysis = {
+        "description": product.get("description"),
+        "features": product.get("features") or [],
+        "category": product.get("category"),
+    }
+    context_block = format_product_context(product["name"], product_analysis)
+    context_line = f" {context_block}" if context_block else ""
+
     identity_prompt = (
         "The reference images show a specific physical product. "
         "Generate a NEW photograph featuring THIS EXACT SAME PRODUCT. "
         "ABSOLUTE REQUIREMENT — the product must be identical: same exact shape, "
         "colour, materials, branding, logos, text, proportions. "
-        "Do NOT alter, redesign, or improve any detail of the product. "
+        "Do NOT alter, redesign, or improve any detail of the product."
+        f"{context_line} "
         f"Scene and style: {tpl['prompt']}{extra_block}"
     )
     gemini_contents.append(identity_prompt)
