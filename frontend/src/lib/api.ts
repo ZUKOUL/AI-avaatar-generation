@@ -164,6 +164,30 @@ export const adsAPI = {
   delete: (adId: string) => api.delete(`/ads/${adId}`),
 };
 
+// ── Auto-Clip (long-form URL → N vertical shorts) ──
+export const clipsAPI = {
+  /**
+   * Kick off a clipping job. Returns `{ job_id, status: "queued", ... }`.
+   * The caller polls `getJob(job_id)` until status is "completed" or "failed".
+   */
+  fromUrl: (formData: FormData) =>
+    api.post("/clips/from-url", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /** List recent clipping jobs for the current user (summary only). */
+  listJobs: (limit = 50) =>
+    api.get("/clips/jobs", { params: { limit } }),
+  /** Fetch a single job + every clip it has produced so far. */
+  getJob: (jobId: string) => api.get(`/clips/jobs/${jobId}`),
+  /** Remove a job + every clip (storage + DB rows). */
+  deleteJob: (jobId: string) => api.delete(`/clips/jobs/${jobId}`),
+  /** Flat feed across all jobs (for gallery views). */
+  listClips: (limit = 100) =>
+    api.get("/clips", { params: { limit } }),
+  /** Delete a single clip. */
+  deleteClip: (clipId: string) => api.delete(`/clips/${clipId}`),
+};
+
 // ── Video ──
 export const videoAPI = {
   animate: (formData: FormData) =>

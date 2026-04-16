@@ -22,4 +22,16 @@ class Settings:
     RESEND_API_KEY           = os.getenv("RESEND_API_KEY", "")
     FRONTEND_URL             = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+    # ─── Auto-Clip (Phase 1 video feature) ──────────────────────────────────
+    # Replicate powers Whisper transcription (and later Kling motion). The
+    # key may already be set because the avatar→video pipeline uses it;
+    # we just read it explicitly here so the clip service can fall back
+    # gracefully when it's missing.
+    REPLICATE_API_TOKEN      = os.getenv("REPLICATE_API_TOKEN", "")
+
+    # Sieve's `face-aware-reframe` (or equivalent) turns a 16:9 clip into a
+    # subject-tracked 9:16 short. Optional — if absent we fall back to a
+    # dumb centre-crop so the pipeline still works.
+    SIEVE_API_KEY            = os.getenv("SIEVE_API_KEY", "")
+
 settings = Settings()

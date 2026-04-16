@@ -11,6 +11,7 @@ from app.api.payments import router as payments_router
 from app.api.credits import router as credits_router
 from app.api.thumbnail import router as thumbnail_router
 from app.api.ads import router as ads_router
+from app.api.clips import router as clips_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -65,6 +66,12 @@ app.include_router(
     ads_router,
     prefix="/ads",
     tags=["Ads Generation"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    clips_router,
+    prefix="/clips",
+    tags=["Auto-Clip (URL → shorts)"],
     dependencies=[Depends(get_current_user)],
 )
 

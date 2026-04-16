@@ -20,6 +20,7 @@ import {
   MagicWand,
   PlaySquare,
   Megaphone,
+  Scissors,
 } from "@/components/Icons";
 
 type NavDef = {
@@ -39,6 +40,7 @@ const NAV_TOOLS: NavDef[] = [
   { href: "/dashboard/thumbnails", label: "Thumbnails", icon: PlaySquare },
   { href: "/dashboard/ads", label: "Ads", icon: Megaphone },
   { href: "/dashboard/videos", label: "Video Generator", icon: VideoCamera },
+  { href: "/dashboard/clips", label: "Auto-Clip", icon: Scissors },
 ];
 
 const NAV_ACCOUNT: NavDef[] = [

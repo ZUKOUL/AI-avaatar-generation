@@ -32,6 +32,16 @@ def get_video_cost(engine: str) -> float:
     return COST_VEO_VIDEO
 
 
+# ─── Auto-Clip: long-form URL → N vertical shorts ──────────────────────────
+# Underlying API costs per 10-minute source video (typical):
+#   Whisper large-v3 on Replicate    ≈ $0.04
+#   Gemini 2.5 Pro moment detection  ≈ $0.01
+#   Sieve face-aware reframe         ≈ $0.05 per output minute
+# → Per output clip of 30-60s: ~$0.10-$0.15 in API cost.
+# We bill by clip (not by source minute) because that's what the user sees.
+COST_AUTOCLIP_PER_CLIP = 0.15   # USD, rounded up for safety
+CREDIT_COST_AUTOCLIP = 8        # credits per output clip (~80% margin on Creator tier)
+
 # ─── Credit costs per generation type (optimised for margin) ───
 CREDIT_COST_IMAGE = 5         # credits per image generation       (~87 % margin on Creator)
 CREDIT_COST_VEO_VIDEO = 20    # credits per Veo video              (~80 % margin on Creator)
@@ -62,6 +72,7 @@ def get_credit_cost(generation_type: str) -> int:
         "veo": CREDIT_COST_VEO_VIDEO,
         "kling": CREDIT_COST_KLING_VIDEO,
         "kling_audio": CREDIT_COST_KLING_AUDIO,
+        "autoclip": CREDIT_COST_AUTOCLIP,
     }
     return costs.get(generation_type, 1)
 

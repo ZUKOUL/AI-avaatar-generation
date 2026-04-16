@@ -25,13 +25,20 @@ jobs:
           # with the real password). Store as a GitHub repo secret named
           # SUPABASE_DB_URL and it propagates to EC2 on every deploy.
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # Auto-Clip feature keys. Both are OPTIONAL — the pipeline falls
+          # back gracefully when they're absent (Whisper → Gemini audio
+          # fallback; Sieve face-tracked reframe → ffmpeg centre-crop).
+          # Set them in GitHub repo secrets when you're ready to switch on
+          # the premium path.
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          SIEVE_API_KEY: ${{ secrets.SIEVE_API_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GEMINI_API_KEY,YOUTUBE_API_KEY,SUPABASE_DB_URL
+          envs: GEMINI_API_KEY,YOUTUBE_API_KEY,SUPABASE_DB_URL,REPLICATE_API_TOKEN,SIEVE_API_KEY
           script: |
             echo "========================================="
             echo "🚀 Starting deployment..."
@@ -71,6 +78,27 @@ jobs:
                 sed -i "s|^SUPABASE_DB_URL=.*|SUPABASE_DB_URL=$SUPABASE_DB_URL|" .env
               else
                 echo "SUPABASE_DB_URL=$SUPABASE_DB_URL" >> .env
+              fi
+            fi
+
+            # Update REPLICATE_API_TOKEN in .env — used by Auto-Clip (Whisper)
+            # and the existing Kling video engine.
+            if [ -n "$REPLICATE_API_TOKEN" ]; then
+              echo "🔑 Updating REPLICATE_API_TOKEN..."
+              if [ -f .env ] && grep -q "^REPLICATE_API_TOKEN=" .env; then
+                sed -i "s|^REPLICATE_API_TOKEN=.*|REPLICATE_API_TOKEN=$REPLICATE_API_TOKEN|" .env
+              else
+                echo "REPLICATE_API_TOKEN=$REPLICATE_API_TOKEN" >> .env
+              fi
+            fi
+
+            # Update SIEVE_API_KEY in .env — enables face-aware 9:16 reframe.
+            if [ -n "$SIEVE_API_KEY" ]; then
+              echo "🔑 Updating SIEVE_API_KEY..."
+              if [ -f .env ] && grep -q "^SIEVE_API_KEY=" .env; then
+                sed -i "s|^SIEVE_API_KEY=.*|SIEVE_API_KEY=$SIEVE_API_KEY|" .env
+              else
+                echo "SIEVE_API_KEY=$SIEVE_API_KEY" >> .env
               fi
             fi
 
