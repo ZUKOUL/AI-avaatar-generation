@@ -1,0 +1,370 @@
+"""
+AI Video Generator orchestrator.
+
+Drives the full "phrase → rendered vertical video" pipeline. Called as a
+FastAPI BackgroundTask from `/ai-videos/generate`, writes progress to the
+`ai_video_jobs` and `ai_video_scenes` tables so the frontend can stream
+state in.
+
+Pipeline timing (typical 30s output):
+    scripting        (~2s)    Gemini 2.5 Pro
+    storyboarding    (~4s)    Gemini 2.5 Pro
+    rendering_images (~30s)   6× Gemini 3 Pro Image (parallel)
+    animating        slideshow mode: ~10s    (ffmpeg Ken Burns)
+                     motion mode:    ~120s   (6× Kling 2.1)
+    voicing          (~8s)    ElevenLabs TTS
+    assembling       (~5s)    ffmpeg concat + mux + subs
+    TOTAL            slideshow ≈ 60-70s       motion ≈ 2-3 min
+
+Design choices:
+    - Per-scene rows are inserted up-front in status=pending so the UI
+      can render skeleton tiles before any image is ready.
+    - Images are generated in PARALLEL (asyncio.gather) — that's where
+      most of the time savings come from. If one scene fails we keep
+      going; the scene gets marked failed, the rest still produce output.
+    - Animation (slideshow OR motion) is sequential for motion mode so we
+      don't burn a big burst of Replicate credits on a failing job. For
+      slideshow it's trivially fast so we also keep it sequential.
+    - Voice-over runs on the FULL script once, not per scene, because
+      TTS prosody across sentence boundaries is much better that way.
+    - Final subtitle burn happens AFTER voice is muxed so the subtitle
+      track aligns with the real audio.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import shutil
+import tempfile
+import traceback
+import uuid
+from typing import Any, Optional
+
+from app.core.supabase import supabase
+from app.services.ai_video_pipeline import (
+    Scene,
+    Script,
+    Storyboard,
+    animate_scene_motion,
+    animate_scene_slideshow,
+    assemble_video,
+    build_transcript_from_voice,
+    burn_final_subtitles,
+    generate_keyframe,
+    generate_script,
+    generate_storyboard,
+    generate_voiceover,
+)
+from app.services.video_pipeline import extract_thumbnail, upload_to_storage
+
+logger = logging.getLogger(__name__)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# DB helpers — thin wrappers so the status machine stays legible below.
+# ──────────────────────────────────────────────────────────────────────────
+
+def _mark_job(job_id: str, **fields) -> None:
+    if not fields:
+        return
+    try:
+        supabase.table("ai_video_jobs").update(fields).eq("id", job_id).execute()
+    except Exception as e:
+        logger.warning(f"ai_video_jobs update failed for {job_id}: {e}")
+
+
+def _mark_scene(scene_id: str, **fields) -> None:
+    if not fields:
+        return
+    try:
+        supabase.table("ai_video_scenes").update(fields).eq("id", scene_id).execute()
+    except Exception as e:
+        logger.warning(f"ai_video_scenes update failed for {scene_id}: {e}")
+
+
+def _fail_job(job_id: str, message: str) -> None:
+    logger.error(f"ai_video_job {job_id} failed: {message}")
+    _mark_job(job_id, status="failed", error_message=message[:1000], progress=100)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Public entry point
+# ──────────────────────────────────────────────────────────────────────────
+
+async def run_ai_video_job(job_id: str) -> None:
+    """
+    Run the full pipeline for a single ai_video_jobs row. Called as a
+    BackgroundTask from the /ai-videos/generate endpoint.
+
+    Never raises — swallows + persists its own errors.
+    """
+    try:
+        res = (
+            supabase.table("ai_video_jobs")
+            .select("*")
+            .eq("id", job_id)
+            .maybe_single()
+            .execute()
+        )
+    except Exception as e:
+        logger.error(f"Could not load ai_video_job {job_id}: {e}")
+        return
+    job = getattr(res, "data", None) if res else None
+    if not job:
+        logger.error(f"ai_video_job {job_id} not found — aborting pipeline")
+        return
+
+    prompt: str = job["prompt"]
+    mode: str = job.get("mode") or "slideshow"
+    duration_seconds: int = int(job.get("duration_seconds") or 30)
+    aspect_ratio: str = job.get("aspect_ratio") or "9:16"
+    language: str = job.get("language") or "auto"
+    tone: Optional[str] = job.get("tone")
+    voice_enabled: bool = bool(job.get("voice_enabled", True))
+    voice_id: Optional[str] = job.get("voice_id")
+    subtitle_style: str = job.get("subtitle_style") or "karaoke"
+    user_id: str = str(job["user_id"])
+
+    workdir = tempfile.mkdtemp(prefix=f"aivideo_{job_id[:8]}_")
+
+    try:
+        # ── Stage 1: script ─────────────────────────────────────────────
+        _mark_job(job_id, status="scripting", progress=5)
+        script = await generate_script(
+            prompt=prompt,
+            duration_seconds=duration_seconds,
+            language=language,
+            tone=tone,
+        )
+        _mark_job(
+            job_id,
+            script_text=script.full_text[:5000],
+            hook=script.hook[:300] if script.hook else None,
+            detected_lang=script.language,
+            progress=15,
+        )
+
+        # ── Stage 2: storyboard ────────────────────────────────────────
+        _mark_job(job_id, status="storyboarding", progress=20)
+        storyboard = await generate_storyboard(
+            script=script,
+            prompt=prompt,
+            total_seconds=duration_seconds,
+            aspect_ratio=aspect_ratio,
+        )
+        if not storyboard.scenes:
+            _fail_job(job_id, "Storyboard generation returned no scenes.")
+            return
+
+        # Persist per-scene rows so the UI can show skeleton tiles right away.
+        scene_rows = []
+        for s in storyboard.scenes:
+            scene_rows.append({
+                "job_id": job_id,
+                "user_id": user_id,
+                "scene_index": s.index,
+                "duration_seconds": round(s.duration_seconds, 2),
+                "image_prompt": s.image_prompt[:1500],
+                "motion_prompt": s.motion_prompt[:500] if s.motion_prompt else None,
+                "voiceover_text": s.voiceover_text[:1000] if s.voiceover_text else None,
+                "text_overlay": s.text_overlay[:60] if s.text_overlay else None,
+                "status": "pending",
+            })
+        try:
+            ins = supabase.table("ai_video_scenes").insert(scene_rows).execute()
+            inserted = ins.data or []
+        except Exception as e:
+            _fail_job(job_id, f"Could not persist storyboard scenes: {e}")
+            return
+        _mark_job(job_id, scene_count=len(inserted), progress=30)
+
+        # Map scene_index → row id so we can update per-scene status.
+        scene_id_by_index: dict[int, str] = {
+            int(r["scene_index"]): str(r["id"]) for r in inserted
+        }
+
+        # ── Stage 3: render keyframes (parallel) ───────────────────────
+        _mark_job(job_id, status="rendering_images", progress=35)
+        keyframe_paths: dict[int, str] = {}
+        image_uploads: dict[int, dict[str, str]] = {}
+
+        async def _render_one(scene: Scene) -> None:
+            sid = scene_id_by_index.get(scene.index)
+            if not sid:
+                return
+            _mark_scene(sid, status="rendering_image")
+            out = os.path.join(workdir, f"scene_{scene.index:02d}_{uuid.uuid4().hex[:6]}.png")
+            try:
+                await generate_keyframe(scene, aspect_ratio=aspect_ratio, out_path=out)
+            except Exception as e:
+                logger.warning(f"Scene {scene.index} keyframe failed: {e}")
+                _mark_scene(sid, status="failed", error_message=str(e)[:500])
+                return
+            keyframe_paths[scene.index] = out
+
+            # Upload the keyframe so the UI can preview it mid-job.
+            try:
+                remote_path = f"ai_videos/{user_id}/{job_id}/scene_{scene.index:02d}.png"
+                url = await asyncio.to_thread(
+                    upload_to_storage, out, remote_path, "image/png"
+                )
+                image_uploads[scene.index] = {"url": url, "path": remote_path}
+                _mark_scene(sid, image_url=url, image_path=remote_path)
+            except Exception as e:
+                # Upload failure isn't fatal — we can still assemble from local.
+                logger.warning(f"Scene {scene.index} image upload failed: {e}")
+
+        await asyncio.gather(*(_render_one(s) for s in storyboard.scenes))
+
+        # If EVERY scene's keyframe failed we have no way to produce output.
+        if not keyframe_paths:
+            _fail_job(job_id, "All keyframes failed to render.")
+            return
+
+        # ── Stage 4: animate each scene (slideshow or motion) ──────────
+        _mark_job(job_id, status="animating", progress=55)
+        clip_paths: dict[int, str] = {}
+        for scene in storyboard.scenes:
+            kf = keyframe_paths.get(scene.index)
+            if not kf:
+                continue   # scene's keyframe failed earlier
+            sid = scene_id_by_index.get(scene.index)
+            if sid:
+                _mark_scene(sid, status="animating")
+            clip_out = os.path.join(workdir, f"clip_{scene.index:02d}.mp4")
+            try:
+                if mode == "motion":
+                    await animate_scene_motion(
+                        keyframe_path=kf,
+                        motion_prompt=scene.motion_prompt or "subtle camera push-in",
+                        duration_seconds=scene.duration_seconds,
+                        out_path=clip_out,
+                    )
+                else:
+                    await asyncio.to_thread(
+                        animate_scene_slideshow,
+                        kf, scene.duration_seconds, clip_out, aspect_ratio,
+                    )
+            except Exception as e:
+                logger.warning(f"Scene {scene.index} animation failed: {e}")
+                if sid:
+                    _mark_scene(sid, status="failed", error_message=str(e)[:500])
+                continue
+
+            # Upload the animated clip if motion mode — saves render time on
+            # re-open and lets the UI show per-scene playback.
+            if mode == "motion":
+                try:
+                    remote_clip_path = f"ai_videos/{user_id}/{job_id}/clip_{scene.index:02d}.mp4"
+                    clip_url = await asyncio.to_thread(
+                        upload_to_storage, clip_out, remote_clip_path, "video/mp4"
+                    )
+                    if sid:
+                        _mark_scene(sid, clip_url=clip_url, clip_path=remote_clip_path, status="done")
+                except Exception as e:
+                    logger.warning(f"Scene {scene.index} clip upload failed: {e}")
+                    if sid:
+                        _mark_scene(sid, status="done")
+            else:
+                if sid:
+                    _mark_scene(sid, status="done")
+
+            clip_paths[scene.index] = clip_out
+
+        if not clip_paths:
+            _fail_job(job_id, "All scenes failed to animate.")
+            return
+
+        # Order clips by scene_index so the concat is in sequence.
+        ordered_clips = [clip_paths[i] for i in sorted(clip_paths.keys())]
+
+        # ── Stage 5: voice-over (optional) ─────────────────────────────
+        voice_path: Optional[str] = None
+        if voice_enabled and script.full_text.strip():
+            _mark_job(job_id, status="voicing", progress=75)
+            voice_out = os.path.join(workdir, "voice.mp3")
+            voice_path = await generate_voiceover(
+                script_text=script.full_text,
+                out_path=voice_out,
+                voice_id=voice_id,
+                language=script.language,
+            )
+            if voice_path is None:
+                # Soft failure — continue with silent video.
+                logger.info(f"Job {job_id} — no voice-over (key missing or TTS failed), continuing silent.")
+
+        # ── Stage 6: assemble ─────────────────────────────────────────
+        _mark_job(job_id, status="assembling", progress=85)
+        assembled_path = os.path.join(workdir, "assembled.mp4")
+        try:
+            await asyncio.to_thread(
+                assemble_video,
+                ordered_clips, voice_path, assembled_path,
+            )
+        except Exception as e:
+            _fail_job(job_id, f"Final assembly failed: {e}")
+            return
+
+        # Subtitles (optional) --------------------------------------------------
+        final_path = assembled_path
+        if subtitle_style != "off":
+            try:
+                transcript = await build_transcript_from_voice(
+                    voice_path or "", script.full_text
+                )
+                subbed_path = os.path.join(workdir, "subbed.mp4")
+                await asyncio.to_thread(
+                    burn_final_subtitles,
+                    assembled_path, transcript,
+                    storyboard.total_duration,
+                    subbed_path,
+                    subtitle_style,
+                )
+                final_path = subbed_path
+            except Exception as e:
+                # Subtitle burn is best-effort — keep the video.
+                logger.warning(f"Subtitle burn failed, shipping without: {e}")
+
+        # Thumbnail ------------------------------------------------------------
+        thumb_path = os.path.join(workdir, "thumb.jpg")
+        try:
+            await asyncio.to_thread(extract_thumbnail, final_path, thumb_path, 0.5)
+        except Exception as e:
+            logger.warning(f"Thumbnail extraction failed: {e}")
+            thumb_path = ""
+
+        # ── Stage 7: upload final ─────────────────────────────────────
+        _mark_job(job_id, progress=95)
+        video_remote = f"ai_videos/{user_id}/{job_id}/final.mp4"
+        video_url = await asyncio.to_thread(
+            upload_to_storage, final_path, video_remote, "video/mp4"
+        )
+        thumb_url: Optional[str] = None
+        thumb_remote: Optional[str] = None
+        if thumb_path and os.path.isfile(thumb_path):
+            thumb_remote = f"ai_videos/{user_id}/{job_id}/thumb.jpg"
+            thumb_url = await asyncio.to_thread(
+                upload_to_storage, thumb_path, thumb_remote, "image/jpeg"
+            )
+
+        _mark_job(
+            job_id,
+            status="completed",
+            progress=100,
+            video_url=video_url,
+            storage_path=video_remote,
+            thumbnail_url=thumb_url,
+            thumbnail_path=thumb_remote,
+            error_message=None,
+        )
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error(f"ai_video_job {job_id} crashed:\n{tb}")
+        _fail_job(job_id, f"{type(e).__name__}: {e}")
+    finally:
+        try:
+            shutil.rmtree(workdir, ignore_errors=True)
+        except Exception:
+            pass

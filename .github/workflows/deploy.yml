@@ -32,13 +32,18 @@ jobs:
           # the premium path.
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           SIEVE_API_KEY: ${{ secrets.SIEVE_API_KEY }}
+          # AI Video Generator (Phase 2). ElevenLabs powers the TTS voice-over
+          # step — OPTIONAL. When missing the pipeline simply produces a
+          # silent video (user can still opt-out via the form).
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_DEFAULT_VOICE: ${{ secrets.ELEVENLABS_DEFAULT_VOICE }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GEMINI_API_KEY,YOUTUBE_API_KEY,SUPABASE_DB_URL,REPLICATE_API_TOKEN,SIEVE_API_KEY
+          envs: GEMINI_API_KEY,YOUTUBE_API_KEY,SUPABASE_DB_URL,REPLICATE_API_TOKEN,SIEVE_API_KEY,ELEVENLABS_API_KEY,ELEVENLABS_DEFAULT_VOICE
           script: |
             echo "========================================="
             echo "🚀 Starting deployment..."
@@ -99,6 +104,26 @@ jobs:
                 sed -i "s|^SIEVE_API_KEY=.*|SIEVE_API_KEY=$SIEVE_API_KEY|" .env
               else
                 echo "SIEVE_API_KEY=$SIEVE_API_KEY" >> .env
+              fi
+            fi
+
+            # Update ELEVENLABS_API_KEY in .env — enables AI-video voice-over.
+            if [ -n "$ELEVENLABS_API_KEY" ]; then
+              echo "🔑 Updating ELEVENLABS_API_KEY..."
+              if [ -f .env ] && grep -q "^ELEVENLABS_API_KEY=" .env; then
+                sed -i "s|^ELEVENLABS_API_KEY=.*|ELEVENLABS_API_KEY=$ELEVENLABS_API_KEY|" .env
+              else
+                echo "ELEVENLABS_API_KEY=$ELEVENLABS_API_KEY" >> .env
+              fi
+            fi
+
+            # Update ELEVENLABS_DEFAULT_VOICE in .env — overrides the default voice id.
+            if [ -n "$ELEVENLABS_DEFAULT_VOICE" ]; then
+              echo "🔑 Updating ELEVENLABS_DEFAULT_VOICE..."
+              if [ -f .env ] && grep -q "^ELEVENLABS_DEFAULT_VOICE=" .env; then
+                sed -i "s|^ELEVENLABS_DEFAULT_VOICE=.*|ELEVENLABS_DEFAULT_VOICE=$ELEVENLABS_DEFAULT_VOICE|" .env
+              else
+                echo "ELEVENLABS_DEFAULT_VOICE=$ELEVENLABS_DEFAULT_VOICE" >> .env
               fi
             fi
 

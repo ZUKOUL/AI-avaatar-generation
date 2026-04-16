@@ -164,6 +164,35 @@ export const adsAPI = {
   delete: (adId: string) => api.delete(`/ads/${adId}`),
 };
 
+// ── AI Video Generator (phrase → rendered vertical short) ──
+export const aiVideosAPI = {
+  /**
+   * Kick off a generation job. FormData fields:
+   *   prompt              (string, required)
+   *   mode                'slideshow' | 'motion'       (default: slideshow)
+   *   duration_seconds    10..90                       (default: 30)
+   *   aspect_ratio        '9:16' | '1:1' | '16:9' | '4:5'
+   *   language            'auto' | ISO-639-1           (default: auto)
+   *   tone                optional free-text
+   *   voice_enabled       'true' | 'false'             (default: true)
+   *   voice_id            optional ElevenLabs voice id
+   *   subtitle_style      'karaoke' | 'block' | 'off'  (default: karaoke)
+   */
+  generate: (formData: FormData) =>
+    api.post("/ai-videos/generate", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /** Summary list of the user's AI video jobs. */
+  list: (limit = 50) =>
+    api.get("/ai-videos", { params: { limit } }),
+  /** Job + per-scene details (use this for the detail view / polling). */
+  getJob: (jobId: string) => api.get(`/ai-videos/jobs/${jobId}`),
+  /** Remove job + scenes + storage. */
+  deleteJob: (jobId: string) => api.delete(`/ai-videos/jobs/${jobId}`),
+  /** Available ElevenLabs voices (for the voice picker). */
+  voices: () => api.get("/ai-videos/voices"),
+};
+
 // ── Auto-Clip (long-form URL → N vertical shorts) ──
 export const clipsAPI = {
   /**

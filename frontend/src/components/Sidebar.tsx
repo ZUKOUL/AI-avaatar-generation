@@ -21,6 +21,7 @@ import {
   PlaySquare,
   Megaphone,
   Scissors,
+  SparkleIcon,
 } from "@/components/Icons";
 
 type NavDef = {
@@ -41,6 +42,7 @@ const NAV_TOOLS: NavDef[] = [
   { href: "/dashboard/ads", label: "Ads", icon: Megaphone },
   { href: "/dashboard/videos", label: "Video Generator", icon: VideoCamera },
   { href: "/dashboard/clips", label: "Auto-Clip", icon: Scissors },
+  { href: "/dashboard/ai-videos", label: "AI Video", icon: SparkleIcon },
 ];
 
 const NAV_ACCOUNT: NavDef[] = [

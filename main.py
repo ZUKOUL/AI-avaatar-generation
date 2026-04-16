@@ -12,6 +12,7 @@ from app.api.credits import router as credits_router
 from app.api.thumbnail import router as thumbnail_router
 from app.api.ads import router as ads_router
 from app.api.clips import router as clips_router
+from app.api.ai_videos import router as ai_videos_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -72,6 +73,12 @@ app.include_router(
     clips_router,
     prefix="/clips",
     tags=["Auto-Clip (URL → shorts)"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    ai_videos_router,
+    prefix="/ai-videos",
+    tags=["AI Video Generator (phrase → short)"],
     dependencies=[Depends(get_current_user)],
 )
 

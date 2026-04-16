@@ -34,4 +34,13 @@ class Settings:
     # dumb centre-crop so the pipeline still works.
     SIEVE_API_KEY            = os.getenv("SIEVE_API_KEY", "")
 
+    # ─── AI Video Generator (Phase 2) ───────────────────────────────────────
+    # ElevenLabs powers the voice-over step. Optional — when the key is
+    # absent the pipeline simply produces a silent video (user can still
+    # disable voice manually too via the form).
+    ELEVENLABS_API_KEY       = os.getenv("ELEVENLABS_API_KEY", "")
+    # Default multilingual voice id used when the user doesn't pick one.
+    # "Rachel" is the ElevenLabs stock voice that handles en/fr/es/de well.
+    ELEVENLABS_DEFAULT_VOICE = os.getenv("ELEVENLABS_DEFAULT_VOICE", "21m00Tcm4TlvDq8ikWAM")
+
 settings = Settings()

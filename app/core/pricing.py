@@ -42,6 +42,55 @@ def get_video_cost(engine: str) -> float:
 COST_AUTOCLIP_PER_CLIP = 0.15   # USD, rounded up for safety
 CREDIT_COST_AUTOCLIP = 8        # credits per output clip (~80% margin on Creator tier)
 
+# ─── AI Video Generator: phrase → fully-rendered short ────────────────────
+# Two output modes with very different cost profiles — user picks in UI.
+#
+# SLIDESHOW MODE (Ken Burns pan/zoom — no image-to-video call)
+#   6 × Gemini 3 Pro Image    ≈ $0.80
+#   1 × ElevenLabs TTS 30s    ≈ $0.10
+#   1 × Gemini 2.5 Pro script ≈ $0.01
+#   ffmpeg compute            ≈ $0.00
+#   → ~$0.95 per 30s video. Price aggressively — slideshow is the
+#     accessible tier.
+#
+# MOTION MODE (Kling 2.1 image→video per scene)
+#   6 × Kling 2.1 @5s = $0.70 = $4.20
+#   + everything above        ≈ $0.95
+#   → ~$5.15 per 30s video.
+#   60s version doubles the image-to-video cost → ~$10.
+COST_AI_VIDEO_SLIDESHOW_30S = 1.00   # USD worst-case
+COST_AI_VIDEO_MOTION_30S    = 5.50   # USD worst-case
+COST_AI_VIDEO_MOTION_60S    = 10.50  # USD worst-case (2× animations)
+
+# Credits (1 credit ≈ $0.10 list price on Creator tier).
+CREDIT_COST_AI_VIDEO_SLIDESHOW_30S = 20   # ~$2 user price, 2× margin
+CREDIT_COST_AI_VIDEO_SLIDESHOW_60S = 30   # ~$3 user price
+CREDIT_COST_AI_VIDEO_MOTION_30S    = 40   # ~$4 user price, ~72% margin
+CREDIT_COST_AI_VIDEO_MOTION_60S    = 75   # ~$7.50 user price
+
+
+def get_ai_video_credit_cost(mode: str, duration_seconds: int) -> int:
+    """Credit price for an AI-video generation job.
+
+    Prices are tiered by (mode, duration). We round the duration UP to the
+    nearest tier (≤30s, >30s) so the user is never surprised by a charge
+    that's higher than what they saw when picking their duration.
+    """
+    long_form = duration_seconds > 30
+    if mode == "motion":
+        return CREDIT_COST_AI_VIDEO_MOTION_60S if long_form else CREDIT_COST_AI_VIDEO_MOTION_30S
+    # default: slideshow
+    return CREDIT_COST_AI_VIDEO_SLIDESHOW_60S if long_form else CREDIT_COST_AI_VIDEO_SLIDESHOW_30S
+
+
+def get_ai_video_cost_usd(mode: str, duration_seconds: int) -> float:
+    """Worst-case API spend for an AI-video generation job. Used in logs
+    + displayed to the user as 'estimated_cost_usd' for transparency."""
+    long_form = duration_seconds > 30
+    if mode == "motion":
+        return COST_AI_VIDEO_MOTION_60S if long_form else COST_AI_VIDEO_MOTION_30S
+    return COST_AI_VIDEO_SLIDESHOW_30S if not long_form else round(COST_AI_VIDEO_SLIDESHOW_30S * 1.8, 2)
+
 # ─── Credit costs per generation type (optimised for margin) ───
 CREDIT_COST_IMAGE = 5         # credits per image generation       (~87 % margin on Creator)
 CREDIT_COST_VEO_VIDEO = 20    # credits per Veo video              (~80 % margin on Creator)
@@ -66,13 +115,22 @@ DEFAULT_TIER = "creator"
 
 
 def get_credit_cost(generation_type: str) -> int:
-    """Return the credit cost for a generation type."""
+    """Return the credit cost for a generation type.
+
+    AI-video credit cost depends on both mode + duration so callers should
+    prefer `get_ai_video_credit_cost(mode, duration_seconds)` — the
+    "ai_video_slideshow" / "ai_video_motion" entries below are only used
+    for simple lookups where the duration isn't known (logging, admin
+    reports, etc.) and assume the cheaper ≤30s tier.
+    """
     costs = {
         "image": CREDIT_COST_IMAGE,
         "veo": CREDIT_COST_VEO_VIDEO,
         "kling": CREDIT_COST_KLING_VIDEO,
         "kling_audio": CREDIT_COST_KLING_AUDIO,
         "autoclip": CREDIT_COST_AUTOCLIP,
+        "ai_video_slideshow": CREDIT_COST_AI_VIDEO_SLIDESHOW_30S,
+        "ai_video_motion": CREDIT_COST_AI_VIDEO_MOTION_30S,
     }
     return costs.get(generation_type, 1)
 
