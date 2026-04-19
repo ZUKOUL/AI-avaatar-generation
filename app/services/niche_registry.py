@@ -93,6 +93,19 @@ class Niche:
     recommended_hashtags: list[str] = field(default_factory=list)
     caption_template: str = ""   # optional templated caption, {topic} substituted
 
+    # Reference images for direct visual conditioning -----------------------
+    # TEXT PROMPTS ALONE ARE NOT ENOUGH to lock a niche's look. Observed
+    # failure: Gemini 3 Pro Image renders "matte white stylised figure"
+    # as a marble/stone statue when the video topic is philosophical,
+    # regardless of how much we say "NOT stone" in the prompt. One
+    # actual reference image is worth ~2000 words of style description.
+    #
+    # Each entry is either:
+    #   - a repo-relative path, e.g. "app/services/niche_assets/claymation_3d/ref_01.png"
+    #   - OR an absolute URL (https://…)
+    # The pipeline resolves + fetches at render time.
+    reference_image_sources: list[str] = field(default_factory=list)
+
     # UI --------------------------------------------------------------------
     # Pure-CSS card background so we don't need to host thumbnails yet.
     # The frontend applies this as `style={{ background: gradient_css }}`.
@@ -311,33 +324,51 @@ _register(Niche(
     default_voice_id=None,          # let the user pick their FR voice
 
     # ── THE VISUAL SIGNATURE ───────────────────────────────────────────
-    # Appended verbatim to EVERY keyframe prompt so characters, palette,
-    # lighting and materials stay locked across the 6-12 scenes of a
-    # single video (and across DIFFERENT videos of the same niche — this
-    # is what makes a channel look like a channel).
+    # Appended to EVERY keyframe prompt. But text alone is NOT enough —
+    # observed failure: Gemini 3 Pro Image rendered "matte white
+    # stylized figure" as marble / stone busts when the topic was
+    # philosophical, no matter how the prompt was worded. The fix is to
+    # also pass REFERENCE IMAGES (see reference_image_sources below)
+    # which the model conditions on directly. Images > 2000 words of
+    # prose every time.
     #
-    # We are exhaustive here by design: the more specific the STYLE
-    # SUFFIX, the less the model drifts into "generic 3D render".
+    # The text below is written with EXPLICIT NEGATIVES so the model
+    # has a hard line not to cross even without the image conditioning.
     visual_style=(
-        "STYLE: Cinematic 3D minimalist animation in the style of claymation. "
-        "Characters: matte white stylized humanoid figures with perfectly "
-        "smooth featureless skin (no pores, no wrinkles, no textures), "
-        "rounded Pixar-minimalist proportions. Male characters have no hair, "
-        "completely bald head; female characters have a single high ponytail. "
-        "Faces have only simplified minimal features (small eyes, a hint of "
-        "a mouth). No clothing branding, no logos, no visible text anywhere "
-        "in frame. Environment: clean minimalist sets (empty rooms, abstract "
-        "voids, single furniture pieces, simple geometric architecture), "
-        "never cluttered. Palette: STRICT monochrome — charcoal grey, deep "
-        "obsidian black, and muted midnight blue ONLY. Occasional single "
-        "accent of soft warm amber or translucent cyan light for emphasis. "
-        "Lighting: soft volumetric studio lighting, single key light with "
-        "long gentle shadows, high contrast between figure and background. "
-        "Materials: matte surfaces throughout — no shine, no glossy reflections "
-        "except maybe a single glowing object used as a symbolic motif. "
-        "Rendering: 4K cinematic 3D, painterly depth of field, subtle ambient "
-        "occlusion. Framing: vertical 9:16 composition, figures often centred "
-        "or off-centre against negative space to feel symbolic and lonely."
+        "STYLE — THIS IS A CARTOON CHARACTER, NOT A SCULPTURE. "
+        "Match the reference image(s) EXACTLY (if provided). "
+        "3D minimalist claymation animation, like a Pixar / Tim Burton "
+        "short film.\n\n"
+        "CHARACTERS: soft rounded WHITE plastic-like figures, smooth "
+        "rubbery clay-animation skin, simplified minimal faces (small "
+        "oval eyes, a tiny mouth line, nothing else). Male characters "
+        "are COMPLETELY BALD. Female characters have a single high "
+        "pony-tail and nothing else. Rounded cartoon limbs.\n\n"
+        "MATERIAL: matte painted plastic / rubber / Play-Doh. Subtle "
+        "soft subsurface-scattering like a vinyl figurine. "
+        "STRICTLY FORBIDDEN materials: stone, marble, concrete, bronze, "
+        "rust, weathered / aged surfaces, cracked textures, carved-"
+        "sculpture faces. This is NEVER a statue, NEVER a bust, NEVER "
+        "an art piece — it is a CARTOON 3D CHARACTER.\n\n"
+        "ENVIRONMENT: clean minimalist 3D studio sets — empty rooms, "
+        "single arches / doorways, abstract voids, simple geometric "
+        "architecture. Never cluttered, never photorealistic. Forbidden: "
+        "ancient ruins, cathedrals, landscape photography, nature "
+        "scenes with film grain.\n\n"
+        "PALETTE: strict monochrome — charcoal grey + deep obsidian "
+        "black + muted midnight blue ONLY. Occasional SINGLE soft "
+        "accent of amber or translucent cyan light for one emotional "
+        "beat. Forbidden: warm golden-hour lighting covering the frame, "
+        "sepia tones, bronze coverage, full-scene amber wash.\n\n"
+        "LIGHTING: soft volumetric studio lighting like a product "
+        "photoshoot. Single key light from the side, long gentle "
+        "shadows, high contrast between the white figure and the dark "
+        "background. NO film grain, NO lens flare, NO photographic "
+        "artefacts — clean 3D render.\n\n"
+        "RENDERING: Cinema 4D / Octane / Blender Cycles cartoon-3D "
+        "aesthetic. NOT photorealistic. NOT 35mm film. Vertical 9:16 "
+        "composition, figures centred or off-centre against negative "
+        "space."
     ),
 
     # ── NARRATOR VOICE + STRUCTURE (topic-agnostic) ───────────────────
@@ -444,6 +475,15 @@ _register(Niche(
         "#psychologie #santémentale #emotions #introspection "
         "#developpementpersonnel #reflexion"
     ),
+
+    # Reference image(s) passed directly to Gemini 3 Pro Image as
+    # multimodal conditioning. This is what actually locks the cartoon
+    # claymation look — the text prompt alone is not reliable.
+    # See app/services/niche_assets/claymation_3d/README.md for how to
+    # add or swap reference images.
+    reference_image_sources=[
+        "app/services/niche_assets/claymation_3d/ref_01.png",
+    ],
 
     # Card gradient matches the claymation palette (charcoal → obsidian →
     # midnight blue), not a warm golden look.

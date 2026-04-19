@@ -57,6 +57,7 @@ from app.services.ai_video_pipeline import (
     generate_storyboard,
     generate_voiceover,
 )
+from app.services.niche_registry import get_niche
 from app.services.video_pipeline import extract_thumbnail, upload_to_storage
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,17 @@ async def run_ai_video_job(job_id: str) -> None:
     style_instructions: Optional[str] = job.get("style_instructions")
     visual_style: Optional[str] = job.get("visual_style")
 
+    # Resolve the niche's reference image list at runtime (not
+    # snapshotted on the job row — references are stable per niche and
+    # kept light). These directly condition Gemini 3 Pro Image so
+    # character design stays locked to the channel's aesthetic — this is
+    # what fixes the "stone statue instead of claymation character"
+    # drift. Missing / misconfigured references fall back to text-only
+    # conditioning with a warning.
+    niche_slug_from_job: Optional[str] = job.get("niche_slug")
+    niche = get_niche(niche_slug_from_job) if niche_slug_from_job else None
+    reference_image_sources = list(niche.reference_image_sources) if niche else []
+
     workdir = tempfile.mkdtemp(prefix=f"aivideo_{job_id[:8]}_")
 
     try:
@@ -207,7 +219,12 @@ async def run_ai_video_job(job_id: str) -> None:
             _mark_scene(sid, status="rendering_image")
             out = os.path.join(workdir, f"scene_{scene.index:02d}_{uuid.uuid4().hex[:6]}.png")
             try:
-                await generate_keyframe(scene, aspect_ratio=aspect_ratio, out_path=out)
+                await generate_keyframe(
+                    scene,
+                    aspect_ratio=aspect_ratio,
+                    out_path=out,
+                    reference_image_sources=reference_image_sources,
+                )
             except Exception as e:
                 logger.warning(f"Scene {scene.index} keyframe failed: {e}")
                 _mark_scene(sid, status="failed", error_message=str(e)[:500])

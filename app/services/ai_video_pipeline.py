@@ -451,6 +451,52 @@ def _stub_storyboard(
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# Reference-image loader — resolves a niche's reference sources (repo
+# paths OR remote URLs) to raw bytes. Never raises: a missing / broken
+# reference falls back to text-only conditioning (with a logged warning)
+# so a config mistake can't crash the whole pipeline.
+# ──────────────────────────────────────────────────────────────────────────
+
+async def _load_reference_image(source: str) -> Optional[bytes]:
+    """Return the raw image bytes for a reference source, or None if
+    unreachable.
+
+    Supports two source formats:
+      * Absolute URL (http / https) — fetched with httpx
+      * Anything else — treated as a repo-relative path, resolved
+        against the project root (two levels up from this file)
+    """
+    if not source:
+        return None
+    try:
+        if source.startswith(("http://", "https://")):
+            import httpx as _httpx
+            async with _httpx.AsyncClient(timeout=_httpx.Timeout(30.0, connect=5.0)) as client:
+                r = await client.get(source)
+                r.raise_for_status()
+                return r.content
+
+        # Repo-relative path. This file lives at
+        # app/services/ai_video_pipeline.py — the project root is two
+        # directories up.
+        here = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.dirname(os.path.dirname(here))
+        full_path = os.path.normpath(os.path.join(repo_root, source))
+        if not os.path.isfile(full_path):
+            logger.warning(
+                f"Reference image not found: {source} "
+                f"(resolved to {full_path}). "
+                f"Falling back to text-only conditioning."
+            )
+            return None
+        with open(full_path, "rb") as fh:
+            return fh.read()
+    except Exception as e:
+        logger.warning(f"Failed to load reference image {source}: {e}")
+        return None
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Stage 3 — generate a keyframe image for a scene (Gemini 3 Pro Image)
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -458,10 +504,18 @@ async def generate_keyframe(
     scene: Scene,
     aspect_ratio: str = "9:16",
     out_path: str = "",
+    reference_image_sources: Optional[list[str]] = None,
 ) -> str:
     """
     Call Gemini 3 Pro Image (Nano Banana Pro) for this scene's keyframe.
     Writes the PNG bytes to `out_path` and returns that path.
+
+    `reference_image_sources` is a list of repo-relative paths or
+    absolute URLs pointing to images that DIRECTLY condition the output
+    style. When present, those images are passed as multimodal input
+    BEFORE the scene text — Gemini weighs early inputs heavily for
+    style transfer. This is how we prevent the "stone statue instead of
+    claymation figure" drift that plagues text-only conditioning.
 
     Raises RuntimeError on terminal failure so the orchestrator can mark
     the scene as failed without aborting the whole job.
@@ -476,7 +530,41 @@ async def generate_keyframe(
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-    contents = [scene.image_prompt]
+    # ── Build the multimodal contents list ───────────────────────────
+    # Order matters: reference images FIRST, then the directive that
+    # tells the model to match them, then the scene-specific prompt.
+    contents: list = []
+
+    loaded_refs = 0
+    for src in (reference_image_sources or []):
+        img_bytes = await _load_reference_image(src)
+        if not img_bytes:
+            continue
+        mime_type = "image/jpeg" if src.lower().endswith((".jpg", ".jpeg")) else "image/png"
+        try:
+            contents.append(types.Part.from_bytes(data=img_bytes, mime_type=mime_type))
+            loaded_refs += 1
+        except Exception as e:
+            logger.warning(f"Failed to attach reference image {src}: {e}")
+
+    if loaded_refs > 0:
+        contents.append(
+            "STYLE CONDITIONING — MANDATORY:\n"
+            "Generate the new scene described below in the EXACT visual "
+            "style of the reference image(s) above. Match:\n"
+            "  • character design (same body proportions, same skin "
+            "material, same face simplification, same hair rules)\n"
+            "  • palette (same monochrome colour range)\n"
+            "  • lighting (same soft volumetric studio look)\n"
+            "  • rendering style (same 3D-animation quality, NOT "
+            "photo-realistic, NOT sculptural)\n\n"
+            "The SCENE / POSE / COMPOSITION changes per request but the "
+            "CHARACTERS and STYLE stay identical across all outputs. "
+            "This is the channel's signature — never deviate from it.\n"
+        )
+
+    contents.append(scene.image_prompt)
+
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
