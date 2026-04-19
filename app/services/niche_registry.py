@@ -257,54 +257,51 @@ def list_niches() -> list[Niche]:
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# @humain.penseur — French pop-psychology introspection channel
+# Claymation 3D — minimalist matte-white-characters aesthetic
 # ──────────────────────────────────────────────────────────────────────────
 #
-# Reference analysis (from actual video titles observed 2025-2026):
-#   • "La procrastination nocturne en psychologie"
-#   • "Le TDAH et la psychologie : Comprendre les distractions"
-#   • "La malédiction du savoir : Pourquoi en psychologie certaines
-#      personnes, malgré une grande intelligence émotionnelle, se sentent-
-#      elles plus seules… comme si voir trop clair dans les autres
-#      finissait par isoler ?"
-#   • "La dissonance cognitive comportementale : Pourquoi certaines
-#      personnes comprennent-elles parfaitement ce qui les détruit… mais
-#      n'arrivent toujours pas à s'en libérer."
-#   • "L'évitement émotionnel : pourquoi certaines personnes rêvent-elles
-#      de tout quitter… non pas pour fuir les autres, mais pour enfin
-#      échapper à ce qu'elles ressentent ?"
+# WHAT THIS NICHE IS
+# ------------------
+# This is a VISUAL niche, not a topic niche. The signature is the
+# cinematic 3D claymation look popularised by accounts like
+# @humain.penseur — matte white stylized humanoid figures, smooth
+# featureless skin, monochrome charcoal / obsidian / midnight-blue
+# palette, soft volumetric studio lighting. The SUBJECT the video
+# covers is intentionally free:
+#     - psychology / emotional patterns (the @humain.penseur playbook)
+#     - masculine / feminine energy
+#     - relationships, attachment, break-ups
+#     - modern life tensions
+#     - stoic / philosophical reflections
+#     - anything else that benefits from a slow, cinematic, thought-
+#       provoking register
 #
-# Identified pattern:
-#   1. HEADLINE FORMAT — "[Clinical concept] : Pourquoi certaines personnes
-#      [relatable behaviour]… [twist that reveals the hidden tension]?"
-#   2. TOPIC SPACE — cognitive / behavioural psychology framed as
-#      relatable life patterns (NOT classical philosophy quotations).
-#      Dissonance, evitement, attachement, rumination, self-sabotage,
-#      TDAH, intelligence émotionnelle, solitude du haut potentiel, etc.
-#   3. VOCABULARY — uses real psychology terms but explains them through
-#      concrete emotional experiences, not textbook definitions.
-#   4. TONE — soft, non-judgmental, revelatory. The viewer should feel
-#      "wow, I do that" rather than "I'm being lectured."
-#   5. HOOK — the concept name is stated first, then a "Pourquoi certaines
-#      personnes..." question dangles the twist for 2-3 seconds before
-#      the payoff.
-#   6. CLOSE — a line that lands the insight, often reframing the pattern
-#      as something the viewer can finally name (not solve).
-#   7. HASHTAG SET — #psychologie #santémentale #emotions
+# The LLM is instructed to match the mood + pacing (deep narrator,
+# short punchy sentences, provocative hook, reflective close) regardless
+# of the specific topic the user supplies.
 #
-# Visual style is educated inference: cinematic introspective b-roll
-# (silhouettes, windows at dusk, lone figures, abstract emotional imagery,
-# no faces so viewers project themselves into the scenes).
+# Reference visual prompt pattern (Style Base, locked on every scene):
+#   "Cinematic 3D minimalist animation, claymation aesthetic, matte
+#    white stylized humanoid characters with no hair (except female
+#    with ponytail), smooth featureless skin, monochrome palette:
+#    charcoal grey, deep obsidian, and muted midnight blue. Soft
+#    volumetric studio lighting, high contrast, 4K, 9:16 vertical."
+#
+# Reference channel for TONE + topic inspiration: @humain.penseur.
 
 _register(Niche(
-    slug="humain_penseur",
-    name="Humain Penseur",
+    slug="claymation_3d",
+    name="Claymation 3D",
     handle="@humain.penseur",
-    description="Psychologie introspective — concepts cliniques en questions qui nous touchent",
-    tagline="Psycho · Émotions · FR",
+    description=(
+        "Personnages 3D blancs, style claymation minimaliste. "
+        "Palette charcoal + obsidian + midnight blue. "
+        "Fonctionne pour psycho, masculinité, relations, réflexions…"
+    ),
+    tagline="Claymation 3D · Cinematic",
 
     language="fr",
-    tone="introspective, soft-spoken, pattern-revealing, non-judgmental",
+    tone="introspective, deep, slow-paced, reflective",
 
     default_duration_seconds=60,
     default_mode="slideshow",      # Ken Burns fits the contemplative pacing
@@ -313,130 +310,147 @@ _register(Niche(
     default_voice_enabled=True,
     default_voice_id=None,          # let the user pick their FR voice
 
-    # Appended to every scene's image_prompt — this is what makes the
-    # images visually belong to the same channel. The key is anonymity
-    # (no identifiable faces, no branding) so viewers project themselves
-    # into the scenes.
+    # ── THE VISUAL SIGNATURE ───────────────────────────────────────────
+    # Appended verbatim to EVERY keyframe prompt so characters, palette,
+    # lighting and materials stay locked across the 6-12 scenes of a
+    # single video (and across DIFFERENT videos of the same niche — this
+    # is what makes a channel look like a channel).
+    #
+    # We are exhaustive here by design: the more specific the STYLE
+    # SUFFIX, the less the model drifts into "generic 3D render".
     visual_style=(
-        "Cinematic 35mm film still, introspective mood, soft cold-to-warm "
-        "gradient lighting (deep teal shadow + amber highlight), shallow "
-        "depth of field, subtle film grain, muted desaturated palette. "
-        "Favour: lone silhouettes seen from behind, hands on foggy window, "
-        "empty bedroom at 3 AM lit only by a phone screen, crowded metro "
-        "showing one isolated figure, feet hesitating at a doorway, reflections "
-        "in rain-streaked glass, abstract shots of tangled yarn / broken "
-        "mirrors / drifting smoke as metaphors for inner states, minimalist "
-        "interiors with one figure dwarfed by empty space. STRICTLY NO "
-        "identifiable faces, NO brand logos, NO on-image text — the viewer "
-        "should feel this could be about them."
+        "STYLE: Cinematic 3D minimalist animation in the style of claymation. "
+        "Characters: matte white stylized humanoid figures with perfectly "
+        "smooth featureless skin (no pores, no wrinkles, no textures), "
+        "rounded Pixar-minimalist proportions. Male characters have no hair, "
+        "completely bald head; female characters have a single high ponytail. "
+        "Faces have only simplified minimal features (small eyes, a hint of "
+        "a mouth). No clothing branding, no logos, no visible text anywhere "
+        "in frame. Environment: clean minimalist sets (empty rooms, abstract "
+        "voids, single furniture pieces, simple geometric architecture), "
+        "never cluttered. Palette: STRICT monochrome — charcoal grey, deep "
+        "obsidian black, and muted midnight blue ONLY. Occasional single "
+        "accent of soft warm amber or translucent cyan light for emphasis. "
+        "Lighting: soft volumetric studio lighting, single key light with "
+        "long gentle shadows, high contrast between figure and background. "
+        "Materials: matte surfaces throughout — no shine, no glossy reflections "
+        "except maybe a single glowing object used as a symbolic motif. "
+        "Rendering: 4K cinematic 3D, painterly depth of field, subtle ambient "
+        "occlusion. Framing: vertical 9:16 composition, figures often centred "
+        "or off-centre against negative space to feel symbolic and lonely."
     ),
 
-    # Injected into both script + storyboard LLM prompts. Defines the voice
-    # of the narrator and the narrative arc we want.
+    # ── NARRATOR VOICE + STRUCTURE (topic-agnostic) ───────────────────
+    # Locks the MOOD and PACING without constraining the subject. Works
+    # for psychology, masculinity, relationships, philosophy, etc.
     style_instructions=(
-        "Write in the exact voice of the @humain.penseur TikTok channel — "
-        "French pop-psychology introspection. REQUIRED STRUCTURE:\n"
-        "  HOOK (0-4s): Clinical concept name + colon, then "
-        "\"Pourquoi certaines personnes...?\" — a question that reveals an "
-        "uncomfortable emotional truth about modern life.\n"
-        "  DEVELOPMENT (4-45s): explain the psychological mechanism in "
-        "plain French, through concrete micro-scenes the viewer recognises "
-        "from their own life. Keep a soft, almost whispered rhythm — short "
-        "declarative sentences, pauses implied by full stops.\n"
-        "  REVEAL (45-55s): name the pattern and why it self-perpetuates.\n"
-        "  LANDING (55-60s): a line that lets the viewer SEE themselves "
-        "without fixing them. No CTA. No 'follow for more'. No moralising.\n"
+        "Write in the exact voice of a French cinematic-introspection TikTok "
+        "channel (reference: @humain.penseur). REQUIRED STRUCTURE:\n"
+        "  HOOK (0-4s): A provocative question or a counter-intuitive claim "
+        "that stops the scroll. If the topic is psychological or behavioural, "
+        "favour the format 'Pourquoi certaines personnes … ?' If the topic is "
+        "about energy / relationships / values, a direct bold statement is "
+        "also fine.\n"
+        "  DEVELOPMENT (4-45s): explain the mechanism in plain French, through "
+        "concrete micro-scenes the viewer recognises from their own life. "
+        "Short declarative sentences. Deliberate pauses implied by full stops. "
+        "When relevant, reference a real concept (attachement anxieux, "
+        "énergie masculine, dissonance cognitive, stoïcisme, etc.) but decode "
+        "it immediately with an everyday example — never leave the viewer "
+        "stuck on jargon.\n"
+        "  REVEAL (45-55s): name the underlying pattern + why it self-perpetuates.\n"
+        "  LANDING (55-60s): a line that lets the viewer SEE themselves. No "
+        "CTA, no 'follow for more', no moralising, no false optimism.\n"
         "\n"
         "RULES:\n"
-        "- Use genuine psychology vocabulary (évitement, dissonance, "
-        "hypervigilance, attachement, rumination, malédiction du savoir) "
-        "but decode it immediately with an everyday example.\n"
         "- Never say 'guys', 'les gars', 'abonne-toi', 'commente', 'partage'.\n"
         "- Second-person address is rare and only at the end.\n"
-        "- No classical philosophers (Camus, Sénèque, etc.) — this is pop "
-        "psychology, not literature.\n"
-        "- No false optimism or pep talk. The insight IS the payoff."
+        "- The insight IS the payoff — don't wrap up with a lesson or advice.\n"
+        "- Match the tone to the subject: psychology → tender and non-"
+        "judgmental; masculinity/energy → deeper and more grounded; "
+        "philosophy → restrained and contemplative."
     ),
 
-    # Fresh topic each generation — asks Gemini to think like @humain.penseur
-    # editorial team and produce a title in the exact channel format.
+    # ── TOPIC IDEATION ─────────────────────────────────────────────────
+    # Flexible across multiple subject domains but still opinionated about
+    # WHAT makes a good video in this aesthetic: introspective, hook-driven,
+    # revealing hidden patterns.
     topic_generation_prompt=(
-        "You are the editorial director of @humain.penseur, a successful "
-        "French TikTok channel about pop psychology and emotional patterns "
-        "(targets: adults 20-45, mostly women, struggling with modern "
-        "anxiety, over-thinking, relationship patterns). Reference observed "
-        "titles from the channel:\n"
-        "  • 'La procrastination nocturne en psychologie'\n"
-        "  • 'La malédiction du savoir : Pourquoi certaines personnes… se "
-        "    sentent plus seules en voyant trop clair dans les autres ?'\n"
-        "  • 'La dissonance cognitive comportementale : Pourquoi certaines "
-        "    personnes comprennent ce qui les détruit mais n\\'arrivent pas "
-        "    à s\\'en libérer ?'\n"
-        "  • 'L\\'évitement émotionnel : pourquoi certaines personnes "
-        "    rêvent de tout quitter… non pas pour fuir les autres, mais "
-        "    pour enfin échapper à ce qu\\'elles ressentent ?'\n"
+        "You are the editor of a popular French cinematic-introspection "
+        "TikTok channel in the Claymation 3D visual style (reference: "
+        "@humain.penseur). Target audience: adults 20-45. Subjects that "
+        "perform well:\n"
+        "  - Pop psychology / emotional patterns (dissonance, évitement, "
+        "    attachement, rumination, parentification, alexithymie, HPI/HPE, "
+        "    syndrome de l'imposteur, malédiction du savoir…)\n"
+        "  - Masculine + feminine energy dynamics, relationship patterns, "
+        "    attachment + break-ups, the 'why he pulls away' / 'why she "
+        "    overfunctions' territory\n"
+        "  - Modern-life tensions (solitude in a crowd, hyper-stimulation, "
+        "    purpose drift, comparison fatigue)\n"
+        "  - Stoic / philosophical reflections when framed as behavioural "
+        "    patterns, not as quotes\n"
         "\n"
-        "Invent fresh video titles that match this exact format:\n"
-        "  '[clinical concept, French, maybe +qualifier] : Pourquoi "
-        "certaines personnes [observed behaviour]… [twist revealing the "
-        "hidden emotional mechanism] ?'\n"
+        "Invent fresh French video titles that:\n"
+        "  a) stop the scroll on the HOOK ALONE (no one needs context to "
+        "     click);\n"
+        "  b) reveal a HIDDEN EMOTIONAL TRUTH (not a generic 'be yourself' "
+        "     line);\n"
+        "  c) sit naturally in the Claymation 3D visual style — topics that "
+        "     benefit from a slow contemplative voice over abstract "
+        "     minimalist figures;\n"
+        "  d) diversify across the subject domains above (don't propose 6 "
+        "     psychology titles in a row).\n"
         "\n"
-        "Topic space (pick anywhere from here, do not repeat):\n"
-        "- Cognitive biases (confirmation, projection, sunk cost, Dunning-"
-        "Kruger), attachment patterns (anxieux, évitant, désorganisé), "
-        "emotional regulation (alexithymie, flooding, dissociation), "
-        "relational wounds (parentification, triangulation, idealisation / "
-        "devalorisation), self-sabotage patterns, rumination, "
-        "hypersensitivity + HPI / HPE, burnout, imposter syndrome, chronic "
-        "people-pleasing, trauma responses, shame spirals.\n"
-        "\n"
-        "Titles must be in French and feel like they COULD be the next "
-        "video posted on the real channel."
+        "Preferred format: '[concept or pattern name] : Pourquoi [behaviour/"
+        "tension]… [twist] ?' — but a direct provocative claim is also "
+        "acceptable when the subject calls for it."
     ),
 
     fallback_topics=[
+        # Psychology angles (reference channel's comfort zone)
         "L'évitement émotionnel : pourquoi certaines personnes préfèrent-elles "
         "se perdre dans le travail plutôt que de ressentir ce qu'elles vivent ?",
-        "La dissonance cognitive : pourquoi continuons-nous à faire "
-        "exactement ce qui nous détruit, en sachant parfaitement que ça "
-        "nous détruit ?",
-        "L'attachement anxieux : pourquoi certaines personnes ont-elles "
-        "besoin d'être rassurées toutes les heures… et se sentent pourtant "
-        "plus vides à chaque fois qu'on les rassure ?",
         "La malédiction du savoir : pourquoi comprendre parfaitement les "
         "autres finit-il par nous isoler d'eux ?",
-        "Le perfectionnisme comme protection : pourquoi certaines "
-        "personnes visent-elles l'irréprochable pour cacher qu'elles se "
-        "sentent profondément indignes ?",
-        "La rumination mentale : pourquoi rejouons-nous mille fois des "
-        "scènes qu'on ne peut plus changer ?",
-        "L'hypervigilance émotionnelle : pourquoi certaines personnes "
-        "lisent-elles les humeurs des autres avant leurs propres besoins ?",
-        "La parentification : pourquoi certains adultes prennent-ils soin "
-        "de tout le monde sauf d'eux-mêmes ?",
-        "La dépression souriante : pourquoi les personnes qui vont le "
-        "moins bien sont-elles souvent celles qui paraissent les plus "
-        "lumineuses ?",
-        "Le syndrome de l'imposteur : pourquoi plus on réussit, plus on "
-        "se sent frauduleux ?",
+        "Le perfectionnisme comme protection : pourquoi viser l'irréprochable "
+        "revient-il souvent à cacher qu'on se sent profondément indigne ?",
+        # Masculine / feminine energy
+        "L'énergie masculine : pourquoi un homme qui aime profondément ne "
+        "sera-t-il jamais totalement serein ?",
+        "Le silence masculin : pourquoi un homme qui ne demande plus rien "
+        "est-il déjà parti émotionnellement ?",
+        "La féminité sacrée : pourquoi une femme qui se connaît devient-elle "
+        "soudainement moins disponible ?",
+        # Relationships
+        "L'attachement anxieux : pourquoi a-t-on besoin d'être rassuré sans "
+        "jamais vraiment l'être ?",
+        "Les ruptures qui guérissent : pourquoi certaines séparations nous "
+        "remettent-elles enfin en vie ?",
+        # Modern life tensions
+        "Le bruit intérieur : pourquoi cherchons-nous le silence à l'extérieur "
+        "alors que le vacarme est en nous ?",
+        "La solitude moderne : pourquoi sommes-nous les plus seuls au milieu "
+        "d'une foule de notifications ?",
     ],
 
-    # Hashtags the real channel actually uses — surfaced to the user in
-    # the UI so they can copy-paste a performant caption.
+    # Generic cross-domain hashtag set — user can trim per topic.
     recommended_hashtags=[
         "#psychologie", "#santémentale", "#emotions", "#introspection",
-        "#developpementpersonnel", "#psycho", "#therapie",
+        "#developpementpersonnel", "#relations", "#reflexion", "#philosophie",
     ],
     caption_template=(
         "{topic}\n\n"
         "#psychologie #santémentale #emotions #introspection "
-        "#developpementpersonnel #psycho"
+        "#developpementpersonnel #reflexion"
     ),
 
+    # Card gradient matches the claymation palette (charcoal → obsidian →
+    # midnight blue), not a warm golden look.
     card_gradient=(
-        "linear-gradient(135deg, #0f1a2c 0%, #1a2940 40%, #2d3e5c 100%)"
+        "linear-gradient(135deg, #1c1c1c 0%, #0d1424 50%, #1c2b4a 100%)"
     ),
-    accent_color="#8bb4e0",
+    accent_color="#d6dce5",
 ))
 
 
