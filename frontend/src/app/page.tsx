@@ -26,13 +26,7 @@ import {
   ArrowRight,
   Check,
   Play,
-  Scissors,
   SparkleIcon,
-  MagicWand,
-  VideoCamera,
-  UserCircle,
-  Megaphone,
-  PlaySquare,
   ChevronDown,
 } from "@/components/Icons";
 
@@ -116,7 +110,7 @@ const STEPS = [
   {
     num: "01",
     title: "Pick your lane",
-    desc: "Auto-Clip a YouTube URL, describe a video from scratch, or apply a niche preset to match a creator's style.",
+    desc: "Train an avatar, describe a video, paste a URL or drop a product photo. Horpen handles the rest.",
   },
   {
     num: "02",
@@ -137,27 +131,27 @@ const STEPS = [
 const FAQ = [
   {
     q: "Do I need to understand AI to use Horpen?",
-    a: "No. Paste a URL, type a sentence, or click a niche preset — Horpen handles the script, scene planning, image generation, animation, voice-over and subtitles. The dashboard is the whole interface.",
+    a: "No. Everything is a guided form: upload photos for avatars, type a sentence for a video, paste a URL for a clip, drop a product shot for ads. Horpen handles the prompts, models and rendering — you just pick what to make.",
   },
   {
-    q: "Can I monetise the videos I export?",
-    a: "Yes. Paid plans remove the watermark and give you full commercial rights on the generated output. Many of our users run monetised TikTok / YouTube Shorts channels on Horpen's output.",
+    q: "Can I monetise the images and videos I export?",
+    a: "Yes. Paid plans remove the watermark and give you full commercial rights on every asset. Many users run monetised TikTok / YouTube / Instagram channels and e-commerce stores on Horpen's output.",
   },
   {
-    q: "Which video models does Horpen support?",
-    a: "Kling 2.5 Turbo Pro (default), Veo 3.1 Fast (Google's photoreal model), Minimax Hailuo 02 (cheapest) and Grok Imagine (xAI). You pick per video — Horpen shows the price for each upfront.",
+    q: "Which AI models power Horpen?",
+    a: "Images use Gemini 3 Pro Image (Nano Banana Pro). Videos use Kling 2.5 Turbo Pro, Veo 3.1 Fast, Hailuo 02 or Grok Imagine — you pick per video. Voice-over uses ElevenLabs. The stack is always best-in-class, never locked to one vendor.",
   },
   {
-    q: "How does a niche preset work?",
-    a: "A niche bundles a visual style (reference images fed to the image model), a narrator voice pattern (script structure + signature phrases) and a topic generator. Click the preset, type a theme, get a video that visually + narratively matches the reference channel.",
+    q: "Can I keep a consistent style across every asset?",
+    a: "Yes. Train an AI avatar from a few photos and it appears the same across every future video, thumbnail and ad. Drop reference images on any tool and Horpen matches that style on the next generation — character, palette, composition.",
   },
   {
-    q: "Can I use my own reference images?",
-    a: "Yes. Every niche has a drag-and-drop manager. Drop 2-5 screenshots from the creator you want to match, and future generations condition directly on them.",
+    q: "What formats does Horpen export?",
+    a: "Videos: 9:16 (TikTok / Reels / Shorts), 1:1 (square), 4:5 (feed) and 16:9 (landscape). Images: any size up to 4K. Ads: Meta / TikTok / Google Ads specs out of the box.",
   },
   {
     q: "Can I cancel anytime?",
-    a: "Anytime, no questions. Credits purchased in the current cycle stay valid until the end of the period.",
+    a: "Anytime, no questions asked. Credits purchased in the current cycle stay valid until the end of the period.",
   },
 ];
 
@@ -545,19 +539,18 @@ export default function Home() {
             className="text-[40px] md:text-[68px] lg:text-[78px] font-semibold leading-[1.02]"
             style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
           >
-            The whole video pipeline,
+            Every AI asset your
             <br />
-            <span style={{ color: "#7a7a7a" }}>in a single studio.</span>
+            <span style={{ color: "#7a7a7a" }}>channel needs.</span>
           </h1>
 
           <p
             className="mt-6 md:mt-8 text-[16px] md:text-[19px] leading-[1.5] max-w-[680px] mx-auto"
             style={{ color: "#555" }}
           >
-            Auto-clip a YouTube URL, generate a full 60-second vertical video
-            from one sentence, lock a TikTok creator&apos;s visual style on
-            your own topic. All with voice-over, karaoke subtitles and 4K
-            export — ready to post.
+            Generate AI avatars, viral images, full-motion videos and
+            product ads — all from one studio. One subscription, every tool,
+            zero juggling between apps.
           </p>
 
           <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -653,51 +646,50 @@ export default function Home() {
               className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
               style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
             >
-              One subscription.
+              Four studios.
               <br />
               <span style={{ color: "#7a7a7a" }}>
-                The entire short-form pipeline.
+                One subscription.
               </span>
             </h2>
             <p
               className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
               style={{ color: "#555" }}
             >
-              Why pay Opus Clip, Captions.ai, Runway and Synthesia at the same
-              time? Horpen does what each of them does best — and one thing
-              they can&apos;t: lock your output to a specific creator&apos;s
-              signature style.
+              Horpen bundles every AI tool a content creator needs. Avatars,
+              images, videos, ads — all in one dashboard. Pay once, create
+              everything, keep your workflow unified.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <FeatureCard
-              illustration={<AutoClipIllustration />}
-              title="From one URL, 10 viral shorts."
-              body="Paste any YouTube, Vimeo, TikTok or X URL. Horpen finds the 10 most shareable moments, reframes them to 9:16 with face tracking, and burns in word-level karaoke subtitles. 30 seconds of work. A week of content."
-              badge="Auto-Clip"
+              illustration={<AvatarsIllustration />}
+              title="AI avatars, consistent everywhere."
+              body="Upload a few photos of any character. Horpen trains a reusable avatar you can drop into every video, thumbnail or ad — keeping the exact same face, style and identity across the whole channel."
+              badge="AI Avatars"
               revealDelay={0}
             />
             <FeatureCard
-              illustration={<AIVideoIllustration />}
-              title="One sentence, a 60-second video."
-              body="Describe anything. Horpen writes the script, storyboards the scenes, generates cinematic keyframes, animates them with Kling or Veo, records a real voice-over with ElevenLabs, and syncs word-perfect subtitles."
-              badge="AI Video"
+              illustration={<ImagesIllustration />}
+              title="Every image, in every style."
+              body="Viral YouTube thumbnails, product photography, stylised portraits, lifestyle shots. Powered by Gemini 3 Pro Image (Nano Banana Pro) — the sharpest image model on the market — generated in seconds."
+              badge="AI Images"
+              highlight
               revealDelay={120}
             />
             <FeatureCard
-              illustration={<NicheIllustration />}
-              title="Match any creator's style, exactly."
-              body="Pick a preset (Claymation 3D, UGC demo, aesthetic quote…) or drop reference screenshots from a TikTok channel you love. Every scene Horpen generates visually belongs to that same brand. Nobody else ships this."
-              badge="Niche presets"
-              highlight
+              illustration={<VideosIllustration />}
+              title="Videos, from a sentence or a URL."
+              body="Describe a topic and get a 60-second vertical video with voice-over and subtitles. Or paste a YouTube URL and get 10 viral shorts. Powered by Kling, Veo 3.1, Hailuo and Grok."
+              badge="AI Videos"
               revealDelay={240}
             />
             <FeatureCard
-              illustration={<StudioIllustration />}
-              title="Stop juggling five SaaS."
-              body="AI avatars. Viral thumbnails. Static ads. Long-form → shorts. Full AI videos. One login, one credit system, one dashboard. Everything the content pipeline needs, under one roof."
-              badge="All-in-one"
+              illustration={<AdsIllustration />}
+              title="Product ads, in every format."
+              body="Drop 3 photos of a product. Horpen generates a library of static ad creatives — studio shots, lifestyle, before / after, holiday edits — ready for Meta, TikTok and Google Ads in every aspect ratio."
+              badge="Ad Creatives"
               revealDelay={360}
             />
           </div>
@@ -1185,302 +1177,293 @@ function FeatureCard({
  *  scale crisply on any DPI.
  * ─────────────────────────────────────────────────────────────────── */
 
-function AutoClipIllustration() {
+/* ─── 1. AI Avatars ──────────────────────────────────────────────
+   A "photo" tile morphs into 3 generated avatar variations cycling
+   behind it. The face silhouette is abstract so it reads as "any
+   person" rather than a specific demo. */
+function AvatarsIllustration() {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 gap-3">
-      {/* URL bar at top */}
+    <div className="absolute inset-0 flex items-center justify-center gap-4 p-4">
+      {/* Uploaded photo tile (left) */}
       <div
-        className="flex items-center gap-2 rounded-full px-3 py-1.5 shadow-sm"
-        style={{ background: "#ffffff", border: "1px solid #ececec", minWidth: 240 }}
+        className="relative rounded-xl overflow-hidden shadow-md shrink-0"
+        style={{
+          width: 80,
+          height: 100,
+          background: "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 50%, #93c5fd 100%)",
+          border: "2px solid #fff",
+          animation: "avatars-upload-pulse 3.5s ease-in-out infinite",
+        }}
       >
+        {/* Face silhouette */}
+        <svg viewBox="0 0 80 100" className="absolute inset-0 w-full h-full">
+          <circle cx="40" cy="36" r="14" fill="rgba(255,255,255,0.6)" />
+          <ellipse cx="40" cy="90" rx="28" ry="22" fill="rgba(255,255,255,0.6)" />
+        </svg>
         <div
-          className="w-4 h-4 rounded-sm flex items-center justify-center"
-          style={{ background: "#ef4444" }}
+          className="absolute top-1 left-1 text-[8px] font-semibold px-1.5 py-0.5 rounded"
+          style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
         >
-          <Play size={8} color="#fff" />
+          Photo
         </div>
-        <span className="text-[11px]" style={{ color: "#666" }}>
-          youtube.com/watch?v=…
-        </span>
       </div>
 
-      {/* Scissor connector */}
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center"
-        style={{ background: "#0a0a0a" }}
-      >
-        <Scissors size={14} color="#fff" />
-      </div>
+      <ArrowRight size={14} color="#bbb" />
 
-      {/* Row of vertical clip tiles */}
-      <div className="flex gap-2">
-        {[0, 1, 2, 3].map((i) => (
+      {/* Generated avatar variations (right) — 3 stacked, cycling which is on top */}
+      <div className="relative shrink-0" style={{ width: 100, height: 110 }}>
+        {[
+          { grad: "linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)" },
+          { grad: "linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)" },
+          { grad: "linear-gradient(135deg, #f472b6 0%, #db2777 100%)" },
+        ].map((v, i) => (
           <div
             key={i}
-            className="rounded-md relative overflow-hidden"
+            className="absolute rounded-xl overflow-hidden shadow-md"
             style={{
-              width: 32,
-              height: 56,
-              background:
-                "linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)",
-              border: "1px solid #e4e4e7",
-              animation: `float-y 3s ease-in-out ${i * 0.3}s infinite`,
+              width: 72,
+              height: 92,
+              top: i * 6,
+              left: i * 8,
+              background: v.grad,
+              border: "2px solid #fff",
+              animation: `avatars-card-cycle 4.5s ease-in-out ${i * 1.5}s infinite`,
+              zIndex: 3 - i,
             }}
           >
-            <div
-              className="absolute bottom-1 left-1 right-1 h-1 rounded-full"
-              style={{ background: "rgba(255,255,255,0.85)" }}
-            />
+            <svg viewBox="0 0 72 92" className="absolute inset-0 w-full h-full">
+              <circle cx="36" cy="34" r="12" fill="rgba(255,255,255,0.5)" />
+              <ellipse cx="36" cy="84" rx="24" ry="18" fill="rgba(255,255,255,0.5)" />
+            </svg>
           </div>
         ))}
       </div>
 
       <style jsx>{`
-        @keyframes float-y {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-2px); }
+        @keyframes avatars-upload-pulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+          50% { transform: scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+        }
+        @keyframes avatars-card-cycle {
+          0%, 20% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
+          50% { transform: translate(-4px, -6px) rotate(-2deg); z-index: 10; }
+          100% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
         }
       `}</style>
     </div>
   );
 }
 
-function AIVideoIllustration() {
+/* ─── 2. AI Images ───────────────────────────────────────────────
+   A 2×3 grid of image tiles with different use-case labels
+   (Thumbnail / Portrait / Product / Lifestyle). Each tile gently
+   pulses on its own beat so the whole gallery feels alive. */
+function ImagesIllustration() {
+  const tiles = [
+    { grad: "linear-gradient(135deg, #fca5d1 0%, #f472b6 100%)", label: "Thumbnail" },
+    { grad: "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)", label: "Product" },
+    { grad: "linear-gradient(135deg, #bae6fd 0%, #0ea5e9 100%)", label: "Portrait" },
+    { grad: "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)", label: "Lifestyle" },
+    { grad: "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)", label: "Style" },
+    { grad: "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)", label: "Poster" },
+  ];
   return (
-    <div className="absolute inset-0 flex items-center justify-center gap-3 p-4">
-      {/* Left: sentence bubble */}
-      <div
-        className="flex flex-col gap-1.5 rounded-xl px-3 py-2.5 shadow-sm"
-        style={{ background: "#ffffff", border: "1px solid #ececec", maxWidth: 110 }}
-      >
-        <div
-          className="h-1.5 rounded-full"
-          style={{ background: "#e4e4e7", width: "80%" }}
-        />
-        <div
-          className="h-1.5 rounded-full"
-          style={{ background: "#e4e4e7", width: "100%" }}
-        />
-        <div
-          className="h-1.5 rounded-full"
-          style={{ background: "#e4e4e7", width: "60%" }}
-        />
-      </div>
-
-      {/* Arrow */}
-      <div style={{ color: "#bbb" }}>
-        <ArrowRight size={14} color="currentColor" />
-      </div>
-
-      {/* Middle: stack of scene cards */}
-      <div className="relative" style={{ width: 60, height: 100 }}>
-        {[0, 1, 2].map((i) => (
+    <div className="absolute inset-0 p-4 flex items-center justify-center">
+      <div className="grid grid-cols-3 gap-2">
+        {tiles.map((t, i) => (
           <div
             key={i}
-            className="absolute rounded-md shadow-sm"
+            className="relative rounded-lg overflow-hidden shadow-sm"
             style={{
-              width: 44,
-              height: 78,
-              top: i * 6,
-              left: i * 6,
-              background:
-                i === 2
-                  ? "linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)"
-                  : i === 1
-                    ? "linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%)"
-                    : "linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%)",
-              border: "1px solid #ffffff",
-              zIndex: 3 - i,
+              width: 60,
+              height: 60,
+              background: t.grad,
+              border: "2px solid #fff",
+              animation: `images-pulse 4s ease-in-out ${i * 0.4}s infinite`,
             }}
-          />
+          >
+            <div
+              className="absolute bottom-0.5 left-0.5 right-0.5 text-[7px] font-semibold text-center py-0.5 rounded-sm"
+              style={{
+                background: "rgba(0,0,0,0.55)",
+                color: "#fff",
+              }}
+            >
+              {t.label}
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Arrow */}
-      <div style={{ color: "#bbb" }}>
-        <ArrowRight size={14} color="currentColor" />
-      </div>
-
-      {/* Right: final video preview */}
-      <div
-        className="relative rounded-lg overflow-hidden shadow-md"
-        style={{
-          width: 56,
-          height: 100,
-          background: "linear-gradient(180deg, #0a0a0a 0%, #27272a 100%)",
-          border: "1px solid #1a1a1a",
-        }}
-      >
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ color: "#ffffff" }}
-        >
-          <div
-            className="rounded-full p-2"
-            style={{ background: "rgba(255,255,255,0.2)" }}
-          >
-            <Play size={12} color="#fff" />
-          </div>
-        </div>
-        {/* Subtitle line */}
-        <div
-          className="absolute left-2 right-2 bottom-2 h-1.5 rounded-full"
-          style={{ background: "rgba(255,255,255,0.85)" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function NicheIllustration() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center p-4">
-      {/* Center niche card */}
-      <div
-        className="relative rounded-xl p-3 shadow-md z-10"
-        style={{
-          background:
-            "linear-gradient(135deg, #1c1c1c 0%, #0d1424 50%, #1c2b4a 100%)",
-          border: "1px solid #1a1a1a",
-          minWidth: 130,
-        }}
-      >
-        <div
-          className="text-[8px] font-semibold tracking-widest uppercase"
-          style={{ color: "#d6dce5" }}
-        >
-          Claymation 3D · FR
-        </div>
-        <div className="text-[11px] font-semibold mt-1" style={{ color: "#fff" }}>
-          Humain Penseur
-        </div>
-        <div className="text-[9px] mt-0.5" style={{ color: "#999" }}>
-          @humain.penseur
-        </div>
-        <div className="flex items-center gap-1 mt-2">
-          <SparkleIcon size={9} color="#d6dce5" />
-          <span className="text-[8px]" style={{ color: "#bbb" }}>
-            Style locked
-          </span>
-        </div>
-      </div>
-
-      {/* 4 floating generated scenes around */}
-      {[
-        { top: 10, left: 10, grad: "linear-gradient(135deg, #d4d4d8 0%, #71717a 100%)" },
-        { top: 10, right: 10, grad: "linear-gradient(135deg, #a1a1aa 0%, #52525b 100%)" },
-        { bottom: 10, left: 10, grad: "linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%)" },
-        { bottom: 10, right: 10, grad: "linear-gradient(135deg, #71717a 0%, #3f3f46 100%)" },
-      ].map((pos, i) => (
-        <div
-          key={i}
-          className="absolute rounded-md shadow-sm"
-          style={{
-            width: 36,
-            height: 62,
-            background: pos.grad,
-            border: "1px solid #ffffff",
-            ...pos,
-            animation: `drift-${i} 6s ease-in-out infinite`,
-          }}
-        />
-      ))}
-
       <style jsx>{`
-        @keyframes drift-0 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(2px,-2px); } }
-        @keyframes drift-1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-2px,-2px); } }
-        @keyframes drift-2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(2px,2px); } }
-        @keyframes drift-3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-2px,2px); } }
+        @keyframes images-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.92; }
+          50% { transform: scale(1.05); opacity: 1; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+        }
       `}</style>
     </div>
   );
 }
 
-function StudioIllustration() {
-  const tools = [
-    { icon: UserCircle, label: "Avatars", color: "#a78bfa" },
-    { icon: PlaySquare, label: "Thumbnails", color: "#f472b6" },
-    { icon: Megaphone, label: "Ads", color: "#fb923c" },
-    { icon: Scissors, label: "Clips", color: "#34d399" },
-    { icon: SparkleIcon, label: "AI Video", color: "#60a5fa" },
-    { icon: VideoCamera, label: "Motion", color: "#facc15" },
-  ];
+/* ─── 3. AI Videos ───────────────────────────────────────────────
+   Prompt field + 3 stacked scene cards + playback bar with a
+   progressing indicator. The progress bar fills left-to-right on a
+   loop to convey "video being built". */
+function VideosIllustration() {
   return (
-    <div className="absolute inset-0 p-4">
-      {/* Connecting dashed lines underneath */}
-      <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox="0 0 300 240"
-        preserveAspectRatio="none"
-      >
-        <g
-          stroke="#d4d4d8"
-          strokeWidth="1"
-          strokeDasharray="3,3"
-          fill="none"
-          opacity="0.6"
-        >
-          <line x1="50" y1="60" x2="150" y2="120" />
-          <line x1="150" y1="60" x2="150" y2="120" />
-          <line x1="250" y1="60" x2="150" y2="120" />
-          <line x1="50" y1="180" x2="150" y2="120" />
-          <line x1="150" y1="180" x2="150" y2="120" />
-          <line x1="250" y1="180" x2="150" y2="120" />
-        </g>
-      </svg>
-
-      {/* Center hub — Horpen logo */}
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+      {/* Prompt field */}
       <div
-        className="absolute rounded-2xl shadow-lg flex items-center justify-center"
+        className="flex items-center gap-2 rounded-full px-3 py-1.5 shadow-sm"
         style={{
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 48,
-          height: 48,
-          background: "#0a0a0a",
-          border: "2px solid #ffffff",
-          zIndex: 10,
+          background: "#ffffff",
+          border: "1px solid #ececec",
+          minWidth: 220,
         }}
       >
-        <MagicWand size={20} color="#fff" />
+        <SparkleIcon size={11} color="#0a0a0a" />
+        <span className="text-[11px]" style={{ color: "#555" }}>
+          Generate a video about…
+        </span>
       </div>
 
-      {/* 6 tool cards in a 3x2 grid */}
-      <div className="relative h-full grid grid-cols-3 gap-2" style={{ zIndex: 5 }}>
-        {tools.map((t, i) => {
-          const Icon = t.icon;
-          return (
+      {/* Row of 3 stacked scene preview cards */}
+      <div className="flex gap-2">
+        {[
+          "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)",
+          "linear-gradient(135deg, #fca5d1 0%, #db2777 100%)",
+          "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)",
+        ].map((grad, i) => (
+          <div
+            key={i}
+            className="relative rounded-lg overflow-hidden shadow-md"
+            style={{
+              width: 50,
+              height: 88,
+              background: grad,
+              border: "2px solid #fff",
+              animation: `videos-scene 3.5s ease-in-out ${i * 0.4}s infinite`,
+            }}
+          >
             <div
-              key={t.label}
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 shadow-sm self-start justify-self-center"
-              style={{
-                background: "#ffffff",
-                border: "1px solid #ececec",
-                alignSelf: i < 3 ? "start" : "end",
-                justifySelf: i % 3 === 0 ? "start" : i % 3 === 1 ? "center" : "end",
-              }}
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ color: "rgba(255,255,255,0.85)" }}
             >
-              <div
-                className="rounded-sm flex items-center justify-center"
-                style={{
-                  width: 14,
-                  height: 14,
-                  background: t.color,
-                }}
-              >
-                <Icon size={8} color="#fff" />
-              </div>
-              <span
-                className="text-[9px] font-medium"
-                style={{ color: "#333" }}
-              >
-                {t.label}
-              </span>
+              <Play size={14} color="currentColor" />
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
+
+      {/* Progress bar at the bottom */}
+      <div
+        className="relative rounded-full overflow-hidden"
+        style={{
+          width: 180,
+          height: 6,
+          background: "#ececec",
+        }}
+      >
+        <div
+          className="absolute top-0 left-0 h-full rounded-full"
+          style={{
+            background:
+              "linear-gradient(90deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)",
+            animation: "videos-progress 2.5s ease-in-out infinite",
+          }}
+        />
+      </div>
+      <span className="text-[9px]" style={{ color: "#888" }}>
+        Rendering scenes…
+      </span>
+
+      <style jsx>{`
+        @keyframes videos-scene {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes videos-progress {
+          0% { width: 10%; }
+          50% { width: 70%; }
+          100% { width: 95%; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ─── 4. Ad Creatives ────────────────────────────────────────────
+   A product photo on the left + 3 ad variations on the right, each
+   with a different marketing label ("30% OFF", "NEW", "Sale"). The
+   variations cycle which one is highlighted. */
+function AdsIllustration() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center gap-4 p-4">
+      {/* Product source card */}
+      <div
+        className="relative rounded-xl overflow-hidden shadow-md shrink-0"
+        style={{
+          width: 70,
+          height: 70,
+          background:
+            "linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #d97706 100%)",
+          border: "2px solid #fff",
+        }}
+      >
+        {/* Abstract bottle/product shape */}
+        <svg viewBox="0 0 70 70" className="absolute inset-0 w-full h-full">
+          <rect x="27" y="14" width="16" height="10" rx="2" fill="rgba(255,255,255,0.7)" />
+          <rect x="22" y="24" width="26" height="40" rx="4" fill="rgba(255,255,255,0.8)" />
+          <rect x="26" y="38" width="18" height="8" rx="1" fill="rgba(0,0,0,0.15)" />
+        </svg>
+        <div
+          className="absolute top-1 left-1 text-[8px] font-semibold px-1.5 py-0.5 rounded"
+          style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
+        >
+          Product
+        </div>
+      </div>
+
+      <ArrowRight size={14} color="#bbb" />
+
+      {/* 3 ad variations stacked */}
+      <div className="flex flex-col gap-2">
+        {[
+          { grad: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)", tag: "30% OFF" },
+          { grad: "linear-gradient(135deg, #10b981 0%, #047857 100%)", tag: "NEW" },
+          { grad: "linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)", tag: "Best seller" },
+        ].map((v, i) => (
+          <div
+            key={i}
+            className="relative rounded-lg overflow-hidden shadow-sm"
+            style={{
+              width: 100,
+              height: 30,
+              background: v.grad,
+              border: "2px solid #fff",
+              animation: `ads-highlight 5s ease-in-out ${i * 1.6}s infinite`,
+            }}
+          >
+            {/* Mini product silhouette in the ad */}
+            <svg viewBox="0 0 100 30" className="absolute inset-0 w-full h-full">
+              <rect x="6" y="6" width="18" height="18" rx="3" fill="rgba(255,255,255,0.8)" />
+            </svg>
+            <div
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-bold"
+              style={{ color: "#fff" }}
+            >
+              {v.tag}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes ads-highlight {
+          0%, 40%, 100% { transform: translateX(0) scale(1); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+          20% { transform: translateX(4px) scale(1.04); box-shadow: 0 8px 20px rgba(0,0,0,0.16); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1564,83 +1547,91 @@ function HeroPreview() {
             ))}
           </div>
 
-          {/* Main */}
+          {/* Main — mixed gallery of recent generations across tools
+              (an avatar, two images, a thumbnail, a video). Gives the
+              visitor a one-glance sense of "this app makes every
+              asset type". Every tile pulses gently so the dashboard
+              looks alive. */}
           <div className="p-4 md:p-6">
-            {/* Prompt box */}
-            <div
-              className="rounded-lg px-3 py-2.5 text-[13px]"
-              style={{
-                background: "#fafafa",
-                border: "1px solid #ececec",
-                color: "#0a0a0a",
-              }}
-            >
-              l&apos;énergie masculine et pourquoi un homme qui aime protège
-              vraiment
+            {/* Top bar: tool + generating state */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div
+                  className="rounded-md flex items-center justify-center"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    background: "#0a0a0a",
+                    color: "#fff",
+                  }}
+                >
+                  <SparkleIcon size={12} color="currentColor" />
+                </div>
+                <span
+                  className="text-[12px] font-medium"
+                  style={{ color: "#0a0a0a" }}
+                >
+                  Latest generations
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "#555" }}>
+                <div
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: "#34d399",
+                    animation: "hero-dot-pulse 1.8s ease-in-out infinite",
+                  }}
+                />
+                Rendering · 67%
+              </div>
             </div>
 
-            {/* Niche badge */}
-            <div
-              className="mt-3 rounded-lg px-3 py-2 flex items-center gap-2"
-              style={{
-                background:
-                  "linear-gradient(135deg, #1c1c1c 0%, #1c2b4a 100%)",
-                color: "#fff",
-              }}
-            >
-              <SparkleIcon size={13} color="#d6dce5" />
-              <span
-                className="text-[11px] font-semibold tracking-wider uppercase"
-                style={{ color: "#d6dce5" }}
-              >
-                Claymation 3D · @humain.penseur
-              </span>
-            </div>
-
-            {/* Scene thumbnails */}
-            <div className="mt-4 grid grid-cols-5 gap-2">
+            {/* Gallery grid — 4 columns on desktop, mix of image and
+                video tiles with aspect variety. */}
+            <div className="grid grid-cols-4 gap-2">
               {[
-                "linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%)",
-                "linear-gradient(135deg, #d4d4d8 0%, #71717a 100%)",
-                "linear-gradient(135deg, #a1a1aa 0%, #52525b 100%)",
-                "linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%)",
-                "linear-gradient(135deg, #71717a 0%, #3f3f46 100%)",
-              ].map((bg, i) => (
+                { grad: "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 100%)", label: "Avatar", aspect: "1 / 1" },
+                { grad: "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)", label: "Thumbnail", aspect: "16 / 9" },
+                { grad: "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)", label: "Product ad", aspect: "1 / 1" },
+                { grad: "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)", label: "Video", aspect: "9 / 16" },
+                { grad: "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)", label: "Lifestyle", aspect: "4 / 5" },
+                { grad: "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)", label: "Poster", aspect: "1 / 1" },
+                { grad: "linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%)", label: "Portrait", aspect: "9 / 16" },
+                { grad: "linear-gradient(135deg, #fed7aa 0%, #ea580c 100%)", label: "Ad", aspect: "1 / 1" },
+              ].map((tile, i) => (
                 <div
                   key={i}
-                  className="relative rounded-md aspect-[9/16]"
+                  className="relative rounded-md overflow-hidden shadow-sm"
                   style={{
-                    background: bg,
-                    border: "1px solid #ffffff",
+                    aspectRatio: tile.aspect,
+                    background: tile.grad,
+                    border: "1.5px solid #ffffff",
+                    animation: `hero-tile-pulse 3.5s ease-in-out ${i * 0.25}s infinite`,
                   }}
                 >
                   <div
-                    className="absolute bottom-1 left-1 right-1 h-0.5 rounded-full"
-                    style={{ background: "rgba(255,255,255,0.85)" }}
-                  />
+                    className="absolute bottom-1 left-1 right-1 text-[7px] font-semibold text-center py-0.5 rounded-sm"
+                    style={{
+                      background: "rgba(0,0,0,0.55)",
+                      color: "#fff",
+                    }}
+                  >
+                    {tile.label}
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Status row */}
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[11px]" style={{ color: "#555" }}>
-                <div
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: "#34d399" }}
-                />
-                Rendering keyframes · 35%
-              </div>
-              <div
-                className="text-[11px] font-medium px-2.5 py-1 rounded-full"
-                style={{
-                  background: "#0a0a0a",
-                  color: "#fff",
-                }}
-              >
-                Generate another
-              </div>
-            </div>
+            <style jsx>{`
+              @keyframes hero-tile-pulse {
+                0%, 100% { transform: scale(1); opacity: 0.95; }
+                50% { transform: scale(1.02); opacity: 1; }
+              }
+              @keyframes hero-dot-pulse {
+                0%, 100% { opacity: 0.4; transform: scale(1); }
+                50% { opacity: 1; transform: scale(1.3); }
+              }
+            `}</style>
           </div>
         </div>
       </div>
