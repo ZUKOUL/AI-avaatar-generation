@@ -198,6 +198,12 @@ export const aiVideosAPI = {
     api.post(`/ai-videos/jobs/${jobId}/cancel`),
   /** Available ElevenLabs voices (for the voice picker). */
   voices: () => api.get("/ai-videos/voices"),
+  /**
+   * List the image-to-video providers this server can dispatch to
+   * (Kling / Veo / Hailuo / …). Includes live credit prices so the
+   * picker in the UI stays in sync with the backend tariff.
+   */
+  listMotionProviders: () => api.get("/ai-videos/motion-providers"),
   /** List the channel-style niche presets (e.g. @humain.penseur). */
   listNiches: () => api.get("/ai-videos/niches"),
   /** Fetch N AI-generated topic ideas tuned to the niche. */

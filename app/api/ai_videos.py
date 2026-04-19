@@ -39,6 +39,11 @@ from app.services.credit_service import (
     get_balance,
     is_admin,
 )
+from app.services.motion_providers import (
+    DEFAULT_MOTION_MODEL,
+    get_motion_provider,
+    list_motion_providers,
+)
 from app.services.niche_registry import get_niche, list_niches, list_uploaded_reference_urls
 
 logger = logging.getLogger(__name__)
@@ -65,7 +70,7 @@ async def generate_ai_video(
     current_user: Annotated[User, Depends(get_current_user)],
     background_tasks: BackgroundTasks,
     prompt: str = Form(..., description="The one-liner describing the video you want"),
-    mode: str = Form("slideshow", description="'slideshow' (cheap, Ken Burns) | 'motion' (Kling image→video)"),
+    mode: str = Form("slideshow", description="'slideshow' (cheap, Ken Burns) | 'motion' (image→video)"),
     duration_seconds: int = Form(30, ge=_MIN_DURATION, le=_MAX_DURATION),
     aspect_ratio: str = Form("9:16"),
     language: str = Form("auto", description="'auto' or ISO-639-1 code"),
@@ -73,6 +78,14 @@ async def generate_ai_video(
     voice_enabled: bool = Form(True),
     voice_id: Optional[str] = Form(None, description="ElevenLabs voice id (defaults to a multilingual voice)"),
     subtitle_style: str = Form("karaoke"),
+    motion_model: Optional[str] = Form(
+        None,
+        description=(
+            "Motion provider slug when mode='motion' (kling, veo_fast, hailuo, …). "
+            "Ignored for slideshow mode. Defaults to 'kling'. "
+            "See GET /ai-videos/motion-providers for the catalogue."
+        ),
+    ),
     niche_slug: Optional[str] = Form(
         None,
         description=(
@@ -105,6 +118,28 @@ async def generate_ai_video(
     tone = (tone or "").strip()[:80] or None
     voice_id = (voice_id or "").strip()[:80] or None
 
+    # Validate + resolve the motion provider. Only matters for motion
+    # mode — slideshow ignores it — but we still store the slug so the
+    # job row is self-describing.
+    resolved_motion_model: Optional[str] = None
+    if mode == "motion":
+        slug = (motion_model or DEFAULT_MOTION_MODEL).strip().lower()
+        provider = get_motion_provider(slug)
+        if provider is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown motion_model '{slug}'. See /ai-videos/motion-providers.",
+            )
+        if not provider.is_configured():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Motion provider '{slug}' is not configured on this server "
+                    f"(missing API key). Pick another model."
+                ),
+            )
+        resolved_motion_model = slug
+
     # Resolve the niche (optional) — this gives us style_instructions +
     # visual_style to inject into the pipeline. The niche never overrides
     # user-visible form controls; the user keeps full control over mode /
@@ -125,8 +160,10 @@ async def generate_ai_video(
             tone = resolved_niche.tone[:80]
 
     # ── Credit charge ──────────────────────────────────────────────────
+    # Pricing factors in the motion-provider choice — Hailuo is cheaper,
+    # Veo costs more, etc. See app/core/pricing.py::_MOTION_MODEL_MULTIPLIERS.
     user_id = current_user["id"]
-    credit_cost = get_ai_video_credit_cost(mode, duration_seconds)
+    credit_cost = get_ai_video_credit_cost(mode, duration_seconds, resolved_motion_model)
 
     if not is_admin(current_user):
         balance = get_balance(user_id)
@@ -157,6 +194,7 @@ async def generate_ai_video(
         "voice_id": voice_id,
         "subtitle_style": subtitle_style,
         "tone": tone,
+        "motion_model": resolved_motion_model,
         "status": "queued",
         "progress": 0,
     }
@@ -199,8 +237,9 @@ async def generate_ai_video(
         "mode": mode,
         "duration_seconds": duration_seconds,
         "aspect_ratio": aspect_ratio,
+        "motion_model": resolved_motion_model,
         "credits_charged": credit_cost,
-        "estimated_cost_usd": get_ai_video_cost_usd(mode, duration_seconds),
+        "estimated_cost_usd": get_ai_video_cost_usd(mode, duration_seconds, resolved_motion_model),
         "message": "Job queued — poll /ai-videos/jobs/{job_id} for progress.",
     }
 
@@ -208,6 +247,33 @@ async def generate_ai_video(
 # ──────────────────────────────────────────────────────────────────────────
 # GET /ai-videos/niches — list the preset channel identities
 # ──────────────────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────────────
+# GET /ai-videos/motion-providers — list available image-to-video models
+# ──────────────────────────────────────────────────────────────────────────
+
+@router.get("/motion-providers")
+async def list_video_motion_providers():
+    """
+    Return every motion (image-to-video) model the server can dispatch
+    to. Used by the dashboard to render the model-picker card when the
+    user selects Full Motion mode. Credit costs are computed live from
+    `app/core/pricing.py` so UI + backend always agree on the price.
+    """
+    from app.core.pricing import get_ai_video_credit_cost
+
+    providers = []
+    for p in list_motion_providers():
+        serialised = p.serialize()
+        serialised["credit_cost_30s"] = get_ai_video_credit_cost("motion", 30, p.slug)
+        serialised["credit_cost_60s"] = get_ai_video_credit_cost("motion", 60, p.slug)
+        providers.append(serialised)
+
+    return {
+        "providers": providers,
+        "default": DEFAULT_MOTION_MODEL,
+    }
+
 
 @router.get("/niches")
 async def list_video_niches():
@@ -704,7 +770,7 @@ async def list_ai_video_jobs(
             "id, prompt, mode, duration_seconds, aspect_ratio, language, "
             "voice_enabled, subtitle_style, tone, status, progress, "
             "hook, detected_lang, video_url, thumbnail_url, niche_slug, "
-            "error_message, created_at, updated_at"
+            "motion_model, error_message, created_at, updated_at"
         )
         .eq("user_id", current_user["id"])
         .order("created_at", desc=True)

@@ -69,26 +69,65 @@ CREDIT_COST_AI_VIDEO_MOTION_30S    = 40   # ~$4 user price, ~72% margin
 CREDIT_COST_AI_VIDEO_MOTION_60S    = 75   # ~$7.50 user price
 
 
-def get_ai_video_credit_cost(mode: str, duration_seconds: int) -> int:
+# ─── Motion-mode per-provider multipliers ──────────────────────────────────
+# Each motion provider has a different per-second cost on its backend.
+# We keep the Kling-default pricing (CREDIT_COST_AI_VIDEO_MOTION_*) as
+# the baseline and multiply it by the per-provider factor below. That way
+# adding a new motion model is just one dict entry — the scaling stays
+# centralised.
+#
+# Factors are derived from observed Replicate / Google-GenAI prices
+# compared against Kling Turbo ($0.07/s baseline):
+#   kling     ×1.0  ($0.07/s  — baseline)
+#   veo_fast  ×1.3  ($0.10/s  — Google GenAI)
+#   hailuo    ×0.55 ($0.045/s — cheapest)
+#
+# Missing entries default to 1.0 so a newly-added provider without an
+# explicit factor is priced at baseline.
+_MOTION_MODEL_MULTIPLIERS: dict[str, float] = {
+    "kling":    1.0,
+    "veo_fast": 1.3,
+    "hailuo":   0.55,
+}
+
+
+def get_ai_video_credit_cost(
+    mode: str,
+    duration_seconds: int,
+    motion_model: str | None = None,
+) -> int:
     """Credit price for an AI-video generation job.
 
-    Prices are tiered by (mode, duration). We round the duration UP to the
-    nearest tier (≤30s, >30s) so the user is never surprised by a charge
-    that's higher than what they saw when picking their duration.
+    Pricing inputs:
+      - mode: 'slideshow' | 'motion'
+      - duration: tier boundary at 30s (≤30s = short, >30s = long)
+      - motion_model (motion mode only): scales against the Kling baseline
+
+    Slideshow mode ignores `motion_model` — it never runs image-to-video.
     """
     long_form = duration_seconds > 30
     if mode == "motion":
-        return CREDIT_COST_AI_VIDEO_MOTION_60S if long_form else CREDIT_COST_AI_VIDEO_MOTION_30S
+        base = CREDIT_COST_AI_VIDEO_MOTION_60S if long_form else CREDIT_COST_AI_VIDEO_MOTION_30S
+        factor = _MOTION_MODEL_MULTIPLIERS.get((motion_model or "kling").lower(), 1.0)
+        # Round UP to ensure margin holds on every job (user's quote
+        # shown in the UI matches what we actually charge).
+        return max(1, int(round(base * factor + 0.499)))
     # default: slideshow
     return CREDIT_COST_AI_VIDEO_SLIDESHOW_60S if long_form else CREDIT_COST_AI_VIDEO_SLIDESHOW_30S
 
 
-def get_ai_video_cost_usd(mode: str, duration_seconds: int) -> float:
+def get_ai_video_cost_usd(
+    mode: str,
+    duration_seconds: int,
+    motion_model: str | None = None,
+) -> float:
     """Worst-case API spend for an AI-video generation job. Used in logs
     + displayed to the user as 'estimated_cost_usd' for transparency."""
     long_form = duration_seconds > 30
     if mode == "motion":
-        return COST_AI_VIDEO_MOTION_60S if long_form else COST_AI_VIDEO_MOTION_30S
+        base = COST_AI_VIDEO_MOTION_60S if long_form else COST_AI_VIDEO_MOTION_30S
+        factor = _MOTION_MODEL_MULTIPLIERS.get((motion_model or "kling").lower(), 1.0)
+        return round(base * factor, 2)
     return COST_AI_VIDEO_SLIDESHOW_30S if not long_form else round(COST_AI_VIDEO_SLIDESHOW_30S * 1.8, 2)
 
 # ─── Credit costs per generation type (optimised for margin) ───

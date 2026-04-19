@@ -127,6 +127,10 @@ async def run_ai_video_job(job_id: str) -> None:
     voice_enabled: bool = bool(job.get("voice_enabled", True))
     voice_id: Optional[str] = job.get("voice_id")
     subtitle_style: str = job.get("subtitle_style") or "karaoke"
+    # Motion provider the user picked (only meaningful for mode=motion).
+    # Defaults to Kling when the column is null for legacy / slideshow
+    # jobs — keeps old rows backward compatible.
+    motion_model: str = (job.get("motion_model") or "kling").strip().lower()
     user_id: str = str(job["user_id"])
 
     # Niche-preset style parameters (nullable — only set for jobs created
@@ -339,6 +343,7 @@ async def run_ai_video_job(job_id: str) -> None:
                             motion_prompt=scene.motion_prompt or "subtle camera push-in",
                             duration_seconds=scene.duration_seconds,
                             out_path=clip_out,
+                            motion_model=motion_model,
                         ),
                         timeout=SCENE_TIMEOUT_MOTION_S,
                     )

@@ -659,145 +659,47 @@ async def animate_scene_motion(
     motion_prompt: str,
     duration_seconds: float,
     out_path: str,
+    motion_model: str = "kling",
 ) -> str:
     """
-    Image → video via Kling 2.5 Turbo Pro (Replicate). Uses the same model
-    the avatar video endpoint already uses so operations stay uniform.
+    Image → video dispatcher. Delegates to the provider registered under
+    `motion_model` in `app/services/motion_providers.py`:
 
-    Kling outputs 5 seconds by default. For scenes longer than 5s we
-    setpts-slow the clip; shorter get ffmpeg-trimmed. Either way the
-    orchestrator picks scene durations to fit the spoken audio.
+        kling     — Kling 2.5 Turbo Pro via Replicate (default)
+        veo_fast  — Veo 3.1 Fast via Google GenAI
+        hailuo    — Minimax Hailuo 02 via Replicate
 
-    Bounded by a 4-minute per-scene timeout — Kling 2.5 turbo normally
-    finishes in 45-90s, so anything beyond 240s is a hang and we
-    cancel + raise rather than letting the whole job stall. A single
-    slow scene CANNOT block the pipeline indefinitely anymore.
+    Every provider honours the same contract: fetch the keyframe,
+    generate an animated clip, trim / stretch it to `duration_seconds`,
+    write to `out_path`. The outer orchestrator wraps the call with a
+    hard asyncio wall-time cap so a stuck provider can't block the
+    pipeline.
+
+    Raises RuntimeError on any terminal failure (missing key, timeout,
+    provider error) — the orchestrator handles per-scene failures by
+    logging + skipping so a single bad scene doesn't kill the job.
     """
-    if not settings.REPLICATE_API_TOKEN:
-        raise RuntimeError("REPLICATE_API_TOKEN missing — motion mode unavailable.")
-
-    import replicate
-
-    # Upload the keyframe somewhere Replicate can fetch it. Easiest + most
-    # reliable: push it to Supabase Storage first, grab the public URL,
-    # feed that to Replicate.
-    remote_path = f"ai_video_sources/{uuid.uuid4().hex}.png"
-    image_url = await asyncio.to_thread(
-        upload_to_storage, keyframe_path, remote_path, "image/png"
+    from app.services.motion_providers import (
+        DEFAULT_MOTION_MODEL,
+        get_motion_provider,
     )
 
-    # ── Fire-and-poll with explicit timeout ──────────────────────────
-    # The SDK's `prediction.wait()` blocks with no timeout — if Replicate's
-    # queue stalls or a prediction hangs in an error state, the whole job
-    # stops. We replace it with an explicit poll loop + deadline so we can
-    # surface the failure and keep the rest of the video moving.
-    def _create():
-        return replicate.predictions.create(
-            model="kwaivgi/kling-v2.5-turbo-pro",
-            input={
-                "prompt": motion_prompt,
-                "start_image": image_url,
-                "duration": 5,
-            },
+    slug = (motion_model or DEFAULT_MOTION_MODEL).strip().lower()
+    provider = get_motion_provider(slug)
+    if provider is None:
+        raise RuntimeError(
+            f"Unknown motion_model '{slug}'. Call /ai-videos/motion-providers "
+            f"for the catalogue."
+        )
+    if not provider.is_configured():
+        raise RuntimeError(
+            f"Motion provider '{slug}' is not configured "
+            f"(missing API key). Switch models or set the key."
         )
 
-    try:
-        prediction = await asyncio.to_thread(_create)
-    except Exception as e:
-        raise RuntimeError(f"Kling prediction create failed: {e}") from e
-
-    # 36 × 5s = 180s = 3 min inner budget. Tightened from 4 min based on
-    # observed Kling 2.5 Turbo Pro success distribution (p50 ≈ 55s,
-    # p95 ≈ 130s). The outer orchestrator wrap adds another 3 min of
-    # headroom (upload + download + ffmpeg) — total 6 min ceiling per
-    # scene. Tightening here means a failing provider fails faster.
-    MAX_POLL_ATTEMPTS = 36
-    final_status: Optional[str] = None
-    last_status: Optional[str] = None
-    for attempt in range(MAX_POLL_ATTEMPTS):
-        status = getattr(prediction, "status", None)
-        if status != last_status:
-            # Log every status transition so the container logs let us
-            # diagnose exactly WHERE Kling is stuck (starting vs
-            # processing vs something stranger).
-            logger.info(
-                f"Kling prediction {getattr(prediction, 'id', '?')}: "
-                f"status={status} (attempt {attempt + 1}/{MAX_POLL_ATTEMPTS})"
-            )
-            last_status = status
-        if status in ("succeeded", "failed", "canceled"):
-            final_status = status
-            break
-        await asyncio.sleep(5)
-        try:
-            # SDK's `reload()` mutates in place; run it off the event loop
-            # to avoid blocking other coroutines.
-            await asyncio.to_thread(prediction.reload)
-        except Exception as e:
-            logger.warning(f"Kling poll reload failed (continuing): {e}")
-            continue
-
-    if final_status != "succeeded":
-        # Timeout or terminal non-success. Best-effort cancel to free the
-        # compute slot on Replicate's side.
-        if final_status is None:
-            try:
-                await asyncio.to_thread(prediction.cancel)
-            except Exception:
-                pass
-            raise RuntimeError(
-                f"Kling prediction timed out after {MAX_POLL_ATTEMPTS * 5}s "
-                f"(prediction id: {getattr(prediction, 'id', '?')})"
-            )
-        err = getattr(prediction, "error", None)
-        raise RuntimeError(f"Kling prediction {final_status}: {err}")
-
-    out = prediction.output
-    video_url = out[0] if isinstance(out, list) else str(out)
-
-    # Download the clip into out_path.
-    import httpx
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
-        r = await client.get(video_url)
-        r.raise_for_status()
-        with open(out_path, "wb") as fh:
-            fh.write(r.content)
-
-    # If the scene needs to be shorter than the 5s Kling default, trim.
-    if duration_seconds < 4.9:
-        trimmed = out_path + ".trim.mp4"
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", out_path,
-            "-t", f"{duration_seconds:.3f}",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-            "-c:a", "copy",
-            "-movflags", "+faststart",
-            trimmed,
-        ]
-        _run_ffmpeg(cmd, "kling_trim")
-        os.replace(trimmed, out_path)
-
-    # If it needs to be LONGER than 5s we slow it down to fit. Rarely
-    # needed because the storyboard cap is 10s and we keep most scenes
-    # under 6 — but guarded for correctness.
-    elif duration_seconds > 5.1:
-        slowed = out_path + ".slow.mp4"
-        # setpts=PTS*factor slows video; factor = target/source.
-        factor = duration_seconds / 5.0
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", out_path,
-            "-filter_complex", f"[0:v]setpts={factor}*PTS[v]",
-            "-map", "[v]",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-            "-movflags", "+faststart",
-            slowed,
-        ]
-        _run_ffmpeg(cmd, "kling_slow")
-        os.replace(slowed, out_path)
-
-    return out_path
+    return await provider.animate(
+        keyframe_path, motion_prompt, duration_seconds, out_path
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────

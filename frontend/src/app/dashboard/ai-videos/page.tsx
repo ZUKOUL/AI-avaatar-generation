@@ -105,6 +105,18 @@ interface VoiceOption {
   category?: string;
 }
 
+interface MotionProvider {
+  slug: string;
+  name: string;
+  description: string;
+  tagline: string;
+  native_clip_seconds: number;
+  estimated_usd_per_60s: number;
+  configured: boolean;
+  credit_cost_30s: number;
+  credit_cost_60s: number;
+}
+
 interface NichePreset {
   slug: string;
   name: string;
@@ -178,6 +190,11 @@ export default function AIVideosPage() {
   const [voiceId, setVoiceId] = useState<string>("");
   const [subtitleStyle, setSubtitleStyle] = useState("karaoke");
   const [tone, setTone] = useState("");
+  // Motion-model picker — only relevant when mode="motion". Defaults to
+  // Kling because that's what the backend falls back to. The catalogue
+  // is fetched live so new providers land without a frontend deploy.
+  const [motionModel, setMotionModel] = useState<string>("kling");
+  const [motionProviders, setMotionProviders] = useState<MotionProvider[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -254,11 +271,24 @@ export default function AIVideosPage() {
     }
   }, []);
 
+  const loadMotionProviders = useCallback(async () => {
+    try {
+      const res = await aiVideosAPI.listMotionProviders();
+      setMotionProviders(res.data?.providers ?? []);
+      if (res.data?.default) {
+        setMotionModel(res.data.default);
+      }
+    } catch (e) {
+      console.error("Failed to load motion providers:", e);
+    }
+  }, []);
+
   useEffect(() => {
     loadHistory();
     loadVoices();
     loadNiches();
-  }, [loadHistory, loadVoices, loadNiches]);
+    loadMotionProviders();
+  }, [loadHistory, loadVoices, loadNiches, loadMotionProviders]);
 
   // Activate a niche: pre-fills the main prompt form with the niche's
   // natural defaults (language, aspect, duration hint) BUT leaves the
@@ -380,6 +410,11 @@ export default function AIVideosPage() {
       if (voiceId) fd.append("voice_id", voiceId);
       fd.append("subtitle_style", subtitleStyle);
       if (tone.trim()) fd.append("tone", tone.trim());
+      // Motion provider (only meaningful for mode="motion"). Backend
+      // ignores this field for slideshow mode.
+      if (mode === "motion" && motionModel) {
+        fd.append("motion_model", motionModel);
+      }
       // When a niche is active the backend injects its style_instructions
       // + visual_style into the pipeline. The user's form values still win
       // for mode / duration / voice / subs — the niche only drives LOOK
@@ -748,6 +783,74 @@ export default function AIVideosPage() {
                 );
               })}
             </div>
+
+            {/* Motion-provider picker — only visible when mode="motion".
+                Lets the user pick between Kling / Veo / Hailuo / … with
+                clear tradeoffs (price, native clip length, description).
+                Unconfigured providers (missing API key) render greyed
+                with a tooltip. */}
+            {mode === "motion" && motionProviders.length > 0 && (
+              <div className="mt-4">
+                <div
+                  className="text-xs font-medium mb-2 tracking-wide uppercase"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Modèle de génération vidéo
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {motionProviders.map((p) => {
+                    const active = motionModel === p.slug;
+                    const disabled = !p.configured;
+                    return (
+                      <button
+                        key={p.slug}
+                        type="button"
+                        onClick={() => !disabled && setMotionModel(p.slug)}
+                        disabled={disabled}
+                        title={
+                          disabled
+                            ? `${p.name} n'est pas configuré sur ce serveur (clé API manquante).`
+                            : p.description
+                        }
+                        className="text-left rounded-lg p-3 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          background: active
+                            ? "var(--accent)"
+                            : "var(--bg-primary)",
+                          color: active ? "var(--bg-primary)" : "var(--text-primary)",
+                          border: active
+                            ? "1px solid var(--accent)"
+                            : "1px solid var(--border-color)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-semibold">{p.name}</div>
+                          <div
+                            className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold"
+                            style={{
+                              background: active
+                                ? "var(--bg-primary)"
+                                : "var(--bg-secondary)",
+                              color: active
+                                ? "var(--accent)"
+                                : "var(--text-primary)",
+                            }}
+                          >
+                            {p.tagline}
+                          </div>
+                        </div>
+                        <div className="text-[10px] mt-1 opacity-90 line-clamp-2">
+                          {p.description}
+                        </div>
+                        <div className="text-[10px] mt-1 font-medium">
+                          {duration > 30 ? p.credit_cost_60s : p.credit_cost_30s} credits · clips {p.native_clip_seconds}s
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Secondary controls */}
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
