@@ -233,6 +233,18 @@ async def generate_from_niche(
         None,
         description="Override the niche default mode ('slideshow' | 'motion').",
     ),
+    voice_id: Optional[str] = Form(
+        None,
+        description="Override the niche default voice (ElevenLabs voice_id).",
+    ),
+    voice_enabled: Optional[bool] = Form(
+        None,
+        description="Override whether the video has voice-over.",
+    ),
+    subtitle_style: Optional[str] = Form(
+        None,
+        description="Override subtitle style: 'karaoke' | 'block' | 'off'.",
+    ),
 ):
     """
     One-click path: given a niche slug, the backend picks a topic in the
@@ -263,6 +275,20 @@ async def generate_from_niche(
         raise HTTPException(
             status_code=400,
             detail=f"mode must be one of {sorted(_ALLOWED_MODES)}",
+        )
+
+    # Voice + subtitle overrides — user-picked values win over niche defaults.
+    effective_voice_id = (voice_id or niche.default_voice_id or "").strip() or None
+    effective_voice_enabled = (
+        voice_enabled if voice_enabled is not None else niche.default_voice_enabled
+    )
+    effective_subtitle_style = (
+        (subtitle_style or niche.default_subtitle_style).strip().lower()
+    )
+    if effective_subtitle_style not in _ALLOWED_SUB_STYLES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"subtitle_style must be one of {sorted(_ALLOWED_SUB_STYLES)}",
         )
 
     # ── Pick the topic ─────────────────────────────────────────────────
@@ -317,9 +343,9 @@ async def generate_from_niche(
             "duration_seconds": effective_duration,
             "aspect_ratio": niche.default_aspect_ratio,
             "language": niche.language,
-            "voice_enabled": niche.default_voice_enabled,
-            "voice_id": niche.default_voice_id,
-            "subtitle_style": niche.default_subtitle_style,
+            "voice_enabled": effective_voice_enabled,
+            "voice_id": effective_voice_id,
+            "subtitle_style": effective_subtitle_style,
             "tone": niche.tone or None,
             "niche_slug": niche.slug,
             "style_instructions": niche.style_instructions or None,

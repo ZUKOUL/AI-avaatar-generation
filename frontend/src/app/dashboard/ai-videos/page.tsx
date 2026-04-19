@@ -110,9 +110,13 @@ interface NichePreset {
   description: string;
   tagline: string;
   language: string;
+  tone?: string;
   default_duration_seconds: number;
   default_mode: "slideshow" | "motion";
   default_aspect_ratio: string;
+  default_subtitle_style: string;
+  default_voice_enabled: boolean;
+  default_voice_id: string | null;
   card_gradient: string;
   accent_color: string;
   recommended_hashtags: string[];
@@ -234,14 +238,30 @@ export default function AIVideosPage() {
   }, [loadHistory, loadVoices, loadNiches]);
 
   // Called from the niche modal when the user hits "Generate".
+  // `overrides` lets the modal pass user-picked voice + subtitle-style
+  // choices on top of the niche defaults.
   const handleNicheGenerate = useCallback(
-    async (niche: NichePreset, topic: string) => {
+    async (
+      niche: NichePreset,
+      topic: string,
+      overrides: {
+        voiceId?: string;
+        voiceEnabled?: boolean;
+        subtitleStyle?: string;
+      } = {}
+    ) => {
       setError("");
       setInfo("");
       try {
         const fd = new FormData();
         fd.append("niche_slug", niche.slug);
         if (topic.trim()) fd.append("topic", topic.trim());
+        if (overrides.voiceId) fd.append("voice_id", overrides.voiceId);
+        if (overrides.voiceEnabled !== undefined)
+          fd.append("voice_enabled", overrides.voiceEnabled ? "true" : "false");
+        if (overrides.subtitleStyle)
+          fd.append("subtitle_style", overrides.subtitleStyle);
+
         const res = await aiVideosAPI.generateFromNiche(fd);
         const jobId = res.data?.job_id as string | undefined;
         if (!jobId) throw new Error("Server didn't return a job id.");
@@ -253,8 +273,11 @@ export default function AIVideosPage() {
           duration_seconds: niche.default_duration_seconds,
           aspect_ratio: niche.default_aspect_ratio,
           language: niche.language,
-          voice_enabled: true,
-          subtitle_style: "karaoke",
+          voice_enabled:
+            overrides.voiceEnabled !== undefined
+              ? overrides.voiceEnabled
+              : true,
+          subtitle_style: overrides.subtitleStyle || "karaoke",
           tone: null,
           status: "queued",
           progress: 0,
@@ -521,21 +544,31 @@ export default function AIVideosPage() {
                         )}
                         <div className="text-sm font-semibold">{m.label}</div>
                       </div>
+                      {/* High-contrast tag chip that stays readable in BOTH
+                          states. Previously in active state the tag bg was
+                          translucent dark + inherited dark text → invisible
+                          on the light accent button. Now active = solid
+                          dark pill with accent-coloured text (flashy +
+                          readable), inactive = soft neutral pill. */}
                       <div
-                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                        className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                         style={{
                           background: active
-                            ? "rgba(0,0,0,0.18)"
+                            ? "var(--bg-primary)"
                             : "var(--bg-secondary)",
+                          color: active
+                            ? "var(--accent-primary)"
+                            : "var(--text-primary)",
                         }}
                       >
                         {m.tag}
                       </div>
                     </div>
-                    <div className="text-xs opacity-80 mt-1">{m.description}</div>
-                    <div className="text-xs mt-1 font-medium opacity-90">
-                      {m.price}
-                    </div>
+                    {/* No more opacity on the description — it was compounding
+                        with low-contrast text in certain themes and making the
+                        sub-copy unreadable in active state. */}
+                    <div className="text-xs mt-1">{m.description}</div>
+                    <div className="text-xs mt-1 font-semibold">{m.price}</div>
                   </button>
                 );
               })}
@@ -724,8 +757,11 @@ export default function AIVideosPage() {
       {activeNiche && (
         <NicheModal
           niche={activeNiche}
+          voices={voices}
           onClose={() => setActiveNiche(null)}
-          onSubmit={(topic) => handleNicheGenerate(activeNiche, topic)}
+          onSubmit={(topic, overrides) =>
+            handleNicheGenerate(activeNiche, topic, overrides)
+          }
         />
       )}
     </>
@@ -1116,18 +1152,36 @@ function NicheCard({
 
 function NicheModal({
   niche,
+  voices,
   onClose,
   onSubmit,
 }: {
   niche: NichePreset;
+  voices: VoiceOption[];
   onClose: () => void;
-  onSubmit: (topic: string) => Promise<void>;
+  onSubmit: (
+    topic: string,
+    overrides: {
+      voiceId?: string;
+      voiceEnabled?: boolean;
+      subtitleStyle?: string;
+    }
+  ) => Promise<void>;
 }) {
   const [topic, setTopic] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [ideas, setIdeas] = useState<string[]>([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
   const [ideasError, setIdeasError] = useState("");
+
+  // User overrides on top of the niche defaults.
+  const [voiceId, setVoiceId] = useState<string>(niche.default_voice_id || "");
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(
+    niche.default_voice_enabled ?? true
+  );
+  const [subtitleStyle, setSubtitleStyle] = useState<string>(
+    niche.default_subtitle_style || "karaoke"
+  );
 
   // Close on Escape
   useEffect(() => {
@@ -1158,7 +1212,11 @@ function NicheModal({
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await onSubmit(topic);
+      await onSubmit(topic, {
+        voiceId: voiceEnabled && voiceId ? voiceId : undefined,
+        voiceEnabled,
+        subtitleStyle,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -1296,9 +1354,113 @@ function NicheModal({
             </div>
           )}
 
+          {/* ── Voice + subtitle overrides ─────────────────────────
+              Same UX as the main form: user can audition voices inline
+              with ▶ before picking, and choose their subtitle preference
+              without having to leave the modal. Defaults come from the
+              niche preset — user overrides win. */}
+          <div className="mt-4 grid grid-cols-1 gap-3">
+            <div>
+              <div
+                className="text-xs font-medium mb-1 tracking-wide uppercase flex items-center justify-between"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <span>Voix off</span>
+                <label
+                  className="flex items-center gap-1.5 text-[10px] normal-case tracking-normal"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={voiceEnabled}
+                    onChange={(e) => setVoiceEnabled(e.target.checked)}
+                    className="accent-current"
+                  />
+                  Activée
+                </label>
+              </div>
+              {voiceEnabled ? (
+                voices.length > 0 ? (
+                  <VoicePicker
+                    voices={voices}
+                    value={voiceId}
+                    onChange={setVoiceId}
+                  />
+                ) : (
+                  <div
+                    className="rounded-lg px-3 py-2 text-[11px]"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    Chargement des voix ElevenLabs…
+                  </div>
+                )
+              ) : (
+                <div
+                  className="rounded-lg px-3 py-2 text-[11px]"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  Vidéo silencieuse (pas de voix).
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div
+                className="text-xs font-medium mb-1 tracking-wide uppercase"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Sous-titres
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "karaoke", label: "Karaoke", hint: "mot-par-mot" },
+                  { id: "block", label: "Bloc", hint: "phrase" },
+                  { id: "off", label: "Aucun", hint: "clean" },
+                ].map((opt) => {
+                  const active = subtitleStyle === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setSubtitleStyle(opt.id)}
+                      className="rounded-lg px-2 py-1.5 text-xs text-center transition"
+                      style={{
+                        background: active
+                          ? niche.accent_color
+                          : "var(--bg-primary)",
+                        color: active
+                          ? "var(--bg-primary)"
+                          : "var(--text-primary)",
+                        border: active
+                          ? `1px solid ${niche.accent_color}`
+                          : "1px solid var(--border-color)",
+                      }}
+                    >
+                      <div className="font-semibold">{opt.label}</div>
+                      <div
+                        className="text-[9px]"
+                        style={{ opacity: active ? 0.8 : 0.7 }}
+                      >
+                        {opt.hint}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* Specs recap */}
           <div
-            className="mt-5 rounded-lg p-3 text-[11px] leading-relaxed"
+            className="mt-4 rounded-lg p-3 text-[11px] leading-relaxed"
             style={{
               background: "var(--bg-primary)",
               border: "1px solid var(--border-color)",
