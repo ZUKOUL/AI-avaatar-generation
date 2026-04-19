@@ -435,98 +435,168 @@ _register(Niche(
         "space."
     ),
 
-    # ── NARRATOR VOICE + STRUCTURE (topic-agnostic) ───────────────────
-    # Locks the MOOD and PACING without constraining the subject. Works
-    # for psychology, masculinity, relationships, philosophy, etc.
+    # ── NARRATOR VOICE + STRUCTURE (refined from 9 real titles) ───────
+    # Reverse-engineered from the channel's 9 most recent videos
+    # (Apr 2026, extracted via Google SERP meta-tags because TikTok
+    # blocks direct scraping). Two title formulas recur — this prompt
+    # teaches the LLM to mimic them exactly.
     style_instructions=(
-        "Write in the exact voice of a French cinematic-introspection TikTok "
-        "channel (reference: @humain.penseur). REQUIRED STRUCTURE:\n"
-        "  HOOK (0-4s): A provocative question or a counter-intuitive claim "
-        "that stops the scroll. If the topic is psychological or behavioural, "
-        "favour the format 'Pourquoi certaines personnes … ?' If the topic is "
-        "about energy / relationships / values, a direct bold statement is "
-        "also fine.\n"
-        "  DEVELOPMENT (4-45s): explain the mechanism in plain French, through "
+        "Write in the EXACT voice of the @humain.penseur TikTok channel "
+        "(French pop-psychology introspection). REVERSE-ENGINEERED FROM 9 "
+        "REAL RECENT TITLES. Observed patterns:\n"
+        "\n"
+        "TITLE/HOOK FORMAT — pick ONE of two templates, depending on the "
+        "subject depth:\n"
+        "\n"
+        "  FORMULA A (long, question-based — used on the meatiest topics):\n"
+        "    '[clinical concept in French] : Pourquoi [en psychologie]? "
+        "certaines personnes/femmes [observed behaviour]… [twist that "
+        "reveals a hidden emotional mechanism] ?'\n"
+        "    Real examples:\n"
+        "    - 'L\\'indifférence émotionnelle : Pourquoi en psychologie "
+        "certaines femmes ont du mal à ressentir leurs émotions ?'\n"
+        "    - 'La malédiction du savoir : Pourquoi en psychologie certaines "
+        "personnes, malgré une grande intelligence émotionnelle, se sentent-"
+        "elles plus seules… comme si voir trop clair dans les autres "
+        "finissait par isoler ?'\n"
+        "    - 'La dissonance cognitive comportementale : Pourquoi certaines "
+        "personnes comprennent-elles parfaitement ce qui les détruit… mais "
+        "n\\'arrivent toujours pas à s\\'en libérer.'\n"
+        "    - 'L\\'évitement émotionnel : pourquoi certaines personnes "
+        "rêvent-elles de tout quitter… non pas pour fuir les autres, mais "
+        "pour enfin échapper à ce qu\\'elles ressentent ?'\n"
+        "\n"
+        "  FORMULA B (short, descriptive — used on single-concept explainers):\n"
+        "    '[clinical concept] : [short descriptive subtitle]' OR just "
+        "'[concept] et ses [effets/impacts]'\n"
+        "    Real examples:\n"
+        "    - 'Le TDAH et la psychologie : Comprendre les distractions'\n"
+        "    - 'Le blues de l\\'anniversaire : Comprendre la tristesse'\n"
+        "    - 'Le perfectionnisme inadapté et ses impacts'\n"
+        "    - 'La procrastination nocturne en psychologie'\n"
+        "\n"
+        "SIGNATURE PHRASES used repeatedly in the real channel — use them "
+        "when they fit:\n"
+        "  - 'en psychologie'  (inserted as an authority marker inside the "
+        "question — 'Pourquoi EN PSYCHOLOGIE certaines personnes…')\n"
+        "  - 'certaines personnes' / 'certaines femmes'  (NEVER 'les gens' "
+        "— the 'certaines' is deliberately in-group, invites identification)\n"
+        "  - 'malgré [X], [Y]'  (paradox setup — 'malgré une grande "
+        "intelligence émotionnelle, se sentent plus seules')\n"
+        "  - '…'  (ellipsis before the twist is the SIGNATURE punctuation)\n"
+        "  - 'comme si [metaphor]'  (post-twist expansion)\n"
+        "  - 'non pas pour [X], mais pour [Y]'  (reframe pattern)\n"
+        "\n"
+        "REQUIRED STRUCTURE of the 30-60s narration:\n"
+        "  HOOK (0-4s): One sentence. EXACTLY matches one of the two formulas "
+        "above. No 'salut tout le monde', no intro, no throat-clearing — "
+        "just the hook line spoken calm, deliberate.\n"
+        "  DEVELOPMENT (4-45s): decode the concept in plain French through "
         "concrete micro-scenes the viewer recognises from their own life. "
         "Short declarative sentences. Deliberate pauses implied by full stops. "
-        "When relevant, reference a real concept (attachement anxieux, "
-        "énergie masculine, dissonance cognitive, stoïcisme, etc.) but decode "
-        "it immediately with an everyday example — never leave the viewer "
-        "stuck on jargon.\n"
-        "  REVEAL (45-55s): name the underlying pattern + why it self-perpetuates.\n"
-        "  LANDING (55-60s): a line that lets the viewer SEE themselves. No "
-        "CTA, no 'follow for more', no moralising, no false optimism.\n"
+        "When the title uses jargon, unpack it immediately with an everyday "
+        "example.\n"
+        "  REVEAL (45-55s): name the pattern + why it self-perpetuates.\n"
+        "  LANDING (55-60s): a line that lets the viewer SEE themselves.\n"
         "\n"
-        "RULES:\n"
-        "- Never say 'guys', 'les gars', 'abonne-toi', 'commente', 'partage'.\n"
-        "- Second-person address is rare and only at the end.\n"
-        "- The insight IS the payoff — don't wrap up with a lesson or advice.\n"
-        "- Match the tone to the subject: psychology → tender and non-"
-        "judgmental; masculinity/energy → deeper and more grounded; "
-        "philosophy → restrained and contemplative."
+        "ABSOLUTE RULES:\n"
+        "  - The insight IS the payoff. Never end with advice, moral, "
+        "or 'what to do about it'.\n"
+        "  - NEVER: 'guys', 'les gars', 'les amis', 'abonne-toi', "
+        "'commente', 'partage', 'fais-moi savoir', 'dis-le moi en "
+        "commentaire'.\n"
+        "  - Second-person address ('tu / vous') is rare and reserved for "
+        "the very last sentence.\n"
+        "  - No philosophical quotes (Camus, Sénèque, etc.) — this is POP "
+        "PSYCHOLOGY. Clinical terms only.\n"
+        "  - When the topic is about emotional patterns in women, say so "
+        "explicitly ('certaines femmes') — the channel segments its audience."
     ),
 
-    # ── TOPIC IDEATION ─────────────────────────────────────────────────
-    # Flexible across multiple subject domains but still opinionated about
-    # WHAT makes a good video in this aesthetic: introspective, hook-driven,
-    # revealing hidden patterns.
+    # ── TOPIC IDEATION (with explicit format + real examples) ─────────
     topic_generation_prompt=(
-        "You are the editor of a popular French cinematic-introspection "
-        "TikTok channel in the Claymation 3D visual style (reference: "
-        "@humain.penseur). Target audience: adults 20-45. Subjects that "
-        "perform well:\n"
-        "  - Pop psychology / emotional patterns (dissonance, évitement, "
-        "    attachement, rumination, parentification, alexithymie, HPI/HPE, "
-        "    syndrome de l'imposteur, malédiction du savoir…)\n"
-        "  - Masculine + feminine energy dynamics, relationship patterns, "
-        "    attachment + break-ups, the 'why he pulls away' / 'why she "
-        "    overfunctions' territory\n"
-        "  - Modern-life tensions (solitude in a crowd, hyper-stimulation, "
-        "    purpose drift, comparison fatigue)\n"
-        "  - Stoic / philosophical reflections when framed as behavioural "
-        "    patterns, not as quotes\n"
+        "You are the editor of @humain.penseur, a successful French TikTok "
+        "channel (~ adults 20-45, mostly women interested in self-"
+        "understanding and emotional patterns). Your job: invent ONE fresh "
+        "video title per suggestion, matching the channel's exact format.\n"
         "\n"
-        "Invent fresh French video titles that:\n"
-        "  a) stop the scroll on the HOOK ALONE (no one needs context to "
-        "     click);\n"
-        "  b) reveal a HIDDEN EMOTIONAL TRUTH (not a generic 'be yourself' "
-        "     line);\n"
-        "  c) sit naturally in the Claymation 3D visual style — topics that "
-        "     benefit from a slow contemplative voice over abstract "
-        "     minimalist figures;\n"
-        "  d) diversify across the subject domains above (don't propose 6 "
-        "     psychology titles in a row).\n"
+        "REAL RECENT TITLES from the channel (Apr 2026 — DO NOT REPEAT "
+        "these concepts unless you find a genuinely new angle):\n"
+        "  - L'indifférence émotionnelle : Pourquoi en psychologie certaines "
+        "    femmes ont du mal à ressentir leurs émotions ?\n"
+        "  - La malédiction du savoir : Pourquoi en psychologie certaines "
+        "    personnes se sentent plus seules en voyant trop clair dans les "
+        "    autres ?\n"
+        "  - Le TDAH et la psychologie : Comprendre les distractions\n"
+        "  - La procrastination nocturne en psychologie\n"
+        "  - Le blues de l'anniversaire : Comprendre la tristesse\n"
+        "  - Le perfectionnisme inadapté et ses impacts\n"
+        "  - La dissonance cognitive comportementale : Pourquoi certaines "
+        "    personnes comprennent ce qui les détruit mais n'arrivent pas à "
+        "    s'en libérer ?\n"
+        "  - L'évitement émotionnel : pourquoi certaines personnes rêvent de "
+        "    tout quitter… non pas pour fuir les autres, mais pour échapper à "
+        "    ce qu'elles ressentent ?\n"
         "\n"
-        "Preferred format: '[concept or pattern name] : Pourquoi [behaviour/"
-        "tension]… [twist] ?' — but a direct provocative claim is also "
-        "acceptable when the subject calls for it."
+        "FORMAT — pick one of these two, depending on topic depth:\n"
+        "  A) LONG: '[clinical concept] : Pourquoi [en psychologie] certaines "
+        "     personnes/femmes [behaviour]… [twist] ?'\n"
+        "  B) SHORT: '[clinical concept] : Comprendre [consequence]' OR "
+        "     '[concept] et ses impacts' OR '[concept] en psychologie'\n"
+        "\n"
+        "OPEN TOPIC SPACE (not yet covered on the channel — pick variety):\n"
+        "  Attachment (anxieux / évitant / désorganisé), parentification, "
+        "  hypervigilance, alexithymie, shame spirals, rumination mentale, "
+        "  sabotage inconscient, syndrome de l'imposteur, dépression "
+        "  souriante, hyperempathie, HPI/HPE, trauma responses, burn-out "
+        "  invisible, people-pleasing chronique, peur de l'abandon, "
+        "  ghosting émotionnel, intimacy anxiety, trauma bonds, relational "
+        "  triangulation, self-gaslighting, compartmentalisation, gestalt "
+        "  unfinished-business. Also masculine/feminine energy angles, "
+        "  relationship patterns, modern-life tensions.\n"
+        "\n"
+        "REQUIREMENTS for each title:\n"
+        "  1. French, in one of the two formats above.\n"
+        "  2. Stops the scroll on the HOOK ALONE — no context needed.\n"
+        "  3. Reveals a HIDDEN EMOTIONAL TRUTH (the 'twist' after the … "
+        "     is where the paradox lives).\n"
+        "  4. Uses a real clinical concept in the title, not a vague "
+        "     theme.\n"
+        "  5. No overlap with the real-title list above.\n"
+        "  6. Diversify across topic domains (don't propose 6 attachment "
+        "     titles in a row)."
     ),
 
     fallback_topics=[
-        # Psychology angles (reference channel's comfort zone)
-        "L'évitement émotionnel : pourquoi certaines personnes préfèrent-elles "
-        "se perdre dans le travail plutôt que de ressentir ce qu'elles vivent ?",
-        "La malédiction du savoir : pourquoi comprendre parfaitement les "
-        "autres finit-il par nous isoler d'eux ?",
-        "Le perfectionnisme comme protection : pourquoi viser l'irréprochable "
-        "revient-il souvent à cacher qu'on se sent profondément indigne ?",
-        # Masculine / feminine energy
-        "L'énergie masculine : pourquoi un homme qui aime profondément ne "
-        "sera-t-il jamais totalement serein ?",
-        "Le silence masculin : pourquoi un homme qui ne demande plus rien "
-        "est-il déjà parti émotionnellement ?",
-        "La féminité sacrée : pourquoi une femme qui se connaît devient-elle "
-        "soudainement moins disponible ?",
-        # Relationships
-        "L'attachement anxieux : pourquoi a-t-on besoin d'être rassuré sans "
-        "jamais vraiment l'être ?",
-        "Les ruptures qui guérissent : pourquoi certaines séparations nous "
-        "remettent-elles enfin en vie ?",
-        # Modern life tensions
-        "Le bruit intérieur : pourquoi cherchons-nous le silence à l'extérieur "
-        "alors que le vacarme est en nous ?",
-        "La solitude moderne : pourquoi sommes-nous les plus seuls au milieu "
-        "d'une foule de notifications ?",
+        # Real titles from the channel (verified Apr 2026 via SERP).
+        # We reuse the EXACT originals so 'Surprise-moi' in offline mode
+        # still gives the user something that sounds like the channel.
+        "L'indifférence émotionnelle : Pourquoi en psychologie certaines "
+        "femmes ont du mal à ressentir leurs émotions ?",
+        "La malédiction du savoir : Pourquoi en psychologie certaines "
+        "personnes, malgré une grande intelligence émotionnelle, se "
+        "sentent-elles plus seules… comme si voir trop clair dans les "
+        "autres finissait par isoler ?",
+        "La dissonance cognitive comportementale : Pourquoi certaines "
+        "personnes comprennent-elles parfaitement ce qui les détruit… "
+        "mais n'arrivent toujours pas à s'en libérer ?",
+        "L'évitement émotionnel : pourquoi certaines personnes rêvent-"
+        "elles de tout quitter… non pas pour fuir les autres, mais pour "
+        "enfin échapper à ce qu'elles ressentent ?",
+        "Le perfectionnisme inadapté et ses impacts",
+        # Fresh extensions in the same format, covering adjacent spaces
+        # the channel hasn't yet touched.
+        "La parentification : Pourquoi en psychologie certains adultes "
+        "prennent-ils soin de tout le monde… sauf d'eux-mêmes ?",
+        "L'hyperempathie : Pourquoi certaines personnes absorbent-elles "
+        "les émotions des autres… jusqu'à ne plus savoir ce qu'elles "
+        "ressentent vraiment ?",
+        "La dépression souriante : Pourquoi les personnes qui vont le "
+        "moins bien sont-elles souvent celles qui paraissent les plus "
+        "lumineuses ?",
+        "Le people-pleasing chronique et ses impacts",
+        "La rumination mentale : Pourquoi rejouons-nous mille fois des "
+        "scènes qu'on ne peut plus changer ?",
     ],
 
     # Generic cross-domain hashtag set — user can trim per topic.
