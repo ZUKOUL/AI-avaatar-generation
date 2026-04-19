@@ -381,66 +381,6 @@ export default function Home() {
         @media (prefers-reduced-motion: reduce) {
           .horpen-reveal { opacity: 1; transform: none; animation: none; }
           .horpen-orb-a, .horpen-orb-b, .horpen-orb-c { animation: none !important; }
-          .horpen-emboss, .horpen-emboss-muted, .horpen-emboss-dark-bg {
-            text-shadow: none;
-            filter: none;
-          }
-        }
-
-        /* 3-D embossed headline effect — applied to every big title
-           on the landing via the .horpen-emboss class. Two variants:
-           .horpen-emboss (dark primary half of the title) and
-           .horpen-emboss-muted (grey secondary half). Both stack
-           layered text-shadows to get a raised look + an ambient
-           drop shadow underneath so the type feels physically lifted
-           off the off-white canvas.
-           Gracefully disabled under prefers-reduced-motion at the
-           bottom of this stylesheet. */
-        .horpen-emboss {
-          color: #0a0a0a;
-          background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 65%, #000 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          text-shadow:
-            0 1px 0 rgba(255, 255, 255, 0.9),
-            0 2px 0 rgba(209, 213, 219, 0.9),
-            0 3px 0 rgba(180, 180, 180, 0.85),
-            0 4px 0 rgba(160, 160, 160, 0.7),
-            0 5px 0 rgba(130, 130, 130, 0.55),
-            0 8px 16px rgba(15, 15, 40, 0.12),
-            0 16px 28px rgba(15, 15, 40, 0.08),
-            0 28px 48px rgba(15, 15, 40, 0.06);
-          filter: drop-shadow(0 10px 20px rgba(15, 15, 40, 0.08));
-        }
-        .horpen-emboss-muted {
-          color: #7a7a7a;
-          background: linear-gradient(180deg, #a1a1a1 0%, #7a7a7a 60%, #5a5a5a 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          text-shadow:
-            0 1px 0 rgba(255, 255, 255, 0.95),
-            0 2px 0 rgba(220, 220, 220, 0.8),
-            0 3px 0 rgba(200, 200, 200, 0.6),
-            0 4px 0 rgba(180, 180, 180, 0.45),
-            0 6px 10px rgba(15, 15, 40, 0.08),
-            0 12px 20px rgba(15, 15, 40, 0.05);
-        }
-        /* White variant for titles sitting on the DARK final-CTA panel. */
-        .horpen-emboss-dark-bg {
-          color: #ffffff;
-          background: linear-gradient(180deg, #ffffff 0%, #e5e5e5 65%, #b0b0b0 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          text-shadow:
-            0 1px 0 rgba(255, 255, 255, 0.2),
-            0 2px 0 rgba(0, 0, 0, 0.4),
-            0 3px 0 rgba(0, 0, 0, 0.3),
-            0 4px 0 rgba(0, 0, 0, 0.22),
-            0 6px 12px rgba(0, 0, 0, 0.5),
-            0 12px 24px rgba(0, 0, 0, 0.35);
         }
 
         /* 3-D hover — the card leans toward the cursor. Pure CSS, no
@@ -629,125 +569,208 @@ export default function Home() {
         )}
       </nav>
 
-      {/* ═════════════════════════ HERO ═════════════════════════ */}
-      <section className="pt-[120px] md:pt-[160px] pb-14 md:pb-20 px-5 md:px-8 relative">
+      {/* ═════════════════════════ HERO ═════════════════════════
+          Dark rounded "panel" design replicated from the user-sent
+          reference: pitch-black page bg outside, a single big
+          rounded container that holds everything, vertical blue
+          light beams radiating up from the bottom centre, a green
+          pill tagline, a huge white headline, paragraph, a white
+          CTA and the existing dashboard mockup floating at the
+          bottom. Kept the outer fixed nav as-is; it reads fine
+          against the dark panel thanks to its blur + light bg. */}
+      <section className="px-3 md:px-5 pt-[84px] md:pt-[96px] pb-6 md:pb-10 relative">
         <div
-          className="max-w-[1040px] mx-auto text-center"
-          style={{ animation: "horpen-hero-in 1.1s cubic-bezier(0.22, 1, 0.36, 1)" }}
+          className="max-w-[1280px] mx-auto rounded-[26px] md:rounded-[32px] relative overflow-hidden"
+          style={{
+            /* Base colour stack — pitch outer + deep navy core so the
+               beams pop without the whole panel looking muddy. */
+            background:
+              "radial-gradient(120% 90% at 50% 120%, #0b1f3d 0%, #08101d 35%, #050710 70%, #02040a 100%)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            minHeight: "min(820px, 92vh)",
+            boxShadow:
+              "0 1px 2px rgba(0,0,0,0.4), 0 60px 120px -30px rgba(8, 16, 29, 0.55), 0 30px 60px -20px rgba(0,0,0,0.5)",
+            animation: "horpen-hero-in 1.1s cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
         >
-          {/* Pill tagline */}
-          <div
-            className="inline-flex items-center gap-2 text-[12px] font-medium px-3 py-1.5 rounded-full mb-6"
-            style={{
-              background: "#ffffff",
-              border: "1px solid #ececec",
-              color: "#555",
-              boxShadow:
-                "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(15,15,40,0.04)",
-            }}
-          >
-            <span
-              className="inline-block w-1.5 h-1.5 rounded-full"
-              style={{ background: "#16a34a" }}
-            />
-            New · AI video generation with Kling 2.5, Veo 3.1 & Grok
-          </div>
-
-          {/* 3D embossed headline — shared `.horpen-emboss` class
-              (defined in the global stylesheet block). Same treatment
-              applied on every big title across the page so the whole
-              landing reads as one tactile surface. */}
-          <h1
-            className="text-[40px] md:text-[68px] lg:text-[78px] font-semibold leading-[1.02]"
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            <span className="horpen-emboss">Every AI asset your</span>
-            <br />
-            <span className="horpen-emboss-muted">channel needs.</span>
-          </h1>
-
-          <p
-            className="mt-6 md:mt-8 text-[16px] md:text-[19px] leading-[1.5] max-w-[680px] mx-auto"
-            style={{ color: "#555" }}
-          >
-            Generate AI avatars, viral images, full-motion videos and
-            product ads — all from one studio. One subscription, every tool,
-            zero juggling between apps.
-          </p>
-
-          <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/signup"
-              className="group inline-flex items-center justify-center gap-2 text-[15px] font-semibold px-6 py-3.5 rounded-full transition-all duration-300 w-full sm:w-auto relative overflow-hidden"
+          {/* Vertical blue beams radiating up from the bottom centre.
+              Each beam is a tall, blurred, slightly-skewed rectangle
+              that rises from ~65 % to near the top. Seven of them
+              fanned across the width gives the signature "god-rays"
+              look from the reference without a single heavy texture. */}
+          <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* Central soft glow behind the headline */}
+            <div
+              className="absolute"
               style={{
-                background: "#0a0a0a",
-                color: "#fff",
-                minWidth: 180,
-                animation: "horpen-pulse-glow 3s ease-in-out infinite",
+                bottom: "-20%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 820,
+                height: 820,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(closest-side, rgba(56,189,248,0.35), rgba(37,99,235,0.14) 45%, rgba(6,10,20,0) 75%)",
+                filter: "blur(10px)",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#1a1a1a";
-                e.currentTarget.style.transform = "translateY(-1px) scale(1.02)";
+            />
+            {/* Secondary deeper blue halo for depth */}
+            <div
+              className="absolute"
+              style={{
+                bottom: "-5%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 560,
+                height: 560,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(closest-side, rgba(59,130,246,0.35), rgba(59,130,246,0) 70%)",
+                filter: "blur(8px)",
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#0a0a0a";
-                e.currentTarget.style.transform = "translateY(0) scale(1)";
-              }}
-            >
-              {/* Shimmer sweep inside the CTA */}
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 pointer-events-none"
+            />
+
+            {/* 7 vertical beams — the iconic ray pattern from the ref */}
+            {[
+              { left: "8%", skew: -10, width: 72, delay: "0s" },
+              { left: "22%", skew: -6, width: 48, delay: "1.2s" },
+              { left: "34%", skew: -3, width: 86, delay: "0.4s" },
+              { left: "48%", skew: 0, width: 100, delay: "2s" },
+              { left: "60%", skew: 3, width: 60, delay: "0.8s" },
+              { left: "74%", skew: 6, width: 52, delay: "1.6s" },
+              { left: "88%", skew: 10, width: 70, delay: "0.2s" },
+            ].map((b, i) => (
+              <div
+                key={i}
+                className="absolute"
                 style={{
-                  background:
-                    "linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.18) 45%, transparent 70%)",
-                  backgroundSize: "200% 100%",
-                  animation: "horpen-shimmer 3s linear infinite",
+                  left: b.left,
+                  bottom: 0,
+                  width: b.width,
+                  height: "85%",
+                  transform: `translateX(-50%) skewX(${b.skew}deg)`,
+                  background: `linear-gradient(180deg,
+                    rgba(56, 189, 248, 0) 0%,
+                    rgba(56, 189, 248, 0.08) 25%,
+                    rgba(56, 189, 248, 0.22) 55%,
+                    rgba(125, 211, 252, 0.45) 82%,
+                    rgba(165, 243, 252, 0.65) 100%)`,
+                  filter: "blur(14px)",
+                  opacity: 0.85,
+                  animation: `hero-beam-breathe 5.5s ease-in-out ${b.delay} infinite`,
                 }}
               />
-              <span className="relative">Start for free</span>
-              <ArrowRight
-                size={15}
-                color="currentColor"
-                className="relative transition-transform group-hover:translate-x-0.5"
-              />
-            </Link>
-            <a
-              href="#features"
-              className="inline-flex items-center justify-center gap-2 text-[15px] font-medium px-6 py-3.5 rounded-full transition w-full sm:w-auto"
+            ))}
+
+            {/* Subtle vignette to darken the extreme corners */}
+            <div
+              className="absolute inset-0"
               style={{
-                background: "#ffffff",
-                color: "#0a0a0a",
-                border: "1px solid #ececec",
-                minWidth: 180,
+                background:
+                  "radial-gradient(120% 80% at 50% 60%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.55) 100%)",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#f4f4f4")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "#ffffff")
-              }
-            >
-              <Play size={14} color="currentColor" />
-              See what it does
-            </a>
+            />
           </div>
 
-          <p
-            className="mt-5 text-[12px]"
-            style={{ color: "#888" }}
-          >
-            3 free credits. No credit card. 60 seconds to your first video.
-          </p>
-        </div>
+          <style jsx>{`
+            @keyframes hero-beam-breathe {
+              0%, 100% { opacity: 0.6; transform: translateX(-50%) skewX(var(--beam-skew, 0deg)) scaleY(1); }
+              50% { opacity: 0.95; transform: translateX(-50%) skewX(var(--beam-skew, 0deg)) scaleY(1.05); }
+            }
+          `}</style>
 
-        {/* Hero visual — minimalist app preview, fed with real user
-            generations the moment /showcase/featured resolves. */}
-        <div
-          className="horpen-reveal"
-          style={{ ["--horpen-reveal-delay" as string]: "250ms" }}
-        >
-          <HeroPreview showcase={showcase} />
+          {/* Hero content — centred over the beams */}
+          <div className="relative z-10 flex flex-col items-center px-5 md:px-10 pt-16 md:pt-28 pb-0 text-center">
+            {/* Green pill tagline — matches the ref exactly in shape + color */}
+            <div
+              className="inline-flex items-center gap-2 text-[12px] font-medium px-4 py-1.5 rounded-full"
+              style={{
+                background: "rgba(16, 185, 129, 0.12)",
+                border: "1px solid rgba(16, 185, 129, 0.35)",
+                color: "#6ee7b7",
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full"
+                style={{ background: "#34d399", boxShadow: "0 0 8px rgba(52, 211, 153, 0.7)" }}
+              />
+              AI studio for creators
+            </div>
+
+            {/* Massive headline — white, bold, centred, tight leading */}
+            <h1
+              className="mt-6 md:mt-8 font-bold leading-[0.95]"
+              style={{
+                color: "#ffffff",
+                letterSpacing: "-0.035em",
+                fontSize: "clamp(44px, 8vw, 92px)",
+                textShadow: "0 2px 30px rgba(56, 189, 248, 0.22)",
+              }}
+            >
+              Every AI asset
+              <br />
+              your channel needs.
+            </h1>
+
+            {/* Paragraph under the headline */}
+            <p
+              className="mt-6 md:mt-7 max-w-[560px] text-[15px] md:text-[17px] leading-[1.5]"
+              style={{ color: "rgba(255,255,255,0.65)" }}
+            >
+              Generate AI avatars, viral images, full-motion videos and
+              product ads — all from one studio. One subscription, every
+              tool, zero juggling between apps.
+            </p>
+
+            {/* White pill CTA — matches the ref "Start free trial" */}
+            <div className="mt-8 md:mt-10 flex items-center gap-3">
+              <Link
+                href="/signup"
+                className="group inline-flex items-center gap-2 text-[14px] md:text-[15px] font-semibold pl-5 pr-2 py-2 rounded-full transition-all duration-300"
+                style={{
+                  background: "#ffffff",
+                  color: "#0a0a0a",
+                  boxShadow:
+                    "0 1px 2px rgba(0,0,0,0.1), 0 20px 40px -10px rgba(56, 189, 248, 0.35), 0 0 0 1px rgba(255,255,255,0.15) inset",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-1px) scale(1.02)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0) scale(1)";
+                }}
+              >
+                <span>Start for free</span>
+                <span
+                  className="inline-flex items-center justify-center rounded-full w-8 h-8 transition-transform group-hover:translate-x-0.5"
+                  style={{ background: "#0a0a0a", color: "#fff" }}
+                >
+                  <ArrowRight size={14} color="currentColor" />
+                </span>
+              </Link>
+            </div>
+
+            <p
+              className="mt-4 text-[12px]"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              3 free credits. No credit card required.
+            </p>
+          </div>
+
+          {/* Dashboard mockup at the bottom of the hero panel —
+              floats over the beams like in the ref. Its own white
+              card looks great on the dark beam backdrop. */}
+          <div
+            className="relative z-10 px-4 md:px-8 pb-4 md:pb-8 horpen-reveal"
+            style={{
+              marginTop: "clamp(56px, 8vw, 96px)",
+              ["--horpen-reveal-delay" as string]: "300ms",
+            }}
+          >
+            <HeroPreview showcase={showcase} />
+          </div>
         </div>
       </section>
 
@@ -776,11 +799,11 @@ export default function Home() {
             </div>
             <h2
               className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em" }}
+              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
             >
-              <span className="horpen-emboss">Four studios.</span>
+              Four studios.
               <br />
-              <span className="horpen-emboss-muted">One subscription.</span>
+              <span style={{ color: "#7a7a7a" }}>One subscription.</span>
             </h2>
             <p
               className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
@@ -844,8 +867,8 @@ export default function Home() {
               How it works
             </div>
             <h2
-              className="horpen-emboss text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em" }}
+              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
+              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
             >
               Three steps from idea to post.
             </h2>
@@ -940,8 +963,8 @@ export default function Home() {
               Pricing
             </div>
             <h2
-              className="horpen-emboss text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em" }}
+              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
+              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
             >
               Transparent, credit-based.
             </h2>
@@ -1055,8 +1078,8 @@ export default function Home() {
               FAQ
             </div>
             <h2
-              className="horpen-emboss text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em" }}
+              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
+              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
             >
               Questions, answered.
             </h2>
@@ -1126,7 +1149,7 @@ export default function Home() {
           }}
         >
           <h2
-            className="horpen-emboss-dark-bg text-[32px] md:text-[52px] font-semibold leading-[1.05]"
+            className="text-[32px] md:text-[52px] font-semibold leading-[1.05]"
             style={{ letterSpacing: "-0.03em" }}
           >
             Start shipping today.
@@ -1352,11 +1375,11 @@ function ThumbnailsShowcase({ tiles }: { tiles: ShowcaseTile[] }) {
           </div>
           <h2
             className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
-            style={{ letterSpacing: "-0.03em" }}
+            style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
           >
-            <span className="horpen-emboss">Thumbnails that stop</span>
+            Thumbnails that stop
             <br />
-            <span className="horpen-emboss-muted">the scroll.</span>
+            <span style={{ color: "#7a7a7a" }}>the scroll.</span>
           </h2>
           <p
             className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
