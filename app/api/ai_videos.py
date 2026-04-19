@@ -69,6 +69,16 @@ async def generate_ai_video(
     voice_enabled: bool = Form(True),
     voice_id: Optional[str] = Form(None, description="ElevenLabs voice id (defaults to a multilingual voice)"),
     subtitle_style: str = Form("karaoke"),
+    niche_slug: Optional[str] = Form(
+        None,
+        description=(
+            "Optional: apply a niche preset's visual style + narrator voice to the "
+            "generation. The user-supplied duration / mode / voice / subtitle "
+            "options from the form still take precedence — the niche only injects "
+            "its style_instructions + visual_style into the LLM prompts and image "
+            "generator. See /ai-videos/niches for the catalogue."
+        ),
+    ),
 ):
     """
     Queue an AI-video generation job. Returns `{ job_id, status: "queued", ... }`.
@@ -90,6 +100,25 @@ async def generate_ai_video(
     # Sanitise user-supplied tone / voice_id (they end up in DB + LLM prompts).
     tone = (tone or "").strip()[:80] or None
     voice_id = (voice_id or "").strip()[:80] or None
+
+    # Resolve the niche (optional) — this gives us style_instructions +
+    # visual_style to inject into the pipeline. The niche never overrides
+    # user-visible form controls; the user keeps full control over mode /
+    # duration / aspect / voice / subs. Only the hidden style layers come
+    # from the preset.
+    niche_slug = (niche_slug or "").strip() or None
+    resolved_niche = None
+    if niche_slug:
+        resolved_niche = get_niche(niche_slug)
+        if resolved_niche is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Unknown niche '{niche_slug}'. See /ai-videos/niches.",
+            )
+        # If the form didn't supply a tone, default to the niche's tone so
+        # the script generator still gets the niche voice.
+        if not tone and resolved_niche.tone:
+            tone = resolved_niche.tone[:80]
 
     # ── Credit charge ──────────────────────────────────────────────────
     user_id = current_user["id"]
@@ -113,21 +142,30 @@ async def generate_ai_video(
         )
 
     # ── Persist the job row ────────────────────────────────────────────
+    job_payload = {
+        "user_id": user_id,
+        "prompt": prompt,
+        "mode": mode,
+        "duration_seconds": duration_seconds,
+        "aspect_ratio": aspect_ratio,
+        "language": language,
+        "voice_enabled": voice_enabled,
+        "voice_id": voice_id,
+        "subtitle_style": subtitle_style,
+        "tone": tone,
+        "status": "queued",
+        "progress": 0,
+    }
+    # Snapshot the niche style into the row so the pipeline sees it and so
+    # past jobs stay reproducible even if the niche definition evolves
+    # later. Same snapshot approach /generate-from-niche uses.
+    if resolved_niche is not None:
+        job_payload["niche_slug"] = resolved_niche.slug
+        job_payload["style_instructions"] = resolved_niche.style_instructions or None
+        job_payload["visual_style"] = resolved_niche.visual_style or None
+
     try:
-        res = supabase.table("ai_video_jobs").insert({
-            "user_id": user_id,
-            "prompt": prompt,
-            "mode": mode,
-            "duration_seconds": duration_seconds,
-            "aspect_ratio": aspect_ratio,
-            "language": language,
-            "voice_enabled": voice_enabled,
-            "voice_id": voice_id,
-            "subtitle_style": subtitle_style,
-            "tone": tone,
-            "status": "queued",
-            "progress": 0,
-        }).execute()
+        res = supabase.table("ai_video_jobs").insert(job_payload).execute()
     except Exception as e:
         if not is_admin(current_user):
             add_credits(user_id, credit_cost, "ai_video_refund",

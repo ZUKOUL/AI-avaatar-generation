@@ -190,8 +190,24 @@ export default function AIVideosPage() {
   // Playback modal
   const [playingJob, setPlayingJob] = useState<AIVideoJob | null>(null);
 
-  // Niche generation modal
-  const [activeNiche, setActiveNiche] = useState<NichePreset | null>(null);
+  // Active niche — when a user clicks a niche card, its slug goes here and
+  // the main prompt form starts applying its style (visual + narrator voice).
+  // Form controls (duration / mode / voice / subs) stay fully editable —
+  // the niche only injects style suffix + narrator structure.
+  const [activeNicheSlug, setActiveNicheSlug] = useState<string | null>(null);
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Inline "Inspire-moi" topic suggestions (shown as chips under the prompt
+  // textarea when the user hits the button and a niche is active).
+  const [topicIdeas, setTopicIdeas] = useState<string[]>([]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [ideasError, setIdeasError] = useState("");
+
+  // Resolved niche object derived from the slug + the niches catalogue.
+  const activeNiche = useMemo(
+    () => niches.find((n) => n.slug === activeNicheSlug) ?? null,
+    [niches, activeNicheSlug]
+  );
 
   // Polling
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -237,82 +253,60 @@ export default function AIVideosPage() {
     loadNiches();
   }, [loadHistory, loadVoices, loadNiches]);
 
-  // Called from the niche modal when the user hits "Generate".
-  // `overrides` lets the modal pass user-picked voice + subtitle-style
-  // choices on top of the niche defaults.
-  const handleNicheGenerate = useCallback(
-    async (
-      niche: NichePreset,
-      topic: string,
-      overrides: {
-        voiceId?: string;
-        voiceEnabled?: boolean;
-        subtitleStyle?: string;
-      } = {}
-    ) => {
-      setError("");
-      setInfo("");
-      try {
-        const fd = new FormData();
-        fd.append("niche_slug", niche.slug);
-        if (topic.trim()) fd.append("topic", topic.trim());
-        if (overrides.voiceId) fd.append("voice_id", overrides.voiceId);
-        if (overrides.voiceEnabled !== undefined)
-          fd.append("voice_enabled", overrides.voiceEnabled ? "true" : "false");
-        if (overrides.subtitleStyle)
-          fd.append("subtitle_style", overrides.subtitleStyle);
+  // Activate a niche: pre-fills the main prompt form with the niche's
+  // natural defaults (language, aspect, duration hint) BUT leaves the
+  // mode + voice + subs alone so the user can pick what they actually
+  // want. Scrolls the prompt into view so they see their form change.
+  const handleActivateNiche = useCallback((niche: NichePreset) => {
+    setActiveNicheSlug(niche.slug);
+    setTopicIdeas([]);
+    setIdeasError("");
+    // Pre-fill sensible niche defaults that don't constrain the user.
+    if (niche.language && niche.language !== "auto") {
+      setLanguage(niche.language);
+    }
+    if (niche.default_aspect_ratio) {
+      setAspectRatio(niche.default_aspect_ratio);
+    }
+    // Only set duration if the user hasn't typed a prompt yet (signals a
+    // fresh start) — avoid stomping on values they've already chosen.
+    if (!prompt.trim()) {
+      setDuration(niche.default_duration_seconds);
+    }
+    // Scroll + focus so the user sees their form is now niche-active.
+    setTimeout(() => {
+      promptRef.current?.focus({ preventScroll: false });
+      promptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  }, [prompt]);
 
-        const res = await aiVideosAPI.generateFromNiche(fd);
-        const jobId = res.data?.job_id as string | undefined;
-        if (!jobId) throw new Error("Server didn't return a job id.");
+  // Clear the active niche back to a blank form.
+  const handleClearNiche = useCallback(() => {
+    setActiveNicheSlug(null);
+    setTopicIdeas([]);
+    setIdeasError("");
+  }, []);
 
-        const newJob: AIVideoJob = {
-          id: jobId,
-          prompt: (res.data?.prompt as string) || topic || niche.name,
-          mode: niche.default_mode,
-          duration_seconds: niche.default_duration_seconds,
-          aspect_ratio: niche.default_aspect_ratio,
-          language: niche.language,
-          voice_enabled:
-            overrides.voiceEnabled !== undefined
-              ? overrides.voiceEnabled
-              : true,
-          subtitle_style: overrides.subtitleStyle || "karaoke",
-          tone: null,
-          status: "queued",
-          progress: 0,
-          hook: null,
-          detected_lang: null,
-          video_url: null,
-          thumbnail_url: null,
-          error_message: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setJobs((prev) => [newJob, ...prev]);
-        setActiveNiche(null);
-        const credits = res.data?.credits_charged;
-        setInfo(
-          credits
-            ? `Queued ${niche.name} — used ${credits} credits. Ready in ${
-                niche.default_mode === "motion" ? "~2-3 min" : "~1 min"
-              }.`
-            : `Queued ${niche.name}.`
-        );
-      } catch (e) {
-        const err = e as { response?: { status?: number; data?: { detail?: unknown } }; message?: string };
-        const detail = err?.response?.data?.detail;
-        let msg =
-          typeof detail === "string"
-            ? detail
-            : (detail as { message?: string } | undefined)?.message;
-        if (!msg) msg = err?.message || "Could not queue the niche video.";
-        if (err?.response?.status) msg = `[${err.response.status}] ${msg}`;
-        setError(msg);
+  // Ask the AI for 6 topic ideas tuned to the active niche. Free — costs
+  // nothing until the user actually hits Generate.
+  const handleSuggestTopics = useCallback(async () => {
+    if (!activeNicheSlug) return;
+    setLoadingIdeas(true);
+    setIdeasError("");
+    try {
+      const res = await aiVideosAPI.nicheTopicIdeas(activeNicheSlug, 6);
+      const t: string[] = res.data?.topics ?? [];
+      setTopicIdeas(t);
+      if (!t.length) {
+        setIdeasError("Aucune idée générée — reessaie dans un instant.");
       }
-    },
-    []
-  );
+    } catch (e) {
+      console.error("Topic ideas failed:", e);
+      setIdeasError("L'IA n'a pas pu générer d'idées. Reessaie dans un instant.");
+    } finally {
+      setLoadingIdeas(false);
+    }
+  }, [activeNicheSlug]);
 
   /* ─── Polling ─── */
 
@@ -379,6 +373,11 @@ export default function AIVideosPage() {
       if (voiceId) fd.append("voice_id", voiceId);
       fd.append("subtitle_style", subtitleStyle);
       if (tone.trim()) fd.append("tone", tone.trim());
+      // When a niche is active the backend injects its style_instructions
+      // + visual_style into the pipeline. The user's form values still win
+      // for mode / duration / voice / subs — the niche only drives LOOK
+      // and NARRATOR VOICE.
+      if (activeNicheSlug) fd.append("niche_slug", activeNicheSlug);
 
       const res = await aiVideosAPI.generate(fd);
       const jobId = res.data?.job_id as string | undefined;
@@ -461,7 +460,12 @@ export default function AIVideosPage() {
       />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-6 md:py-10">
-          {/* ── Niche presets (one-click generation) ────────────────── */}
+          {/* ── Niche presets (pick a visual style) ──────────────────
+              Clicking a card applies that niche's visual style + narrator
+              voice to the main form below. The form still shows every
+              control (duration, mode, voice, subs, etc.) — the niche just
+              drives the LOOK + narrator structure so the user's form
+              choices paint in that signature. */}
           {niches.length > 0 && (
             <div className="mb-6">
               <div
@@ -469,10 +473,10 @@ export default function AIVideosPage() {
                 style={{ color: "var(--text-muted)" }}
               >
                 <div className="text-xs font-medium tracking-wide uppercase">
-                  Styles TikTok — génération 1-clic
+                  Styles TikTok — applique à la vidéo suivante
                 </div>
                 <div className="text-[10px] opacity-80">
-                  Script + visuels + voix + sous-titres, tout fait auto.
+                  Clique un style → le formulaire ci-dessous l&apos;applique auto.
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -480,7 +484,8 @@ export default function AIVideosPage() {
                   <NicheCard
                     key={n.slug}
                     niche={n}
-                    onClick={() => setActiveNiche(n)}
+                    active={activeNicheSlug === n.slug}
+                    onClick={() => handleActivateNiche(n)}
                   />
                 ))}
               </div>
@@ -495,16 +500,86 @@ export default function AIVideosPage() {
               border: "1px solid var(--border-color)",
             }}
           >
-            <label
-              className="text-xs font-medium mb-2 block tracking-wide uppercase"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Describe the video you want
-            </label>
+            {/* Active-niche badge — tells the user their next video will
+                use the selected channel's visual style + narrator voice.
+                Clicking X resets the form back to a neutral generation. */}
+            {activeNiche && (
+              <div
+                className="rounded-lg p-3 mb-4 flex items-center gap-3"
+                style={{
+                  background: activeNiche.card_gradient,
+                  border: "1px solid var(--border-color)",
+                }}
+              >
+                <SparkleIcon size={16} color={activeNiche.accent_color} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-semibold tracking-widest uppercase"
+                       style={{ color: activeNiche.accent_color }}>
+                    Style appliqué
+                  </div>
+                  <div className="text-sm font-semibold text-white truncate">
+                    {activeNiche.name}{" "}
+                    <span className="text-white/60 font-normal">
+                      · {activeNiche.handle}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearNiche}
+                  className="p-1.5 rounded-md"
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    color: "#fff",
+                  }}
+                  aria-label="Remove niche style"
+                  title="Retirer ce style"
+                >
+                  <XIcon size={12} color="currentColor" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mb-2">
+              <label
+                className="text-xs font-medium tracking-wide uppercase"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Describe the video you want
+              </label>
+              {/* "Inspire-moi" — only shown when a niche is active, since
+                  topic suggestions are niche-specific. Free call, user
+                  hasn't paid credits yet. */}
+              {activeNiche && (
+                <button
+                  type="button"
+                  onClick={handleSuggestTopics}
+                  disabled={loadingIdeas}
+                  className="inline-flex items-center gap-1.5 text-[11px] rounded-full px-2.5 py-1 transition disabled:opacity-50"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {loadingIdeas ? (
+                    <Spinner size={11} />
+                  ) : (
+                    <MagicWand size={11} color="currentColor" />
+                  )}
+                  Inspire-moi
+                </button>
+              )}
+            </div>
             <textarea
+              ref={promptRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder='e.g. "Un ananas qui explique les vitamines aux enfants" — or "Timelapse d&apos;une maison qui se construit sur un terrain vide"'
+              placeholder={
+                activeNiche
+                  ? `ex. "l'énergie masculine", "la procrastination nocturne"… ou clique "Inspire-moi" pour 6 idées dans le style ${activeNiche.name}.`
+                  : `e.g. "Un ananas qui explique les vitamines aux enfants" — or "Timelapse d&apos;une maison qui se construit sur un terrain vide"`
+              }
               rows={2}
               className="w-full bg-transparent border-none outline-none text-base resize-y min-h-[56px]"
               style={{ color: "var(--text-primary)" }}
@@ -514,6 +589,43 @@ export default function AIVideosPage() {
                 }
               }}
             />
+
+            {/* Topic ideas chips — populated when the user hits Inspire-moi.
+                Clicking a chip drops the topic straight into the textarea. */}
+            {ideasError && (
+              <div
+                className="mt-2 text-[11px] rounded-md px-2 py-1.5"
+                style={{
+                  background: "rgba(220, 38, 38, 0.08)",
+                  color: "#f87171",
+                  border: "1px solid rgba(220, 38, 38, 0.25)",
+                }}
+              >
+                {ideasError}
+              </div>
+            )}
+            {topicIdeas.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {topicIdeas.map((idea, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setPrompt(idea);
+                      setTopicIdeas([]);
+                    }}
+                    className="w-full text-left text-xs rounded-md px-3 py-2 transition"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {idea}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Mode selector */}
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -753,17 +865,6 @@ export default function AIVideosPage() {
         />
       )}
 
-      {/* ── Niche generation modal ─────────────────────────────── */}
-      {activeNiche && (
-        <NicheModal
-          niche={activeNiche}
-          voices={voices}
-          onClose={() => setActiveNiche(null)}
-          onSubmit={(topic, overrides) =>
-            handleNicheGenerate(activeNiche, topic, overrides)
-          }
-        />
-      )}
     </>
   );
 }
@@ -1090,9 +1191,11 @@ function VideoModal({ job, onClose }: { job: AIVideoJob; onClose: () => void }) 
 
 function NicheCard({
   niche,
+  active,
   onClick,
 }: {
   niche: NichePreset;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -1102,7 +1205,14 @@ function NicheCard({
       className="group relative text-left rounded-xl overflow-hidden p-4 transition hover:scale-[1.02] active:scale-[0.99]"
       style={{
         background: niche.card_gradient,
-        border: "1px solid var(--border-color)",
+        // Glow the border in the accent colour when this niche is the
+        // currently-applied style on the main form.
+        border: active
+          ? `2px solid ${niche.accent_color}`
+          : "1px solid var(--border-color)",
+        boxShadow: active
+          ? `0 0 0 3px ${niche.accent_color}22`
+          : undefined,
         minHeight: 120,
       }}
     >
@@ -1150,382 +1260,6 @@ function NicheCard({
   );
 }
 
-function NicheModal({
-  niche,
-  voices,
-  onClose,
-  onSubmit,
-}: {
-  niche: NichePreset;
-  voices: VoiceOption[];
-  onClose: () => void;
-  onSubmit: (
-    topic: string,
-    overrides: {
-      voiceId?: string;
-      voiceEnabled?: boolean;
-      subtitleStyle?: string;
-    }
-  ) => Promise<void>;
-}) {
-  const [topic, setTopic] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [ideas, setIdeas] = useState<string[]>([]);
-  const [loadingIdeas, setLoadingIdeas] = useState(false);
-  const [ideasError, setIdeasError] = useState("");
-
-  // User overrides on top of the niche defaults.
-  const [voiceId, setVoiceId] = useState<string>(niche.default_voice_id || "");
-  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(
-    niche.default_voice_enabled ?? true
-  );
-  const [subtitleStyle, setSubtitleStyle] = useState<string>(
-    niche.default_subtitle_style || "karaoke"
-  );
-
-  // Close on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const handleFetchIdeas = async () => {
-    setLoadingIdeas(true);
-    setIdeasError("");
-    try {
-      const res = await aiVideosAPI.nicheTopicIdeas(niche.slug, 6);
-      setIdeas(res.data?.topics ?? []);
-      if (!res.data?.topics?.length) {
-        setIdeasError("Aucune idée générée — reessaie dans un instant.");
-      }
-    } catch (e) {
-      console.error(e);
-      setIdeasError("L'IA n'a pas pu générer d'idées. Reessaie dans un instant.");
-    } finally {
-      setLoadingIdeas(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      await onSubmit(topic, {
-        voiceId: voiceEnabled && voiceId ? voiceId : undefined,
-        voiceEnabled,
-        subtitleStyle,
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.75)" }}
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-[560px] rounded-2xl overflow-hidden"
-        style={{
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border-color)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header with gradient */}
-        <div
-          className="p-5 flex items-start justify-between gap-3"
-          style={{ background: niche.card_gradient }}
-        >
-          <div className="min-w-0 flex-1">
-            <div
-              className="text-[10px] font-semibold tracking-widest uppercase"
-              style={{ color: niche.accent_color }}
-            >
-              {niche.tagline || "Preset"}
-            </div>
-            <div className="text-lg font-semibold text-white mt-0.5">
-              {niche.name}
-            </div>
-            <div className="text-xs text-white/70 mt-0.5">{niche.handle}</div>
-            <div className="text-xs text-white/80 mt-2">{niche.description}</div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-md transition"
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              color: "#fff",
-            }}
-            aria-label="Close"
-          >
-            <XIcon size={14} color="currentColor" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-5">
-          <div
-            className="text-xs font-medium mb-2 tracking-wide uppercase"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Ton thème (ou laisse vide &mdash; l&apos;IA choisit pour toi)
-          </div>
-          <textarea
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder={`ex. "l'énergie masculine", "l'ennui quotidien", "pourquoi on procrastine le soir"…`}
-            rows={2}
-            className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-y min-h-[56px]"
-            style={{
-              background: "var(--bg-primary)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-color)",
-            }}
-          />
-
-          {/* "Suggest topics" row */}
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleFetchIdeas}
-              disabled={loadingIdeas}
-              className="inline-flex items-center gap-1.5 text-xs rounded-md px-3 py-1.5 transition disabled:opacity-50"
-              style={{
-                background: "var(--bg-primary)",
-                border: "1px solid var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-            >
-              {loadingIdeas ? (
-                <Spinner size={12} />
-              ) : (
-                <MagicWand size={12} color="currentColor" />
-              )}
-              {ideas.length > 0 ? "Générer d'autres idées" : "Donne-moi 6 idées"}
-            </button>
-            <div
-              className="text-[10px]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Gratuit. Tu ne paies qu&apos;à la génération de la vidéo.
-            </div>
-          </div>
-
-          {ideasError && (
-            <div
-              className="mt-2 text-[11px] rounded-md px-2 py-1.5"
-              style={{
-                background: "rgba(220, 38, 38, 0.08)",
-                color: "#f87171",
-                border: "1px solid rgba(220, 38, 38, 0.25)",
-              }}
-            >
-              {ideasError}
-            </div>
-          )}
-
-          {ideas.length > 0 && (
-            <div className="mt-3 space-y-1.5 max-h-[210px] overflow-y-auto pr-1">
-              {ideas.map((idea, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setTopic(idea)}
-                  className="w-full text-left text-xs rounded-md px-3 py-2 transition hover:opacity-100"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border:
-                      topic === idea
-                        ? `1px solid ${niche.accent_color}`
-                        : "1px solid var(--border-color)",
-                    color: "var(--text-primary)",
-                    opacity: topic === idea ? 1 : 0.9,
-                  }}
-                >
-                  {idea}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* ── Voice + subtitle overrides ─────────────────────────
-              Same UX as the main form: user can audition voices inline
-              with ▶ before picking, and choose their subtitle preference
-              without having to leave the modal. Defaults come from the
-              niche preset — user overrides win. */}
-          <div className="mt-4 grid grid-cols-1 gap-3">
-            <div>
-              <div
-                className="text-xs font-medium mb-1 tracking-wide uppercase flex items-center justify-between"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <span>Voix off</span>
-                <label
-                  className="flex items-center gap-1.5 text-[10px] normal-case tracking-normal"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={voiceEnabled}
-                    onChange={(e) => setVoiceEnabled(e.target.checked)}
-                    className="accent-current"
-                  />
-                  Activée
-                </label>
-              </div>
-              {voiceEnabled ? (
-                voices.length > 0 ? (
-                  <VoicePicker
-                    voices={voices}
-                    value={voiceId}
-                    onChange={setVoiceId}
-                  />
-                ) : (
-                  <div
-                    className="rounded-lg px-3 py-2 text-[11px]"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    Chargement des voix ElevenLabs…
-                  </div>
-                )
-              ) : (
-                <div
-                  className="rounded-lg px-3 py-2 text-[11px]"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  Vidéo silencieuse (pas de voix).
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div
-                className="text-xs font-medium mb-1 tracking-wide uppercase"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Sous-titres
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "karaoke", label: "Karaoke", hint: "mot-par-mot" },
-                  { id: "block", label: "Bloc", hint: "phrase" },
-                  { id: "off", label: "Aucun", hint: "clean" },
-                ].map((opt) => {
-                  const active = subtitleStyle === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSubtitleStyle(opt.id)}
-                      className="rounded-lg px-2 py-1.5 text-xs text-center transition"
-                      style={{
-                        background: active
-                          ? niche.accent_color
-                          : "var(--bg-primary)",
-                        color: active
-                          ? "var(--bg-primary)"
-                          : "var(--text-primary)",
-                        border: active
-                          ? `1px solid ${niche.accent_color}`
-                          : "1px solid var(--border-color)",
-                      }}
-                    >
-                      <div className="font-semibold">{opt.label}</div>
-                      <div
-                        className="text-[9px]"
-                        style={{ opacity: active ? 0.8 : 0.7 }}
-                      >
-                        {opt.hint}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Specs recap */}
-          <div
-            className="mt-4 rounded-lg p-3 text-[11px] leading-relaxed"
-            style={{
-              background: "var(--bg-primary)",
-              border: "1px solid var(--border-color)",
-              color: "var(--text-muted)",
-            }}
-          >
-            <div>
-              <span className="opacity-80">Durée : </span>
-              <b style={{ color: "var(--text-primary)" }}>
-                {niche.default_duration_seconds}s
-              </b>
-              <span className="mx-2">·</span>
-              <span className="opacity-80">Mode : </span>
-              <b style={{ color: "var(--text-primary)" }}>
-                {niche.default_mode === "motion" ? "Full Motion" : "Slideshow"}
-              </b>
-              <span className="mx-2">·</span>
-              <span className="opacity-80">Format : </span>
-              <b style={{ color: "var(--text-primary)" }}>
-                {niche.default_aspect_ratio}
-              </b>
-            </div>
-            {niche.recommended_hashtags.length > 0 && (
-              <div className="mt-1.5">
-                <span className="opacity-80">Hashtags conseillés : </span>
-                {niche.recommended_hashtags.slice(0, 6).join(" ")}
-              </div>
-            )}
-          </div>
-
-          {/* Submit */}
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs px-3 py-2 rounded-lg transition"
-              style={{
-                color: "var(--text-muted)",
-              }}
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="text-xs px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5 disabled:opacity-50"
-              style={{
-                background: niche.accent_color,
-                color: "var(--bg-primary)",
-              }}
-            >
-              {submitting ? (
-                <Spinner size={12} />
-              ) : (
-                <SparkleIcon size={12} color="currentColor" />
-              )}
-              {topic.trim() ? "Générer la vidéo" : "Surprise-moi"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Voice picker with inline audio preview ──────────────────── */
 //
