@@ -284,27 +284,46 @@ TARGET
 - language of scene prompts: ENGLISH (for the image model) — the voiceover
   stays in whatever language the script is
 {style_clause}{visual_style_hint}
-QUALITY BAR for each scene's `image_prompt` (study this — shallow prompts
-are the #1 reason AI videos look like soulless stock):
+⚡ CRITICAL — AUDIO/VISUAL LITERAL ALIGNMENT ⚡
+The viewer will see each image_prompt rendered AT THE EXACT MOMENT the
+narrator speaks that scene's voiceover_text. Every image MUST literally
+depict WHAT THE VOICE IS SAYING during that window. This is the #1 rule.
+A generic "mood" shot that doesn't show the specific idea being spoken
+RIGHT NOW breaks the whole video.
 
-  ✗ BAD (too generic):
-    "A person alone looking sad in a room. Cinematic."
-  ✓ GOOD (cinematic, specific, directed):
-    "Medium wide shot, eye level. A lone figure seen from behind,
-    silhouetted against a large window at 3 AM, faint city lights bleeding
-    through rain-streaked glass. Their shoulders are slightly curled
-    inward. A single bedside lamp spills a warm pool of light onto an
-    unmade bed. The rest of the room dissolves into cold teal shadow.
-    Shallow depth of field, 50mm lens, soft diffused practicals, subtle
-    film grain."
+  ✗ BAD alignment:
+    voiceover_text: "Quand un enfant se retrouve seul, abandonné par
+    ses parents qui ferment la porte derrière eux"
+    image_prompt: "A lonely figure in an empty room. Cinematic."
+    (wrong — doesn't show the parents, doesn't show the door, doesn't
+    show the abandonment happening NOW)
 
-Write at the GOOD level. Every scene prompt MUST include:
+  ✓ GOOD alignment:
+    voiceover_text: "Quand un enfant se retrouve seul, abandonné par
+    ses parents qui ferment la porte derrière eux"
+    image_prompt: "Medium wide shot, eye level. A small matte-white
+    child figure sits cross-legged on the floor of a dim minimalist
+    room, facing the camera. Behind them, two adult figures walk
+    through an open doorway into harsh white light, the door half-shut,
+    their hands at their sides and heads forward. The child looks up
+    toward the closing door, shoulders slightly hunched. Cold teal
+    shadow floods the room, a single amber key light catches the
+    child's cheek. Shallow depth of field, 50mm lens."
+
+Every image_prompt must be LITERAL to what its voiceover_text says.
+If the voiceover mentions specific subjects (a child, the parents,
+a door, a table, a window) → those specific subjects MUST appear in
+the frame. If the voiceover names an action (leaving, crying, looking
+away, reaching out) → that action MUST be visible.
+
+QUALITY BAR for each scene's `image_prompt` (mandatory components):
+
   1. Shot size + angle (wide / medium / close-up / over-shoulder / top-
      down / low angle, etc.)
-  2. Subject staging — where the subject is in frame + body language that
-     conveys the emotion of the voiceover line
-  3. Environment + key props that reinforce the metaphor (not just
-     "a room")
+  2. Subject staging — WHO is in frame, WHERE they are, WHAT they're
+     doing that matches the voiceover line
+  3. Environment + key props that make the voiceover's metaphor
+     concrete (not just "a room")
   4. Lighting direction, colour temperature, contrast ratio
   5. Lens feel (focal length, depth of field)
   6. One or two small symbolic details that pay off the voiceover
@@ -773,6 +792,125 @@ def _estimate_transcript_from_text(script_text: str) -> Transcript:
         words.append(Word(text=tok, start=round(t, 3), end=round(end, 3)))
         t = end
     return Transcript(language="en", words=words, full_text=script_text)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Stage 6b — align storyboard scenes to the real spoken audio timings
+# ──────────────────────────────────────────────────────────────────────────
+#
+# This is THE step that makes audio/visual sync tight. Without it, the
+# LLM's scene-duration estimates drift relative to the real ElevenLabs
+# read (which can be 10-20% faster or slower than target WPM), and the
+# viewer sees a child appear on screen AFTER the narrator has already
+# moved on to the parents leaving — which kills the whole illusion.
+#
+# After this runs, every scene's `duration_seconds` is recomputed so the
+# scene plays EXACTLY while its voiceover_text is being spoken.
+
+_WORD_TOKEN_RE = re.compile(r"[\w']+", re.UNICODE)
+
+
+def _normalize_tokens(text: str) -> list[str]:
+    """Lower-case word tokeniser used for position-matching between the
+    LLM-authored `voiceover_text` and the Whisper word stream.
+
+    Strips punctuation, keeps apostrophes inside words (so "j'ai" stays
+    a single token — matches how both the script and Whisper tokenise
+    French apostrophe contractions)."""
+    return [t.lower() for t in _WORD_TOKEN_RE.findall(text or "")]
+
+
+async def align_scenes_to_audio(
+    storyboard: "Storyboard",
+    voice_path: Optional[str],
+    script_text: str,
+) -> tuple["Storyboard", Transcript]:
+    """
+    Re-time every scene so its visual window matches the actual spoken
+    voice-over. Returns the (possibly-mutated) storyboard and the
+    Whisper transcript — the caller should reuse the transcript for
+    subtitle rendering so we only pay the Whisper call once.
+
+    Algorithm:
+      1. Whisper-align the full voice track → word-level timings.
+      2. Tokenise each scene's voiceover_text → positional word windows.
+      3. Walk the Whisper stream and assign timings scene-by-scene.
+      4. Fall back to proportional allocation when token counts diverge
+         (happens when the script has abbreviations, numbers, or
+         paraphrasing that Whisper tokenises differently).
+
+    Never raises — if the voice file is missing or Whisper fails, the
+    storyboard is returned unchanged (the LLM's estimates are the
+    best we've got in that case).
+    """
+    if not voice_path or not os.path.isfile(voice_path):
+        return storyboard, Transcript(
+            language="en", words=[], full_text=script_text or ""
+        )
+
+    transcript = await build_transcript_from_voice(voice_path, script_text or "")
+    whisper_words = transcript.words
+    if not whisper_words or not storyboard.scenes:
+        return storyboard, transcript
+
+    # ── Build per-scene token windows ────────────────────────────────
+    scene_token_counts: list[int] = []
+    total_script_tokens = 0
+    for scene in storyboard.scenes:
+        toks = _normalize_tokens(scene.voiceover_text)
+        scene_token_counts.append(len(toks))
+        total_script_tokens += len(toks)
+
+    if total_script_tokens == 0:
+        # No voice-over text in any scene (unusual). Nothing to align.
+        return storyboard, transcript
+
+    audio_end = whisper_words[-1].end
+    whisper_count = len(whisper_words)
+    drift = abs(whisper_count - total_script_tokens)
+    mismatch_ratio = drift / max(1, total_script_tokens)
+
+    # ── Two strategies ───────────────────────────────────────────────
+    # A) Tokens roughly match → positional walk (precise, scene-by-scene).
+    # B) Counts diverge a lot  → proportional by word-count (safe fallback).
+    if mismatch_ratio <= 0.2 and drift <= max(5, whisper_count * 0.2):
+        # Strategy A: positional walk.
+        cursor = 0
+        for i, scene in enumerate(storyboard.scenes):
+            n = scene_token_counts[i]
+            if n == 0:
+                # Silent scene — assign a short fixed breath pause.
+                scene.duration_seconds = 1.5
+                continue
+            start_idx = min(cursor, whisper_count - 1)
+            end_idx = min(cursor + n - 1, whisper_count - 1)
+            start_time = whisper_words[start_idx].start
+            end_time = whisper_words[end_idx].end
+            # Last scene: extend to the very end of audio in case Whisper
+            # dropped trailing words (common on long pieces).
+            if i == len(storyboard.scenes) - 1:
+                end_time = max(end_time, audio_end)
+            scene.duration_seconds = max(1.5, round(end_time - start_time, 2))
+            cursor = end_idx + 1
+    else:
+        # Strategy B: proportional fallback.
+        logger.info(
+            f"Scene-alignment: token mismatch "
+            f"(script={total_script_tokens} vs whisper={whisper_count}) "
+            f"— using proportional allocation."
+        )
+        for i, scene in enumerate(storyboard.scenes):
+            n = scene_token_counts[i]
+            if n == 0:
+                scene.duration_seconds = 1.5
+                continue
+            fraction = n / total_script_tokens
+            scene.duration_seconds = max(1.5, round(audio_end * fraction, 2))
+
+    storyboard.total_duration = round(
+        sum(s.duration_seconds for s in storyboard.scenes), 2
+    )
+    return storyboard, transcript
 
 
 # ──────────────────────────────────────────────────────────────────────────

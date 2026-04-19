@@ -46,6 +46,7 @@ from app.services.ai_video_pipeline import (
     Scene,
     Script,
     Storyboard,
+    align_scenes_to_audio,
     animate_scene_motion,
     animate_scene_slideshow,
     assemble_video,
@@ -232,8 +233,41 @@ async def run_ai_video_job(job_id: str) -> None:
             _fail_job(job_id, "All keyframes failed to render.")
             return
 
-        # ── Stage 4: animate each scene (slideshow or motion) ──────────
-        _mark_job(job_id, status="animating", progress=55)
+        # ── Stage 4b: VOICE-OVER FIRST, then alignment ──────────────────
+        # The voice is rendered BEFORE animation on purpose. This lets us
+        # Whisper-align the real audio back onto the storyboard so each
+        # scene's duration matches the exact moment its voiceover line is
+        # spoken. Without this, scenes drift out of sync with the audio —
+        # the #1 bug in AI-generated shorts (visual shows a child alone
+        # while the narrator has already moved on to "the parents leave").
+        voice_path: Optional[str] = None
+        aligned_transcript = None
+        if voice_enabled and script.full_text.strip():
+            _mark_job(job_id, status="voicing", progress=58)
+            voice_out = os.path.join(workdir, "voice.mp3")
+            voice_path = await generate_voiceover(
+                script_text=script.full_text,
+                out_path=voice_out,
+                voice_id=voice_id,
+                language=script.language,
+            )
+            if voice_path is None:
+                logger.info(f"Job {job_id} — no voice-over (key missing or TTS failed), continuing silent.")
+
+            # Align every scene's duration to the real spoken audio window.
+            # This is what makes A/V sync tight. Returns the transcript so
+            # we can reuse it for subtitle burn-in at the end (saves a
+            # second Whisper call).
+            storyboard, aligned_transcript = await align_scenes_to_audio(
+                storyboard, voice_path, script.full_text,
+            )
+            _mark_job(job_id, progress=65)
+
+        # ── Stage 4c: animate each scene (slideshow or motion) ──────────
+        # Scene durations below are the ALIGNED ones when a voice track
+        # was produced — so each animated clip plays for exactly the time
+        # its voice line is being spoken.
+        _mark_job(job_id, status="animating", progress=70)
         clip_paths: dict[int, str] = {}
         for scene in storyboard.scenes:
             kf = keyframe_paths.get(scene.index)
@@ -289,22 +323,7 @@ async def run_ai_video_job(job_id: str) -> None:
         # Order clips by scene_index so the concat is in sequence.
         ordered_clips = [clip_paths[i] for i in sorted(clip_paths.keys())]
 
-        # ── Stage 5: voice-over (optional) ─────────────────────────────
-        voice_path: Optional[str] = None
-        if voice_enabled and script.full_text.strip():
-            _mark_job(job_id, status="voicing", progress=75)
-            voice_out = os.path.join(workdir, "voice.mp3")
-            voice_path = await generate_voiceover(
-                script_text=script.full_text,
-                out_path=voice_out,
-                voice_id=voice_id,
-                language=script.language,
-            )
-            if voice_path is None:
-                # Soft failure — continue with silent video.
-                logger.info(f"Job {job_id} — no voice-over (key missing or TTS failed), continuing silent.")
-
-        # ── Stage 6: assemble ─────────────────────────────────────────
+        # ── Stage 5: assemble ─────────────────────────────────────────
         _mark_job(job_id, status="assembling", progress=85)
         assembled_path = os.path.join(workdir, "assembled.mp4")
         try:
@@ -317,10 +336,13 @@ async def run_ai_video_job(job_id: str) -> None:
             return
 
         # Subtitles (optional) --------------------------------------------------
+        # Reuse the Whisper transcript from the alignment step if we have
+        # one — otherwise fall back to a fresh call (and ultimately to
+        # estimated timings if no Whisper provider is configured).
         final_path = assembled_path
         if subtitle_style != "off":
             try:
-                transcript = await build_transcript_from_voice(
+                transcript = aligned_transcript or await build_transcript_from_voice(
                     voice_path or "", script.full_text
                 )
                 subbed_path = os.path.join(workdir, "subbed.mp4")
