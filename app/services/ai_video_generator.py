@@ -169,15 +169,37 @@ async def run_ai_video_job(job_id: str) -> None:
 
     try:
         # ── Stage 1: script ─────────────────────────────────────────────
+        # Wrapped in asyncio.wait_for (120 s cap) because the Gemini 2.5
+        # Pro call has no internal timeout — observed failure: job stays
+        # at "Writing the script · 5 %" indefinitely when the Gemini
+        # endpoint is slow or hangs on a long few-shot prompt. With the
+        # cap a bad request fails in 2 min instead of blocking the
+        # container worker forever.
         _mark_job(job_id, status="scripting", progress=5)
-        script = await generate_script(
-            prompt=prompt,
-            duration_seconds=duration_seconds,
-            language=language,
-            tone=tone,
-            style_instructions=style_instructions,
-            reference_scripts=reference_script_examples,
-        )
+        script_start = time.time()
+        try:
+            script = await asyncio.wait_for(
+                generate_script(
+                    prompt=prompt,
+                    duration_seconds=duration_seconds,
+                    language=language,
+                    tone=tone,
+                    style_instructions=style_instructions,
+                    reference_scripts=reference_script_examples,
+                ),
+                timeout=120,
+            )
+            logger.info(
+                f"[ai_video {job_id}] script done in "
+                f"{time.time() - script_start:.0f}s"
+            )
+        except asyncio.TimeoutError:
+            _fail_job(
+                job_id,
+                "Script generation timed out after 120 s. Gemini 2.5 Pro "
+                "likely overloaded — try again in a minute.",
+            )
+            return
         _mark_job(
             job_id,
             script_text=script.full_text[:5000],
@@ -187,16 +209,37 @@ async def run_ai_video_job(job_id: str) -> None:
         )
 
         # ── Stage 2: storyboard ────────────────────────────────────────
+        # Same 120 s wall-cap pattern as scripting. The storyboard
+        # generator sends an even larger prompt (few-shot reference
+        # storyboard + visual style suffix) so it's slightly more prone
+        # to slow response tails than scripting.
         _mark_job(job_id, status="storyboarding", progress=20)
-        storyboard = await generate_storyboard(
-            script=script,
-            prompt=prompt,
-            total_seconds=duration_seconds,
-            aspect_ratio=aspect_ratio,
-            visual_style=visual_style,
-            style_instructions=style_instructions,
-            reference_storyboards=reference_storyboard_examples,
-        )
+        storyboard_start = time.time()
+        try:
+            storyboard = await asyncio.wait_for(
+                generate_storyboard(
+                    script=script,
+                    prompt=prompt,
+                    total_seconds=duration_seconds,
+                    aspect_ratio=aspect_ratio,
+                    visual_style=visual_style,
+                    style_instructions=style_instructions,
+                    reference_storyboards=reference_storyboard_examples,
+                ),
+                timeout=120,
+            )
+            logger.info(
+                f"[ai_video {job_id}] storyboard done in "
+                f"{time.time() - storyboard_start:.0f}s "
+                f"({len(storyboard.scenes)} scenes)"
+            )
+        except asyncio.TimeoutError:
+            _fail_job(
+                job_id,
+                "Storyboard generation timed out after 120 s. Gemini "
+                "likely overloaded — try again in a minute.",
+            )
+            return
         if not storyboard.scenes:
             _fail_job(job_id, "Storyboard generation returned no scenes.")
             return
