@@ -9,12 +9,26 @@ import { storeAuth } from "@/lib/auth";
 import { Spinner, Eye, EyeSlash } from "@/components/Icons";
 
 /**
- * Login screen — mirrors the "Join our community" reference design:
- * a centred rounded card floating on a soft grey page, split into a
- * white form column on the left and a dark gradient column on the
- * right with a glowing abstract mark. Intentionally standalone from
- * the app's dark theme tokens: this is a pre-auth surface, so we
- * hard-code the light palette so the page looks identical in any theme.
+ * Login screen — clean centered card.
+ *
+ * Previously shipped with a two-column split + a dark purple gradient
+ * artwork panel; the user found the panel visually heavy and asked
+ * for it removed, so the layout is now a single white rounded card
+ * centered on a light-grey backdrop. Keep `/signup` in lock-step —
+ * the two pages are intentionally near-identical so auth feels like
+ * one surface.
+ *
+ * Accessibility:
+ * - wrapped in a <main> landmark with a <nav> for account actions
+ * - inputs use htmlFor/id label associations and 16px font on mobile
+ *   to stop iOS Safari from auto-zooming on focus
+ * - error region is role="alert" aria-live="polite" so screen readers
+ *   announce validation failures as they arrive
+ * - password toggle exposes aria-pressed + a ≥ 44×44 tap target
+ * - logo image uses alt="" because the brand text sits next to it
+ *   (avoids double announce)
+ * - hard-coded light palette so pre-auth surface looks identical
+ *   regardless of the app's dark theme tokens
  */
 export default function LoginPage() {
   const router = useRouter();
@@ -47,25 +61,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen w-full flex items-center justify-center p-4 md:p-8"
+    <main
+      className="min-h-screen w-full flex items-center justify-center p-3 md:p-8"
       style={{ background: "#eeeeee" }}
     >
-      {/* Outer card: the soft-shadowed rounded rectangle that frames
-          both columns. max-width keeps it centered on ultra-wide
-          monitors instead of stretching edge to edge. */}
+      {/* Outer card: the soft-shadowed rounded rectangle that holds the
+          form. Narrower than before (no more 2-column layout) and
+          vertically sized to its content. */}
       <div
-        className="w-full max-w-[1240px] rounded-[28px] overflow-hidden grid grid-cols-1 md:grid-cols-2"
+        className="w-full max-w-[520px] rounded-[22px] md:rounded-[28px] overflow-hidden"
         style={{
           background: "#ffffff",
           boxShadow:
             "0 1px 2px rgba(0,0,0,0.04), 0 12px 40px rgba(15,15,40,0.08)",
-          minHeight: "min(720px, 92vh)",
         }}
       >
-        {/* ─── Left column: form ─── */}
-        <div className="flex flex-col px-6 md:px-14 py-10 md:py-12 relative">
-          {/* Logo */}
+        {/* ─── Form column ─── */}
+        <div className="flex flex-col px-6 md:px-12 py-10 md:py-14 relative">
+          {/* Logo. alt="" because the brand text sits next to it —
+              giving it alt text would make screen readers announce
+              "Horpen" twice. */}
           <div className="flex items-center gap-2">
             <div
               className="rounded-lg flex items-center justify-center shrink-0"
@@ -73,7 +88,7 @@ export default function LoginPage() {
             >
               <Image
                 src="/horpen-logo.png"
-                alt="Horpen"
+                alt=""
                 width={22}
                 height={22}
                 priority
@@ -88,11 +103,12 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* Headline stack — two-tone to match the reference's
-              "Join our community / and get updates …" layout. */}
-          <div className="mt-14 md:mt-20 max-w-[460px]">
+          {/* Headline stack — two-tone typography, sized for a narrower
+              single-column card (was 46px in the split layout, now 32px
+              so the title doesn't wrap awkwardly). */}
+          <div className="mt-7 md:mt-8">
             <h1
-              className="text-[38px] md:text-[46px] leading-[1.08] font-semibold"
+              className="text-[26px] md:text-[32px] leading-[1.15] font-semibold"
               style={{ letterSpacing: "-0.02em" }}
             >
               <span style={{ color: "#111" }}>Welcome back</span>
@@ -103,7 +119,7 @@ export default function LoginPage() {
             </h1>
 
             <p
-              className="mt-6 text-[14px] leading-[1.55] max-w-[380px]"
+              className="mt-3 md:mt-4 text-[13.5px] leading-[1.55]"
               style={{ color: "#5a5a5a" }}
             >
               Sign in to pick up where you left off — your avatars,
@@ -113,35 +129,42 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div
-            className="mt-10 md:mt-12 h-px w-full max-w-[460px]"
+            className="mt-6 md:mt-8 h-px w-full"
             style={{ background: "#e6e6e6" }}
           />
 
           {/* ─── Form ─── */}
           <form
             onSubmit={handleSubmit}
-            className="mt-7 w-full max-w-[460px] space-y-3"
+            className="mt-6 w-full space-y-3"
+            aria-label="Sign in to your Horpen account"
+            noValidate
           >
             <div>
               <label
+                htmlFor="login-email"
                 className="text-[12px] font-medium mb-1.5 block"
                 style={{ color: "#5a5a5a" }}
               >
                 Email
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
-                className="w-full px-5 py-3.5 text-[14px] outline-none transition-shadow"
+                inputMode="email"
+                /* 16px on mobile prevents iOS Safari zooming on focus. */
+                className="w-full px-5 py-3.5 text-[16px] md:text-[14px] outline-none transition-shadow"
                 style={{
                   background: "#f2f2f2",
                   border: "1px solid transparent",
                   borderRadius: 999,
                   color: "#111",
+                  minHeight: 48,
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = "#d4d4d4";
@@ -159,6 +182,7 @@ export default function LoginPage() {
 
             <div>
               <label
+                htmlFor="login-password"
                 className="text-[12px] font-medium mb-1.5 block"
                 style={{ color: "#5a5a5a" }}
               >
@@ -166,6 +190,7 @@ export default function LoginPage() {
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -173,12 +198,13 @@ export default function LoginPage() {
                   required
                   minLength={8}
                   autoComplete="current-password"
-                  className="w-full px-5 py-3.5 text-[14px] outline-none pr-12 transition-shadow"
+                  className="w-full px-5 py-3.5 text-[16px] md:text-[14px] outline-none pr-14 transition-shadow"
                   style={{
                     background: "#f2f2f2",
                     border: "1px solid transparent",
                     borderRadius: 999,
                     color: "#111",
+                    minHeight: 48,
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "#d4d4d4";
@@ -192,20 +218,35 @@ export default function LoginPage() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 />
+                {/* Tap target is 44×44 (WCAG 2.5.5) — the icon is
+                    smaller but the invisible padding gives finger-
+                    friendly hit area. Wrapped in a rounded-full so a
+                    keyboard focus ring reads cleanly against the pill
+                    input. */}
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full transition-shadow"
                   style={{ color: "#7a7a7a" }}
                   aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(17,17,17,0.12)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
                 >
-                  {showPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
             {error && (
               <div
+                role="alert"
+                aria-live="polite"
                 className="px-4 py-2.5 text-[13px]"
                 style={{
                   background: "rgba(239,68,68,0.08)",
@@ -231,6 +272,7 @@ export default function LoginPage() {
                   cursor: loading ? "not-allowed" : "pointer",
                   boxShadow:
                     "0 1px 1px rgba(255,255,255,0.1) inset, 0 8px 20px rgba(26,16,36,0.25)",
+                  minHeight: 52,
                 }}
                 onMouseEnter={(e) => {
                   if (!loading) e.currentTarget.style.background = "#27173a";
@@ -244,168 +286,45 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {/* ─── Footer links ─── */}
-          <div className="mt-auto pt-10 md:pt-12 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+          {/* ─── Footer links ───
+              Marked as <nav> with an accessible label so screen-reader
+              landmarks include this cluster. py-1 gives each link a
+              taller hit area without changing the visual rhythm. */}
+          <nav
+            aria-label="Account actions"
+            className="mt-8 md:mt-10 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]"
+          >
             <Link
               href="/forgot-password"
-              className="hover:underline"
+              className="hover:underline py-1"
               style={{ color: "#6a6a6a" }}
             >
               Forgot password?
             </Link>
             <Link
               href="/signup"
-              className="hover:underline"
+              className="hover:underline py-1"
               style={{ color: "#6a6a6a" }}
             >
               Create an account
             </Link>
             <Link
               href="/"
-              className="hover:underline"
+              className="hover:underline py-1"
               style={{ color: "#6a6a6a" }}
             >
               Support
             </Link>
             <Link
               href="/"
-              className="hover:underline"
+              className="hover:underline py-1"
               style={{ color: "#6a6a6a" }}
             >
               Terms
             </Link>
-          </div>
-        </div>
-
-        {/* ─── Right column: dark marketing panel ───
-            CSS-only recreation of the reference's glowing abstract
-            mark — a circle head + an X-shaped spark, both drawn as
-            soft SVG strokes with radial-gradient halos behind them.
-            We don't need raster art for this: the look is entirely
-            producible with a handful of radial gradients. */}
-        <div
-          className="relative hidden md:flex flex-col overflow-hidden"
-          style={{
-            background:
-              "radial-gradient(120% 80% at 70% 30%, #6a2d8c 0%, #2a1540 35%, #140a22 70%, #0b0716 100%)",
-          }}
-        >
-          {/* Soft ambient glows behind the mark */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              top: "22%",
-              left: "30%",
-              width: 520,
-              height: 520,
-              background:
-                "radial-gradient(closest-side, rgba(244,114,182,0.25), rgba(244,114,182,0) 70%)",
-              filter: "blur(8px)",
-            }}
-          />
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              top: "45%",
-              left: "55%",
-              width: 360,
-              height: 360,
-              background:
-                "radial-gradient(closest-side, rgba(168,85,247,0.28), rgba(168,85,247,0) 70%)",
-              filter: "blur(6px)",
-            }}
-          />
-
-          {/* Abstract figure + spark, drawn with SVG.
-              Sized relative to the column so it scales with the card. */}
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox="0 0 600 720"
-            preserveAspectRatio="xMidYMid slice"
-            aria-hidden
-          >
-            <defs>
-              <radialGradient id="head-glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#f472b6" stopOpacity="0.7" />
-                <stop offset="60%" stopColor="#f472b6" stopOpacity="0.08" />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity="0" />
-              </radialGradient>
-              <radialGradient id="spark-glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#f472b6" stopOpacity="0.6" />
-                <stop offset="70%" stopColor="#f472b6" stopOpacity="0.04" />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity="0" />
-              </radialGradient>
-              <linearGradient id="stroke-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fca5d1" />
-                <stop offset="100%" stopColor="#f472b6" />
-              </linearGradient>
-            </defs>
-
-            {/* Head halo */}
-            <circle cx="240" cy="300" r="180" fill="url(#head-glow)" />
-            {/* Circle head stroke */}
-            <circle
-              cx="240"
-              cy="300"
-              r="92"
-              fill="none"
-              stroke="url(#stroke-grad)"
-              strokeWidth="3"
-              opacity="0.95"
-            />
-            {/* Shoulders/body — two soft curves meeting at the base */}
-            <path
-              d="M 90 560 C 120 430, 360 430, 390 560"
-              fill="none"
-              stroke="url(#stroke-grad)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              opacity="0.9"
-            />
-            <path
-              d="M 60 640 C 120 470, 360 470, 420 640"
-              fill="none"
-              stroke="url(#stroke-grad)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              opacity="0.55"
-            />
-
-            {/* Spark (X) halo */}
-            <circle cx="460" cy="330" r="110" fill="url(#spark-glow)" />
-            {/* Spark lines */}
-            <g
-              stroke="url(#stroke-grad)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              opacity="0.95"
-            >
-              <line x1="420" y1="290" x2="500" y2="370" />
-              <line x1="500" y1="290" x2="420" y2="370" />
-            </g>
-          </svg>
-
-          {/* Right-column body text */}
-          <div className="relative z-10 mt-auto p-10 md:p-12">
-            <p
-              className="text-[32px] md:text-[38px] leading-[1.1] font-semibold"
-              style={{
-                color: "rgba(255,255,255,0.38)",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Scale to meet demand.
-            </p>
-            <p
-              className="mt-3 text-[14px] max-w-[360px]"
-              style={{ color: "rgba(255,255,255,0.45)" }}
-            >
-              Generate viral thumbnails, lock in character identity and
-              ship faster — all from a single studio.
-            </p>
-          </div>
+          </nav>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
