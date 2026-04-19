@@ -706,10 +706,25 @@ async def animate_scene_motion(
     except Exception as e:
         raise RuntimeError(f"Kling prediction create failed: {e}") from e
 
-    MAX_POLL_ATTEMPTS = 48   # 48 × 5s = 240s = 4 minutes budget
+    # 36 × 5s = 180s = 3 min inner budget. Tightened from 4 min based on
+    # observed Kling 2.5 Turbo Pro success distribution (p50 ≈ 55s,
+    # p95 ≈ 130s). The outer orchestrator wrap adds another 3 min of
+    # headroom (upload + download + ffmpeg) — total 6 min ceiling per
+    # scene. Tightening here means a failing provider fails faster.
+    MAX_POLL_ATTEMPTS = 36
     final_status: Optional[str] = None
-    for _ in range(MAX_POLL_ATTEMPTS):
+    last_status: Optional[str] = None
+    for attempt in range(MAX_POLL_ATTEMPTS):
         status = getattr(prediction, "status", None)
+        if status != last_status:
+            # Log every status transition so the container logs let us
+            # diagnose exactly WHERE Kling is stuck (starting vs
+            # processing vs something stranger).
+            logger.info(
+                f"Kling prediction {getattr(prediction, 'id', '?')}: "
+                f"status={status} (attempt {attempt + 1}/{MAX_POLL_ATTEMPTS})"
+            )
+            last_status = status
         if status in ("succeeded", "failed", "canceled"):
             final_status = status
             break

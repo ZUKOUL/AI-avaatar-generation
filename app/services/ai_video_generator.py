@@ -33,6 +33,7 @@ Design choices:
 from __future__ import annotations
 
 import asyncio
+import time
 import logging
 import os
 import shutil
@@ -290,14 +291,30 @@ async def run_ai_video_job(job_id: str) -> None:
         # was produced — so each animated clip plays for exactly the time
         # its voice line is being spoken.
         #
-        # Progress is updated PER SCENE (70 → 85 linearly) so a user
-        # watching the spinner sees real advancement instead of a stuck
-        # "animating 70%" during the 2-3 min Motion mode takes. Per-scene
-        # failure (e.g. Kling timeout) is isolated — we log + continue so
-        # a single bad scene doesn't block the whole video.
+        # Robustness layers (learned the hard way from real Kling hangs):
+        #   1. Hard WALL-TIME CAP per scene via asyncio.wait_for. Even
+        #      if the underlying Kling poll + download + ffmpeg chain
+        #      goes rogue, the coroutine is cancelled at the budget and
+        #      the pipeline moves on. 360 s for motion (covers upload +
+        #      Kling + download + trim), 120 s for slideshow (trivial).
+        #   2. Early abort after N consecutive scene failures — when
+        #      Replicate is genuinely down, every scene will fail with
+        #      the same symptom. Don't make the user wait 4 × 6 min
+        #      only to fail at the end. 2 consecutive misses = job
+        #      fails now, remaining scenes skipped.
+        #   3. Per-scene elapsed-time logging so we can see in the
+        #      container logs WHICH step is slow when things go wrong.
+        #
+        # Progress still advances per-scene (70 → 85) on both success
+        # and failure paths so the UI never sits at a stale %.
         _mark_job(job_id, status="animating", progress=70)
         clip_paths: dict[int, str] = {}
         total_scenes = max(1, len(storyboard.scenes))
+        consecutive_failures = 0
+        MAX_CONSECUTIVE_FAILURES = 2
+        SCENE_TIMEOUT_MOTION_S = 360     # 6 min (incl. all sub-steps)
+        SCENE_TIMEOUT_SLIDESHOW_S = 120   # 2 min, ffmpeg-only
+
         for idx, scene in enumerate(storyboard.scenes):
             kf = keyframe_paths.get(scene.index)
             if not kf:
@@ -306,26 +323,70 @@ async def run_ai_video_job(job_id: str) -> None:
             if sid:
                 _mark_scene(sid, status="animating")
             clip_out = os.path.join(workdir, f"clip_{scene.index:02d}.mp4")
+
+            scene_start_ts = time.time()
+            logger.info(
+                f"[ai_video {job_id}] scene {scene.index} — animating "
+                f"({mode}, target {scene.duration_seconds:.1f}s)"
+            )
+            scene_failed = False
+
             try:
                 if mode == "motion":
-                    await animate_scene_motion(
-                        keyframe_path=kf,
-                        motion_prompt=scene.motion_prompt or "subtle camera push-in",
-                        duration_seconds=scene.duration_seconds,
-                        out_path=clip_out,
+                    await asyncio.wait_for(
+                        animate_scene_motion(
+                            keyframe_path=kf,
+                            motion_prompt=scene.motion_prompt or "subtle camera push-in",
+                            duration_seconds=scene.duration_seconds,
+                            out_path=clip_out,
+                        ),
+                        timeout=SCENE_TIMEOUT_MOTION_S,
                     )
                 else:
-                    await asyncio.to_thread(
-                        animate_scene_slideshow,
-                        kf, scene.duration_seconds, clip_out, aspect_ratio,
+                    await asyncio.wait_for(
+                        asyncio.to_thread(
+                            animate_scene_slideshow,
+                            kf, scene.duration_seconds, clip_out, aspect_ratio,
+                        ),
+                        timeout=SCENE_TIMEOUT_SLIDESHOW_S,
                     )
+            except asyncio.TimeoutError:
+                elapsed = time.time() - scene_start_ts
+                msg = (
+                    f"Scene animation exceeded the wall-time cap "
+                    f"({elapsed:.0f}s, mode={mode}). Likely Replicate / "
+                    f"Supabase / ffmpeg hung. Skipping this scene."
+                )
+                logger.warning(f"[ai_video {job_id}] scene {scene.index}: {msg}")
+                if sid:
+                    _mark_scene(sid, status="failed", error_message=msg[:500])
+                scene_failed = True
             except Exception as e:
-                logger.warning(f"Scene {scene.index} animation failed: {e}")
+                elapsed = time.time() - scene_start_ts
+                logger.warning(
+                    f"[ai_video {job_id}] scene {scene.index} failed after "
+                    f"{elapsed:.0f}s: {e}"
+                )
                 if sid:
                     _mark_scene(sid, status="failed", error_message=str(e)[:500])
+                scene_failed = True
+
+            if scene_failed:
+                consecutive_failures += 1
                 # Progress still advances so the user doesn't think we hung.
                 scene_progress = 70 + int(15 * (idx + 1) / total_scenes)
                 _mark_job(job_id, progress=min(85, scene_progress))
+
+                # If several scenes in a row have blown up, the provider
+                # is almost certainly broken for this job — bail out
+                # instead of wasting the user's time on 4 more timeouts.
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    logger.warning(
+                        f"[ai_video {job_id}] aborting after "
+                        f"{consecutive_failures} consecutive scene failures "
+                        f"— remaining scenes skipped."
+                    )
+                    break
                 continue
 
             # Upload the animated clip if motion mode — saves render time on
@@ -348,8 +409,19 @@ async def run_ai_video_job(job_id: str) -> None:
 
             clip_paths[scene.index] = clip_out
 
-            # Successful scene → bump overall progress so the bar tracks
-            # real animation advancement (70 → 85 across the batch).
+            # Successful scene → reset the consecutive-failure counter so
+            # one stuck scene in the middle of a batch doesn't trigger the
+            # fail-fast abort on the next hiccup. Log actual elapsed time
+            # so we can tune the timeout budgets from real data.
+            consecutive_failures = 0
+            elapsed = time.time() - scene_start_ts
+            logger.info(
+                f"[ai_video {job_id}] scene {scene.index} done in "
+                f"{elapsed:.0f}s ({mode})"
+            )
+
+            # Bump overall progress so the bar tracks real animation
+            # advancement (70 → 85 across the batch).
             scene_progress = 70 + int(15 * (idx + 1) / total_scenes)
             _mark_job(job_id, progress=min(85, scene_progress))
 
