@@ -34,6 +34,17 @@ class Settings:
     # dumb centre-crop so the pipeline still works.
     SIEVE_API_KEY            = os.getenv("SIEVE_API_KEY", "")
 
+    # Grok (xAI) image→video provider — 4th motion option. The user named
+    # the env var `REPLICATE_API_TOKEN_GROK` for naming consistency even
+    # though Grok is actually xAI's proprietary API, not Replicate.
+    # We read both names so whichever one is set works.
+    XAI_GROK_API_KEY         = (
+        os.getenv("REPLICATE_API_TOKEN_GROK")
+        or os.getenv("XAI_API_KEY")
+        or os.getenv("GROK_API_KEY")
+        or ""
+    )
+
     # ─── AI Video Generator (Phase 2) ───────────────────────────────────────
     # ElevenLabs powers the voice-over step. Optional — when the key is
     # absent the pipeline simply produces a silent video (user can still

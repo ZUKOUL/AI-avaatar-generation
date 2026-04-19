@@ -73,10 +73,11 @@ class MotionProvider:
     estimated_usd_per_60s: float  # worst-case API spend for a 60 s output
     requires_replicate: bool      # needs REPLICATE_API_TOKEN configured
     requires_gemini: bool         # needs GEMINI_API_KEY configured
+    requires_grok: bool = False   # needs XAI_GROK_API_KEY configured
 
     # The actual image-to-video implementation. Takes (keyframe_path,
     # motion_prompt, duration_seconds, out_path); returns out_path.
-    animate: AnimateFn
+    animate: AnimateFn = None   # type: ignore
 
     def serialize(self) -> dict:
         """Shape exposed to the frontend via GET /motion-providers. The
@@ -99,6 +100,8 @@ class MotionProvider:
         if self.requires_replicate and not settings.REPLICATE_API_TOKEN:
             return False
         if self.requires_gemini and not os.getenv("GEMINI_API_KEY"):
+            return False
+        if self.requires_grok and not settings.XAI_GROK_API_KEY:
             return False
         return True
 
@@ -375,6 +378,101 @@ async def _animate_veo_fast(
 # reference-image pipeline on the niche side.
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Provider: Grok Imagine (xAI proprietary API)
+# ──────────────────────────────────────────────────────────────────────────
+# xAI launched "Grok Imagine" for image + video generation. The video
+# endpoint isn't officially published on the OpenAI-style docs yet but
+# follows the pattern /v1/video/generations (mirroring how xAI mirrors
+# OpenAI's API shape for images). Key format is `xai-...`.
+#
+# This implementation is a best-effort based on:
+#   - xAI's /v1/images/generations endpoint (confirmed public)
+#   - The convention they follow for other endpoints
+#   - User-provided env var (REPLICATE_API_TOKEN_GROK)
+#
+# If xAI's actual video endpoint shape differs, the error message will
+# include the full response body so we can adjust quickly.
+
+
+async def _animate_grok(
+    keyframe_path: str,
+    motion_prompt: str,
+    duration_seconds: float,
+    out_path: str,
+) -> str:
+    if not settings.XAI_GROK_API_KEY:
+        raise RuntimeError(
+            "XAI_GROK_API_KEY missing — Grok Imagine unavailable. "
+            "Set REPLICATE_API_TOKEN_GROK (or XAI_API_KEY / GROK_API_KEY) "
+            "in GitHub Secrets."
+        )
+
+    import httpx
+
+    # Upload the keyframe so Grok can fetch it if its API takes a URL.
+    # If it takes base64 directly we'll read the local file instead.
+    image_url = await _upload_keyframe_for_remote_provider(keyframe_path)
+
+    # Kick off the video generation. xAI's API mirrors OpenAI's pattern.
+    url = "https://api.x.ai/v1/video/generations"
+    headers = {
+        "Authorization": f"Bearer {settings.XAI_GROK_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": "grok-video-1",
+        "prompt": motion_prompt,
+        "image": image_url,
+        "duration": 6,
+        "n": 1,
+    }
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=10.0)) as client:
+        try:
+            resp = await client.post(url, headers=headers, json=payload)
+        except Exception as e:
+            raise RuntimeError(f"Grok API request failed: {e}") from e
+
+        if resp.status_code >= 400:
+            # Surface the full response body so the user / dev can debug
+            # the exact endpoint shape if xAI has published something
+            # different from our assumed contract.
+            raise RuntimeError(
+                f"Grok API returned {resp.status_code}: {resp.text[:500]}. "
+                f"If xAI's video endpoint URL or payload schema differs, "
+                f"update `_animate_grok` in motion_providers.py."
+            )
+
+        data = resp.json()
+
+    # Try a few common response shapes so we don't hard-fail on minor
+    # schema differences between xAI's actual API and our assumption.
+    video_url: Optional[str] = None
+    if isinstance(data, dict):
+        # OpenAI-style: {"data": [{"url": "..."}]}
+        if isinstance(data.get("data"), list) and data["data"]:
+            video_url = data["data"][0].get("url") or data["data"][0].get("video_url")
+        # Alt shape: {"url": "..."} or {"video_url": "..."} at top level
+        video_url = video_url or data.get("url") or data.get("video_url")
+        # Async-style: {"id": "...", "status": "queued"} — we'd need to poll
+        if not video_url and data.get("id"):
+            raise RuntimeError(
+                f"Grok returned an async operation (id={data.get('id')}); "
+                f"polling not yet implemented. Extend `_animate_grok` with "
+                f"a poll loop against /v1/video/generations/{{id}}."
+            )
+
+    if not video_url:
+        raise RuntimeError(
+            f"Grok response had no video URL. Raw body: {str(data)[:400]}"
+        )
+
+    await _download_clip(video_url, out_path)
+    await _fit_clip_duration(out_path, duration_seconds, native_seconds=6)
+    return out_path
+
+
 async def _animate_hailuo(
     keyframe_path: str,
     motion_prompt: str,
@@ -478,4 +576,17 @@ _register(MotionProvider(
     requires_replicate=True,
     requires_gemini=False,
     animate=_animate_hailuo,
+))
+
+_register(MotionProvider(
+    slug="grok",
+    name="Grok Imagine",
+    description="xAI's image-to-video. Experimental integration — great on creative stylised prompts.",
+    tagline="xAI",
+    native_clip_seconds=6,
+    estimated_usd_per_60s=6.0,   # estimate — xAI pricing TBD
+    requires_replicate=False,
+    requires_gemini=False,
+    requires_grok=True,
+    animate=_animate_grok,
 ))

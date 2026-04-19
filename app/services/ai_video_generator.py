@@ -155,6 +155,15 @@ async def run_ai_video_job(job_id: str) -> None:
     reference_image_sources = (
         effective_reference_sources(niche) if niche else []
     )
+    # Few-shot training data for the script + storyboard generators.
+    # Reading live from the registry means adding a new reference
+    # script / storyboard is one PR with no migration.
+    reference_script_examples = (
+        list(niche.reference_script_examples) if niche else []
+    )
+    reference_storyboard_examples = (
+        list(niche.reference_storyboard_examples) if niche else []
+    )
 
     workdir = tempfile.mkdtemp(prefix=f"aivideo_{job_id[:8]}_")
 
@@ -167,6 +176,7 @@ async def run_ai_video_job(job_id: str) -> None:
             language=language,
             tone=tone,
             style_instructions=style_instructions,
+            reference_scripts=reference_script_examples,
         )
         _mark_job(
             job_id,
@@ -185,6 +195,7 @@ async def run_ai_video_job(job_id: str) -> None:
             aspect_ratio=aspect_ratio,
             visual_style=visual_style,
             style_instructions=style_instructions,
+            reference_storyboards=reference_storyboard_examples,
         )
         if not storyboard.scenes:
             _fail_job(job_id, "Storyboard generation returned no scenes.")

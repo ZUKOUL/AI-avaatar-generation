@@ -88,6 +88,10 @@ _MOTION_MODEL_MULTIPLIERS: dict[str, float] = {
     "kling":    1.0,
     "veo_fast": 1.3,
     "hailuo":   0.55,
+    # Grok pricing is an estimate until xAI publishes official rates —
+    # set slightly above Veo as a safe margin. Adjust once the real
+    # per-second cost is known from invoices.
+    "grok":     1.1,
 }
 
 

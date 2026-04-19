@@ -106,6 +106,38 @@ class Niche:
     # The pipeline resolves + fetches at render time.
     reference_image_sources: list[str] = field(default_factory=list)
 
+    # Reference scene-by-scene analyses of real channel videos. Fed to
+    # the storyboard generator as FEW-SHOT examples so the LLM learns
+    # the cadence + scene-level visual detail the channel actually uses
+    # — no more generic "lonely figure in room" prompts.
+    #
+    # Each entry looks like:
+    #   {
+    #     "topic": "<one-line summary of the source video>",
+    #     "scenes": [
+    #       {"start": 0, "end": 7,
+    #        "voiceover": "<exact spoken line>",
+    #        "image_prompt": "<detailed visual description>",
+    #        "motion_prompt": "<optional motion direction>"},
+    #       ...
+    #     ]
+    #   }
+    #
+    # Can be seeded from `/ai-videos/analyze-reference` (Gemini
+    # auto-extracts from a TikTok URL) or hand-authored.
+    reference_storyboard_examples: list[dict] = field(default_factory=list)
+
+    # Full narration scripts extracted from real reference videos. Fed
+    # to the SCRIPT generator (generate_script) as few-shot examples so
+    # the LLM mimics the exact cadence / structure / signature phrases
+    # of the reference channel. Separate from storyboard examples: one
+    # teaches "what a narration sounds like", the other teaches "what a
+    # scene-level image prompt looks like".
+    #
+    # Each entry:
+    #   { "topic": "<short summary>", "full_text": "<complete narration>" }
+    reference_script_examples: list[dict] = field(default_factory=list)
+
     # UI --------------------------------------------------------------------
     # Pure-CSS card background so we don't need to host thumbnails yet.
     # The frontend applies this as `style={{ background: gradient_css }}`.
@@ -617,6 +649,227 @@ _register(Niche(
     # add or swap reference images.
     reference_image_sources=[
         "app/services/niche_assets/claymation_3d/ref_01.png",
+    ],
+
+    # Structured scene-by-scene analysis of ONE real @humain.penseur
+    # video. Fed to the storyboard LLM as a few-shot example so every
+    # new storyboard inherits the cadence + scene-level detail of the
+    # real channel. Source: Gemini-extracted analysis the user shared
+    # from a TikTok URL ("Un homme qui aime profondément sa copine…").
+    reference_storyboard_examples=[
+        {
+            "topic": (
+                "Un homme qui aime profondément sa copine pensera toujours "
+                "qu'elle peut le tromper — l'anxiété d'attachement masculine"
+            ),
+            "scenes": [
+                {
+                    "start": 0, "end": 7,
+                    "voiceover": (
+                        "Un homme qui aime sa copine pensera toujours qu'elle "
+                        "peut le tromper. Pourquoi ? Parce qu'il l'aime vraiment."
+                    ),
+                    "image_prompt": (
+                        "A male and female 3D claymation figure lying on a "
+                        "large grey couch. The man is holding the woman "
+                        "tightly, looking pensive and slightly worried into "
+                        "the camera. Slow zoom in."
+                    ),
+                    "motion_prompt": "Slow push-in on the man's worried face.",
+                },
+                {
+                    "start": 7, "end": 15,
+                    "voiceover": (
+                        "Quand un homme aime profondément une femme, il prend "
+                        "conscience de tout ce qu'il peut perdre."
+                    ),
+                    "image_prompt": (
+                        "A male 3D figure standing alone in a dark, empty "
+                        "room. He looks at a glowing white silhouette of the "
+                        "woman that slowly fades away. Emotional atmosphere."
+                    ),
+                    "motion_prompt": "The female silhouette fades to nothing.",
+                },
+                {
+                    "start": 15, "end": 22,
+                    "voiceover": (
+                        "En psychologie, on appelle ça l'anxiété d'attachement. "
+                        "Plus l'attachement est fort, plus la peur de perdre "
+                        "l'autre grandit."
+                    ),
+                    "image_prompt": (
+                        "Two 3D claymation figures standing face to face. A "
+                        "thick, dark blue smoke or energy flows between them, "
+                        "connecting their chests. The man is trying to hold "
+                        "onto the smoke."
+                    ),
+                    "motion_prompt": "The blue energy pulses and shifts.",
+                },
+                {
+                    "start": 22, "end": 30,
+                    "voiceover": (
+                        "Les hommes savent aussi comment pensent les autres "
+                        "hommes. Il en est un lui-même. Il connaît les "
+                        "intentions et les approches."
+                    ),
+                    "image_prompt": (
+                        "The male 3D figure standing in front of a group of "
+                        "identical blurry male silhouettes in the background. "
+                        "The man looks suspicious, scanning the surroundings."
+                    ),
+                    "motion_prompt": "Subtle camera pan across the silhouettes.",
+                },
+                {
+                    "start": 30, "end": 37,
+                    "voiceover": (
+                        "Il sait que l'attention et la validation peuvent, "
+                        "avec le temps, se transformer en tentation. Un homme "
+                        "amoureux n'est pas naïf."
+                    ),
+                    "image_prompt": (
+                        "A female 3D claymation figure standing under a "
+                        "spotlight. Several grey 3D hands reach from the "
+                        "shadows toward her, offering small glowing hearts. "
+                        "The man watches from the dark."
+                    ),
+                    "motion_prompt": "Hands slowly emerge from shadow.",
+                },
+                {
+                    "start": 37, "end": 45,
+                    "voiceover": (
+                        "Il observe les comportements, pas seulement les "
+                        "paroles. Il sait que chacun a des faiblesses et des "
+                        "moments de vulnérabilité."
+                    ),
+                    "image_prompt": (
+                        "Split screen. Left: the woman's mouth moving. Right: "
+                        "the man's eyes staring intensely, observing tiny "
+                        "details. Minimalist and sharp."
+                    ),
+                    "motion_prompt": "Static split-screen, subtle blink.",
+                },
+                {
+                    "start": 45, "end": 52,
+                    "voiceover": (
+                        "C'est pourquoi il pose des limites. Il met en place "
+                        "des règles et des standards. Il protège ce qu'il a "
+                        "construit."
+                    ),
+                    "image_prompt": (
+                        "The male 3D figure building a tall wall with grey "
+                        "bricks around the female figure. He looks protective "
+                        "and determined. Cinematic wide shot."
+                    ),
+                    "motion_prompt": "He places one brick after another.",
+                },
+                {
+                    "start": 52, "end": 60,
+                    "voiceover": (
+                        "À l'inverse, un homme qui ne tient pas à toi ne "
+                        "posera rien. S'il est silencieux et distant, c'est "
+                        "que te perdre ne lui coûterait rien."
+                    ),
+                    "image_prompt": (
+                        "The male 3D figure sitting on a chair, back turned "
+                        "to the woman who is crying in the background. He "
+                        "looks cold and indifferent. Fade to black."
+                    ),
+                    "motion_prompt": "Slow fade to black.",
+                },
+            ],
+        },
+    ],
+
+    # Full narration scripts from real @humain.penseur videos (user-
+    # supplied Apr 2026 — extracted by Gemini from TikTok URLs and
+    # shared in chat). Each script is 60 s of spoken narration; feeding
+    # them to the script generator as few-shot examples lets the LLM
+    # mimic the real channel's cadence, thesis structure, and landing
+    # one-liners instead of producing generic pop-psych output.
+    reference_script_examples=[
+        {
+            "topic": (
+                "L'anxiété d'attachement masculine — pourquoi un homme qui "
+                "aime profondément reste toujours un peu inquiet"
+            ),
+            "full_text": (
+                "Un homme qui aime sa copine pensera toujours qu'elle peut "
+                "le tromper. Quand un homme aime profondément une femme, il "
+                "prend conscience de tout ce qu'il peut perdre. En "
+                "psychologie, on appelle ça l'anxiété d'attachement. Plus "
+                "l'attachement est fort, plus la peur de perdre l'autre "
+                "peut apparaître. Les hommes savent aussi comment pensent "
+                "les autres hommes. Il en est un lui-même. Il connaît les "
+                "intentions, les approches, les dynamiques de séduction. "
+                "Il sait que l'attention, la validation et la proximité "
+                "peuvent, avec le temps, se transformer en tentation. Un "
+                "homme amoureux ne vit pas dans un conte de fées. Il sait "
+                "que personne n'est parfait, que chacun peut avoir des "
+                "faiblesses, des moments de vulnérabilité. Alors il "
+                "observe les comportements, pas seulement les paroles. "
+                "Plus un homme s'investit émotionnellement, financièrement "
+                "et personnellement, plus il protège ce qu'il a construit. "
+                "Un homme qui t'aime pose des limites parce qu'il sait que "
+                "la tromperie est possible. Il met en place des règles, "
+                "des standards, des frontières. À l'inverse, un homme qui "
+                "ne tient pas à toi ne posera rien. Il reste silencieux, "
+                "distant, parce que te perdre ne lui coûterait rien. Un "
+                "homme qui aime a quelque chose à perdre. Et quand quelque "
+                "chose compte vraiment, on le protège."
+            ),
+        },
+        {
+            "topic": (
+                "Le silence masculin comme signe de renoncement — quand un "
+                "homme arrête de se disputer, il a commencé à partir"
+            ),
+            "full_text": (
+                "Le jour où un homme arrête de se disputer avec toi, c'est "
+                "le jour où il a commencé à te perdre. Beaucoup de femmes "
+                "pensent que le silence d'un homme est un signe de paix, "
+                "mais c'est souvent le signe d'un renoncement. S'il ne te "
+                "fait plus de reproches, s'il ne cherche plus à t'expliquer "
+                "ce qui le blesse, c'est qu'il a déjà commencé à se "
+                "détacher émotionnellement. Un homme qui s'énerve ou qui "
+                "exprime son mécontentement est un homme qui investit "
+                "encore de l'énergie dans la relation. Il espère encore un "
+                "changement. Le jour où il devient calme, poli mais "
+                "distant, c'est qu'il a déjà fait son deuil dans sa tête. "
+                "Le silence n'est pas l'absence de colère, c'est l'absence "
+                "d'espoir. Une fois qu'un homme a atteint ce stade, il est "
+                "presque impossible de le faire revenir. Il ne partira pas "
+                "forcément tout de suite, il restera peut-être par "
+                "habitude ou par devoir, mais son cœur est déjà ailleurs. "
+                "Ne prends jamais son silence pour un acquis, car c'est le "
+                "dernier avertissement avant le départ définitif."
+            ),
+        },
+        {
+            "topic": (
+                "Le respect comme oxygène de l'homme — pourquoi un homme "
+                "part vraiment (et ce n'est pas pour une autre femme)"
+            ),
+            "full_text": (
+                "Un homme ne part jamais vraiment pour une autre femme. "
+                "Il part parce qu'il ne se sent plus respecté, apprécié "
+                "ou entendu. La vérité, c'est que la plupart des hommes "
+                "peuvent supporter la pauvreté, le stress et les épreuves "
+                "de la vie tant qu'ils ont une femme à leurs côtés qui "
+                "croit en eux. Mais dès qu'ils sentent qu'ils sont devenus "
+                "un fardeau ou qu'ils sont constamment rabaissés, ils "
+                "commencent à construire un mur. Le respect est l'oxygène "
+                "de l'homme. Sans lui, il s'étouffe émotionnellement. Il "
+                "ne te dira pas « je souffre de ton manque de respect », "
+                "il se contentera de s'éloigner, de s'investir davantage "
+                "dans son travail ou dans ses passions pour combler le "
+                "vide. Beaucoup de femmes réalisent l'importance de ce "
+                "respect quand il est déjà trop tard. Un homme qui se sent "
+                "respecté te donnera le monde. Un homme qui se sent "
+                "méprisé te rendra ton monde et reprendra le sien. "
+                "Protège le respect dans ton couple, car c'est la seule "
+                "chose qui retient vraiment un homme sur le long terme."
+            ),
+        },
     ],
 
     # Card gradient matches the claymation palette (charcoal → obsidian →

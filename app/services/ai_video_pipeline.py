@@ -94,6 +94,7 @@ async def generate_script(
     language: str = "auto",
     tone: str | None = None,
     style_instructions: str | None = None,
+    reference_scripts: list[dict] | None = None,
 ) -> Script:
     """
     Turn the user's one-liner into a timed script. We ask Gemini to match
@@ -149,6 +150,35 @@ async def generate_script(
         else ""
     )
 
+    # Few-shot: show the model up to 2 real narration scripts from the
+    # reference channel so it mimics actual cadence + signature phrases
+    # instead of generating generic pop-psych content. Truncate each
+    # example so the prompt stays under Gemini's comfort window even
+    # with long references.
+    reference_clause = ""
+    if reference_scripts:
+        blocks = []
+        for i, ex in enumerate((reference_scripts or [])[:2], 1):
+            topic = (ex.get("topic") or "").strip()
+            text = (ex.get("full_text") or "").strip()
+            if not text:
+                continue
+            blocks.append(
+                f"REFERENCE SCRIPT #{i} (real channel video):\n"
+                f"Topic: {topic}\n"
+                f"Full narration:\n{text[:2000]}"
+            )
+        if blocks:
+            reference_clause = (
+                "\nLEARN FROM THESE REAL REFERENCE SCRIPTS — match their "
+                "exact cadence, paragraph rhythm, signature phrasing, and "
+                "closing one-liner structure. Do NOT copy their content; "
+                "write a fresh script for the USER PROMPT below that SOUNDS "
+                "like it was written by the same author.\n\n"
+                + "\n\n".join(blocks)
+                + "\n"
+            )
+
     prompt_text = f"""You are a viral short-form video scriptwriter (TikTok, Reels, YouTube Shorts).
 
 USER PROMPT: {prompt}
@@ -163,7 +193,7 @@ Write a single-voice narration script that:
 
 {lang_clause}
 {tone_clause}
-{style_clause}
+{style_clause}{reference_clause}
 Return STRICT JSON with this shape:
 {{
   "language": "<iso-639-1>",
@@ -216,6 +246,7 @@ async def generate_storyboard(
     scene_count: int | None = None,
     visual_style: str | None = None,
     style_instructions: str | None = None,
+    reference_storyboards: list[dict] | None = None,
 ) -> Storyboard:
     """
     Ask Gemini to chop the narration into N scenes, each with:
@@ -266,6 +297,39 @@ async def generate_storyboard(
         else ""
     )
 
+    # Few-shot reference storyboard(s). Showing one real storyboard with
+    # scene-level detail is worth pages of instructions — the LLM picks
+    # up exact phrasing like "split screen / slow push-in / fade to
+    # black / grey hands reaching from shadows" that our previous prompts
+    # never inspired.
+    storyboard_reference_clause = ""
+    if reference_storyboards:
+        blocks = []
+        for i, ref in enumerate((reference_storyboards or [])[:1], 1):
+            scenes = ref.get("scenes") or []
+            if not scenes:
+                continue
+            lines = [f"REFERENCE STORYBOARD #{i} (real video: {ref.get('topic', 'n/a')})"]
+            for s in scenes:
+                lines.append(
+                    f"  [{s.get('start', 0)}s-{s.get('end', 0)}s] "
+                    f"VO: {(s.get('voiceover') or '')[:200]}\n"
+                    f"    IMAGE: {(s.get('image_prompt') or '')[:400]}"
+                )
+            blocks.append("\n".join(lines))
+        if blocks:
+            storyboard_reference_clause = (
+                "\nLEARN FROM THIS REAL REFERENCE STORYBOARD. Match the "
+                "level of scene-level detail, the 'matter-of-fact + "
+                "symbolic' visual language (grey 3D figures, glowing "
+                "silhouettes, hands reaching from shadows, split screens, "
+                "walls being built, fade to black, etc.). Your scenes "
+                "should feel like they could have come from the same "
+                "creator, but with fresh content matching the user prompt.\n\n"
+                + "\n\n".join(blocks)
+                + "\n"
+            )
+
     prompt_text = f"""You are a senior short-form video storyboard artist + director
 breaking a voice-over narration into production-grade image prompts. You
 are writing for Gemini 3 Pro Image — the prompts must be specific enough
@@ -283,7 +347,7 @@ TARGET
 - scene durations should sum to the total and each last 3-10 seconds
 - language of scene prompts: ENGLISH (for the image model) — the voiceover
   stays in whatever language the script is
-{style_clause}{visual_style_hint}
+{style_clause}{visual_style_hint}{storyboard_reference_clause}
 ⚡ CRITICAL — AUDIO/VISUAL LITERAL ALIGNMENT ⚡
 The viewer will see each image_prompt rendered AT THE EXACT MOMENT the
 narrator speaks that scene's voiceover_text. Every image MUST literally
