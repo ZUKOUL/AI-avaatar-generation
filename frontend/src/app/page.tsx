@@ -359,6 +359,52 @@ export default function Home() {
           0%, 100% { transform: translateY(0) rotate(0deg); }
           50% { transform: translateY(-6px) rotate(0.5deg); }
         }
+        /* Hero god-ray beams — subtle breathing pulse so the panel
+           feels alive without being distracting. */
+        @keyframes hero-beam-breathe {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 0.95; }
+        }
+
+        /* Every animation used by the feature-card illustrations +
+           hero mockup lives here, not inside the component. Next.js
+           16 (Turbopack) rejects any styled-jsx block that isn't at
+           the component's top-level JSX return — and keeping them
+           centralised makes them easier to tune together. */
+        @keyframes avatars-upload-pulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+          50% { transform: scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+        }
+        @keyframes avatars-card-cycle {
+          0%, 20% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
+          50% { transform: translate(-4px, -6px) rotate(-2deg); z-index: 10; }
+          100% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
+        }
+        @keyframes images-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.92; }
+          50% { transform: scale(1.05); opacity: 1; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+        }
+        @keyframes videos-scene {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes videos-progress {
+          0% { width: 10%; }
+          50% { width: 70%; }
+          100% { width: 95%; }
+        }
+        @keyframes ads-highlight {
+          0%, 40%, 100% { transform: translateX(0) scale(1); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+          20% { transform: translateX(4px) scale(1.04); box-shadow: 0 8px 20px rgba(0,0,0,0.16); }
+        }
+        @keyframes hero-tile-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.95; }
+          50% { transform: scale(1.02); opacity: 1; }
+        }
+        @keyframes hero-dot-pulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.3); }
+        }
 
         /* Scroll-reveal — any element with this class becomes visible
            only once it enters the viewport. Uses modern animation-
@@ -671,13 +717,6 @@ export default function Home() {
               }}
             />
           </div>
-
-          <style jsx>{`
-            @keyframes hero-beam-breathe {
-              0%, 100% { opacity: 0.6; transform: translateX(-50%) skewX(var(--beam-skew, 0deg)) scaleY(1); }
-              50% { opacity: 0.95; transform: translateX(-50%) skewX(var(--beam-skew, 0deg)) scaleY(1.05); }
-            }
-          `}</style>
 
           {/* Hero content — centred over the beams */}
           <div className="relative z-10 flex flex-col items-center px-5 md:px-10 pt-16 md:pt-28 pb-0 text-center">
@@ -1527,17 +1566,9 @@ function AvatarsIllustration() {
         ))}
       </div>
 
-      <style jsx>{`
-        @keyframes avatars-upload-pulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-          50% { transform: scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
-        }
-        @keyframes avatars-card-cycle {
-          0%, 20% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
-          50% { transform: translate(-4px, -6px) rotate(-2deg); z-index: 10; }
-          100% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
-        }
-      `}</style>
+      {/* Keyframes (avatars-upload-pulse, avatars-card-cycle) live
+          in the global stylesheet block inside <Home /> because
+          Next.js 16 Turbopack rejects nested styled-jsx. */}
     </div>
   );
 }
@@ -1583,12 +1614,7 @@ function ImagesIllustration() {
         ))}
       </div>
 
-      <style jsx>{`
-        @keyframes images-pulse {
-          0%, 100% { transform: scale(1); opacity: 0.92; }
-          50% { transform: scale(1.05); opacity: 1; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
-        }
-      `}</style>
+      {/* images-pulse lives in the global stylesheet block. */}
     </div>
   );
 }
@@ -1665,17 +1691,7 @@ function VideosIllustration() {
         Rendering scenes…
       </span>
 
-      <style jsx>{`
-        @keyframes videos-scene {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
-        }
-        @keyframes videos-progress {
-          0% { width: 10%; }
-          50% { width: 70%; }
-          100% { width: 95%; }
-        }
-      `}</style>
+      {/* videos-scene / videos-progress live in the global stylesheet. */}
     </div>
   );
 }
@@ -1746,12 +1762,7 @@ function AdsIllustration() {
         ))}
       </div>
 
-      <style jsx>{`
-        @keyframes ads-highlight {
-          0%, 40%, 100% { transform: translateX(0) scale(1); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-          20% { transform: translateX(4px) scale(1.04); box-shadow: 0 8px 20px rgba(0,0,0,0.16); }
-        }
-      `}</style>
+      {/* ads-highlight lives in the global stylesheet. */}
     </div>
   );
 }
@@ -1989,16 +2000,7 @@ function HeroPreview({ showcase }: { showcase: ShowcaseData }) {
               ))}
             </div>
 
-            <style jsx>{`
-              @keyframes hero-tile-pulse {
-                0%, 100% { transform: scale(1); opacity: 0.95; }
-                50% { transform: scale(1.02); opacity: 1; }
-              }
-              @keyframes hero-dot-pulse {
-                0%, 100% { opacity: 0.4; transform: scale(1); }
-                50% { opacity: 1; transform: scale(1.3); }
-              }
-            `}</style>
+            {/* hero-tile-pulse / hero-dot-pulse live in the global stylesheet. */}
           </div>
         </div>
       </div>
