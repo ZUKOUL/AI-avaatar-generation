@@ -28,6 +28,8 @@ import {
   Info,
   Zap,
   MagicWand,
+  ChevronDown,
+  Check,
 } from "@/components/Icons";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
@@ -624,20 +626,11 @@ export default function AIVideosPage() {
               </Field>
               {voiceEnabled && voices.length > 0 && (
                 <Field label="Voice">
-                  <select
+                  <VoicePicker
+                    voices={voices}
                     value={voiceId}
-                    onChange={(e) => setVoiceId(e.target.value)}
-                    className={selectCls}
-                    style={selectStyle}
-                  >
-                    <option value="">Default (multilingual)</option>
-                    {voices.map((v) => (
-                      <option key={v.voice_id} value={v.voice_id}>
-                        {v.name}
-                        {v.labels?.language ? ` · ${v.labels.language}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setVoiceId}
+                  />
                 </Field>
               )}
             </div>
@@ -1369,6 +1362,233 @@ function NicheModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── Voice picker with inline audio preview ──────────────────── */
+//
+// ElevenLabs' /v1/voices endpoint hands back a `preview_url` (mp3 sample)
+// for every voice in the library. We surface that as a ▶ button next to
+// each voice so the user can audition without leaving the page —
+// exactly the UX elevenlabs.io itself has.
+//
+// A single <audio> element is shared across rows so starting a new
+// preview always cuts off the previous one (no overlapping samples).
+
+function VoicePicker({
+  voices,
+  value,
+  onChange,
+}: {
+  voices: VoiceOption[];
+  value: string;
+  onChange: (voiceId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  // Ensure we own exactly one <audio> instance for the component's lifetime.
+  useEffect(() => {
+    const a = new Audio();
+    audioRef.current = a;
+    const onEnd = () => setPlayingId(null);
+    a.addEventListener("ended", onEnd);
+    return () => {
+      a.pause();
+      a.removeEventListener("ended", onEnd);
+      audioRef.current = null;
+    };
+  }, []);
+
+  // Close the popover when clicking outside.
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!popoverRef.current) return;
+      if (!popoverRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const selected = voices.find((v) => v.voice_id === value) ?? null;
+
+  const togglePlay = (voice: VoiceOption, ev: React.MouseEvent) => {
+    ev.stopPropagation();   // don't let the click also select the row
+    const a = audioRef.current;
+    if (!a || !voice.preview_url) return;
+
+    if (playingId === voice.voice_id) {
+      a.pause();
+      setPlayingId(null);
+      return;
+    }
+    // Switching voices — pause whatever was playing + load the new sample.
+    a.pause();
+    a.src = voice.preview_url;
+    a.currentTime = 0;
+    a.play().then(() => setPlayingId(voice.voice_id)).catch(() => {
+      // Autoplay policies can block on first interaction; best-effort.
+      setPlayingId(null);
+    });
+  };
+
+  const selectVoice = (voiceId: string) => {
+    onChange(voiceId);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={popoverRef}>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded-lg px-3 py-2 text-sm outline-none flex items-center justify-between gap-2"
+        style={{
+          background: "var(--bg-primary)",
+          color: "var(--text-primary)",
+          border: "1px solid var(--border-color)",
+        }}
+      >
+        <span className="truncate text-left">
+          {selected ? (
+            <>
+              {selected.name}
+              {selected.labels?.language ? (
+                <span
+                  className="ml-2 text-[10px] opacity-70 uppercase"
+                >
+                  {selected.labels.language}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            "Default (multilingual)"
+          )}
+        </span>
+        <ChevronDown size={14} color="currentColor" />
+      </button>
+
+      {/* Popover */}
+      {open && (
+        <div
+          className="absolute left-0 right-0 mt-1 z-20 rounded-lg overflow-hidden"
+          style={{
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border-color)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          {/* Default option */}
+          <VoiceRow
+            label="Default (multilingual)"
+            sublabel="System default · Rachel"
+            selected={!value}
+            canPlay={false}
+            playing={false}
+            onPlay={() => {}}
+            onSelect={() => selectVoice("")}
+          />
+
+          {/* Voices list — scrollable, cap height so big libraries fit */}
+          <div className="max-h-[260px] overflow-y-auto">
+            {voices.map((v) => {
+              const subParts: string[] = [];
+              if (v.labels?.language) subParts.push(v.labels.language);
+              if (v.labels?.accent) subParts.push(v.labels.accent);
+              if (v.labels?.gender) subParts.push(v.labels.gender);
+              if (v.category) subParts.push(v.category);
+              return (
+                <VoiceRow
+                  key={v.voice_id}
+                  label={v.name}
+                  sublabel={subParts.join(" · ")}
+                  selected={v.voice_id === value}
+                  canPlay={Boolean(v.preview_url)}
+                  playing={playingId === v.voice_id}
+                  onPlay={(ev) => togglePlay(v, ev)}
+                  onSelect={() => selectVoice(v.voice_id)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VoiceRow({
+  label,
+  sublabel,
+  selected,
+  canPlay,
+  playing,
+  onPlay,
+  onSelect,
+}: {
+  label: string;
+  sublabel: string;
+  selected: boolean;
+  canPlay: boolean;
+  playing: boolean;
+  onPlay: (ev: React.MouseEvent) => void;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="w-full flex items-center gap-2 px-3 py-2 text-left transition"
+      style={{
+        background: selected ? "var(--bg-primary)" : "transparent",
+        borderLeft: selected
+          ? "2px solid var(--accent-primary)"
+          : "2px solid transparent",
+        color: "var(--text-primary)",
+      }}
+    >
+      {/* Play button — on the left so the user can scrub previews without
+          having to move their cursor across the row */}
+      <span
+        onClick={canPlay ? onPlay : undefined}
+        role={canPlay ? "button" : undefined}
+        aria-label={playing ? "Pause preview" : "Play preview"}
+        className="inline-flex items-center justify-center rounded-full w-7 h-7 shrink-0 transition"
+        style={{
+          background: canPlay
+            ? playing
+              ? "var(--accent-primary)"
+              : "var(--bg-secondary)"
+            : "transparent",
+          color: playing ? "var(--bg-primary)" : "var(--text-primary)",
+          opacity: canPlay ? 1 : 0.3,
+          cursor: canPlay ? "pointer" : "default",
+          border: "1px solid var(--border-color)",
+        }}
+      >
+        <Play size={11} color="currentColor" />
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium truncate">{label}</span>
+        {sublabel && (
+          <span
+            className="block text-[10px] truncate"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {sublabel}
+          </span>
+        )}
+      </span>
+
+      {selected && (
+        <Check size={14} color="var(--accent-primary)" />
+      )}
+    </button>
   );
 }
 
