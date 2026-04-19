@@ -270,6 +270,70 @@ def list_niches() -> list[Niche]:
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# Reference-image merging — code-defined + user-uploaded
+# ──────────────────────────────────────────────────────────────────────────
+
+# Supabase Storage layout for user-uploaded references:
+#   bucket: avatars
+#   path:   niche_references/<slug>/<anything>.png
+# We list that folder at render time and append each public URL to the
+# niche's static `reference_image_sources` so users can drop extra
+# references through the dashboard without touching the code.
+_REFERENCES_STORAGE_PREFIX = "niche_references"
+_REFERENCES_BUCKET = "avatars"
+
+
+def _listing_to_public_url(slug: str, entry: dict) -> Optional[str]:
+    """Convert one item from `supabase.storage.list(path)` into a public
+    URL the pipeline can fetch. Returns None for Supabase's hidden
+    `.emptyFolderPlaceholder` marker."""
+    name = entry.get("name") or ""
+    if not name or name == ".emptyFolderPlaceholder":
+        return None
+    from app.core.supabase import supabase
+    path = f"{_REFERENCES_STORAGE_PREFIX}/{slug}/{name}"
+    try:
+        return supabase.storage.from_(_REFERENCES_BUCKET).get_public_url(path)
+    except Exception:
+        return None
+
+
+def list_uploaded_reference_urls(slug: str) -> list[str]:
+    """Return the public URLs of every user-uploaded reference image
+    for this niche. Swallows Supabase hiccups and returns [] — a broken
+    listing should never take down the pipeline."""
+    try:
+        from app.core.supabase import supabase
+        res = (
+            supabase.storage.from_(_REFERENCES_BUCKET)
+            .list(f"{_REFERENCES_STORAGE_PREFIX}/{slug}")
+        )
+    except Exception as e:
+        logger.warning(f"Could not list uploaded references for {slug}: {e}")
+        return []
+
+    urls: list[str] = []
+    for entry in res or []:
+        url = _listing_to_public_url(slug, entry)
+        if url:
+            urls.append(url)
+    return urls
+
+
+def effective_reference_sources(niche: Niche) -> list[str]:
+    """Combine the niche's code-defined references (committed PNGs in
+    `app/services/niche_assets/`) with anything the user has uploaded
+    via the dashboard (Supabase Storage).
+
+    Uploaded refs come AFTER the static ones so code-committed defaults
+    take priority positionally (Gemini weighs earlier multimodal inputs
+    more heavily), while user uploads supplement them."""
+    sources = list(niche.reference_image_sources)
+    sources.extend(list_uploaded_reference_urls(niche.slug))
+    return sources
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Claymation 3D — minimalist matte-white-characters aesthetic
 # ──────────────────────────────────────────────────────────────────────────
 #

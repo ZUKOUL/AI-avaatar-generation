@@ -30,6 +30,8 @@ import {
   MagicWand,
   ChevronDown,
   Check,
+  Upload,
+  ImageSquare,
 } from "@/components/Icons";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
@@ -202,6 +204,11 @@ export default function AIVideosPage() {
   const [topicIdeas, setTopicIdeas] = useState<string[]>([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
   const [ideasError, setIdeasError] = useState("");
+
+  // Reference-images manager modal — this is the drag-and-drop upload
+  // UI the user pops open from the active niche badge to add / remove
+  // visual references for that niche.
+  const [referencesNiche, setReferencesNiche] = useState<NichePreset | null>(null);
 
   // Resolved niche object derived from the slug + the niches catalogue.
   const activeNiche = useMemo(
@@ -533,41 +540,66 @@ export default function AIVideosPage() {
           >
             {/* Active-niche badge — tells the user their next video will
                 use the selected channel's visual style + narrator voice.
-                Clicking X resets the form back to a neutral generation. */}
+                Clicking X resets the form back to a neutral generation.
+                "Gérer les images de référence" opens the drag-and-drop
+                manager so the user can lock the look of this niche to
+                actual screenshots instead of relying on text alone. */}
             {activeNiche && (
               <div
-                className="rounded-lg p-3 mb-4 flex items-center gap-3"
+                className="rounded-lg p-3 mb-4"
                 style={{
                   background: activeNiche.card_gradient,
                   border: "1px solid var(--border-color)",
                 }}
               >
-                <SparkleIcon size={16} color={activeNiche.accent_color} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-semibold tracking-widest uppercase"
-                       style={{ color: activeNiche.accent_color }}>
-                    Style appliqué
+                <div className="flex items-center gap-3">
+                  <SparkleIcon size={16} color={activeNiche.accent_color} />
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="text-[10px] font-semibold tracking-widest uppercase"
+                      style={{ color: activeNiche.accent_color }}
+                    >
+                      Style appliqué
+                    </div>
+                    <div className="text-sm font-semibold text-white truncate">
+                      {activeNiche.name}{" "}
+                      <span className="text-white/60 font-normal">
+                        · {activeNiche.handle}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold text-white truncate">
-                    {activeNiche.name}{" "}
-                    <span className="text-white/60 font-normal">
-                      · {activeNiche.handle}
-                    </span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearNiche}
+                    className="p-1.5 rounded-md"
+                    style={{
+                      background: "rgba(255,255,255,0.12)",
+                      color: "#fff",
+                    }}
+                    aria-label="Remove niche style"
+                    title="Retirer ce style"
+                  >
+                    <XIcon size={12} color="currentColor" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleClearNiche}
-                  className="p-1.5 rounded-md"
-                  style={{
-                    background: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                  }}
-                  aria-label="Remove niche style"
-                  title="Retirer ce style"
-                >
-                  <XIcon size={12} color="currentColor" />
-                </button>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-white/70">
+                    L&apos;IA se base sur des images de référence pour générer
+                    toujours le même style.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReferencesNiche(activeNiche)}
+                    className="text-[11px] rounded-full px-3 py-1 transition flex items-center gap-1"
+                    style={{
+                      background: "rgba(255,255,255,0.15)",
+                      color: "#fff",
+                    }}
+                  >
+                    <ImageSquare size={11} color="currentColor" />
+                    Gérer les images
+                  </button>
+                </div>
               </div>
             )}
 
@@ -894,6 +926,14 @@ export default function AIVideosPage() {
         <VideoModal
           job={playingJob}
           onClose={() => setPlayingJob(null)}
+        />
+      )}
+
+      {/* ── Niche reference-images manager ─────────────────────── */}
+      {referencesNiche && (
+        <ReferencesModal
+          niche={referencesNiche}
+          onClose={() => setReferencesNiche(null)}
         />
       )}
 
@@ -1313,6 +1353,366 @@ function NicheCard({
   );
 }
 
+
+/* ─── Reference-images manager ───────────────────────────────── */
+//
+// The drag-and-drop UI the user opens from the active-niche badge to
+// manage the visual reference images Gemini 3 Pro Image conditions on.
+// This is the pragmatic answer to "how do I upload my @humain.penseur
+// screenshots" — no Terminal, no git, just drag the files in.
+
+interface NicheReference {
+  id: string;
+  url: string | null;
+  type: "static" | "uploaded";
+  filename: string;
+  size?: number | null;
+}
+
+function ReferencesModal({
+  niche,
+  onClose,
+}: {
+  niche: NichePreset;
+  onClose: () => void;
+}) {
+  const [refs, setRefs] = useState<NicheReference[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadInfo, setUploadInfo] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await aiVideosAPI.listNicheReferences(niche.slug);
+      setRefs(res.data?.references ?? []);
+    } catch (e) {
+      console.error("Failed to load references:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [niche.slug]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Esc to close
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setUploadError("");
+    setUploadInfo("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      Array.from(fileList).forEach((f) => fd.append("files", f));
+      const res = await aiVideosAPI.uploadNicheReferences(niche.slug, fd);
+      const uploaded = res.data?.uploaded ?? [];
+      const errors = res.data?.errors ?? [];
+      if (uploaded.length > 0) {
+        setUploadInfo(
+          `${uploaded.length} image${uploaded.length > 1 ? "s" : ""} uploadée${
+            uploaded.length > 1 ? "s" : ""
+          } ✓`
+        );
+      }
+      if (errors.length > 0) {
+        setUploadError(
+          `Problème sur ${errors.length} fichier${errors.length > 1 ? "s" : ""}: ${
+            (errors as Array<{ error: string }>)
+              .map((e) => e.error)
+              .join(", ")
+          }`
+        );
+      }
+      await load();
+    } catch (e) {
+      const err = e as { response?: { data?: { detail?: unknown } }; message?: string };
+      const detail = err?.response?.data?.detail;
+      let msg =
+        typeof detail === "string"
+          ? detail
+          : (detail as { message?: string } | undefined)?.message;
+      if (!msg) msg = err?.message || "Upload échoué.";
+      setUploadError(msg);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (ref: NicheReference) => {
+    if (ref.type === "static") return;   // can't delete code-shipped refs
+    if (!confirm(`Supprimer ${ref.filename} ?`)) return;
+    const snapshot = refs;
+    setRefs((prev) => prev.filter((r) => r.id !== ref.id));
+    try {
+      await aiVideosAPI.deleteNicheReference(niche.slug, ref.id);
+    } catch (e) {
+      console.error("Delete failed:", e);
+      setRefs(snapshot);
+      setUploadError("Impossible de supprimer. Reessaie.");
+    }
+  };
+
+  const onDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.8)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-[680px] max-h-[85vh] rounded-2xl overflow-hidden flex flex-col"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border-color)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="p-5 flex items-start justify-between gap-3 shrink-0"
+          style={{ background: niche.card_gradient }}
+        >
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-[10px] font-semibold tracking-widest uppercase"
+              style={{ color: niche.accent_color }}
+            >
+              Images de référence
+            </div>
+            <div className="text-lg font-semibold text-white mt-0.5">
+              {niche.name}
+            </div>
+            <div className="text-xs text-white/70 mt-0.5">
+              L&apos;IA se base sur ces images pour générer toujours le
+              même style de personnage.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md"
+            style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
+            aria-label="Close"
+          >
+            <XIcon size={14} color="currentColor" />
+          </button>
+        </div>
+
+        {/* Body — scrollable */}
+        <div className="p-5 flex-1 overflow-y-auto">
+          {/* Drag-and-drop zone */}
+          <div
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-xl p-6 text-center cursor-pointer transition"
+            style={{
+              background: dragActive ? "var(--bg-hover)" : "var(--bg-primary)",
+              border: `2px dashed ${
+                dragActive ? niche.accent_color : "var(--border-color)"
+              }`,
+            }}
+          >
+            {uploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Spinner size={20} />
+                <div
+                  className="text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Upload en cours…
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Upload size={22} color="var(--text-primary)" />
+                <div
+                  className="text-sm font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Glisse tes images ici, ou clique pour choisir
+                </div>
+                <div
+                  className="text-[11px]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  PNG / JPG / WebP · max 12 MB par fichier · jusqu&apos;à 10 à la fois
+                </div>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+          </div>
+
+          {uploadInfo && (
+            <div
+              className="mt-3 text-[11px] rounded-md px-3 py-2"
+              style={{
+                background: "rgba(34, 197, 94, 0.08)",
+                color: "#22c55e",
+                border: "1px solid rgba(34, 197, 94, 0.25)",
+              }}
+            >
+              {uploadInfo}
+            </div>
+          )}
+          {uploadError && (
+            <div
+              className="mt-3 text-[11px] rounded-md px-3 py-2"
+              style={{
+                background: "rgba(220, 38, 38, 0.08)",
+                color: "#f87171",
+                border: "1px solid rgba(220, 38, 38, 0.25)",
+              }}
+            >
+              {uploadError}
+            </div>
+          )}
+
+          {/* Current references grid */}
+          <div
+            className="mt-5 text-[10px] font-medium tracking-widest uppercase"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Références actuelles ({refs.length})
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Spinner size={18} />
+            </div>
+          ) : refs.length === 0 ? (
+            <div
+              className="mt-3 rounded-lg p-6 text-center text-[11px]"
+              style={{
+                background: "var(--bg-primary)",
+                border: "1px dashed var(--border-color)",
+                color: "var(--text-muted)",
+              }}
+            >
+              Aucune image de référence pour l&apos;instant. <br />
+              Upload au moins 1 image pour verrouiller le style.
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {refs.map((ref) => (
+                <div
+                  key={ref.id}
+                  className="relative aspect-[9/16] rounded-lg overflow-hidden group"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  {ref.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ref.url}
+                      alt={ref.filename}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center text-[10px] text-center p-2"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <div>
+                        <ImageSquare size={16} color="currentColor" />
+                        <div className="mt-1">intégrée au code</div>
+                      </div>
+                    </div>
+                  )}
+                  {ref.type === "uploaded" && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(ref)}
+                      className="absolute top-1 right-1 p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
+                      style={{
+                        background: "rgba(0,0,0,0.7)",
+                        color: "#fff",
+                      }}
+                      aria-label="Supprimer"
+                      title="Supprimer"
+                    >
+                      <Trash size={11} color="currentColor" />
+                    </button>
+                  )}
+                  {ref.type === "static" && (
+                    <div
+                      className="absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded"
+                      style={{
+                        background: "rgba(0,0,0,0.6)",
+                        color: "#fff",
+                      }}
+                    >
+                      intégrée
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="mt-5 rounded-lg p-3 text-[11px] leading-relaxed"
+            style={{
+              background: "var(--bg-primary)",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-muted)",
+            }}
+          >
+            💡 <b style={{ color: "var(--text-primary)" }}>Astuce</b> : plus
+            tu ajoutes d&apos;images de référence variées (personnage seul, en
+            duo, dans différents environnements), plus l&apos;IA verrouille
+            le style. 2-5 images suffisent. Format 9:16 portrait conseillé.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Voice picker with inline audio preview ──────────────────── */
 //

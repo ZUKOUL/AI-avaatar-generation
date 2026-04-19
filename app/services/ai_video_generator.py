@@ -57,7 +57,7 @@ from app.services.ai_video_pipeline import (
     generate_storyboard,
     generate_voiceover,
 )
-from app.services.niche_registry import get_niche
+from app.services.niche_registry import effective_reference_sources, get_niche
 from app.services.video_pipeline import extract_thumbnail, upload_to_storage
 
 logger = logging.getLogger(__name__)
@@ -144,7 +144,12 @@ async def run_ai_video_job(job_id: str) -> None:
     # conditioning with a warning.
     niche_slug_from_job: Optional[str] = job.get("niche_slug")
     niche = get_niche(niche_slug_from_job) if niche_slug_from_job else None
-    reference_image_sources = list(niche.reference_image_sources) if niche else []
+    # Merge code-defined refs + anything the user uploaded via the
+    # /niches/{slug}/references dashboard UI. Uploaded images appear
+    # after the static ones so code defaults take priority.
+    reference_image_sources = (
+        effective_reference_sources(niche) if niche else []
+    )
 
     workdir = tempfile.mkdtemp(prefix=f"aivideo_{job_id[:8]}_")
 

@@ -204,6 +204,26 @@ export const aiVideosAPI = {
   nicheTopicIdeas: (slug: string, count = 6) =>
     api.get(`/ai-videos/niches/${slug}/topic-ideas`, { params: { count } }),
   /**
+   * List every visual-reference image currently feeding a niche —
+   * both code-defined PNGs (type="static") and user-uploaded ones
+   * (type="uploaded"). The pipeline conditions Gemini 3 Pro Image on
+   * all of them when rendering keyframes.
+   */
+  listNicheReferences: (slug: string) =>
+    api.get(`/ai-videos/niches/${slug}/references`),
+  /**
+   * Upload 1-10 images at once. Each file becomes an additional
+   * reference the next generation conditions on.
+   */
+  uploadNicheReferences: (slug: string, formData: FormData) =>
+    api.post(`/ai-videos/niches/${slug}/references`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /** Remove a user-uploaded reference. Static refs can't be removed
+   *  this way — they're committed in the repo. */
+  deleteNicheReference: (slug: string, refId: string) =>
+    api.delete(`/ai-videos/niches/${slug}/references/${encodeURIComponent(refId)}`),
+  /**
    * One-click generate: optional `topic` and optional overrides (duration,
    * mode) — everything else is locked to the niche's defaults so the
    * output stays on-brand.

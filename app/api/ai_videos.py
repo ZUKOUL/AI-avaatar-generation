@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
 from app.core.auth import get_current_user
 from app.core.config import settings
@@ -39,7 +39,7 @@ from app.services.credit_service import (
     get_balance,
     is_admin,
 )
-from app.services.niche_registry import get_niche, list_niches
+from app.services.niche_registry import get_niche, list_niches, list_uploaded_reference_urls
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -251,6 +251,209 @@ async def get_niche_topic_ideas(
         "niche_name": niche.name,
         "topics": topics,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Niche reference-image management (the dashboard upload UI)
+# ──────────────────────────────────────────────────────────────────────────
+#
+# Users add visual reference images for a niche through these endpoints.
+# Storage layout in Supabase: avatars/niche_references/{slug}/<uuid>.png
+# The pipeline pulls them via `effective_reference_sources()` at every
+# render, so newly uploaded images take effect on the next generation —
+# no deploy required.
+
+# Validation guards. Generous on size (Gemini 3 Pro Image accepts up to
+# ~20 MB images) but strict on type — anything that's not an image just
+# slows downstream generation if Gemini can't parse it.
+_MAX_REFERENCE_BYTES = 12 * 1024 * 1024   # 12 MB per file
+_ALLOWED_REFERENCE_MIME = {
+    "image/png", "image/jpeg", "image/jpg", "image/webp",
+}
+_REFERENCES_BUCKET_NAME = "avatars"
+_REFERENCES_PREFIX = "niche_references"
+
+
+@router.get("/niches/{slug}/references")
+async def list_niche_references(
+    current_user: Annotated[User, Depends(get_current_user)],
+    slug: str,
+):
+    """
+    Return every visual reference currently feeding the niche, both
+    code-defined PNGs (committed in `app/services/niche_assets/`) and
+    user-uploaded images (Supabase Storage).
+
+    Used by the dashboard's "Manage references" modal to render the
+    thumbnail grid.
+    """
+    niche = get_niche(slug)
+    if not niche:
+        raise HTTPException(status_code=404, detail=f"Unknown niche '{slug}'.")
+
+    # Code-defined refs — surfaced as type="static" so the UI can show
+    # them but disable the delete button (they ship with the deploy).
+    static_refs = [
+        {
+            "id": src,                # path doubles as the id for static
+            "url": None,              # no URL — they live in the repo
+            "type": "static",
+            "filename": src.rsplit("/", 1)[-1],
+        }
+        for src in niche.reference_image_sources
+    ]
+
+    # User-uploaded refs — surfaced as type="uploaded" so the UI can let
+    # the user delete + reorder them.
+    uploaded = []
+    try:
+        from app.core.supabase import supabase
+        res = (
+            supabase.storage.from_(_REFERENCES_BUCKET_NAME)
+            .list(f"{_REFERENCES_PREFIX}/{slug}")
+        )
+        for entry in res or []:
+            name = entry.get("name") or ""
+            if not name or name == ".emptyFolderPlaceholder":
+                continue
+            path = f"{_REFERENCES_PREFIX}/{slug}/{name}"
+            url = supabase.storage.from_(_REFERENCES_BUCKET_NAME).get_public_url(path)
+            uploaded.append({
+                "id": name,
+                "url": url,
+                "type": "uploaded",
+                "filename": name,
+                "size": entry.get("metadata", {}).get("size"),
+            })
+    except Exception as e:
+        logger.warning(f"References list failed for {slug}: {e}")
+
+    return {
+        "niche_slug": niche.slug,
+        "references": static_refs + uploaded,
+    }
+
+
+@router.post("/niches/{slug}/references")
+async def upload_niche_references(
+    current_user: Annotated[User, Depends(get_current_user)],
+    slug: str,
+    files: list[UploadFile] = File(...),
+):
+    """
+    Upload one or more reference images for a niche. Each file lands in
+    Supabase Storage at `avatars/niche_references/{slug}/<uuid>.<ext>`
+    and immediately starts feeding the pipeline — the next generation
+    using this niche conditions Gemini 3 Pro Image on the new images.
+
+    Returns the public URL of every uploaded file so the frontend can
+    show thumbnails right away without re-listing.
+    """
+    niche = get_niche(slug)
+    if not niche:
+        raise HTTPException(status_code=404, detail=f"Unknown niche '{slug}'.")
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided.")
+
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Max 10 files per upload.")
+
+    from app.core.supabase import supabase
+    import uuid
+
+    uploaded = []
+    errors = []
+    for file in files:
+        try:
+            content = await file.read()
+            if not content:
+                errors.append({"filename": file.filename, "error": "empty"})
+                continue
+            if len(content) > _MAX_REFERENCE_BYTES:
+                errors.append({
+                    "filename": file.filename,
+                    "error": f"too large (>{_MAX_REFERENCE_BYTES // (1024 * 1024)} MB)",
+                })
+                continue
+            mime = (file.content_type or "").lower()
+            if mime not in _ALLOWED_REFERENCE_MIME:
+                errors.append({
+                    "filename": file.filename,
+                    "error": f"unsupported type ({mime}); allowed: PNG / JPEG / WebP",
+                })
+                continue
+
+            # File extension is preserved so Supabase serves it with the
+            # right Content-Type header.
+            ext = mime.split("/")[-1].replace("jpeg", "jpg")
+            stored_name = f"{uuid.uuid4().hex}.{ext}"
+            path = f"{_REFERENCES_PREFIX}/{slug}/{stored_name}"
+
+            supabase.storage.from_(_REFERENCES_BUCKET_NAME).upload(
+                path,
+                content,
+                {"content-type": mime, "upsert": "true"},
+            )
+            url = supabase.storage.from_(_REFERENCES_BUCKET_NAME).get_public_url(path)
+
+            uploaded.append({
+                "id": stored_name,
+                "url": url,
+                "type": "uploaded",
+                "filename": stored_name,
+                "original_filename": file.filename,
+                "size": len(content),
+            })
+        except Exception as e:
+            logger.warning(f"Reference upload failed for {file.filename}: {e}")
+            errors.append({"filename": file.filename, "error": str(e)[:200]})
+
+    if not uploaded and errors:
+        # Total failure — surface it so the UI can show what went wrong.
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "All uploads failed", "errors": errors},
+        )
+
+    return {
+        "niche_slug": niche.slug,
+        "uploaded": uploaded,
+        "errors": errors,
+    }
+
+
+@router.delete("/niches/{slug}/references/{ref_id}")
+async def delete_niche_reference(
+    current_user: Annotated[User, Depends(get_current_user)],
+    slug: str,
+    ref_id: str,
+):
+    """
+    Delete a user-uploaded reference image. Static / code-committed
+    references can't be deleted through the API (they live in the repo
+    — to remove one, edit `app/services/niche_registry.py`).
+    """
+    niche = get_niche(slug)
+    if not niche:
+        raise HTTPException(status_code=404, detail=f"Unknown niche '{slug}'.")
+
+    # Don't allow deleting code-defined refs through this API.
+    if ref_id in niche.reference_image_sources or "/" in ref_id or ".." in ref_id:
+        raise HTTPException(
+            status_code=400,
+            detail="This reference is shipped with the application and cannot be removed via the API.",
+        )
+
+    path = f"{_REFERENCES_PREFIX}/{slug}/{ref_id}"
+    try:
+        from app.core.supabase import supabase
+        supabase.storage.from_(_REFERENCES_BUCKET_NAME).remove([path])
+    except Exception as e:
+        logger.warning(f"Reference delete failed for {path}: {e}")
+        raise HTTPException(status_code=500, detail="Could not delete the file.")
+
+    return {"deleted": True, "ref_id": ref_id}
 
 
 # ──────────────────────────────────────────────────────────────────────────
