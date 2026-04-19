@@ -450,6 +450,37 @@ export default function AIVideosPage() {
     }
   };
 
+  // Cancel an in-flight / zombie job. Optimistic UI: flip the card to
+  // failed immediately; on server failure we roll back to animating.
+  const handleCancel = async (jobId: string) => {
+    if (
+      !confirm(
+        "Annuler cette génération ? Tes credits seront remboursés si la vidéo n'a pas encore été produite."
+      )
+    )
+      return;
+    const snapshotJobs = jobs;
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
+          ? { ...j, status: "failed", progress: 100, error_message: "Annulé." }
+          : j
+      )
+    );
+    try {
+      const res = await aiVideosAPI.cancelJob(jobId);
+      if (res.data?.credits_refunded) {
+        setInfo("Vidéo annulée et credits remboursés ✓");
+      } else {
+        setInfo("Vidéo annulée.");
+      }
+    } catch (e) {
+      console.error("Cancel failed, rolling back:", e);
+      setJobs(snapshotJobs);
+      setError("Impossible d'annuler. Reessaie dans un instant.");
+    }
+  };
+
   /* ─── Render ─── */
 
   return (
@@ -850,6 +881,7 @@ export default function AIVideosPage() {
                   scenes={scenesByJob[job.id] ?? []}
                   onPlay={() => setPlayingJob(job)}
                   onDelete={() => handleDelete(job.id)}
+                  onCancel={() => handleCancel(job.id)}
                 />
               ))}
             </div>
@@ -920,11 +952,13 @@ function JobCard({
   scenes,
   onPlay,
   onDelete,
+  onCancel,
 }: {
   job: AIVideoJob;
   scenes: AIVideoScene[];
   onPlay: () => void;
   onDelete: () => void;
+  onCancel: () => void;
 }) {
   const isTerminal = TERMINAL.includes(job.status);
   const statusColor =
@@ -982,6 +1016,25 @@ function JobCard({
             {STATUS_COPY[job.status] ?? job.status}
             {!isTerminal ? ` · ${job.progress}%` : ""}
           </div>
+          {/* Cancel — only visible while the job is still running. Lets
+              the user kill a stuck / zombie job and get their credits
+              back, without having to wait for the automatic reaper
+              (which only fires after 30 min of silence). */}
+          {!isTerminal && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-xs rounded-md px-2.5 py-1 transition"
+              style={{
+                background: "rgba(220, 38, 38, 0.08)",
+                color: "#f87171",
+                border: "1px solid rgba(220, 38, 38, 0.25)",
+              }}
+              title="Annuler et rembourser"
+            >
+              Annuler
+            </button>
+          )}
           <button
             type="button"
             onClick={onDelete}

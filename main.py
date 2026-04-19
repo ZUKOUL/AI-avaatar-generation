@@ -108,7 +108,20 @@ async def startup_migration():
         logger.error(f"Auto-migrations failed: {e}")
         raise  # crash boot rather than serve on a half-migrated schema
 
-    # 2. Admin bootstrap — soft-fail: we don't want a Supabase hiccup to
+    # 2. Zombie reaper — fire-and-forget background task that periodically
+    #    kills ai_video_jobs that have been stuck in a non-terminal status
+    #    for > 30 min (usually the worker thread died in a container
+    #    restart). Marks them failed + refunds the user. Without this,
+    #    stuck jobs would live in "animating 70%" forever in the UI.
+    try:
+        import asyncio
+        from app.services.ai_video_refund import zombie_reaper_loop
+        asyncio.create_task(zombie_reaper_loop())
+        logger.info("Zombie reaper registered (runs every 10 min)")
+    except Exception as e:
+        logger.warning(f"Zombie reaper registration failed: {e}")
+
+    # 3. Admin bootstrap — soft-fail: we don't want a Supabase hiccup to
     #    prevent the whole API from booting.
     try:
         from app.core.supabase import supabase

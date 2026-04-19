@@ -189,6 +189,13 @@ export const aiVideosAPI = {
   getJob: (jobId: string) => api.get(`/ai-videos/jobs/${jobId}`),
   /** Remove job + scenes + storage. */
   deleteJob: (jobId: string) => api.delete(`/ai-videos/jobs/${jobId}`),
+  /**
+   * Cancel an in-flight or zombie job — marks it failed and refunds the
+   * user's credits. Completed jobs cannot be cancelled (delete them
+   * instead).
+   */
+  cancelJob: (jobId: string) =>
+    api.post(`/ai-videos/jobs/${jobId}/cancel`),
   /** Available ElevenLabs voices (for the voice picker). */
   voices: () => api.get("/ai-videos/voices"),
   /** List the channel-style niche presets (e.g. @humain.penseur). */

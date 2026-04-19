@@ -29,6 +29,10 @@ from app.core.pricing import (
 from app.core.supabase import supabase
 from app.models.user import User
 from app.services.ai_video_generator import run_ai_video_job
+from app.services.ai_video_refund import (
+    mark_job_failed,
+    refund_job_credits,
+)
 from app.services.credit_service import (
     add_credits,
     deduct_credits,
@@ -439,6 +443,10 @@ async def _run_with_refund_guard(
     Wrapper around run_ai_video_job that refunds credits if the job fails
     before producing a final video_url. Partial success (e.g. one scene
     failed but the final rendered anyway) keeps the full charge.
+
+    Delegates the actual refund to `refund_job_credits` so the
+    `credit_refunded` flag is honoured — prevents double-refund if the
+    user also hits the /cancel endpoint or the zombie reaper fires.
     """
     try:
         await run_ai_video_job(job_id)
@@ -448,6 +456,9 @@ async def _run_with_refund_guard(
     if refund_amount <= 0:
         return
 
+    # Only refund when the job actually failed to produce output. Partial
+    # success (some scenes failed but the final video rendered) keeps the
+    # charge — industry norm.
     try:
         res = (
             supabase.table("ai_video_jobs")
@@ -467,13 +478,11 @@ async def _run_with_refund_guard(
         return
 
     if should_refund:
-        try:
-            add_credits(
-                user_id, refund_amount, "ai_video_refund",
-                f"Refund — ai_video_job {job_id} failed before producing a final video",
-            )
-        except Exception as e:
-            logger.warning(f"Refund failed for ai_video_job {job_id}: {e}")
+        refund_job_credits(
+            job_id,
+            reason=f"Auto-refund — ai_video_job {job_id} failed before producing a final video",
+            txn_type="ai_video_refund",
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -534,6 +543,72 @@ async def get_ai_video_job(
     return {
         "job": job,
         "scenes": scenes_res.data or [],
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# POST /ai-videos/jobs/{job_id}/cancel — user-initiated kill of a running
+# or zombie job, refunds credits if they haven't been returned already.
+# ──────────────────────────────────────────────────────────────────────────
+
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_ai_video_job(
+    current_user: Annotated[User, Depends(get_current_user)],
+    job_id: str,
+):
+    """
+    Cancel an in-progress or zombie AI-video job, marking it failed and
+    refunding the user's credits. Completed jobs cannot be cancelled
+    (use DELETE instead to remove them).
+
+    This is the user's escape hatch when:
+      - A Kling prediction hangs past its per-scene timeout and the
+        orchestrator hasn't noticed yet
+      - The container was restarted mid-pipeline, leaving the job
+        stuck in a non-terminal status forever (a "zombie")
+      - The user simply changed their mind
+
+    Note: we CANNOT truly interrupt the background worker thread — if
+    it's still running it will eventually finish (or time out) and
+    write to the job row. Because we've already flipped status=failed
+    and credit_refunded=true, any late write will:
+      - try to mark status=completed → we accept that, the user sees a
+        completed video they also got refunded for. Rare edge case;
+        treat as a gift to the user.
+      - try to refund → blocked by the credit_refunded CAS.
+    """
+    # Load + ownership check.
+    res = (
+        supabase.table("ai_video_jobs")
+        .select("id, user_id, status, video_url")
+        .eq("id", job_id)
+        .eq("user_id", current_user["id"])
+        .maybe_single()
+        .execute()
+    )
+    if not res or not getattr(res, "data", None):
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    job = res.data
+    if job.get("status") == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="This job is already completed. Use DELETE to remove it instead.",
+        )
+
+    # Mark failed + refund — both are guarded against double-execution.
+    marked = mark_job_failed(job_id, "Cancelled by user.")
+    refunded = refund_job_credits(
+        job_id,
+        reason=f"User-initiated cancel of ai_video_job {job_id}",
+        txn_type="ai_video_cancel_refund",
+    )
+
+    return {
+        "cancelled": True,
+        "job_id": job_id,
+        "status_changed": marked,
+        "credits_refunded": refunded,
     }
 
 
