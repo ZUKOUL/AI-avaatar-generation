@@ -3,6 +3,10 @@ SaaS Pricing Configuration
 All costs are in USD, based on current API pricing (Feb 2026).
 Update these values if your API plan or provider pricing changes.
 """
+# Lazy annotation evaluation — lets the file use `str | None` unions
+# regardless of whether the runtime Python is 3.9 or 3.13, so tests
+# on older interpreters (local dev, CI) don't crash at import time.
+from __future__ import annotations
 
 # ─── Image Generation (Gemini 2.5 Flash Image / Nano Banana) ───
 # ~1,290 output tokens per 1024x1024 image × $30.00 / 1M tokens
