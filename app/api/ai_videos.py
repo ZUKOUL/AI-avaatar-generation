@@ -35,6 +35,7 @@ from app.services.credit_service import (
     get_balance,
     is_admin,
 )
+from app.services.niche_registry import get_niche, list_niches
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -162,6 +163,209 @@ async def generate_ai_video(
     }
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# GET /ai-videos/niches — list the preset channel identities
+# ──────────────────────────────────────────────────────────────────────────
+
+@router.get("/niches")
+async def list_video_niches():
+    """
+    Return every registered niche. Used by the frontend to render the
+    one-click generation cards ("Generate like @humain.penseur",
+    "Generate like …"). The serialized shape excludes prompt internals —
+    see `Niche.serialize()` for what's public.
+    """
+    return {"niches": [n.serialize() for n in list_niches()]}
+
+
+@router.get("/niches/{slug}/topic-ideas")
+async def get_niche_topic_ideas(
+    current_user: Annotated[User, Depends(get_current_user)],
+    slug: str,
+    count: int = 6,
+):
+    """
+    Return `count` fresh topic ideas for a given niche, ranked by expected
+    virality / watch-through. Used by the "Suggest topics" action on the
+    dashboard so the user can pick a title before kicking off the full
+    (expensive) generation pipeline.
+
+    This is a cheap LLM call — we price it at 0 credits intentionally so
+    users browse freely.
+    """
+    niche = get_niche(slug)
+    if not niche:
+        raise HTTPException(status_code=404, detail=f"Unknown niche '{slug}'.")
+
+    count = max(1, min(12, count))
+    try:
+        topics = await niche.suggest_topics(count=count)
+    except Exception as e:
+        logger.warning(f"Niche {slug} topic suggestion call failed: {e}")
+        topics = list(niche.fallback_topics)[:count]
+
+    return {
+        "niche_slug": niche.slug,
+        "niche_name": niche.name,
+        "topics": topics,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# POST /ai-videos/generate-from-niche — one-click niche generation
+# ──────────────────────────────────────────────────────────────────────────
+
+@router.post("/generate-from-niche")
+async def generate_from_niche(
+    current_user: Annotated[User, Depends(get_current_user)],
+    background_tasks: BackgroundTasks,
+    niche_slug: str = Form(..., description="Slug from /ai-videos/niches"),
+    topic: Optional[str] = Form(
+        None,
+        description="Optional user-provided topic. If omitted, the niche "
+                    "generates a fresh topic via its topic_generation_prompt.",
+    ),
+    duration_seconds: Optional[int] = Form(
+        None,
+        description="Override the niche default duration.",
+    ),
+    mode: Optional[str] = Form(
+        None,
+        description="Override the niche default mode ('slideshow' | 'motion').",
+    ),
+):
+    """
+    One-click path: given a niche slug, the backend picks a topic in the
+    niche's voice (or uses a user override), locks in the niche style
+    parameters, charges credits, and fires the standard AI-video
+    pipeline.
+
+    This is what powers the "Generate a new @humain.penseur video" button
+    on the dashboard.
+    """
+    # ── Load niche ─────────────────────────────────────────────────────
+    niche = get_niche(niche_slug)
+    if not niche:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown niche '{niche_slug}'. See /ai-videos/niches for the catalogue.",
+        )
+
+    # Resolve effective settings — user overrides win over niche defaults.
+    effective_duration = duration_seconds or niche.default_duration_seconds
+    if not (_MIN_DURATION <= effective_duration <= _MAX_DURATION):
+        raise HTTPException(
+            status_code=400,
+            detail=f"duration_seconds must be between {_MIN_DURATION} and {_MAX_DURATION}.",
+        )
+    effective_mode = (mode or niche.default_mode).strip().lower()
+    if effective_mode not in _ALLOWED_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode must be one of {sorted(_ALLOWED_MODES)}",
+        )
+
+    # ── Pick the topic ─────────────────────────────────────────────────
+    # Three layers: explicit user override > Gemini-fresh topic > niche fallback.
+    user_topic = (topic or "").strip()
+    if user_topic:
+        if len(user_topic) > _MAX_PROMPT_LEN:
+            raise HTTPException(status_code=400, detail=f"topic too long (> {_MAX_PROMPT_LEN} chars).")
+        effective_prompt = user_topic
+    else:
+        try:
+            effective_prompt = await niche.pick_topic()
+        except Exception as e:
+            logger.error(f"Niche {niche.slug} topic generation failed: {e}")
+            raise HTTPException(
+                status_code=502,
+                detail="Could not auto-pick a topic for this niche. Try again or supply one manually.",
+            )
+
+    # ── Credit check + deduction ───────────────────────────────────────
+    user_id = current_user["id"]
+    credit_cost = get_ai_video_credit_cost(effective_mode, effective_duration)
+
+    if not is_admin(current_user):
+        balance = get_balance(user_id)
+        if balance < credit_cost:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "INSUFFICIENT_CREDITS",
+                    "message": (
+                        f"{niche.name} video ({effective_mode}, "
+                        f"{effective_duration}s) costs {credit_cost} credit(s). "
+                        f"Current balance: {balance}."
+                    ),
+                },
+            )
+        deduct_credits(
+            user_id, credit_cost,
+            f"ai_video_{effective_mode}",
+            f"{niche.name} — “{effective_prompt[:80]}”",
+        )
+
+    # ── Persist the job row ────────────────────────────────────────────
+    # Snapshot the niche style into the row so future edits to the
+    # niche_registry.py definitions don't alter past generations.
+    try:
+        res = supabase.table("ai_video_jobs").insert({
+            "user_id": user_id,
+            "prompt": effective_prompt,
+            "mode": effective_mode,
+            "duration_seconds": effective_duration,
+            "aspect_ratio": niche.default_aspect_ratio,
+            "language": niche.language,
+            "voice_enabled": niche.default_voice_enabled,
+            "voice_id": niche.default_voice_id,
+            "subtitle_style": niche.default_subtitle_style,
+            "tone": niche.tone or None,
+            "niche_slug": niche.slug,
+            "style_instructions": niche.style_instructions or None,
+            "visual_style": niche.visual_style or None,
+            "status": "queued",
+            "progress": 0,
+        }).execute()
+    except Exception as e:
+        if not is_admin(current_user):
+            add_credits(user_id, credit_cost, "ai_video_refund",
+                        f"Refund — niche job creation failed ({type(e).__name__})")
+        logger.error(f"Failed to insert niche ai_video_jobs row: {e}")
+        raise HTTPException(status_code=500, detail="Could not create niche video job.")
+
+    row = (res.data or [{}])[0]
+    job_id = row.get("id")
+    if not job_id:
+        if not is_admin(current_user):
+            add_credits(user_id, credit_cost, "ai_video_refund",
+                        "Refund — niche job insert returned no id")
+        raise HTTPException(status_code=500, detail="Could not create niche video job.")
+
+    # ── Background pipeline ────────────────────────────────────────────
+    background_tasks.add_task(
+        _run_with_refund_guard,
+        job_id=str(job_id),
+        user_id=str(user_id),
+        refund_amount=0 if is_admin(current_user) else credit_cost,
+    )
+
+    return {
+        "status": "queued",
+        "job_id": str(job_id),
+        "niche_slug": niche.slug,
+        "niche_name": niche.name,
+        "prompt": effective_prompt,
+        "mode": effective_mode,
+        "duration_seconds": effective_duration,
+        "aspect_ratio": niche.default_aspect_ratio,
+        "language": niche.language,
+        "credits_charged": credit_cost,
+        "estimated_cost_usd": get_ai_video_cost_usd(effective_mode, effective_duration),
+        "message": f"Queued a {niche.name} video. Poll /ai-videos/jobs/{{job_id}} for progress.",
+    }
+
+
 async def _run_with_refund_guard(
     job_id: str,
     user_id: str,
@@ -223,7 +427,7 @@ async def list_ai_video_jobs(
         .select(
             "id, prompt, mode, duration_seconds, aspect_ratio, language, "
             "voice_enabled, subtitle_style, tone, status, progress, "
-            "hook, detected_lang, video_url, thumbnail_url, "
+            "hook, detected_lang, video_url, thumbnail_url, niche_slug, "
             "error_message, created_at, updated_at"
         )
         .eq("user_id", current_user["id"])

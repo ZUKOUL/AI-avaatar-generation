@@ -126,6 +126,13 @@ async def run_ai_video_job(job_id: str) -> None:
     subtitle_style: str = job.get("subtitle_style") or "karaoke"
     user_id: str = str(job["user_id"])
 
+    # Niche-preset style parameters (nullable — only set for jobs created
+    # via /ai-videos/generate-from-niche). They steer the script + image
+    # prompts so the output visually + narratively matches a channel's
+    # signature.
+    style_instructions: Optional[str] = job.get("style_instructions")
+    visual_style: Optional[str] = job.get("visual_style")
+
     workdir = tempfile.mkdtemp(prefix=f"aivideo_{job_id[:8]}_")
 
     try:
@@ -136,6 +143,7 @@ async def run_ai_video_job(job_id: str) -> None:
             duration_seconds=duration_seconds,
             language=language,
             tone=tone,
+            style_instructions=style_instructions,
         )
         _mark_job(
             job_id,
@@ -152,6 +160,8 @@ async def run_ai_video_job(job_id: str) -> None:
             prompt=prompt,
             total_seconds=duration_seconds,
             aspect_ratio=aspect_ratio,
+            visual_style=visual_style,
+            style_instructions=style_instructions,
         )
         if not storyboard.scenes:
             _fail_job(job_id, "Storyboard generation returned no scenes.")

@@ -101,6 +101,23 @@ interface VoiceOption {
   category?: string;
 }
 
+interface NichePreset {
+  slug: string;
+  name: string;
+  handle: string;
+  description: string;
+  tagline: string;
+  language: string;
+  default_duration_seconds: number;
+  default_mode: "slideshow" | "motion";
+  default_aspect_ratio: string;
+  card_gradient: string;
+  accent_color: string;
+  recommended_hashtags: string[];
+  caption_template: string;
+  sample_topics: string[];
+}
+
 const MODES = [
   {
     id: "slideshow" as const,
@@ -161,10 +178,14 @@ export default function AIVideosPage() {
   const [jobs, setJobs] = useState<AIVideoJob[]>([]);
   const [scenesByJob, setScenesByJob] = useState<Record<string, AIVideoScene[]>>({});
   const [voices, setVoices] = useState<VoiceOption[]>([]);
+  const [niches, setNiches] = useState<NichePreset[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
   // Playback modal
   const [playingJob, setPlayingJob] = useState<AIVideoJob | null>(null);
+
+  // Niche generation modal
+  const [activeNiche, setActiveNiche] = useState<NichePreset | null>(null);
 
   // Polling
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -195,10 +216,78 @@ export default function AIVideosPage() {
     }
   }, []);
 
+  const loadNiches = useCallback(async () => {
+    try {
+      const res = await aiVideosAPI.listNiches();
+      setNiches(res.data?.niches ?? []);
+    } catch (e) {
+      console.error("Failed to load niches:", e);
+    }
+  }, []);
+
   useEffect(() => {
     loadHistory();
     loadVoices();
-  }, [loadHistory, loadVoices]);
+    loadNiches();
+  }, [loadHistory, loadVoices, loadNiches]);
+
+  // Called from the niche modal when the user hits "Generate".
+  const handleNicheGenerate = useCallback(
+    async (niche: NichePreset, topic: string) => {
+      setError("");
+      setInfo("");
+      try {
+        const fd = new FormData();
+        fd.append("niche_slug", niche.slug);
+        if (topic.trim()) fd.append("topic", topic.trim());
+        const res = await aiVideosAPI.generateFromNiche(fd);
+        const jobId = res.data?.job_id as string | undefined;
+        if (!jobId) throw new Error("Server didn't return a job id.");
+
+        const newJob: AIVideoJob = {
+          id: jobId,
+          prompt: (res.data?.prompt as string) || topic || niche.name,
+          mode: niche.default_mode,
+          duration_seconds: niche.default_duration_seconds,
+          aspect_ratio: niche.default_aspect_ratio,
+          language: niche.language,
+          voice_enabled: true,
+          subtitle_style: "karaoke",
+          tone: null,
+          status: "queued",
+          progress: 0,
+          hook: null,
+          detected_lang: null,
+          video_url: null,
+          thumbnail_url: null,
+          error_message: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setJobs((prev) => [newJob, ...prev]);
+        setActiveNiche(null);
+        const credits = res.data?.credits_charged;
+        setInfo(
+          credits
+            ? `Queued ${niche.name} — used ${credits} credits. Ready in ${
+                niche.default_mode === "motion" ? "~2-3 min" : "~1 min"
+              }.`
+            : `Queued ${niche.name}.`
+        );
+      } catch (e) {
+        const err = e as { response?: { status?: number; data?: { detail?: unknown } }; message?: string };
+        const detail = err?.response?.data?.detail;
+        let msg =
+          typeof detail === "string"
+            ? detail
+            : (detail as { message?: string } | undefined)?.message;
+        if (!msg) msg = err?.message || "Could not queue the niche video.";
+        if (err?.response?.status) msg = `[${err.response.status}] ${msg}`;
+        setError(msg);
+      }
+    },
+    []
+  );
 
   /* ─── Polling ─── */
 
@@ -347,6 +436,32 @@ export default function AIVideosPage() {
       />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-6 md:py-10">
+          {/* ── Niche presets (one-click generation) ────────────────── */}
+          {niches.length > 0 && (
+            <div className="mb-6">
+              <div
+                className="flex items-center justify-between mb-3"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <div className="text-xs font-medium tracking-wide uppercase">
+                  Styles TikTok — génération 1-clic
+                </div>
+                <div className="text-[10px] opacity-80">
+                  Script + visuels + voix + sous-titres, tout fait auto.
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {niches.map((n) => (
+                  <NicheCard
+                    key={n.slug}
+                    niche={n}
+                    onClick={() => setActiveNiche(n)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── Prompt card ───────────────────────────────────────── */}
           <div
             className="rounded-xl p-5 md:p-6 mb-6"
@@ -609,6 +724,15 @@ export default function AIVideosPage() {
         <VideoModal
           job={playingJob}
           onClose={() => setPlayingJob(null)}
+        />
+      )}
+
+      {/* ── Niche generation modal ─────────────────────────────── */}
+      {activeNiche && (
+        <NicheModal
+          niche={activeNiche}
+          onClose={() => setActiveNiche(null)}
+          onSubmit={(topic) => handleNicheGenerate(activeNiche, topic)}
         />
       )}
     </>
@@ -928,6 +1052,321 @@ function VideoModal({ job, onClose }: { job: AIVideoJob; onClose: () => void }) 
             Hook: {job.hook}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Niche components ─────────────────────────────────────────── */
+
+function NicheCard({
+  niche,
+  onClick,
+}: {
+  niche: NichePreset;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative text-left rounded-xl overflow-hidden p-4 transition hover:scale-[1.02] active:scale-[0.99]"
+      style={{
+        background: niche.card_gradient,
+        border: "1px solid var(--border-color)",
+        minHeight: 120,
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div
+            className="text-[10px] font-semibold tracking-widest uppercase opacity-80"
+            style={{ color: niche.accent_color }}
+          >
+            {niche.tagline || "Preset"}
+          </div>
+          <div className="text-base font-semibold text-white mt-0.5 truncate">
+            {niche.name}
+          </div>
+          <div className="text-xs text-white/60 mt-0.5 truncate">
+            {niche.handle}
+          </div>
+        </div>
+        <div
+          className="rounded-full p-2 transition group-hover:scale-110"
+          style={{ background: "rgba(255,255,255,0.12)" }}
+        >
+          <SparkleIcon size={14} color={niche.accent_color} />
+        </div>
+      </div>
+      <div className="text-xs text-white/80 mt-3 line-clamp-2">
+        {niche.description}
+      </div>
+      <div className="flex items-center gap-2 mt-3 text-[10px] text-white/50">
+        <span className="uppercase tracking-wide">
+          {niche.default_duration_seconds}s
+        </span>
+        <span>·</span>
+        <span className="uppercase">{niche.default_mode}</span>
+        <span>·</span>
+        <span>{niche.default_aspect_ratio}</span>
+        {niche.language !== "auto" && (
+          <>
+            <span>·</span>
+            <span className="uppercase">{niche.language}</span>
+          </>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function NicheModal({
+  niche,
+  onClose,
+  onSubmit,
+}: {
+  niche: NichePreset;
+  onClose: () => void;
+  onSubmit: (topic: string) => Promise<void>;
+}) {
+  const [topic, setTopic] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [ideas, setIdeas] = useState<string[]>([]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [ideasError, setIdeasError] = useState("");
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const handleFetchIdeas = async () => {
+    setLoadingIdeas(true);
+    setIdeasError("");
+    try {
+      const res = await aiVideosAPI.nicheTopicIdeas(niche.slug, 6);
+      setIdeas(res.data?.topics ?? []);
+      if (!res.data?.topics?.length) {
+        setIdeasError("Aucune idée générée — reessaie dans un instant.");
+      }
+    } catch (e) {
+      console.error(e);
+      setIdeasError("L'IA n'a pas pu générer d'idées. Reessaie dans un instant.");
+    } finally {
+      setLoadingIdeas(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await onSubmit(topic);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-[560px] rounded-2xl overflow-hidden"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border-color)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header with gradient */}
+        <div
+          className="p-5 flex items-start justify-between gap-3"
+          style={{ background: niche.card_gradient }}
+        >
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-[10px] font-semibold tracking-widest uppercase"
+              style={{ color: niche.accent_color }}
+            >
+              {niche.tagline || "Preset"}
+            </div>
+            <div className="text-lg font-semibold text-white mt-0.5">
+              {niche.name}
+            </div>
+            <div className="text-xs text-white/70 mt-0.5">{niche.handle}</div>
+            <div className="text-xs text-white/80 mt-2">{niche.description}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md transition"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              color: "#fff",
+            }}
+            aria-label="Close"
+          >
+            <XIcon size={14} color="currentColor" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5">
+          <div
+            className="text-xs font-medium mb-2 tracking-wide uppercase"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Ton thème (ou laisse vide &mdash; l&apos;IA choisit pour toi)
+          </div>
+          <textarea
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder={`ex. "l'énergie masculine", "l'ennui quotidien", "pourquoi on procrastine le soir"…`}
+            rows={2}
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-y min-h-[56px]"
+            style={{
+              background: "var(--bg-primary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-color)",
+            }}
+          />
+
+          {/* "Suggest topics" row */}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleFetchIdeas}
+              disabled={loadingIdeas}
+              className="inline-flex items-center gap-1.5 text-xs rounded-md px-3 py-1.5 transition disabled:opacity-50"
+              style={{
+                background: "var(--bg-primary)",
+                border: "1px solid var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+            >
+              {loadingIdeas ? (
+                <Spinner size={12} />
+              ) : (
+                <MagicWand size={12} color="currentColor" />
+              )}
+              {ideas.length > 0 ? "Générer d'autres idées" : "Donne-moi 6 idées"}
+            </button>
+            <div
+              className="text-[10px]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Gratuit. Tu ne paies qu&apos;à la génération de la vidéo.
+            </div>
+          </div>
+
+          {ideasError && (
+            <div
+              className="mt-2 text-[11px] rounded-md px-2 py-1.5"
+              style={{
+                background: "rgba(220, 38, 38, 0.08)",
+                color: "#f87171",
+                border: "1px solid rgba(220, 38, 38, 0.25)",
+              }}
+            >
+              {ideasError}
+            </div>
+          )}
+
+          {ideas.length > 0 && (
+            <div className="mt-3 space-y-1.5 max-h-[210px] overflow-y-auto pr-1">
+              {ideas.map((idea, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setTopic(idea)}
+                  className="w-full text-left text-xs rounded-md px-3 py-2 transition hover:opacity-100"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border:
+                      topic === idea
+                        ? `1px solid ${niche.accent_color}`
+                        : "1px solid var(--border-color)",
+                    color: "var(--text-primary)",
+                    opacity: topic === idea ? 1 : 0.9,
+                  }}
+                >
+                  {idea}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Specs recap */}
+          <div
+            className="mt-5 rounded-lg p-3 text-[11px] leading-relaxed"
+            style={{
+              background: "var(--bg-primary)",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-muted)",
+            }}
+          >
+            <div>
+              <span className="opacity-80">Durée : </span>
+              <b style={{ color: "var(--text-primary)" }}>
+                {niche.default_duration_seconds}s
+              </b>
+              <span className="mx-2">·</span>
+              <span className="opacity-80">Mode : </span>
+              <b style={{ color: "var(--text-primary)" }}>
+                {niche.default_mode === "motion" ? "Full Motion" : "Slideshow"}
+              </b>
+              <span className="mx-2">·</span>
+              <span className="opacity-80">Format : </span>
+              <b style={{ color: "var(--text-primary)" }}>
+                {niche.default_aspect_ratio}
+              </b>
+            </div>
+            {niche.recommended_hashtags.length > 0 && (
+              <div className="mt-1.5">
+                <span className="opacity-80">Hashtags conseillés : </span>
+                {niche.recommended_hashtags.slice(0, 6).join(" ")}
+              </div>
+            )}
+          </div>
+
+          {/* Submit */}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs px-3 py-2 rounded-lg transition"
+              style={{
+                color: "var(--text-muted)",
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="text-xs px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5 disabled:opacity-50"
+              style={{
+                background: niche.accent_color,
+                color: "var(--bg-primary)",
+              }}
+            >
+              {submitting ? (
+                <Spinner size={12} />
+              ) : (
+                <SparkleIcon size={12} color="currentColor" />
+              )}
+              {topic.trim() ? "Générer la vidéo" : "Surprise-moi"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -191,6 +191,20 @@ export const aiVideosAPI = {
   deleteJob: (jobId: string) => api.delete(`/ai-videos/jobs/${jobId}`),
   /** Available ElevenLabs voices (for the voice picker). */
   voices: () => api.get("/ai-videos/voices"),
+  /** List the channel-style niche presets (e.g. @humain.penseur). */
+  listNiches: () => api.get("/ai-videos/niches"),
+  /** Fetch N AI-generated topic ideas tuned to the niche. */
+  nicheTopicIdeas: (slug: string, count = 6) =>
+    api.get(`/ai-videos/niches/${slug}/topic-ideas`, { params: { count } }),
+  /**
+   * One-click generate: optional `topic` and optional overrides (duration,
+   * mode) — everything else is locked to the niche's defaults so the
+   * output stays on-brand.
+   */
+  generateFromNiche: (formData: FormData) =>
+    api.post("/ai-videos/generate-from-niche", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 // ── Auto-Clip (long-form URL → N vertical shorts) ──

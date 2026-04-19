@@ -93,6 +93,7 @@ async def generate_script(
     duration_seconds: int = 30,
     language: str = "auto",
     tone: str | None = None,
+    style_instructions: str | None = None,
 ) -> Script:
     """
     Turn the user's one-liner into a timed script. We ask Gemini to match
@@ -100,6 +101,10 @@ async def generate_script(
         Hook (0-3s) → Payoff (3-70 %) → CTA (final ~10 %)
     and to pace it for roughly `duration_seconds` of spoken audio at a
     natural ~150 WPM rate.
+
+    `style_instructions` is optional niche-specific guidance (narrative
+    voice, structure rules, forbidden clichés) injected verbatim into the
+    LLM prompt. Used by the niche registry to lock channel identity.
 
     Returns a Script with a non-empty `full_text`. Never raises — if
     GEMINI_API_KEY is missing it returns a stub script so the rest of
@@ -137,6 +142,13 @@ async def generate_script(
         "storytelling, educational, dramatic, playful, etc.)."
     )
 
+    style_clause = (
+        f"\nSTYLE INSTRUCTIONS (the channel's identity — obey these over "
+        f"generic short-form advice):\n{style_instructions.strip()}\n"
+        if style_instructions and style_instructions.strip()
+        else ""
+    )
+
     prompt_text = f"""You are a viral short-form video scriptwriter (TikTok, Reels, YouTube Shorts).
 
 USER PROMPT: {prompt}
@@ -151,7 +163,7 @@ Write a single-voice narration script that:
 
 {lang_clause}
 {tone_clause}
-
+{style_clause}
 Return STRICT JSON with this shape:
 {{
   "language": "<iso-639-1>",
@@ -202,6 +214,8 @@ async def generate_storyboard(
     total_seconds: float,
     aspect_ratio: str = "9:16",
     scene_count: int | None = None,
+    visual_style: str | None = None,
+    style_instructions: str | None = None,
 ) -> Storyboard:
     """
     Ask Gemini to chop the narration into N scenes, each with:
@@ -211,44 +225,115 @@ async def generate_storyboard(
       - an optional big-type overlay word
 
     `scene_count` defaults to one scene per ~5 seconds, clamped 3-10.
+
+    `visual_style` (niche preset) is APPENDED to every scene's image_prompt
+    after generation so every keyframe shares the same lighting / palette
+    / subject vocabulary. This is what gives a niche its unmistakable
+    visual signature across videos.
+
+    `style_instructions` is extra niche guidance injected into the LLM
+    prompt so the storyboard naturally matches the channel's aesthetic.
     """
     if scene_count is None:
-        scene_count = max(3, min(10, int(round(total_seconds / 5.0))))
+        # Longer videos need MORE scenes so Ken Burns stays visually fresh
+        # (6-7 scenes is ideal for a 60s talking-head piece).
+        scene_count = max(3, min(12, int(round(total_seconds / 5.0))))
 
     if not os.getenv("GEMINI_API_KEY"):
         # Stub fallback: evenly-split the script into N scenes with a
         # stock image prompt. Enough to exercise the rendering path.
-        return _stub_storyboard(script, prompt, total_seconds, scene_count, aspect_ratio)
+        return _stub_storyboard(script, prompt, total_seconds, scene_count, aspect_ratio, visual_style)
 
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-    prompt_text = f"""You are a storyboard artist breaking a voice-over narration into
-image-generation prompts for a vertical short-form video.
+    style_clause = (
+        f"\nNICHE STYLE INSTRUCTIONS (obey these over generic rules):\n"
+        f"{style_instructions.strip()}\n"
+        if style_instructions and style_instructions.strip()
+        else ""
+    )
+
+    visual_style_hint = (
+        f"\nNICHE VISUAL STYLE — the image_prompts you produce should "
+        f"implicitly describe scenes that fit this aesthetic (the renderer "
+        f"will ALSO append the style suffix to each prompt automatically, "
+        f"so you can stay concise about lighting/palette but match the "
+        f"subject vocabulary listed here):\n{visual_style.strip()}\n"
+        if visual_style and visual_style.strip()
+        else ""
+    )
+
+    prompt_text = f"""You are a senior short-form video storyboard artist + director
+breaking a voice-over narration into production-grade image prompts. You
+are writing for Gemini 3 Pro Image — the prompts must be specific enough
+that the model produces a coherent VISUAL STORY, not 6 unrelated stock
+photos.
 
 SOURCE PROMPT: {prompt}
 SCRIPT (full narration):
 {script.full_text}
 
-TARGET:
+TARGET
 - {scene_count} scenes
 - {aspect_ratio} aspect ratio
 - total duration ≈ {int(total_seconds)} seconds
 - scene durations should sum to the total and each last 3-10 seconds
 - language of scene prompts: ENGLISH (for the image model) — the voiceover
   stays in whatever language the script is
+{style_clause}{visual_style_hint}
+QUALITY BAR for each scene's `image_prompt` (study this — shallow prompts
+are the #1 reason AI videos look like soulless stock):
+
+  ✗ BAD (too generic):
+    "A person alone looking sad in a room. Cinematic."
+  ✓ GOOD (cinematic, specific, directed):
+    "Medium wide shot, eye level. A lone figure seen from behind,
+    silhouetted against a large window at 3 AM, faint city lights bleeding
+    through rain-streaked glass. Their shoulders are slightly curled
+    inward. A single bedside lamp spills a warm pool of light onto an
+    unmade bed. The rest of the room dissolves into cold teal shadow.
+    Shallow depth of field, 50mm lens, soft diffused practicals, subtle
+    film grain."
+
+Write at the GOOD level. Every scene prompt MUST include:
+  1. Shot size + angle (wide / medium / close-up / over-shoulder / top-
+     down / low angle, etc.)
+  2. Subject staging — where the subject is in frame + body language that
+     conveys the emotion of the voiceover line
+  3. Environment + key props that reinforce the metaphor (not just
+     "a room")
+  4. Lighting direction, colour temperature, contrast ratio
+  5. Lens feel (focal length, depth of field)
+  6. One or two small symbolic details that pay off the voiceover
+     (an object, a gesture, a reflection, a metaphor)
+  7. NO text inside the image, NO brand logos, NO identifiable real
+     people's faces unless the prompt explicitly calls for a historical
+     figure as b-roll
 
 For EACH scene produce:
-- image_prompt:    a vivid, photographic description with lighting + lens +
-                   subject + context (no text inside the image)
-- motion_prompt:   one sentence describing the motion to animate if we were
-                   to turn this still into a clip (camera move, subject action)
-- voiceover_text:  the exact substring of the script that plays over this scene
-- text_overlay:    an optional 1-4 word ALL-CAPS headline to burn on top
-                   (use empty string if the scene shouldn't have overlay text)
-- duration_seconds: how long this scene plays (float)
+- image_prompt:     follow the QUALITY BAR above, 40-80 words
+- motion_prompt:    one sentence describing the motion if this still were
+                    animated (camera move + subject micro-action, e.g.
+                    "slow push-in while the figure slightly turns")
+- voiceover_text:   the exact substring of the script that plays over this
+                    scene — use wording from the script verbatim
+- text_overlay:     optional 1-4 word ALL-CAPS keyword pulled from the
+                    voiceover to burn on-screen ("ATTACHEMENT", "VIDE",
+                    "TROP CLAIR"); empty string if not useful
+- duration_seconds: float, how long this scene plays
+
+CONTINUITY RULES
+- Same subject type across scenes. If scene 1 shows "a lone woman silhouetted
+  from behind", scene 3 should not introduce a cartoon character.
+- Keep a consistent visual palette (the NICHE VISUAL STYLE block above
+  defines this — follow it strictly).
+- Use varied shot sizes across the video (don't repeat wide-shot 6 times);
+  alternate wide / medium / close-up so the edit breathes.
+- Never repeat the same exact scene twice — each must add an emotional
+  beat.
 
 Return STRICT JSON with this shape:
 {{
@@ -263,12 +348,7 @@ Return STRICT JSON with this shape:
   ]
 }}
 
-Rules:
-- Each image_prompt must stand alone (no "same character as before" — call
-  out recurring subjects explicitly, e.g. "the same cartoon pineapple").
-- Keep visual style consistent across scenes (state lighting + palette once
-  and repeat it).
-"""
+No markdown, no prose outside the JSON."""
 
     try:
         resp = await asyncio.to_thread(
@@ -291,17 +371,22 @@ Rules:
         if not isinstance(raw, dict):
             continue
         dur = _coerce_float(raw.get("duration_seconds")) or (total_seconds / scene_count)
+        image_prompt = (raw.get("image_prompt") or prompt).strip()[:1500]
+        # Inject the niche visual style at the END so the LLM-written
+        # subject stays the priority but lighting/palette/grain are locked.
+        if visual_style and visual_style.strip():
+            image_prompt = f"{image_prompt}\n\nSTYLE: {visual_style.strip()}"
         scenes.append(Scene(
             index=i,
             duration_seconds=max(2.0, min(12.0, float(dur))),
-            image_prompt=(raw.get("image_prompt") or prompt).strip()[:1500],
+            image_prompt=image_prompt[:2500],
             motion_prompt=(raw.get("motion_prompt") or "slow push-in").strip()[:500],
             voiceover_text=(raw.get("voiceover_text") or "").strip()[:1000],
             text_overlay=(raw.get("text_overlay") or "").strip()[:60],
         ))
 
     if not scenes:
-        return _stub_storyboard(script, prompt, total_seconds, scene_count, aspect_ratio)
+        return _stub_storyboard(script, prompt, total_seconds, scene_count, aspect_ratio, visual_style)
 
     # Normalise durations to hit the total exactly (LLM math is flaky).
     current_total = sum(s.duration_seconds for s in scenes) or 1.0
@@ -321,6 +406,7 @@ def _stub_storyboard(
     total_seconds: float,
     scene_count: int,
     aspect_ratio: str,
+    visual_style: str | None = None,
 ) -> Storyboard:
     """Degenerate fallback — evenly-split the script into N identical-prompt
     scenes so the renderer can still produce output (useful for local dev
@@ -331,10 +417,13 @@ def _stub_storyboard(
     scenes: list[Scene] = []
     for i in range(scene_count):
         chunk = " ".join(words[i * per_words : (i + 1) * per_words])
+        base = f"{prompt} — cinematic still, photographic, dramatic lighting"
+        if visual_style and visual_style.strip():
+            base = f"{base}\n\nSTYLE: {visual_style.strip()}"
         scenes.append(Scene(
             index=i,
             duration_seconds=per,
-            image_prompt=f"{prompt} — cinematic still, photographic, dramatic lighting",
+            image_prompt=base,
             motion_prompt="slow push-in",
             voiceover_text=chunk or prompt,
             text_overlay="",
