@@ -13,6 +13,7 @@ from app.api.thumbnail import router as thumbnail_router
 from app.api.ads import router as ads_router
 from app.api.clips import router as clips_router
 from app.api.ai_videos import router as ai_videos_router
+from app.api.showcase import router as showcase_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -29,6 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Generation-Cost", "X-Generation-Engine", "X-Generation-Type"],
 )
+
+# Public: landing-page showcase (no JWT — only surfaces admin content)
+app.include_router(showcase_router, prefix="/showcase", tags=["Showcase (public)"])
 
 # Auth: signup/login (no JWT required)
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])

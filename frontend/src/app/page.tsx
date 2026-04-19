@@ -20,6 +20,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
+import { showcaseAPI } from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -159,11 +160,40 @@ const FAQ = [
  *  PAGE
  * ═════════════════════════════════════════════════════════════════ */
 
+interface ShowcaseTile {
+  url: string;
+  aspect: string;
+  created_at?: string;
+}
+
+interface ShowcaseVideoTile {
+  thumbnail_url?: string | null;
+  video_url?: string | null;
+  aspect: string;
+}
+
+interface ShowcaseData {
+  thumbnails: ShowcaseTile[];
+  avatars: ShowcaseTile[];
+  images: ShowcaseTile[];
+  ads: ShowcaseTile[];
+  videos: ShowcaseVideoTile[];
+}
+
+const EMPTY_SHOWCASE: ShowcaseData = {
+  thumbnails: [],
+  avatars: [],
+  images: [],
+  ads: [],
+  videos: [],
+};
+
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showcase, setShowcase] = useState<ShowcaseData>(EMPTY_SHOWCASE);
 
   /* Auto-redirect signed-in visitors straight to the dashboard so the
      landing doesn't flash for returning users. The setLoading-in-effect
@@ -179,6 +209,34 @@ export default function Home() {
       setLoading(false);
     }
   }, [router]);
+
+  /* Load real generated content from /showcase/featured. Landing
+     renders with gradient placeholders while this resolves, and
+     silently keeps those placeholders when the endpoint is
+     unreachable. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await showcaseAPI.featured();
+        if (!cancelled && res.data) {
+          setShowcase({
+            thumbnails: res.data.thumbnails ?? [],
+            avatars: res.data.avatars ?? [],
+            images: res.data.images ?? [],
+            ads: res.data.ads ?? [],
+            videos: res.data.videos ?? [],
+          });
+        }
+      } catch (e) {
+        // Silent — the gradient placeholders stay in place.
+        console.debug("Showcase fetch failed, using placeholders:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -323,6 +381,66 @@ export default function Home() {
         @media (prefers-reduced-motion: reduce) {
           .horpen-reveal { opacity: 1; transform: none; animation: none; }
           .horpen-orb-a, .horpen-orb-b, .horpen-orb-c { animation: none !important; }
+          .horpen-emboss, .horpen-emboss-muted, .horpen-emboss-dark-bg {
+            text-shadow: none;
+            filter: none;
+          }
+        }
+
+        /* 3-D embossed headline effect — applied to every big title
+           on the landing via the .horpen-emboss class. Two variants:
+           .horpen-emboss (dark primary half of the title) and
+           .horpen-emboss-muted (grey secondary half). Both stack
+           layered text-shadows to get a raised look + an ambient
+           drop shadow underneath so the type feels physically lifted
+           off the off-white canvas.
+           Gracefully disabled under prefers-reduced-motion at the
+           bottom of this stylesheet. */
+        .horpen-emboss {
+          color: #0a0a0a;
+          background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 65%, #000 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.9),
+            0 2px 0 rgba(209, 213, 219, 0.9),
+            0 3px 0 rgba(180, 180, 180, 0.85),
+            0 4px 0 rgba(160, 160, 160, 0.7),
+            0 5px 0 rgba(130, 130, 130, 0.55),
+            0 8px 16px rgba(15, 15, 40, 0.12),
+            0 16px 28px rgba(15, 15, 40, 0.08),
+            0 28px 48px rgba(15, 15, 40, 0.06);
+          filter: drop-shadow(0 10px 20px rgba(15, 15, 40, 0.08));
+        }
+        .horpen-emboss-muted {
+          color: #7a7a7a;
+          background: linear-gradient(180deg, #a1a1a1 0%, #7a7a7a 60%, #5a5a5a 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.95),
+            0 2px 0 rgba(220, 220, 220, 0.8),
+            0 3px 0 rgba(200, 200, 200, 0.6),
+            0 4px 0 rgba(180, 180, 180, 0.45),
+            0 6px 10px rgba(15, 15, 40, 0.08),
+            0 12px 20px rgba(15, 15, 40, 0.05);
+        }
+        /* White variant for titles sitting on the DARK final-CTA panel. */
+        .horpen-emboss-dark-bg {
+          color: #ffffff;
+          background: linear-gradient(180deg, #ffffff 0%, #e5e5e5 65%, #b0b0b0 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.2),
+            0 2px 0 rgba(0, 0, 0, 0.4),
+            0 3px 0 rgba(0, 0, 0, 0.3),
+            0 4px 0 rgba(0, 0, 0, 0.22),
+            0 6px 12px rgba(0, 0, 0, 0.5),
+            0 12px 24px rgba(0, 0, 0, 0.35);
         }
 
         /* 3-D hover — the card leans toward the cursor. Pure CSS, no
@@ -535,13 +653,17 @@ export default function Home() {
             New · AI video generation with Kling 2.5, Veo 3.1 & Grok
           </div>
 
+          {/* 3D embossed headline — shared `.horpen-emboss` class
+              (defined in the global stylesheet block). Same treatment
+              applied on every big title across the page so the whole
+              landing reads as one tactile surface. */}
           <h1
             className="text-[40px] md:text-[68px] lg:text-[78px] font-semibold leading-[1.02]"
-            style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
+            style={{ letterSpacing: "-0.03em" }}
           >
-            Every AI asset your
+            <span className="horpen-emboss">Every AI asset your</span>
             <br />
-            <span style={{ color: "#7a7a7a" }}>channel needs.</span>
+            <span className="horpen-emboss-muted">channel needs.</span>
           </h1>
 
           <p
@@ -619,14 +741,24 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Hero visual — minimalist app preview */}
+        {/* Hero visual — minimalist app preview, fed with real user
+            generations the moment /showcase/featured resolves. */}
         <div
           className="horpen-reveal"
           style={{ ["--horpen-reveal-delay" as string]: "250ms" }}
         >
-          <HeroPreview />
+          <HeroPreview showcase={showcase} />
         </div>
       </section>
+
+      {/* ═════════════════════════ THUMBNAILS SHOWCASE ═════════════════════════
+          Dedicated section that surfaces real thumbnails generated by
+          the admin account. User feedback: "met en avant les
+          miniatures". This is where they land — a big hero gallery
+          proving the product actually produces click-worthy output,
+          not a promise. Empty-state falls back to labelled gradient
+          tiles so the page still looks finished on a cold backend. */}
+      <ThumbnailsShowcase tiles={showcase.thumbnails} />
 
       {/* ═════════════════════════ FEATURES ═════════════════════════ */}
       <section id="features" className="py-16 md:py-24 px-5 md:px-8">
@@ -644,13 +776,11 @@ export default function Home() {
             </div>
             <h2
               className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
+              style={{ letterSpacing: "-0.03em" }}
             >
-              Four studios.
+              <span className="horpen-emboss">Four studios.</span>
               <br />
-              <span style={{ color: "#7a7a7a" }}>
-                One subscription.
-              </span>
+              <span className="horpen-emboss-muted">One subscription.</span>
             </h2>
             <p
               className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
@@ -714,8 +844,8 @@ export default function Home() {
               How it works
             </div>
             <h2
-              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
+              className="horpen-emboss text-[32px] md:text-[44px] font-semibold leading-[1.08]"
+              style={{ letterSpacing: "-0.03em" }}
             >
               Three steps from idea to post.
             </h2>
@@ -810,8 +940,8 @@ export default function Home() {
               Pricing
             </div>
             <h2
-              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
+              className="horpen-emboss text-[32px] md:text-[44px] font-semibold leading-[1.08]"
+              style={{ letterSpacing: "-0.03em" }}
             >
               Transparent, credit-based.
             </h2>
@@ -925,8 +1055,8 @@ export default function Home() {
               FAQ
             </div>
             <h2
-              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
+              className="horpen-emboss text-[32px] md:text-[44px] font-semibold leading-[1.08]"
+              style={{ letterSpacing: "-0.03em" }}
             >
               Questions, answered.
             </h2>
@@ -996,7 +1126,7 @@ export default function Home() {
           }}
         >
           <h2
-            className="text-[32px] md:text-[52px] font-semibold leading-[1.05]"
+            className="horpen-emboss-dark-bg text-[32px] md:text-[52px] font-semibold leading-[1.05]"
             style={{ letterSpacing: "-0.03em" }}
           >
             Start shipping today.
@@ -1176,6 +1306,141 @@ function FeatureCard({
  *  All pure HTML/CSS + Icons so the bundle stays thin and the cards
  *  scale crisply on any DPI.
  * ─────────────────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────────
+ *  Thumbnails showcase — hero gallery of real generations.
+ *
+ *  Renders a 4-column masonry-style wall of 16:9 thumbnails pulled
+ *  from /showcase/featured. Each tile tilts slightly on hover (same
+ *  `.horpen-card-3d` treatment as the feature cards) and fades in on
+ *  scroll via `.horpen-reveal`. The section title uses the shared
+ *  embossed 3-D class so it reads as part of the same visual family.
+ * ─────────────────────────────────────────────────────────────────── */
+
+function ThumbnailsShowcase({ tiles }: { tiles: ShowcaseTile[] }) {
+  // Always show 8 slots. Fill from real thumbnails first, then pad
+  // with gradient placeholders so the section never looks half-empty.
+  const gradientPool = [
+    "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 100%)",
+    "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)",
+    "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)",
+    "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)",
+    "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)",
+    "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)",
+    "linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%)",
+    "linear-gradient(135deg, #fed7aa 0%, #ea580c 100%)",
+  ];
+  const slots = Array.from({ length: 8 }, (_, i) => ({
+    url: tiles[i]?.url,
+    grad: gradientPool[i % gradientPool.length],
+  }));
+  const hasRealContent = tiles.length > 0;
+
+  return (
+    <section className="py-12 md:py-20 px-5 md:px-8 relative">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="text-center max-w-[720px] mx-auto mb-10 md:mb-14">
+          <div
+            className="inline-block text-[11px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
+            style={{
+              background: "#ffffff",
+              border: "1px solid #ececec",
+              color: "#555",
+            }}
+          >
+            Viral thumbnails
+          </div>
+          <h2
+            className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            <span className="horpen-emboss">Thumbnails that stop</span>
+            <br />
+            <span className="horpen-emboss-muted">the scroll.</span>
+          </h2>
+          <p
+            className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
+            style={{ color: "#555" }}
+          >
+            Real thumbnails generated with Horpen — YouTube-ready,
+            click-optimised, produced in seconds. No Photoshop, no
+            designer, no template library.
+          </p>
+        </div>
+
+        {/* 4-col grid of 16:9 thumbnails with 3-D tilt on hover */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {slots.map((slot, i) => (
+            <div
+              key={i}
+              className="horpen-reveal"
+              style={{
+                perspective: 1200,
+                ["--horpen-reveal-delay" as string]: `${i * 80}ms`,
+              }}
+            >
+              <div
+                className="horpen-card-3d relative rounded-xl overflow-hidden"
+                style={{
+                  aspectRatio: "16 / 9",
+                  background: slot.url ? "#000" : slot.grad,
+                  border: "1px solid #ececec",
+                  boxShadow:
+                    "0 1px 2px rgba(0,0,0,0.04), 0 14px 32px -8px rgba(15,15,40,0.12)",
+                }}
+              >
+                {slot.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={slot.url}
+                    alt={`Thumbnail generated with Horpen (#${i + 1})`}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                      className="text-[11px] font-semibold tracking-widest uppercase"
+                      style={{ color: "rgba(255,255,255,0.85)" }}
+                    >
+                      AI Thumbnail
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA row under the grid — reinforces value + funnel */}
+        <div className="mt-10 md:mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+          <Link
+            href="/signup"
+            className="inline-flex items-center justify-center gap-2 text-[14px] font-semibold px-5 py-3 rounded-full transition"
+            style={{
+              background: "#0a0a0a",
+              color: "#fff",
+              boxShadow:
+                "0 1px 1px rgba(255,255,255,0.1) inset, 0 8px 20px rgba(0,0,0,0.2)",
+            }}
+          >
+            Generate your first thumbnail
+            <ArrowRight size={14} color="currentColor" />
+          </Link>
+          {!hasRealContent && (
+            <span
+              className="text-[12px]"
+              style={{ color: "#888" }}
+            >
+              Sample visuals shown — your gallery fills in with your own
+              generations.
+            </span>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 /* ─── 1. AI Avatars ──────────────────────────────────────────────
    A "photo" tile morphs into 3 generated avatar variations cycling
@@ -1472,7 +1737,72 @@ function AdsIllustration() {
  *  Hero app preview — minimal, light-mode window mockup
  * ─────────────────────────────────────────────────────────────────── */
 
-function HeroPreview() {
+function HeroPreview({ showcase }: { showcase: ShowcaseData }) {
+  /* Build a mixed gallery prioritising real thumbnails (user asked to
+     "mettre en avant les miniatures") with avatars + images filling
+     the rest. Tiles fall back to labelled gradients when no real
+     content is loaded yet. */
+  type HeroTile = {
+    url?: string;
+    label: string;
+    grad: string;
+    aspect: string;
+    priority?: boolean;
+  };
+  const gradientPool = [
+    "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 100%)",
+    "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)",
+    "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)",
+    "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)",
+    "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)",
+    "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)",
+    "linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%)",
+    "linear-gradient(135deg, #fed7aa 0%, #ea580c 100%)",
+  ];
+
+  const tiles: HeroTile[] = [];
+  // 1. First 4 thumbnails get a big 16:9 slot each — this is what the
+  //    user asked to emphasise.
+  showcase.thumbnails.slice(0, 4).forEach((t, i) => {
+    tiles.push({
+      url: t.url,
+      label: "Thumbnail",
+      grad: gradientPool[i % gradientPool.length],
+      aspect: "16 / 9",
+      priority: true,
+    });
+  });
+  // 2. Then a mix of avatars (1:1) + ads (1:1) + images (1:1)
+  showcase.avatars.slice(0, 2).forEach((t, i) => {
+    tiles.push({
+      url: t.url,
+      label: "Avatar",
+      grad: gradientPool[(i + 4) % gradientPool.length],
+      aspect: "1 / 1",
+    });
+  });
+  showcase.ads.slice(0, 2).forEach((t, i) => {
+    tiles.push({
+      url: t.url,
+      label: "Ad",
+      grad: gradientPool[(i + 6) % gradientPool.length],
+      aspect: "1 / 1",
+    });
+  });
+  // 3. Pad the grid to 8 total with gradient placeholders tagged with
+  //    category labels so the layout stays full on a cold start.
+  const padLabels = ["Video", "Portrait", "Poster", "Lifestyle"];
+  const padAspects = ["9 / 16", "9 / 16", "1 / 1", "4 / 5"];
+  while (tiles.length < 8) {
+    const idx = tiles.length;
+    tiles.push({
+      label: padLabels[idx % padLabels.length],
+      grad: gradientPool[idx % gradientPool.length],
+      aspect: padAspects[idx % padAspects.length],
+    });
+  }
+  const gallery = tiles.slice(0, 8);
+
   return (
     <div
       className="max-w-[980px] mx-auto mt-12 md:mt-16 px-3 md:px-0"
@@ -1586,29 +1916,32 @@ function HeroPreview() {
               </div>
             </div>
 
-            {/* Gallery grid — 4 columns on desktop, mix of image and
-                video tiles with aspect variety. */}
+            {/* Gallery grid — blends real thumbnails + avatars + ads
+                from /showcase/featured with gradient placeholders for
+                any missing slots. Real images always win when
+                available, per the user's request to "mettre en avant
+                les miniatures". */}
             <div className="grid grid-cols-4 gap-2">
-              {[
-                { grad: "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 100%)", label: "Avatar", aspect: "1 / 1" },
-                { grad: "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)", label: "Thumbnail", aspect: "16 / 9" },
-                { grad: "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)", label: "Product ad", aspect: "1 / 1" },
-                { grad: "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)", label: "Video", aspect: "9 / 16" },
-                { grad: "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)", label: "Lifestyle", aspect: "4 / 5" },
-                { grad: "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)", label: "Poster", aspect: "1 / 1" },
-                { grad: "linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%)", label: "Portrait", aspect: "9 / 16" },
-                { grad: "linear-gradient(135deg, #fed7aa 0%, #ea580c 100%)", label: "Ad", aspect: "1 / 1" },
-              ].map((tile, i) => (
+              {gallery.map((tile, i) => (
                 <div
                   key={i}
                   className="relative rounded-md overflow-hidden shadow-sm"
                   style={{
                     aspectRatio: tile.aspect,
-                    background: tile.grad,
+                    background: tile.url ? "#000" : tile.grad,
                     border: "1.5px solid #ffffff",
                     animation: `hero-tile-pulse 3.5s ease-in-out ${i * 0.25}s infinite`,
                   }}
                 >
+                  {tile.url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={tile.url}
+                      alt={tile.label}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
                   <div
                     className="absolute bottom-1 left-1 right-1 text-[7px] font-semibold text-center py-0.5 rounded-sm"
                     style={{
@@ -1618,6 +1951,17 @@ function HeroPreview() {
                   >
                     {tile.label}
                   </div>
+                  {tile.priority && tile.url && (
+                    <div
+                      className="absolute top-1 left-1 text-[7px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{
+                        background: "rgba(255,255,255,0.95)",
+                        color: "#0a0a0a",
+                      }}
+                    >
+                      ★
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

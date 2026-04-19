@@ -31,6 +31,18 @@ api.interceptors.response.use(
   }
 );
 
+// ── Public showcase (used by the marketing landing page, no auth) ──
+export const showcaseAPI = {
+  /**
+   * Returns a curated feed of real generations (thumbnails, avatars,
+   * images, ads, videos) produced by administrator accounts, so the
+   * landing page can show actual content instead of gradient
+   * placeholders. Safe to call from anonymous visitors — already
+   * filtered server-side to admin-only content.
+   */
+  featured: () => api.get("/showcase/featured"),
+};
+
 // ── Auth ──
 export const authAPI = {
   signup: (email: string, password: string) =>
