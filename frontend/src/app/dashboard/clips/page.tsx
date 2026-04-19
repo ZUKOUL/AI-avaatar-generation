@@ -423,7 +423,7 @@ export default function ClipsPage() {
                   disabled={submitting || !sourceUrl.trim()}
                   className="w-full rounded-lg px-4 py-2 text-sm font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    background: "var(--accent-primary)",
+                    background: "var(--accent)",
                     color: "var(--bg-primary)",
                   }}
                 >
@@ -542,7 +542,7 @@ function JobCard({
       ? "#f87171"
       : job.status === "completed"
         ? "#22c55e"
-        : "var(--accent-primary)";
+        : "var(--accent)";
 
   return (
     <div
@@ -613,7 +613,7 @@ function JobCard({
             className="h-full transition-all"
             style={{
               width: `${Math.max(3, Math.min(100, job.progress))}%`,
-              background: "var(--accent-primary)",
+              background: "var(--accent)",
             }}
           />
         </div>
@@ -744,7 +744,7 @@ function ClipTile({
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-xs"
-            style={{ color: "var(--accent-primary)" }}
+            style={{ color: "var(--accent)" }}
           >
             <Download size={12} color="currentColor" />
             Download

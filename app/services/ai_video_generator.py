@@ -267,9 +267,16 @@ async def run_ai_video_job(job_id: str) -> None:
         # Scene durations below are the ALIGNED ones when a voice track
         # was produced — so each animated clip plays for exactly the time
         # its voice line is being spoken.
+        #
+        # Progress is updated PER SCENE (70 → 85 linearly) so a user
+        # watching the spinner sees real advancement instead of a stuck
+        # "animating 70%" during the 2-3 min Motion mode takes. Per-scene
+        # failure (e.g. Kling timeout) is isolated — we log + continue so
+        # a single bad scene doesn't block the whole video.
         _mark_job(job_id, status="animating", progress=70)
         clip_paths: dict[int, str] = {}
-        for scene in storyboard.scenes:
+        total_scenes = max(1, len(storyboard.scenes))
+        for idx, scene in enumerate(storyboard.scenes):
             kf = keyframe_paths.get(scene.index)
             if not kf:
                 continue   # scene's keyframe failed earlier
@@ -294,6 +301,9 @@ async def run_ai_video_job(job_id: str) -> None:
                 logger.warning(f"Scene {scene.index} animation failed: {e}")
                 if sid:
                     _mark_scene(sid, status="failed", error_message=str(e)[:500])
+                # Progress still advances so the user doesn't think we hung.
+                scene_progress = 70 + int(15 * (idx + 1) / total_scenes)
+                _mark_job(job_id, progress=min(85, scene_progress))
                 continue
 
             # Upload the animated clip if motion mode — saves render time on
@@ -315,6 +325,11 @@ async def run_ai_video_job(job_id: str) -> None:
                     _mark_scene(sid, status="done")
 
             clip_paths[scene.index] = clip_out
+
+            # Successful scene → bump overall progress so the bar tracks
+            # real animation advancement (70 → 85 across the batch).
+            scene_progress = 70 + int(15 * (idx + 1) / total_scenes)
+            _mark_job(job_id, progress=min(85, scene_progress))
 
         if not clip_paths:
             _fail_job(job_id, "All scenes failed to animate.")

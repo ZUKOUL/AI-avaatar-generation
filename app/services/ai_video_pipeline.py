@@ -573,12 +573,17 @@ async def animate_scene_motion(
     out_path: str,
 ) -> str:
     """
-    Image → video via Kling 2.1 (Replicate). Uses the same model the
-    avatar video endpoint already uses so operations stay uniform.
+    Image → video via Kling 2.5 Turbo Pro (Replicate). Uses the same model
+    the avatar video endpoint already uses so operations stay uniform.
 
-    Kling outputs 5 seconds by default. For scenes longer than 5s we clamp
-    the output duration at 5s — the orchestrator picks scene durations to
-    fit. Scenes shorter than 5s get ffmpeg-trimmed.
+    Kling outputs 5 seconds by default. For scenes longer than 5s we
+    setpts-slow the clip; shorter get ffmpeg-trimmed. Either way the
+    orchestrator picks scene durations to fit the spoken audio.
+
+    Bounded by a 4-minute per-scene timeout — Kling 2.5 turbo normally
+    finishes in 45-90s, so anything beyond 240s is a hang and we
+    cancel + raise rather than letting the whole job stall. A single
+    slow scene CANNOT block the pipeline indefinitely anymore.
     """
     if not settings.REPLICATE_API_TOKEN:
         raise RuntimeError("REPLICATE_API_TOKEN missing — motion mode unavailable.")
@@ -593,8 +598,13 @@ async def animate_scene_motion(
         upload_to_storage, keyframe_path, remote_path, "image/png"
     )
 
-    def _run() -> str:
-        prediction = replicate.predictions.create(
+    # ── Fire-and-poll with explicit timeout ──────────────────────────
+    # The SDK's `prediction.wait()` blocks with no timeout — if Replicate's
+    # queue stalls or a prediction hangs in an error state, the whole job
+    # stops. We replace it with an explicit poll loop + deadline so we can
+    # surface the failure and keep the rest of the video moving.
+    def _create():
+        return replicate.predictions.create(
             model="kwaivgi/kling-v2.5-turbo-pro",
             input={
                 "prompt": motion_prompt,
@@ -602,17 +612,45 @@ async def animate_scene_motion(
                 "duration": 5,
             },
         )
-        # Block until done (we're already running under asyncio.to_thread).
-        prediction.wait()
-        if prediction.status != "succeeded":
-            raise RuntimeError(f"Kling failed: {prediction.error}")
-        out = prediction.output
-        return out[0] if isinstance(out, list) else str(out)
 
     try:
-        video_url = await asyncio.to_thread(_run)
+        prediction = await asyncio.to_thread(_create)
     except Exception as e:
-        raise RuntimeError(f"Kling image-to-video call failed: {e}") from e
+        raise RuntimeError(f"Kling prediction create failed: {e}") from e
+
+    MAX_POLL_ATTEMPTS = 48   # 48 × 5s = 240s = 4 minutes budget
+    final_status: Optional[str] = None
+    for _ in range(MAX_POLL_ATTEMPTS):
+        status = getattr(prediction, "status", None)
+        if status in ("succeeded", "failed", "canceled"):
+            final_status = status
+            break
+        await asyncio.sleep(5)
+        try:
+            # SDK's `reload()` mutates in place; run it off the event loop
+            # to avoid blocking other coroutines.
+            await asyncio.to_thread(prediction.reload)
+        except Exception as e:
+            logger.warning(f"Kling poll reload failed (continuing): {e}")
+            continue
+
+    if final_status != "succeeded":
+        # Timeout or terminal non-success. Best-effort cancel to free the
+        # compute slot on Replicate's side.
+        if final_status is None:
+            try:
+                await asyncio.to_thread(prediction.cancel)
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"Kling prediction timed out after {MAX_POLL_ATTEMPTS * 5}s "
+                f"(prediction id: {getattr(prediction, 'id', '?')})"
+            )
+        err = getattr(prediction, "error", None)
+        raise RuntimeError(f"Kling prediction {final_status}: {err}")
+
+    out = prediction.output
+    video_url = out[0] if isinstance(out, list) else str(out)
 
     # Download the clip into out_path.
     import httpx

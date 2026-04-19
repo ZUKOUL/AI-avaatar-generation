@@ -639,11 +639,11 @@ export default function AIVideosPage() {
                     className="text-left rounded-xl p-3 transition"
                     style={{
                       background: active
-                        ? "var(--accent-primary)"
+                        ? "var(--accent)"
                         : "var(--bg-primary)",
                       color: active ? "var(--bg-primary)" : "var(--text-primary)",
                       border: active
-                        ? "1px solid var(--accent-primary)"
+                        ? "1px solid var(--accent)"
                         : "1px solid var(--border-color)",
                     }}
                   >
@@ -669,7 +669,7 @@ export default function AIVideosPage() {
                             ? "var(--bg-primary)"
                             : "var(--bg-secondary)",
                           color: active
-                            ? "var(--accent-primary)"
+                            ? "var(--accent)"
                             : "var(--text-primary)",
                         }}
                       >
@@ -788,7 +788,7 @@ export default function AIVideosPage() {
                 disabled={submitting || !prompt.trim()}
                 className="rounded-lg px-6 py-2.5 text-sm font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  background: "var(--accent-primary)",
+                  background: "var(--accent)",
                   color: "var(--bg-primary)",
                 }}
               >
@@ -932,7 +932,7 @@ function JobCard({
       ? "#f87171"
       : job.status === "completed"
         ? "#22c55e"
-        : "var(--accent-primary)";
+        : "var(--accent)";
 
   const aspectClass = aspectToTailwind(job.aspect_ratio);
 
@@ -1003,7 +1003,7 @@ function JobCard({
             className="h-full transition-all"
             style={{
               width: `${Math.max(3, Math.min(100, job.progress))}%`,
-              background: "var(--accent-primary)",
+              background: "var(--accent)",
             }}
           />
         </div>
@@ -1058,7 +1058,7 @@ function JobCard({
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-xs"
-              style={{ color: "var(--accent-primary)" }}
+              style={{ color: "var(--accent)" }}
             >
               <Download size={13} color="currentColor" />
               Download
@@ -1442,7 +1442,7 @@ function VoiceRow({
       style={{
         background: selected ? "var(--bg-primary)" : "transparent",
         borderLeft: selected
-          ? "2px solid var(--accent-primary)"
+          ? "2px solid var(--accent)"
           : "2px solid transparent",
         color: "var(--text-primary)",
       }}
@@ -1457,7 +1457,7 @@ function VoiceRow({
         style={{
           background: canPlay
             ? playing
-              ? "var(--accent-primary)"
+              ? "var(--accent)"
               : "var(--bg-secondary)"
             : "transparent",
           color: playing ? "var(--bg-primary)" : "var(--text-primary)",
@@ -1482,7 +1482,7 @@ function VoiceRow({
       </span>
 
       {selected && (
-        <Check size={14} color="var(--accent-primary)" />
+        <Check size={14} color="var(--accent)" />
       )}
     </button>
   );
