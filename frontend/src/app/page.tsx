@@ -798,31 +798,45 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {[
-              { num: "01", title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure." },
-              { num: "02", title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas." },
-              { num: "03", title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes." },
-              { num: "04", title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts." },
-              { num: "05", title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme." },
-              { num: "06", title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche." },
+              { key: "tinder", title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure." },
+              { key: "style", title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas." },
+              { key: "thumb", title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes." },
+              { key: "packs", title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts." },
+              { key: "agents", title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme." },
+              { key: "trends", title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche." },
             ].map((f, i) => (
               <div
                 key={f.title}
-                className="horpen-reveal horpen-card-3d horpen-emboss p-7 rounded-2xl"
+                className="horpen-reveal horpen-card-3d horpen-emboss rounded-2xl overflow-hidden flex flex-col"
                 style={{
                   background: "#ffffff",
                   border: "1px solid #ececec",
                   "--horpen-reveal-delay": `${0.05 * i}s`,
                 } as React.CSSProperties}
               >
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#9ca3af", letterSpacing: "0.08em", marginBottom: 16 }}>
-                  {f.num}
+                <div
+                  className="horpen-dotbg-soft relative"
+                  style={{
+                    height: 200,
+                    background: "#fafafa",
+                    borderBottom: "1px solid #ececec",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 18,
+                    overflow: "hidden",
+                  }}
+                >
+                  <FeatureMiniMockup kind={f.key} />
                 </div>
-                <h3 style={{ fontSize: 20, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", lineHeight: 1.25 }}>
-                  {f.title}
-                </h3>
-                <p style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.55 }}>
-                  {f.desc}
-                </p>
+                <div style={{ padding: 24, flex: 1 }}>
+                  <h3 style={{ fontSize: 19, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", lineHeight: 1.25 }}>
+                    {f.title}
+                  </h3>
+                  <p style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.55 }}>
+                    {f.desc}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -2268,6 +2282,367 @@ function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* FEATURE MINI MOCKUPS — un petit visuel unique pour chaque card du
+   6-feature grid. Briques HTML / CSS / SVG, zéro emoji, zéro icône
+   générique. Chacun incarne son feature. */
+function FeatureMiniMockup({ kind }: { kind: string }) {
+  if (kind === "tinder") {
+    return (
+      <div className="relative" style={{ width: 180, height: 160 }}>
+        {[
+          { rot: -8, off: -8, bg: "linear-gradient(160deg, #dbeafe, #bfdbfe)", z: 1 },
+          { rot: 4, off: 4, bg: "linear-gradient(160deg, #f3f4f6, #e5e7eb)", z: 2 },
+          { rot: -2, off: 0, bg: "linear-gradient(160deg, #eff6ff, #dbeafe)", z: 3 },
+        ].map((c, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: c.off,
+              left: "50%",
+              transform: `translateX(-50%) rotate(${c.rot}deg)`,
+              width: 130,
+              height: 160,
+              borderRadius: 14,
+              background: c.bg,
+              border: "1px solid rgba(15,15,40,0.06)",
+              zIndex: c.z,
+              boxShadow: "0 8px 20px -4px rgba(15,15,40,0.12)",
+            }}
+          >
+            {i === 2 && (
+              <>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: "#ffffff",
+                    border: "1px solid #ececec",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 14,
+                    color: "#3b82f6",
+                    boxShadow: "0 2px 6px rgba(59,130,246,0.2)",
+                  }}
+                >
+                  &#9829;
+                </div>
+                <div style={{ position: "absolute", bottom: 14, left: 14, right: 14 }}>
+                  <div style={{ height: 6, borderRadius: 999, background: "rgba(15,15,40,0.18)", width: "70%", marginBottom: 6 }} />
+                  <div style={{ height: 4, borderRadius: 999, background: "rgba(15,15,40,0.12)", width: "100%" }} />
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (kind === "style") {
+    return (
+      <div className="flex items-end gap-2.5" style={{ width: "100%", maxWidth: 260 }}>
+        {[
+          { g: "linear-gradient(160deg, #dbeafe, #93c5fd)", h: 110, label: "Studio" },
+          { g: "linear-gradient(160deg, #e5e7eb, #9ca3af)", h: 140, label: "Outdoor" },
+          { g: "linear-gradient(160deg, #eff6ff, #60a5fa)", h: 120, label: "Facecam" },
+        ].map((p, i) => (
+          <div
+            key={i}
+            className="relative flex-1 rounded-xl"
+            style={{
+              height: p.h,
+              background: p.g,
+              border: "1px solid rgba(15,15,40,0.06)",
+              boxShadow: "0 4px 12px -2px rgba(15,15,40,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: "28%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 26,
+                height: 26,
+                borderRadius: "50%",
+                background: "rgba(15,15,40,0.22)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: "40%",
+                background: "rgba(15,15,40,0.16)",
+                borderTopLeftRadius: "50%",
+                borderTopRightRadius: "50%",
+                transform: "scaleX(1.4)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: 6,
+                left: "50%",
+                transform: "translateX(-50%)",
+                fontSize: 9,
+                fontWeight: 600,
+                color: "#ffffff",
+                background: "rgba(10,10,10,0.6)",
+                padding: "2px 6px",
+                borderRadius: 999,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {p.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (kind === "thumb") {
+    return (
+      <div className="relative" style={{ width: 220 }}>
+        <div
+          className="rounded-lg relative overflow-hidden"
+          style={{
+            aspectRatio: "16/9",
+            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 60%, #60a5fa 100%)",
+            border: "1px solid rgba(15,15,40,0.1)",
+            boxShadow: "0 8px 20px -4px rgba(15,15,40,0.15)",
+          }}
+        >
+          <div style={{ position: "absolute", top: 12, left: 12, right: 12 }}>
+            <div style={{ height: 10, borderRadius: 3, background: "rgba(255,255,255,0.9)", width: "60%", marginBottom: 5 }} />
+            <div style={{ height: 10, borderRadius: 3, background: "rgba(255,255,255,0.9)", width: "85%" }} />
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 10,
+              right: 10,
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              background: "#ffffff",
+              border: "2px solid #ffffff",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: 8,
+              left: 8,
+              padding: "1px 5px",
+              borderRadius: 3,
+              background: "rgba(0,0,0,0.75)",
+              fontSize: 9,
+              color: "#ffffff",
+              fontWeight: 600,
+            }}
+          >
+            12:34
+          </div>
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: -10,
+            right: -10,
+            padding: "4px 10px",
+            borderRadius: 999,
+            background: "#ecfdf5",
+            color: "#10b981",
+            border: "1px solid #d1fae5",
+            fontSize: 11,
+            fontWeight: 700,
+            boxShadow: "0 4px 10px -2px rgba(16,185,129,0.25)",
+          }}
+        >
+          CTR +9.2%
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "packs") {
+    return (
+      <div className="grid grid-cols-3 gap-2" style={{ width: 220 }}>
+        {[
+          "linear-gradient(135deg, #dbeafe, #60a5fa)",
+          "linear-gradient(135deg, #e5e7eb, #9ca3af)",
+          "linear-gradient(135deg, #eff6ff, #3b82f6)",
+          "linear-gradient(135deg, #f3f4f6, #d1d5db)",
+          "linear-gradient(135deg, #bfdbfe, #3b82f6)",
+          "linear-gradient(135deg, #e5e7eb, #6b7280)",
+        ].map((g, i) => (
+          <div
+            key={i}
+            style={{
+              height: 60,
+              borderRadius: 8,
+              background: g,
+              border: "1px solid rgba(15,15,40,0.06)",
+              boxShadow: "0 2px 6px -1px rgba(15,15,40,0.08)",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                bottom: 4,
+                left: 4,
+                width: 16,
+                height: 3,
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.8)",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (kind === "agents") {
+    return (
+      <div className="flex items-center gap-2" style={{ width: "100%" }}>
+        <div
+          className="flex-1 rounded-lg px-3 py-2"
+          style={{
+            background: "#ffffff",
+            border: "1px solid #ececec",
+            boxShadow: "0 2px 6px rgba(15,15,40,0.06)",
+          }}
+        >
+          <div style={{ height: 4, borderRadius: 999, background: "#e5e7eb", width: "70%", marginBottom: 4 }} />
+          <div style={{ height: 4, borderRadius: 999, background: "#e5e7eb", width: "100%" }} />
+          <div style={{ marginTop: 6, fontSize: 9, color: "#9ca3af", fontWeight: 600 }}>PROMPT</div>
+        </div>
+        <svg width="18" height="8" viewBox="0 0 18 8" style={{ flexShrink: 0 }}>
+          <path d="M0 4 L14 4 M10 0 L14 4 L10 8" stroke="#3b82f6" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        </svg>
+        <div
+          className="rounded-lg relative"
+          style={{
+            width: 48,
+            height: 64,
+            background: "linear-gradient(180deg, #1e3a8a, #3b82f6)",
+            border: "1px solid rgba(15,15,40,0.1)",
+            boxShadow: "0 4px 10px -2px rgba(59,130,246,0.3)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "8px solid #ffffff",
+              borderTop: "5px solid transparent",
+              borderBottom: "5px solid transparent",
+            }}
+          />
+        </div>
+        <svg width="18" height="8" viewBox="0 0 18 8" style={{ flexShrink: 0 }}>
+          <path d="M0 4 L14 4 M10 0 L14 4 L10 8" stroke="#3b82f6" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        </svg>
+        <div
+          className="flex-1 rounded-lg px-3 py-2 text-center"
+          style={{
+            background: "#0a0a0a",
+            color: "#ffffff",
+            boxShadow: "0 4px 10px -2px rgba(0,0,0,0.25)",
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          Export
+        </div>
+      </div>
+    );
+  }
+
+  // trends
+  return (
+    <div className="flex items-center gap-3" style={{ width: "100%" }}>
+      <div
+        className="relative rounded-xl flex-1"
+        style={{
+          aspectRatio: "9/16",
+          maxHeight: 150,
+          background: "linear-gradient(180deg, #374151, #9ca3af)",
+          border: "2px solid #0a0a0a",
+          boxShadow: "0 4px 12px -2px rgba(15,15,40,0.15)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 6,
+            left: 6,
+            padding: "2px 6px",
+            borderRadius: 4,
+            background: "#0a0a0a",
+            fontSize: 8,
+            color: "#ffffff",
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+          }}
+        >
+          VIRAL
+        </div>
+      </div>
+      <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+        <circle cx="11" cy="11" r="10" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" />
+        <path d="M6 11 L16 11 M12 6 L16 11 L12 16" stroke="#3b82f6" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div
+        className="relative rounded-xl flex-1"
+        style={{
+          aspectRatio: "9/16",
+          maxHeight: 150,
+          background: "linear-gradient(180deg, #1e3a8a, #60a5fa)",
+          border: "2px solid #3b82f6",
+          boxShadow: "0 4px 12px -2px rgba(59,130,246,0.25)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 6,
+            left: 6,
+            padding: "2px 6px",
+            borderRadius: 4,
+            background: "#3b82f6",
+            fontSize: 8,
+            color: "#ffffff",
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+          }}
+        >
+          TOI
+        </div>
       </div>
     </div>
   );
