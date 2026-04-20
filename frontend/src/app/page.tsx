@@ -41,17 +41,9 @@ import {
   Megaphone,
   PlaySquare,
   MagicWand,
-  Zap,
   Camera,
   Brush,
-  Copy,
-  Globe,
   Package,
-  Palette,
-  LinkIcon,
-  Shield,
-  Video,
-  Heart,
   Star,
   Type,
 } from "@/components/Icons";
@@ -332,16 +324,31 @@ export default function Home() {
         }
 
         .horpen-card-3d {
+          box-shadow:
+            0 1px 1px rgba(15,15,40,0.03),
+            0 2px 4px rgba(15,15,40,0.04),
+            0 12px 32px -8px rgba(15,15,40,0.08);
           transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
                       box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
                       border-color 0.3s ease;
           will-change: transform;
         }
         .horpen-card-3d:hover {
-          transform: translateY(-6px);
+          transform: translateY(-4px);
           box-shadow:
-            0 1px 2px rgba(0,0,0,0.04),
-            0 30px 60px -15px rgba(15,15,40,0.18) !important;
+            0 1px 2px rgba(15,15,40,0.04),
+            0 8px 16px rgba(15,15,40,0.06),
+            0 32px 64px -16px rgba(15,15,40,0.18) !important;
+        }
+
+        /* 3D embossed block — utilisé sur les cards pour leur donner
+           une vraie profondeur type Taap.it. */
+        .horpen-emboss {
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.8) inset,
+            0 -1px 0 rgba(15,15,40,0.05) inset,
+            0 2px 4px rgba(15,15,40,0.04),
+            0 16px 40px -12px rgba(15,15,40,0.12);
         }
 
         .marquee-track {
@@ -579,7 +586,6 @@ export default function Home() {
             >
               {FEATURE_TABS.map((tab) => {
                 const active = activeTab === tab.key;
-                const TabIcon = tab.icon;
                 return (
                   <button
                     key={tab.key}
@@ -587,16 +593,23 @@ export default function Home() {
                     className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition"
                     style={{
                       background: active ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.04)",
-                      border: active ? `1px solid ${tab.accent}` : "1px solid rgba(255,255,255,0.08)",
+                      border: active ? "1px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)",
                       color: active ? "#ffffff" : "#94a3b8",
                       fontSize: 13.5,
                       fontWeight: 500,
-                      boxShadow: active ? `0 0 20px ${tab.accent}40` : "none",
+                      boxShadow: active ? "0 0 20px rgba(59,130,246,0.3), 0 1px 0 rgba(255,255,255,0.08) inset" : "0 1px 0 rgba(255,255,255,0.04) inset",
                     }}
                   >
-                    <span style={{ color: active ? tab.accent : "#94a3b8", display: "inline-flex" }}>
-                      <TabIcon className="w-4 h-4" />
-                    </span>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: active ? "#3b82f6" : "rgba(255,255,255,0.2)",
+                        boxShadow: active ? "0 0 8px rgba(59,130,246,0.8)" : "none",
+                      }}
+                    />
                     {tab.label}
                   </button>
                 );
@@ -629,58 +642,41 @@ export default function Home() {
             dans 30+ pays.
           </p>
 
-          {/* 3 metrics */}
+          {/* 3 metrics — no icons, gros chiffre + label, 3D embossed */}
           <div className="mt-14 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { big: "10×", label: "moins cher qu'un shooting UGC traditionnel", icon: Zap, color: "#3b82f6" },
-              { big: "+50 000", label: "créas générées chaque mois par la communauté", icon: SparkleIcon, color: "#3b82f6" },
-              { big: "< 2 min", label: "du prompt à la vidéo prête à publier", icon: Video, color: "#0a0a0a" },
-            ].map((m, i) => {
-              const MIcon = m.icon;
-              return (
+              { big: "10×", label: "moins cher qu'un shooting UGC traditionnel", sub: "vs. agence" },
+              { big: "+50 000", label: "créas générées chaque mois par la communauté", sub: "et ça monte" },
+              { big: "< 2 min", label: "du prompt à la vidéo prête à publier", sub: "en moyenne" },
+            ].map((m, i) => (
+              <div
+                key={i}
+                className="horpen-reveal horpen-card-3d horpen-emboss p-8 md:p-10 rounded-2xl"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #ececec",
+                  "--horpen-reveal-delay": `${0.1 * i}s`,
+                } as React.CSSProperties}
+              >
                 <div
-                  key={i}
-                  className="horpen-reveal horpen-card-3d p-8 rounded-2xl"
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid #ececec",
-                    "--horpen-reveal-delay": `${0.1 * i}s`,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                  } as React.CSSProperties}
+                    fontSize: "clamp(44px, 5vw, 64px)",
+                    fontWeight: 600,
+                    letterSpacing: "-0.04em",
+                    color: "#0a0a0a",
+                    lineHeight: 0.95,
+                  }}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        background: `${m.color}15`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: m.color,
-                      }}
-                    >
-                      <MIcon className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "clamp(40px, 4.5vw, 54px)",
-                      fontWeight: 600,
-                      letterSpacing: "-0.03em",
-                      color: "#0a0a0a",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {m.big}
-                  </div>
-                  <div style={{ marginTop: 12, color: "#6b7280", fontSize: 15, lineHeight: 1.5 }}>
-                    {m.label}
-                  </div>
+                  {m.big}
                 </div>
-              );
-            })}
+                <div style={{ marginTop: 14, color: "#0a0a0a", fontSize: 16, fontWeight: 500, lineHeight: 1.4 }}>
+                  {m.label}
+                </div>
+                <div style={{ marginTop: 4, color: "#9ca3af", fontSize: 13 }}>
+                  {m.sub}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -689,8 +685,7 @@ export default function Home() {
       <section id="piliers" className="py-16 md:py-24 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
           <div className="text-center mb-14 md:mb-16">
-            <div className="inline-flex items-center gap-1.5 mb-5 px-3 py-1.5 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-              <SparkleIcon className="w-3.5 h-3.5" />
+            <div className="inline-block mb-5 px-3 py-1 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               Optimize
             </div>
             <h2 className="horpen-reveal" style={{ fontSize: "clamp(32px, 4.5vw, 54px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
@@ -791,8 +786,7 @@ export default function Home() {
       <section id="features" className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-              <Zap className="w-3.5 h-3.5" />
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               Features
             </div>
             <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
@@ -804,50 +798,33 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {[
-              { icon: Heart, title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure.", color: "#0a0a0a" },
-              { icon: Palette, title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas.", color: "#3b82f6" },
-              { icon: PlaySquare, title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes.", color: "#0a0a0a" },
-              { icon: Package, title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts.", color: "#3b82f6" },
-              { icon: MagicWand, title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme.", color: "#3b82f6" },
-              { icon: Copy, title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche.", color: "#10b981" },
-            ].map((f, i) => {
-              const FIcon = f.icon;
-              return (
-                <div
-                  key={f.title}
-                  className="horpen-reveal horpen-card-3d p-7 rounded-2xl"
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid #ececec",
-                    "--horpen-reveal-delay": `${0.05 * i}s`,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                  } as React.CSSProperties}
-                >
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      background: `linear-gradient(135deg, ${f.color}20, ${f.color}08)`,
-                      border: `1px solid ${f.color}25`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: f.color,
-                      marginBottom: 18,
-                    }}
-                  >
-                    <FIcon className="w-5 h-5" />
-                  </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
-                    {f.title}
-                  </h3>
-                  <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
-                    {f.desc}
-                  </p>
+              { num: "01", title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure." },
+              { num: "02", title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas." },
+              { num: "03", title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes." },
+              { num: "04", title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts." },
+              { num: "05", title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme." },
+              { num: "06", title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche." },
+            ].map((f, i) => (
+              <div
+                key={f.title}
+                className="horpen-reveal horpen-card-3d horpen-emboss p-7 rounded-2xl"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #ececec",
+                  "--horpen-reveal-delay": `${0.05 * i}s`,
+                } as React.CSSProperties}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#9ca3af", letterSpacing: "0.08em", marginBottom: 16 }}>
+                  {f.num}
                 </div>
-              );
-            })}
+                <h3 style={{ fontSize: 20, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", lineHeight: 1.25 }}>
+                  {f.title}
+                </h3>
+                <p style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.55 }}>
+                  {f.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -898,8 +875,7 @@ export default function Home() {
       <section className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#ecfdf5", color: "#10b981", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-              <Zap className="w-3.5 h-3.5" />
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#ecfdf5", color: "#10b981", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               Mesure
             </div>
             <h2 style={{ fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
@@ -950,8 +926,7 @@ export default function Home() {
       {/* ══════════════════════ SECTION 8 — WORKSPACE HUB ══════════════════════ */}
       <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[1080px] mx-auto text-center">
-          <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#eff6ff", color: "#0a0a0a", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-            <LinkIcon className="w-3.5 h-3.5" />
+          <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
             Workspace
           </div>
           <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
@@ -984,8 +959,7 @@ export default function Home() {
       <section id="micro-apps" className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-              <Package className="w-3.5 h-3.5" />
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               Apps
             </div>
             <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 860, margin: "0 auto" }}>
@@ -999,64 +973,54 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { url: "horpen.ai/thumbnails", title: "Générateur de miniatures", desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.", icon: PlaySquare, color: "#0a0a0a" },
-              { url: "horpen.ai/photoshoot", title: "Shooting produit IA", desc: "Upload ton produit, choisis l'ambiance, reçois 20 photos pro.", icon: Camera, color: "#3b82f6" },
-              { url: "horpen.ai/pixea", title: "Style transfer IA", desc: "Transforme n'importe quelle image dans le style de ton choix.", icon: Brush, color: "#3b82f6" },
+              {
+                url: "horpen.ai/thumbnails",
+                title: "Générateur de miniatures",
+                desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.",
+                imageSlot: "thumbnail",
+              },
+              {
+                url: "horpen.ai/photoshoot",
+                title: "Shooting produit IA",
+                desc: "Upload ton produit, choisis l'ambiance, reçois 20 photos pro.",
+                imageSlot: "image",
+              },
+              {
+                url: "horpen.ai/pixea",
+                title: "Style transfer IA",
+                desc: "Transforme n'importe quelle image dans le style de ton choix.",
+                imageSlot: "avatar",
+              },
             ].map((app) => {
-              const AIcon = app.icon;
               return (
                 <div
                   key={app.url}
-                  className="horpen-card-3d rounded-2xl overflow-hidden"
-                  style={{ background: "#ffffff", border: "1px solid #ececec", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}
+                  className="horpen-card-3d horpen-emboss rounded-2xl overflow-hidden"
+                  style={{ background: "#ffffff", border: "1px solid #ececec" }}
                 >
                   <div
+                    className="horpen-dotbg-soft relative"
                     style={{
-                      height: 160,
-                      background: `linear-gradient(135deg, ${app.color}25 0%, ${app.color}08 100%)`,
-                      position: "relative",
+                      height: 180,
+                      background: "#fafafa",
                       borderBottom: "1px solid #ececec",
                       overflow: "hidden",
                     }}
                   >
                     <div
-                      aria-hidden="true"
-                      className="absolute inset-0 horpen-dotbg-soft opacity-60"
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                        width: 72,
-                        height: 72,
-                        borderRadius: 18,
-                        background: "#ffffff",
-                        border: `1px solid ${app.color}30`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: app.color,
-                        boxShadow: `0 12px 32px ${app.color}25`,
-                      }}
-                    >
-                      <AIcon className="w-8 h-8" />
-                    </div>
-                    <div
                       style={{
                         position: "absolute",
                         bottom: 14,
                         left: 16,
-                        background: "rgba(255,255,255,0.9)",
-                        backdropFilter: "blur(10px)",
+                        background: "#ffffff",
                         padding: "6px 12px",
                         borderRadius: 999,
                         fontSize: 12,
                         fontWeight: 600,
                         color: "#0a0a0a",
                         letterSpacing: "-0.01em",
-                        border: "1px solid rgba(0,0,0,0.05)",
+                        border: "1px solid #ececec",
+                        boxShadow: "0 2px 6px rgba(15,15,40,0.06)",
                       }}
                     >
                       {app.url}
@@ -1069,7 +1033,7 @@ export default function Home() {
                     <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
                       {app.desc}
                     </p>
-                    <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 500, color: app.color }}>
+                    <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 500, color: "#0a0a0a" }}>
                       Essayer <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
@@ -1084,8 +1048,7 @@ export default function Home() {
       <section id="pricing" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
         <div className="max-w-[1080px] mx-auto">
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-              <Shield className="w-3.5 h-3.5" />
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               Tarifs
             </div>
             <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
@@ -1316,21 +1279,8 @@ export default function Home() {
       {/* ══════════════════════ SECTION 13 — BUILD IN PUBLIC ══════════════════════ */}
       <section className="py-16 md:py-20 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[820px] mx-auto text-center">
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: "linear-gradient(135deg, #3b82f620, #3b82f620)",
-              border: "1px solid #ececec",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 18,
-              color: "#3b82f6",
-            }}
-          >
-            <Globe className="w-7 h-7" />
+          <div className="inline-block mb-5 px-3 py-1 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            Build in public
           </div>
           <h3 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", lineHeight: 1.25, letterSpacing: "-0.025em", fontWeight: 600, color: "#0a0a0a", maxWidth: 640, margin: "0 auto" }}>
             Horpen se construit avec toi.
@@ -1975,68 +1925,42 @@ function FeatureShowcaseTabs({
   setActive: (k: TabKey) => void;
   showcase: ShowcaseData;
 }) {
-  const items: {
-    key: TabKey;
-    label: string;
-    sub: string;
-    icon: React.ElementType;
-    color: string;
-  }[] = [
-    { key: "ugc", label: "UGC Vidéo", sub: "Tes créateurs IA prêts à l'emploi.", icon: VideoCamera, color: "#3b82f6" },
-    { key: "avatars", label: "Avatars IA", sub: "Un visage cohérent sur toutes tes créas.", icon: User, color: "#3b82f6" },
-    { key: "thumbnails", label: "Miniatures YTB", sub: "Un clic et ta miniature fait scroller.", icon: PlaySquare, color: "#0a0a0a" },
-    { key: "ads", label: "Ads créatives", sub: "Génère 10 variantes. Détecte la gagnante.", icon: Megaphone, color: "#3b82f6" },
-    { key: "photo", label: "Photo produit", sub: "Shooting studio IA en 8 secondes.", icon: Camera, color: "#10b981" },
+  const items: { key: TabKey; label: string; sub: string }[] = [
+    { key: "ugc", label: "UGC Vidéo", sub: "Tes créateurs IA prêts à l'emploi." },
+    { key: "avatars", label: "Avatars IA", sub: "Un visage cohérent sur toutes tes créas." },
+    { key: "thumbnails", label: "Miniatures YTB", sub: "Un clic et ta miniature fait scroller." },
+    { key: "ads", label: "Ads créatives", sub: "Génère 10 variantes. Détecte la gagnante." },
+    { key: "photo", label: "Photo produit", sub: "Shooting studio IA en 8 secondes." },
   ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 md:gap-8 items-start">
-      {/* Sidebar list */}
+      {/* Sidebar list — text-only, Taap.it-style */}
       <div className="lg:col-span-2 space-y-1">
         {items.map((it) => {
-          const It = it.icon;
           const isActive = active === it.key;
           return (
             <button
               key={it.key}
               onClick={() => setActive(it.key)}
-              className="w-full text-left relative group p-4 rounded-xl transition-all"
+              className="w-full text-left relative p-5 rounded-xl transition-all"
               style={{
                 background: isActive ? "#ffffff" : "transparent",
-                border: isActive ? `1px solid ${it.color}20` : "1px solid transparent",
-                boxShadow: isActive ? `0 4px 16px ${it.color}12` : "none",
+                border: isActive ? `1px solid #ececec` : "1px solid transparent",
+                boxShadow: isActive ? "0 1px 2px rgba(15,15,40,0.04), 0 12px 32px -8px rgba(15,15,40,0.08)" : "none",
+                paddingLeft: 20,
               }}
             >
-              <div className="flex items-start gap-3">
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: isActive ? `${it.color}15` : "#f3f4f6",
-                    color: isActive ? it.color : "#9ca3af",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  <It className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 15.5, fontWeight: 600, color: isActive ? "#0a0a0a" : "#4b5563", letterSpacing: "-0.01em" }}>
-                    {it.label}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 3, lineHeight: 1.4 }}>
-                    {it.sub}
-                  </div>
-                </div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: isActive ? "#0a0a0a" : "#6b7280", letterSpacing: "-0.015em" }}>
+                {it.label}
+              </div>
+              <div style={{ fontSize: 13.5, color: "#9ca3af", marginTop: 4, lineHeight: 1.45 }}>
+                {it.sub}
               </div>
               {isActive && (
                 <div
-                  className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full tab-active-bar"
-                  style={{ background: it.color }}
+                  className="absolute left-0 top-4 bottom-4 w-[3px] rounded-full tab-active-bar"
+                  style={{ background: "#3b82f6" }}
                 />
               )}
             </button>
