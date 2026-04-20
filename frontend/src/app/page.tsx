@@ -1,20 +1,25 @@
 "use client";
 
 /**
- * Horpen landing page — light-mode rewrite.
+ * Horpen.ai — landing page (FR, structure Taap.it).
  *
- * Design language: inspired by modern B2B SaaS (Linear, Vercel,
- * Resend, Webflow) — soft off-white canvas, white rounded cards with
- * subtle shadow, dark solid CTAs, tight typographic hierarchy.
+ * 12 sections, inspirées du blueprint Taap.it :
+ *   1.  Hero (dark panel + beams)
+ *   2.  Social proof band
+ *   3.  3 piliers (Convertir / Cloner / Unifier)
+ *   4.  6 features
+ *   5.  Témoignage unique
+ *   6.  Analytics
+ *   7.  Workspace hub
+ *   8.  Micro-apps
+ *   9.  FAQ
+ *   10. CTA final + AEO (Ask ChatGPT / Claude / Perplexity)
+ *   11. Build in public / Skool
+ *   12. Footer détaillé
  *
- * Positioning:
- *   Horpen is an ALL-IN-ONE video studio for TikTok / Reels / Shorts
- *   creators. Competitors specialise (Opus Clip = clips only, Captions
- *   = talking-head only, HeyGen = corporate avatars) — Horpen folds
- *   the whole pipeline into one subscription.
- *
- * The 4 feature cards surface the 4 real differentiators vs the
- * competition (see block comment on `FEATURE_CARDS` below).
+ * Toutes les @keyframes sont centralisées dans un seul <style jsx global>
+ * au sommet du composant — Next.js 16 (Turbopack) refuse les blocs
+ * styled-jsx imbriqués plus profondément.
  */
 
 import { useEffect, useState } from "react";
@@ -31,134 +36,104 @@ import {
   ChevronDown,
 } from "@/components/Icons";
 
-/* ─────────────────────────────────────────────────────────────────────
- *  Pricing (mirrors the app-internal tiers so landing + /dashboard
- *  /credits show the same prices — see app/core/pricing.py).
- * ─────────────────────────────────────────────────────────────────── */
+/* ─── Pricing (miroir de app/core/pricing.py) ─────────────────────── */
 
 const PLANS = [
   {
     slug: "free",
     name: "Free",
     price: 0,
-    credits: "3 credits",
-    sub: "Try the whole studio on us",
+    credits: "3 crédits",
+    sub: "Teste tout le studio, gratos",
     features: [
-      "3 free credits",
-      "All AI tools (limited)",
-      "Watermarked exports",
-      "Community support",
+      "3 crédits offerts",
+      "Tous les outils IA (limités)",
+      "Exports avec watermark",
+      "Support communautaire",
     ],
-    cta: "Get started free",
+    cta: "Commencer gratuitement",
     highlighted: false,
   },
   {
     slug: "creator",
     name: "Creator",
     price: 35,
-    credits: "200 credits / month",
-    sub: "For solo creators shipping weekly",
+    credits: "200 crédits / mois",
+    sub: "Pour créateurs solos qui publient chaque semaine",
     features: [
-      "200 credits every month",
-      "All motion models (Kling, Veo, Hailuo, Grok)",
-      "HD exports, no watermark",
-      "Niche presets + reference images",
-      "Priority support",
+      "200 crédits chaque mois",
+      "Tous les moteurs vidéo (Kling, Veo, Hailuo, Grok)",
+      "Exports HD, sans watermark",
+      "Presets niche + images de référence",
+      "Droits commerciaux inclus",
     ],
-    cta: "Start Creator",
+    cta: "Passer à Creator",
     highlighted: true,
   },
   {
     slug: "studio",
     name: "Studio",
     price: 85,
-    credits: "450 credits / month",
-    sub: "For agencies and content studios",
+    credits: "450 crédits / mois",
+    sub: "Pour agences et studios e-com",
     features: [
-      "450 credits every month",
-      "Everything in Creator",
-      "4K export quality",
-      "Priority generation queue",
-      "API access",
+      "450 crédits chaque mois",
+      "Tout Creator",
+      "Exports 4K",
+      "File de génération prioritaire",
+      "Accès API",
     ],
-    cta: "Get Studio",
+    cta: "Prendre Studio",
     highlighted: false,
   },
 ] as const;
 
-/* ─────────────────────────────────────────────────────────────────────
- *  FEATURE CARDS — the 4 real competitive advantages.
- *
- *  Chosen after comparing Horpen to Opus Clip, SendShort, Submagic,
- *  Captions.ai, HeyGen, Runway and Luma. Each card answers: "why
- *  Horpen over the single-purpose tool already on the market?"
- *
- *    1. Auto-Clip    ⇢ replaces Opus / SendShort / Submagic
- *    2. AI Video     ⇢ replaces Captions / HeyGen / Runway
- *    3. Niche-locked ⇢ UNIQUE — no competitor ships this today
- *    4. All-in-one   ⇢ positioning play: 1 sub instead of 5
- *
- *  The illustrations are pure HTML/CSS with small Icons pieces, no
- *  external images — keeps the bundle tight and the cards crisp on
- *  any screen.
- * ─────────────────────────────────────────────────────────────────── */
-
-/* ─────────────────────────────────────────────────────────────────────
- *  How it works
- * ─────────────────────────────────────────────────────────────────── */
-
-const STEPS = [
-  {
-    num: "01",
-    title: "Pick your lane",
-    desc: "Train an avatar, describe a video, paste a URL or drop a product photo. Horpen handles the rest.",
-  },
-  {
-    num: "02",
-    title: "Review in one place",
-    desc: "Tweak the script, swap voices with an inline audio preview, choose Kling / Veo / Hailuo / Grok, pick subtitles.",
-  },
-  {
-    num: "03",
-    title: "Download + post",
-    desc: "9:16 ready for TikTok / Reels / Shorts. No watermark on paid tiers. Monetise right away.",
-  },
-];
-
-/* ─────────────────────────────────────────────────────────────────────
- *  FAQ
- * ─────────────────────────────────────────────────────────────────── */
+/* ─── FAQ (10 questions FR d'après blueprint section 9) ───────────── */
 
 const FAQ = [
   {
-    q: "Do I need to understand AI to use Horpen?",
-    a: "No. Everything is a guided form: upload photos for avatars, type a sentence for a video, paste a URL for a clip, drop a product shot for ads. Horpen handles the prompts, models and rendering — you just pick what to make.",
+    q: "C'est quoi Horpen, exactement ?",
+    a: "Une plateforme IA tout-en-un pour générer, cloner et décliner tes contenus marketing : UGC vidéo, ads, photos produit, miniatures YouTube, avatars IA. Un seul workspace, une seule facture.",
   },
   {
-    q: "Can I monetise the images and videos I export?",
-    a: "Yes. Paid plans remove the watermark and give you full commercial rights on every asset. Many users run monetised TikTok / YouTube / Instagram channels and e-commerce stores on Horpen's output.",
+    q: "C'est pour qui ?",
+    a: "E-commerçants, dropshippers, créateurs UGC, faceless content creators, opérateurs d'influenceurs IA, agences créa. Si tu vis de contenu qui doit convertir, Horpen est fait pour toi.",
   },
   {
-    q: "Which AI models power Horpen?",
-    a: "Images use Gemini 3 Pro Image (Nano Banana Pro). Videos use Kling 2.5 Turbo Pro, Veo 3.1 Fast, Hailuo 02 or Grok Imagine — you pick per video. Voice-over uses ElevenLabs. The stack is always best-in-class, never locked to one vendor.",
+    q: "C'est gratuit pour commencer ?",
+    a: "Oui. 3 crédits offerts pour tester l'ensemble du studio. Pas de CB demandée, pas d'engagement.",
   },
   {
-    q: "Can I keep a consistent style across every asset?",
-    a: "Yes. Train an AI avatar from a few photos and it appears the same across every future video, thumbnail and ad. Drop reference images on any tool and Horpen matches that style on the next generation — character, palette, composition.",
+    q: "En quoi Horpen est différent d'Arcads, Makeugc ou Weavy ?",
+    a: "Horpen combine la génération UGC (Arcads), le clonage d'ads (Weavy), les photos produit (Makeugc) et les miniatures (Thumio) dans un seul outil. 2 à 3× moins cher grâce à notre stack (Gemini 3 Pro Image + Flux + Kling). Une facture au lieu de cinq.",
   },
   {
-    q: "What formats does Horpen export?",
-    a: "Videos: 9:16 (TikTok / Reels / Shorts), 1:1 (square), 4:5 (feed) and 16:9 (landscape). Images: any size up to 4K. Ads: Meta / TikTok / Google Ads specs out of the box.",
+    q: "Je peux utiliser mon propre visage ?",
+    a: "Oui. Charge quelques photos, Horpen crée ton avatar IA réutilisable sur toutes tes créas — UGC, ads, miniatures, vidéos. Ton style reste cohérent partout.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Anytime, no questions asked. Credits purchased in the current cycle stay valid until the end of the period.",
+    q: "Quelle qualité de vidéo je peux sortir ?",
+    a: "Full HD par défaut, 4K en plan Studio. Compatible Kling 2.5 Turbo Pro, Veo 3.1 Fast, Hailuo 02 et Grok Imagine — tu choisis le moteur selon ton besoin qualité / vitesse.",
+  },
+  {
+    q: "Combien ça coûte réellement à l'usage ?",
+    a: "Free (0€, 3 crédits), Creator (35€/mois, 200 crédits), Studio (85€/mois, 450 crédits). Au-delà : pay-as-you-go sans engagement. Pas de surprise, pas de facture cachée.",
+  },
+  {
+    q: "Mes créas m'appartiennent ?",
+    a: "100 %. Droits commerciaux inclus sur tous les plans payants. Tu publies, tu monétises, tu revendiques — c'est à toi.",
+  },
+  {
+    q: "Je peux cloner une ad concurrente légalement ?",
+    a: "Horpen te permet de reproduire un style, un angle ou un format. Tu restes responsable de ne pas copier de contenu sous copyright. Notre extension Chrome te guide sur ce qui est safe.",
+  },
+  {
+    q: "Comment je peux vous contacter ?",
+    a: "Discord communauté, email support@horpen.ai, ou Skool Horpen pour les clients qui veulent aller plus loin (masterclasses, feedback prioritaire, roadmap votée).",
   },
 ];
 
-/* ═══════════════════════════════════════════════════════════════════
- *  PAGE
- * ═════════════════════════════════════════════════════════════════ */
+/* ─── Showcase shape ──────────────────────────────────────────────── */
 
 interface ShowcaseTile {
   url: string;
@@ -188,6 +163,10 @@ const EMPTY_SHOWCASE: ShowcaseData = {
   videos: [],
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+ *  PAGE
+ * ═════════════════════════════════════════════════════════════════ */
+
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -195,12 +174,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showcase, setShowcase] = useState<ShowcaseData>(EMPTY_SHOWCASE);
 
-  /* Auto-redirect signed-in visitors straight to the dashboard so the
-     landing doesn't flash for returning users. The setLoading-in-effect
-     is intentional: isAuthenticated() reads from localStorage which is
-     SSR-unsafe, so we MUST defer the auth check to the client. React's
-     new "no setState in effect" rule is too strict for this hydration
-     pattern. */
+  /* Auth redirect — côté client uniquement (localStorage SSR-unsafe). */
   useEffect(() => {
     if (isAuthenticated()) {
       router.replace("/dashboard");
@@ -210,10 +184,7 @@ export default function Home() {
     }
   }, [router]);
 
-  /* Load real generated content from /showcase/featured. Landing
-     renders with gradient placeholders while this resolves, and
-     silently keeps those placeholders when the endpoint is
-     unreachable. */
+  /* Showcase fetch — silencieux si indisponible. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -229,7 +200,6 @@ export default function Home() {
           });
         }
       } catch (e) {
-        // Silent — the gradient placeholders stay in place.
         console.debug("Showcase fetch failed, using placeholders:", e);
       }
     })();
@@ -258,74 +228,7 @@ export default function Home() {
         fontFeatureSettings: '"cv11", "ss01"',
       }}
     >
-      {/* ─── Global background texture ───
-          A faint dot grid pulled toward the top of the page — gives the
-          light canvas tangible depth without being loud. `radial-
-          gradient + repeating` is cheaper than any image / SVG. */}
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, rgba(10,10,10,0.06) 1px, transparent 0)",
-          backgroundSize: "24px 24px",
-          maskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 60%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 60%)",
-          zIndex: 0,
-        }}
-      />
-
-      {/* Animated gradient orbs — soft radial auras that drift slowly
-          behind the hero for that "alive" landing-page feel without
-          being distracting. Pure CSS, no JS. */}
-      <div aria-hidden="true" className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-        <div
-          className="absolute"
-          style={{
-            top: "-10%",
-            left: "10%",
-            width: 520,
-            height: 520,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(closest-side, rgba(244,114,182,0.22), rgba(244,114,182,0) 70%)",
-            filter: "blur(40px)",
-            animation: "horpen-orb-a 22s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute"
-          style={{
-            top: "-5%",
-            right: "8%",
-            width: 480,
-            height: 480,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(closest-side, rgba(96,165,250,0.22), rgba(96,165,250,0) 70%)",
-            filter: "blur(40px)",
-            animation: "horpen-orb-b 28s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute"
-          style={{
-            top: "18%",
-            left: "48%",
-            width: 360,
-            height: 360,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(closest-side, rgba(167,139,250,0.18), rgba(167,139,250,0) 70%)",
-            filter: "blur(36px)",
-            animation: "horpen-orb-c 32s ease-in-out infinite",
-          }}
-        />
-      </div>
-
-      {/* Global scoped animations + scroll-reveal primitive */}
+      {/* Global keyframes — UN SEUL bloc, top-level (Turbopack-safe). */}
       <style jsx global>{`
         @keyframes horpen-orb-a {
           0%, 100% { transform: translate(0, 0); }
@@ -347,69 +250,27 @@ export default function Home() {
           0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.98); }
           100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
-        @keyframes horpen-pulse-glow {
-          0%, 100% { box-shadow: 0 1px 1px rgba(255,255,255,0.1) inset, 0 8px 24px rgba(10,10,10,0.22), 0 0 0 0 rgba(10,10,10,0); }
-          50% { box-shadow: 0 1px 1px rgba(255,255,255,0.1) inset, 0 12px 36px rgba(10,10,10,0.28), 0 0 0 8px rgba(10,10,10,0.04); }
-        }
         @keyframes horpen-shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-        @keyframes horpen-float-slow {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-6px) rotate(0.5deg); }
-        }
-        /* Hero god-ray beams — subtle breathing pulse so the panel
-           feels alive without being distracting. */
         @keyframes hero-beam-breathe {
-          0%, 100% { opacity: 0.6; }
+          0%, 100% { opacity: 0.55; }
           50% { opacity: 0.95; }
         }
-
-        /* Every animation used by the feature-card illustrations +
-           hero mockup lives here, not inside the component. Next.js
-           16 (Turbopack) rejects any styled-jsx block that isn't at
-           the component's top-level JSX return — and keeping them
-           centralised makes them easier to tune together. */
-        @keyframes avatars-upload-pulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-          50% { transform: scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+        @keyframes marquee-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
         }
-        @keyframes avatars-card-cycle {
-          0%, 20% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
-          50% { transform: translate(-4px, -6px) rotate(-2deg); z-index: 10; }
-          100% { transform: translate(0, 0) rotate(0deg); z-index: 1; }
-        }
-        @keyframes images-pulse {
-          0%, 100% { transform: scale(1); opacity: 0.92; }
-          50% { transform: scale(1.05); opacity: 1; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
-        }
-        @keyframes videos-scene {
+        @keyframes pillar-float {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
+          50% { transform: translateY(-6px); }
         }
-        @keyframes videos-progress {
-          0% { width: 10%; }
-          50% { width: 70%; }
-          100% { width: 95%; }
-        }
-        @keyframes ads-highlight {
-          0%, 40%, 100% { transform: translateX(0) scale(1); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-          20% { transform: translateX(4px) scale(1.04); box-shadow: 0 8px 20px rgba(0,0,0,0.16); }
-        }
-        @keyframes hero-tile-pulse {
-          0%, 100% { transform: scale(1); opacity: 0.95; }
-          50% { transform: scale(1.02); opacity: 1; }
-        }
-        @keyframes hero-dot-pulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.3); }
+        @keyframes feature-glow {
+          0%, 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 20px 40px -15px rgba(15,15,40,0.12); }
+          50% { box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.18); }
         }
 
-        /* Scroll-reveal — any element with this class becomes visible
-           only once it enters the viewport. Uses modern animation-
-           timeline: view() where supported and gracefully falls back
-           to an on-mount entrance elsewhere. */
         .horpen-reveal {
           opacity: 0;
           transform: translate3d(0, 24px, 0);
@@ -426,38 +287,39 @@ export default function Home() {
         }
         @media (prefers-reduced-motion: reduce) {
           .horpen-reveal { opacity: 1; transform: none; animation: none; }
-          .horpen-orb-a, .horpen-orb-b, .horpen-orb-c { animation: none !important; }
         }
 
-        /* 3-D hover — the card leans toward the cursor. Pure CSS, no
-           JS, works as long as the parent has perspective set. */
         .horpen-card-3d {
-          transform-style: preserve-3d;
           transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
                       box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
                       border-color 0.3s ease;
           will-change: transform;
         }
         .horpen-card-3d:hover {
-          transform: translateY(-6px) rotateX(2deg) rotateY(-2deg);
+          transform: translateY(-6px);
           box-shadow:
             0 1px 2px rgba(0,0,0,0.04),
-            0 30px 60px -15px rgba(15,15,40,0.18),
-            0 15px 30px -10px rgba(15,15,40,0.12) !important;
+            0 30px 60px -15px rgba(15,15,40,0.18) !important;
+        }
+
+        .marquee-track {
+          display: flex;
+          width: max-content;
+          animation: marquee-scroll 40s linear infinite;
         }
       `}</style>
 
-      {/* z-index wrapper: everything below the orbs/grid sits on top */}
       <div style={{ position: "relative", zIndex: 1 }}>
-      {/* ═════════════════════════ NAV ═════════════════════════ */}
+
+      {/* ══════════════════════ NAV ══════════════════════ */}
       <nav
         className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md"
         style={{
-          background: "rgba(250,250,250,0.8)",
+          background: "rgba(250,250,250,0.82)",
           borderBottom: "1px solid #ececec",
         }}
       >
-        <div className="max-w-[1200px] mx-auto px-5 md:px-8 h-[64px] flex items-center justify-between">
+        <div className="max-w-[1280px] mx-auto px-5 md:px-8 h-[64px] flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div
               className="rounded-lg flex items-center justify-center shrink-0"
@@ -481,476 +343,271 @@ export default function Home() {
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-[14px]">
-            <a
-              href="#features"
-              className="transition"
-              style={{ color: "#555" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#0a0a0a")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-            >
-              Features
-            </a>
-            <a
-              href="#how-it-works"
-              className="transition"
-              style={{ color: "#555" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#0a0a0a")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-            >
-              How it works
-            </a>
-            <a
-              href="#pricing"
-              className="transition"
-              style={{ color: "#555" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#0a0a0a")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-            >
-              Pricing
-            </a>
-            <a
-              href="#faq"
-              className="transition"
-              style={{ color: "#555" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#0a0a0a")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-            >
-              FAQ
-            </a>
+            <a href="#piliers" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Produit</a>
+            <a href="#features" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Features</a>
+            <a href="#micro-apps" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Apps</a>
+            <a href="#pricing" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Tarifs</a>
+            <a href="#faq" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">FAQ</a>
           </div>
 
           <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="hidden md:inline-flex text-[14px] font-medium transition"
+              className="hidden md:inline text-[14px]"
               style={{ color: "#555" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#0a0a0a")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
             >
-              Sign in
+              Se connecter
             </Link>
             <Link
               href="/signup"
-              className="inline-flex items-center gap-1 text-[13px] md:text-[14px] font-semibold px-4 py-2 rounded-full transition"
+              className="text-[14px] font-medium px-4 py-2 rounded-full transition"
               style={{
                 background: "#0a0a0a",
-                color: "#fff",
-                boxShadow:
-                  "0 1px 1px rgba(255,255,255,0.1) inset, 0 2px 8px rgba(0,0,0,0.15)",
+                color: "#ffffff",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#222")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "#0a0a0a")
-              }
             >
-              Start free
-              <ArrowRight size={14} color="currentColor" />
+              Essai gratuit
             </Link>
-            {/* Mobile menu toggle */}
             <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
               className="md:hidden p-2"
-              aria-label="Toggle navigation"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <line
-                  x1="3"
-                  y1="6"
-                  x2="21"
-                  y2="6"
-                  stroke="#0a0a0a"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <line
-                  x1="3"
-                  y1="12"
-                  x2="21"
-                  y2="12"
-                  stroke="#0a0a0a"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <line
-                  x1="3"
-                  y1="18"
-                  x2="21"
-                  y2="18"
-                  stroke="#0a0a0a"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <div className="w-5 h-[2px] bg-[#0a0a0a] mb-1" />
+              <div className="w-5 h-[2px] bg-[#0a0a0a] mb-1" />
+              <div className="w-5 h-[2px] bg-[#0a0a0a]" />
             </button>
           </div>
         </div>
-
-        {/* Mobile dropdown menu */}
         {menuOpen && (
-          <div
-            className="md:hidden border-t"
-            style={{ borderColor: "#ececec", background: "#ffffff" }}
-          >
-            <div className="px-5 py-3 flex flex-col gap-3 text-[14px]">
-              <a href="#features" onClick={() => setMenuOpen(false)}>
-                Features
-              </a>
-              <a href="#how-it-works" onClick={() => setMenuOpen(false)}>
-                How it works
-              </a>
-              <a href="#pricing" onClick={() => setMenuOpen(false)}>
-                Pricing
-              </a>
-              <a href="#faq" onClick={() => setMenuOpen(false)}>
-                FAQ
-              </a>
-              <Link href="/login" className="pt-1" style={{ color: "#555" }}>
-                Sign in
-              </Link>
-            </div>
+          <div className="md:hidden px-5 pb-5 flex flex-col gap-3 text-[15px]" style={{ borderTop: "1px solid #ececec" }}>
+            <a href="#piliers" onClick={() => setMenuOpen(false)}>Produit</a>
+            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+            <a href="#micro-apps" onClick={() => setMenuOpen(false)}>Apps</a>
+            <a href="#pricing" onClick={() => setMenuOpen(false)}>Tarifs</a>
+            <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
+            <Link href="/login">Se connecter</Link>
           </div>
         )}
       </nav>
 
-      {/* ═════════════════════════ HERO ═════════════════════════
-          Dark rounded "panel" design replicated from the user-sent
-          reference: pitch-black page bg outside, a single big
-          rounded container that holds everything, vertical blue
-          light beams radiating up from the bottom centre, a green
-          pill tagline, a huge white headline, paragraph, a white
-          CTA and the existing dashboard mockup floating at the
-          bottom. Kept the outer fixed nav as-is; it reads fine
-          against the dark panel thanks to its blur + light bg. */}
-      <section className="px-3 md:px-5 pt-[84px] md:pt-[96px] pb-6 md:pb-10 relative">
+      {/* ══════════════════════ SECTION 1 — HERO ══════════════════════ */}
+      <section className="pt-[88px] pb-10 md:pb-16 px-4 md:px-6">
         <div
           className="max-w-[1280px] mx-auto rounded-[26px] md:rounded-[32px] relative overflow-hidden"
           style={{
-            /* Base colour stack — pitch outer + deep navy core so the
-               beams pop without the whole panel looking muddy. */
             background:
               "radial-gradient(120% 90% at 50% 120%, #0b1f3d 0%, #08101d 35%, #050710 70%, #02040a 100%)",
             border: "1px solid rgba(255,255,255,0.06)",
             minHeight: "min(820px, 92vh)",
-            boxShadow:
-              "0 1px 2px rgba(0,0,0,0.4), 0 60px 120px -30px rgba(8, 16, 29, 0.55), 0 30px 60px -20px rgba(0,0,0,0.5)",
-            animation: "horpen-hero-in 1.1s cubic-bezier(0.22, 1, 0.36, 1)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.4), 0 60px 120px -30px rgba(8,16,29,0.55)",
           }}
         >
-          {/* Vertical blue beams radiating up from the bottom centre.
-              Each beam is a tall, blurred, slightly-skewed rectangle
-              that rises from ~65 % to near the top. Seven of them
-              fanned across the width gives the signature "god-rays"
-              look from the reference without a single heavy texture. */}
-          <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
-            {/* Central soft glow behind the headline */}
-            <div
-              className="absolute"
-              style={{
-                bottom: "-20%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 820,
-                height: 820,
-                borderRadius: "50%",
-                background:
-                  "radial-gradient(closest-side, rgba(56,189,248,0.35), rgba(37,99,235,0.14) 45%, rgba(6,10,20,0) 75%)",
-                filter: "blur(10px)",
-              }}
-            />
-            {/* Secondary deeper blue halo for depth */}
-            <div
-              className="absolute"
-              style={{
-                bottom: "-5%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 560,
-                height: 560,
-                borderRadius: "50%",
-                background:
-                  "radial-gradient(closest-side, rgba(59,130,246,0.35), rgba(59,130,246,0) 70%)",
-                filter: "blur(8px)",
-              }}
-            />
-
-            {/* 7 vertical beams — the iconic ray pattern from the ref */}
+          {/* 7 god-ray beams */}
+          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
             {[
-              { left: "8%", skew: -10, width: 72, delay: "0s" },
-              { left: "22%", skew: -6, width: 48, delay: "1.2s" },
-              { left: "34%", skew: -3, width: 86, delay: "0.4s" },
-              { left: "48%", skew: 0, width: 100, delay: "2s" },
-              { left: "60%", skew: 3, width: 60, delay: "0.8s" },
-              { left: "74%", skew: 6, width: 52, delay: "1.6s" },
-              { left: "88%", skew: 10, width: 70, delay: "0.2s" },
+              { left: "8%", color: "rgba(96,165,250,0.35)", width: 140, delay: "0s" },
+              { left: "22%", color: "rgba(167,139,250,0.28)", width: 160, delay: "1.2s" },
+              { left: "36%", color: "rgba(96,165,250,0.4)", width: 180, delay: "2.4s" },
+              { left: "50%", color: "rgba(147,197,253,0.5)", width: 200, delay: "0.6s" },
+              { left: "64%", color: "rgba(96,165,250,0.4)", width: 180, delay: "1.8s" },
+              { left: "78%", color: "rgba(167,139,250,0.28)", width: 160, delay: "3s" },
+              { left: "92%", color: "rgba(96,165,250,0.35)", width: 140, delay: "0.9s" },
             ].map((b, i) => (
               <div
                 key={i}
-                className="absolute"
                 style={{
+                  position: "absolute",
+                  top: "-20%",
                   left: b.left,
-                  bottom: 0,
                   width: b.width,
-                  height: "85%",
-                  transform: `translateX(-50%) skewX(${b.skew}deg)`,
-                  background: `linear-gradient(180deg,
-                    rgba(56, 189, 248, 0) 0%,
-                    rgba(56, 189, 248, 0.08) 25%,
-                    rgba(56, 189, 248, 0.22) 55%,
-                    rgba(125, 211, 252, 0.45) 82%,
-                    rgba(165, 243, 252, 0.65) 100%)`,
+                  height: "130%",
+                  background: `linear-gradient(180deg, ${b.color} 0%, transparent 70%)`,
                   filter: "blur(14px)",
-                  opacity: 0.85,
-                  animation: `hero-beam-breathe 5.5s ease-in-out ${b.delay} infinite`,
+                  transform: "skewX(-6deg)",
+                  animation: `hero-beam-breathe 6s ease-in-out infinite ${b.delay}`,
+                  mixBlendMode: "screen",
                 }}
               />
             ))}
-
-            {/* Subtle vignette to darken the extreme corners */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(120% 80% at 50% 60%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.55) 100%)",
-              }}
-            />
           </div>
 
-          {/* Hero content — centred over the beams */}
-          <div className="relative z-10 flex flex-col items-center px-5 md:px-10 pt-16 md:pt-28 pb-0 text-center">
-            {/* Green pill tagline — matches the ref exactly in shape + color */}
+          {/* Contenu hero */}
+          <div className="relative z-10 flex flex-col items-center text-center px-5 md:px-10 pt-16 md:pt-24 pb-10">
             <div
-              className="inline-flex items-center gap-2 text-[12px] font-medium px-4 py-1.5 rounded-full"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 horpen-reveal"
               style={{
-                background: "rgba(16, 185, 129, 0.12)",
-                border: "1px solid rgba(16, 185, 129, 0.35)",
-                color: "#6ee7b7",
-                backdropFilter: "blur(6px)",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "#cbd5e1",
+                fontSize: 12,
+                letterSpacing: "0.02em",
               }}
             >
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full"
-                style={{ background: "#34d399", boxShadow: "0 0 8px rgba(52, 211, 153, 0.7)" }}
-              />
-              AI studio for creators
+              <SparkleIcon className="w-3.5 h-3.5" />
+              <span>Nouveau — Clonage d&apos;ads en 1 clic</span>
             </div>
 
-            {/* Massive headline — white, bold, centred, tight leading */}
             <h1
-              className="mt-6 md:mt-8 font-bold leading-[0.95]"
+              className="horpen-reveal"
               style={{
                 color: "#ffffff",
-                letterSpacing: "-0.035em",
-                fontSize: "clamp(44px, 8vw, 92px)",
-                textShadow: "0 2px 30px rgba(56, 189, 248, 0.22)",
-              }}
+                fontSize: "clamp(40px, 6.5vw, 78px)",
+                lineHeight: 1.02,
+                letterSpacing: "-0.04em",
+                fontWeight: 600,
+                maxWidth: 980,
+                "--horpen-reveal-delay": "0.1s",
+              } as React.CSSProperties}
             >
-              Every AI asset
+              Des contenus qui vendent.
               <br />
-              your channel needs.
+              <span style={{ color: "#94a3b8" }}>Générés, pas tournés.</span>
             </h1>
 
-            {/* Paragraph under the headline */}
             <p
-              className="mt-6 md:mt-7 max-w-[560px] text-[15px] md:text-[17px] leading-[1.5]"
-              style={{ color: "rgba(255,255,255,0.65)" }}
+              className="horpen-reveal mt-6"
+              style={{
+                color: "#cbd5e1",
+                fontSize: "clamp(16px, 1.4vw, 19px)",
+                lineHeight: 1.55,
+                maxWidth: 680,
+                "--horpen-reveal-delay": "0.2s",
+              } as React.CSSProperties}
             >
-              Generate AI avatars, viral images, full-motion videos and
-              product ads — all from one studio. One subscription, every
-              tool, zero juggling between apps.
+              Horpen génère tes UGC, tes ads, tes miniatures et tes visuels produit
+              avec l&apos;IA la plus économique du marché. Clone ce qui cartonne. Décline
+              à l&apos;infini. Publie.
             </p>
 
-            {/* White pill CTA — matches the ref "Start free trial" */}
-            <div className="mt-8 md:mt-10 flex items-center gap-3">
+            <div
+              className="horpen-reveal mt-9 flex flex-col sm:flex-row items-center gap-3"
+              style={{ "--horpen-reveal-delay": "0.3s" } as React.CSSProperties}
+            >
               <Link
                 href="/signup"
-                className="group inline-flex items-center gap-2 text-[14px] md:text-[15px] font-semibold pl-5 pr-2 py-2 rounded-full transition-all duration-300"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium transition"
                 style={{
                   background: "#ffffff",
                   color: "#0a0a0a",
-                  boxShadow:
-                    "0 1px 2px rgba(0,0,0,0.1), 0 20px 40px -10px rgba(56, 189, 248, 0.35), 0 0 0 1px rgba(255,255,255,0.15) inset",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-1px) scale(1.02)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0) scale(1)";
+                  fontSize: 15,
+                  boxShadow: "0 8px 24px rgba(255,255,255,0.15), 0 1px 0 rgba(255,255,255,0.4) inset",
                 }}
               >
-                <span>Start for free</span>
-                <span
-                  className="inline-flex items-center justify-center rounded-full w-8 h-8 transition-transform group-hover:translate-x-0.5"
-                  style={{ background: "#0a0a0a", color: "#fff" }}
-                >
-                  <ArrowRight size={14} color="currentColor" />
-                </span>
+                Commencer gratuitement
+                <ArrowRight className="w-4 h-4" />
               </Link>
+              <a
+                href="#demo"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium transition"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#ffffff",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  fontSize: 15,
+                }}
+              >
+                <Play className="w-4 h-4" />
+                Voir la démo (2 min)
+              </a>
             </div>
 
-            <p
-              className="mt-4 text-[12px]"
-              style={{ color: "rgba(255,255,255,0.4)" }}
+            <div
+              className="horpen-reveal mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+              style={{ "--horpen-reveal-delay": "0.4s" } as React.CSSProperties}
             >
-              3 free credits. No credit card required.
-            </p>
-          </div>
+              {["UGC vidéo", "Photos produit", "Ads", "Miniatures YTB", "Influenceur IA"].map(
+                (b, i) => (
+                  <span
+                    key={b}
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: 13,
+                      letterSpacing: "0.01em",
+                    }}
+                  >
+                    {b}
+                    {i < 4 && <span className="mx-2 opacity-50">·</span>}
+                  </span>
+                )
+              )}
+            </div>
 
-          {/* Dashboard mockup at the bottom of the hero panel —
-              floats over the beams like in the ref. Its own white
-              card looks great on the dark beam backdrop. */}
-          <div
-            className="relative z-10 px-4 md:px-8 pb-4 md:pb-8 horpen-reveal"
+            {/* Hero preview : gallery d'aperçus */}
+            <div
+              className="horpen-reveal mt-14 w-full"
+              style={{ "--horpen-reveal-delay": "0.5s", maxWidth: 1080 } as React.CSSProperties}
+            >
+              <HeroPreview showcase={showcase} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 2 — SOCIAL PROOF ══════════════════════ */}
+      <section className="py-14 md:py-20 px-5 md:px-8">
+        <div className="max-w-[1280px] mx-auto">
+          <p
+            className="text-center horpen-reveal"
             style={{
-              marginTop: "clamp(56px, 8vw, 96px)",
-              ["--horpen-reveal-delay" as string]: "300ms",
+              color: "#6b7280",
+              fontSize: 14,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              fontWeight: 500,
             }}
           >
-            <HeroPreview showcase={showcase} />
-          </div>
-        </div>
-      </section>
+            Utilisé par créateurs et marques e-com dans 30+ pays
+          </p>
 
-      {/* ═════════════════════════ THUMBNAILS SHOWCASE ═════════════════════════
-          Dedicated section that surfaces real thumbnails generated by
-          the admin account. User feedback: "met en avant les
-          miniatures". This is where they land — a big hero gallery
-          proving the product actually produces click-worthy output,
-          not a promise. Empty-state falls back to labelled gradient
-          tiles so the page still looks finished on a cold backend. */}
-      <ThumbnailsShowcase tiles={showcase.thumbnails} />
-
-      {/* ═════════════════════════ FEATURES ═════════════════════════ */}
-      <section id="features" className="py-16 md:py-24 px-5 md:px-8">
-        <div className="max-w-[1200px] mx-auto">
-          <div className="text-center max-w-[720px] mx-auto mb-12 md:mb-16">
-            <div
-              className="inline-block text-[11px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
-              style={{
-                background: "#ffffff",
-                border: "1px solid #ececec",
-                color: "#555",
-              }}
-            >
-              Features
+          {/* Logos carousel (placeholders texte — remplacer par vrais logos) */}
+          <div className="mt-8 overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}>
+            <div className="marquee-track items-center gap-12 md:gap-16">
+              {[...Array(2)].flatMap((_, dup) =>
+                ["OPALE", "NOVA", "Kairos", "MERIDIAN", "Orbit", "LUMEN", "Fjord", "Aria", "PRISMA", "Zenith", "Halo", "VOLT"].map((name, i) => (
+                  <span
+                    key={`${dup}-${i}`}
+                    style={{
+                      fontSize: 22,
+                      letterSpacing: "0.2em",
+                      color: "#9ca3af",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {name}
+                  </span>
+                ))
+              )}
             </div>
-            <h2
-              className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
-            >
-              Four studios.
-              <br />
-              <span style={{ color: "#7a7a7a" }}>One subscription.</span>
-            </h2>
-            <p
-              className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
-              style={{ color: "#555" }}
-            >
-              Horpen bundles every AI tool a content creator needs. Avatars,
-              images, videos, ads — all in one dashboard. Pay once, create
-              everything, keep your workflow unified.
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <FeatureCard
-              illustration={<AvatarsIllustration />}
-              title="AI avatars, consistent everywhere."
-              body="Upload a few photos of any character. Horpen trains a reusable avatar you can drop into every video, thumbnail or ad — keeping the exact same face, style and identity across the whole channel."
-              badge="AI Avatars"
-              revealDelay={0}
-            />
-            <FeatureCard
-              illustration={<ImagesIllustration />}
-              title="Every image, in every style."
-              body="Viral YouTube thumbnails, product photography, stylised portraits, lifestyle shots. Powered by Gemini 3 Pro Image (Nano Banana Pro) — the sharpest image model on the market — generated in seconds."
-              badge="AI Images"
-              highlight
-              revealDelay={120}
-            />
-            <FeatureCard
-              illustration={<VideosIllustration />}
-              title="Videos, from a sentence or a URL."
-              body="Describe a topic and get a 60-second vertical video with voice-over and subtitles. Or paste a YouTube URL and get 10 viral shorts. Powered by Kling, Veo 3.1, Hailuo and Grok."
-              badge="AI Videos"
-              revealDelay={240}
-            />
-            <FeatureCard
-              illustration={<AdsIllustration />}
-              title="Product ads, in every format."
-              body="Drop 3 photos of a product. Horpen generates a library of static ad creatives — studio shots, lifestyle, before / after, holiday edits — ready for Meta, TikTok and Google Ads in every aspect ratio."
-              badge="Ad Creatives"
-              revealDelay={360}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ═════════════════════════ HOW IT WORKS ═════════════════════════ */}
-      <section
-        id="how-it-works"
-        className="py-16 md:py-24 px-5 md:px-8"
-        style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}
-      >
-        <div className="max-w-[1100px] mx-auto">
-          <div className="text-center max-w-[640px] mx-auto mb-12">
-            <div
-              className="inline-block text-[11px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
-              style={{
-                background: "#f4f4f4",
-                color: "#555",
-              }}
-            >
-              How it works
-            </div>
-            <h2
-              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
-            >
-              Three steps from idea to post.
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {STEPS.map((s, idx) => (
+          {/* 3 metrics */}
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
+            {[
+              { big: "10×", label: "moins cher qu'un shooting UGC traditionnel" },
+              { big: "+50 000", label: "créas générées chaque mois par la communauté" },
+              { big: "< 2 min", label: "du prompt à la vidéo prête à publier" },
+            ].map((m, i) => (
               <div
-                key={s.num}
-                className="horpen-reveal group rounded-2xl p-6 md:p-7 transition-all duration-300 hover:-translate-y-1"
-                style={{
-                  background: "#fafafa",
-                  border: "1px solid #ececec",
-                  boxShadow:
-                    "0 1px 2px rgba(0,0,0,0.02), 0 6px 18px rgba(15,15,40,0.04)",
-                  ["--horpen-reveal-delay" as string]: `${idx * 120}ms`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow =
-                    "0 1px 2px rgba(0,0,0,0.04), 0 20px 40px rgba(15,15,40,0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow =
-                    "0 1px 2px rgba(0,0,0,0.02), 0 6px 18px rgba(15,15,40,0.04)";
-                }}
+                key={i}
+                className="horpen-reveal text-center md:text-left"
+                style={{ "--horpen-reveal-delay": `${0.1 * i}s` } as React.CSSProperties}
               >
                 <div
-                  className="text-[13px] font-semibold tracking-widest mb-4 transition-colors group-hover:text-[#0a0a0a]"
-                  style={{ color: "#9a9a9a" }}
+                  style={{
+                    fontSize: "clamp(40px, 4.5vw, 56px)",
+                    fontWeight: 600,
+                    letterSpacing: "-0.03em",
+                    color: "#0a0a0a",
+                    lineHeight: 1,
+                  }}
                 >
-                  {s.num}
+                  {m.big}
                 </div>
-                <div
-                  className="text-[19px] font-semibold mb-2"
-                  style={{ color: "#0a0a0a", letterSpacing: "-0.01em" }}
-                >
-                  {s.title}
-                </div>
-                <div
-                  className="text-[14px] leading-[1.55]"
-                  style={{ color: "#555" }}
-                >
-                  {s.desc}
+                <div style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.5 }}>
+                  {m.label}
                 </div>
               </div>
             ))}
@@ -958,128 +615,460 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═════════════════════════ SOCIAL-PROOF STATS ═════════════════════════ */}
-      <section className="py-14 md:py-20 px-5 md:px-8">
-        <div className="max-w-[1100px] mx-auto">
-          <div
-            className="rounded-3xl px-6 md:px-12 py-10 md:py-14"
+      {/* ══════════════════════ SECTION 3 — 3 PILIERS ══════════════════════ */}
+      <section id="piliers" className="py-16 md:py-24 px-5 md:px-8">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-14 md:mb-20">
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Pensé pour vendre
+            </div>
+            <h2 className="horpen-reveal" style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 860, margin: "0 auto" }}>
+              Trois raisons pour lesquelles Horpen remplace ta stack créa.
+            </h2>
+          </div>
+
+          <div className="space-y-24 md:space-y-32">
+            <PilierRow
+              reverse={false}
+              index={1}
+              title="Des contenus pensés pour convertir, pas pour faire joli."
+              desc="Chaque UGC, chaque ad, chaque miniature est optimisée pour un seul objectif : faire cliquer, faire acheter. Templates battle-testés sur les niches e-com, hook generator intégré, A/B test en un clic."
+              tags={["UGC vidéo", "Ads IA", "Hook generator", "Templates e-com"]}
+              visual={<PilierVisualConvertir />}
+            />
+            <PilierRow
+              reverse={true}
+              index={2}
+              title="Clone ce qui cartonne. En 1 clic."
+              desc="Une ad qui marche chez un concurrent ? Colle le lien, remplace le produit ou le personnage, récupère ta version. Trend virale sur TikTok ? Duplique le style, garde la viralité. Extension Chrome pour capturer à la volée."
+              tags={["Clonage d'ads", "Duplication de trend", "Swap produit", "Extension Chrome"]}
+              visual={<PilierVisualCloner />}
+            />
+            <PilierRow
+              reverse={false}
+              index={3}
+              title="Ta stack créa, enfin unifiée."
+              desc="Remplace ton shooting produit, ton UGC creator freelance, ton designer de miniatures, ton monteur vidéo et ton éditeur photo. Un seul workspace, une seule facture, zéro aller-retour."
+              tags={["Workspace e-com", "Photo produit", "Miniature YTB", "Influenceur IA"]}
+              visual={<PilierVisualUnifier />}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 4 — 6 FEATURES ══════════════════════ */}
+      <section id="features" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Features
+            </div>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
+              Des outils pensés pour vendre, <span style={{ color: "#9ca3af" }}>pas pour impressionner.</span>
+            </h2>
+            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 620, margin: "18px auto 0" }}>
+              Chaque feature d&apos;Horpen a été créée pour une chose : te faire gagner du temps et te faire gagner de l&apos;argent. Pas pour remplir un changelog.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {[
+              {
+                emoji: "🔥",
+                title: "Tinder des ads",
+                desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure.",
+              },
+              {
+                emoji: "🎭",
+                title: "Style personnalisé",
+                desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas.",
+              },
+              {
+                emoji: "🎬",
+                title: "Miniatures YTB",
+                desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes.",
+              },
+              {
+                emoji: "📦",
+                title: "Templates de packs",
+                desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts à l'emploi.",
+              },
+              {
+                emoji: "🤖",
+                title: "Agents IA connectés",
+                desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme.",
+              },
+              {
+                emoji: "🌀",
+                title: "Duplicateur de trends",
+                desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche.",
+              },
+            ].map((f, i) => (
+              <div
+                key={f.title}
+                className="horpen-reveal horpen-card-3d p-7 rounded-2xl"
+                style={{
+                  background: "#fafafa",
+                  border: "1px solid #ececec",
+                  "--horpen-reveal-delay": `${0.05 * i}s`,
+                } as React.CSSProperties}
+              >
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: "#ffffff",
+                    border: "1px solid #ececec",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 22,
+                    marginBottom: 18,
+                  }}
+                >
+                  {f.emoji}
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
+                  {f.title}
+                </h3>
+                <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
+                  {f.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+              style={{
+                background: "#0a0a0a",
+                color: "#ffffff",
+                fontSize: 14,
+              }}
+            >
+              Explorer toutes les features
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 5 — TÉMOIGNAGE ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8">
+        <div className="max-w-[880px] mx-auto text-center">
+          <div className="inline-block mb-6 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Témoignage
+          </div>
+          <blockquote
+            className="horpen-reveal"
             style={{
-              background: "#0a0a0a",
-              color: "#fff",
+              fontSize: "clamp(22px, 2.6vw, 32px)",
+              lineHeight: 1.35,
+              letterSpacing: "-0.02em",
+              color: "#0a0a0a",
+              fontWeight: 500,
             }}
           >
+            &ldquo;Avant Horpen, je dépensais 1 800&nbsp;€/mois en UGC creators pour 4&nbsp;vidéos.
+            Aujourd&apos;hui j&apos;en génère <span style={{ color: "#9ca3af" }}>20 par semaine</span>,
+            mes ads tournent en continu, et mon ROAS est passé de 1,4 à 3,1. Le truc qui change
+            tout, c&apos;est le clonage d&apos;ads concurrentes.&rdquo;
+          </blockquote>
+          <div className="mt-10 flex items-center justify-center gap-4">
             <div
-              className="text-[11px] font-semibold tracking-widest uppercase mb-6 text-center"
-              style={{ color: "#999" }}
-            >
-              Built for creators shipping daily
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4 text-center">
-              <Stat k="4" l="motion models" />
-              <Stat k="60s" l="max output length" />
-              <Stat k="9:16" l="TikTok-native" />
-              <Stat k="1" l="subscription, not 5" />
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #f472b6, #a78bfa)",
+                border: "2px solid #ffffff",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              }}
+            />
+            <div className="text-left">
+              <div style={{ fontWeight: 600, color: "#0a0a0a", fontSize: 15 }}>Léa M.</div>
+              <div style={{ color: "#6b7280", fontSize: 13 }}>Fondatrice, marque beauté — 180k€ ARR</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═════════════════════════ PRICING ═════════════════════════ */}
-      <section
-        id="pricing"
-        className="py-16 md:py-24 px-5 md:px-8"
-        style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}
-      >
-        <div className="max-w-[1100px] mx-auto">
-          <div className="text-center max-w-[640px] mx-auto mb-12 md:mb-16">
-            <div
-              className="inline-block text-[11px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
-              style={{
-                background: "#f4f4f4",
-                color: "#555",
-              }}
-            >
-              Pricing
+      {/* ══════════════════════ SECTION 6 — ANALYTICS ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
+        <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Analytics
             </div>
-            <h2
-              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
-            >
-              Transparent, credit-based.
+            <h2 style={{ fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
+              Sache exactement <span style={{ color: "#9ca3af" }}>quelles créas rapportent.</span>
             </h2>
-            <p
-              className="mt-4 text-[15px] md:text-[16px] leading-[1.55]"
-              style={{ color: "#555" }}
+            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, lineHeight: 1.55, maxWidth: 520 }}>
+              Pas besoin de deviner. Horpen track quelle ad convertit, quel hook fonctionne,
+              quel style génère le plus d&apos;engagement. Tu gardes ce qui marche, tu jettes le reste.
+            </p>
+
+            <div className="mt-8 space-y-5">
+              {[
+                { t: "Performance par créa", d: "ROAS, CTR, taux de scroll-stop. Pour chaque ad générée, tu vois ce qu'elle a ramené." },
+                { t: "A/B test automatique", d: "Lance 10 variantes d'un même angle. Horpen détecte la gagnante et duplique le style." },
+                { t: "Hook scoring", d: "Chaque hook généré est scoré sur sa probabilité de faire arrêter le scroll. Avant même de publier." },
+                { t: "Trend tracking", d: "Horpen suit les vidéos virales dans ta niche en temps réel. Tu dupliques avant les autres." },
+              ].map((it) => (
+                <div key={it.t} className="flex gap-3">
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 6,
+                      background: "#0a0a0a",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5" style={{ color: "#fff" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: "#0a0a0a" }}>{it.t}</div>
+                    <div style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.5, marginTop: 2 }}>{it.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mockup dashboard */}
+          <div
+            className="horpen-reveal"
+            style={{
+              background: "#fafafa",
+              border: "1px solid #ececec",
+              borderRadius: 20,
+              padding: 22,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>Performance — 7 derniers jours</div>
+              <div style={{ fontSize: 11, color: "#16a34a", background: "#dcfce7", padding: "3px 8px", borderRadius: 999, fontWeight: 600 }}>
+                +34%
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              {[
+                { label: "Impressions", val: "128k", d: "+12%" },
+                { label: "CTR", val: "3,8%", d: "+0,6pt" },
+                { label: "ROAS", val: "3,1×", d: "+0,4" },
+              ].map((k) => (
+                <div key={k.label} style={{ background: "#ffffff", border: "1px solid #ececec", borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", marginTop: 4 }}>{k.val}</div>
+                  <div style={{ fontSize: 11, color: "#16a34a", marginTop: 2 }}>{k.d}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Fake chart */}
+            <div style={{ background: "#ffffff", border: "1px solid #ececec", borderRadius: 12, padding: 16, height: 180, position: "relative", overflow: "hidden" }}>
+              <svg viewBox="0 0 300 120" preserveAspectRatio="none" style={{ width: "100%", height: "100%" }}>
+                <defs>
+                  <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0a0a0a" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#0a0a0a" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M0,90 C30,85 60,70 90,60 C120,50 150,65 180,45 C210,30 240,35 270,20 L300,15 L300,120 L0,120 Z"
+                  fill="url(#chart-fill)"
+                />
+                <path
+                  d="M0,90 C30,85 60,70 90,60 C120,50 150,65 180,45 C210,30 240,35 270,20 L300,15"
+                  fill="none"
+                  stroke="#0a0a0a"
+                  strokeWidth="2"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 7 — WORKSPACE HUB ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8">
+        <div className="max-w-[1080px] mx-auto text-center">
+          <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Workspace
+          </div>
+          <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
+            Un seul espace qui remplace <span style={{ color: "#9ca3af" }}>ton agence créa.</span>
+          </h2>
+          <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
+            Ton logo, tes produits, tes UGC, tes ads, tes miniatures, tes influenceurs IA.
+            Tout au même endroit, tout réutilisable, tout déclinable. Comme avoir un studio créa
+            en illimité dans le cloud.
+          </p>
+
+          <div className="mt-14">
+            <WorkspaceHub showcase={showcase} />
+          </div>
+
+          <div className="mt-10">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+              style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
             >
-              Every model, every export quality shows you its exact credit cost
-              upfront. No hidden fees, no usage surprises.
+              Créer mon workspace
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 8 — MICRO-APPS ══════════════════════ */}
+      <section id="micro-apps" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Micro-apps
+            </div>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 860, margin: "0 auto" }}>
+              Un besoin précis ? <span style={{ color: "#9ca3af" }}>On a l&apos;app pour ça.</span>
+            </h2>
+            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
+              Horpen, c&apos;est une plateforme. Mais chaque brique est aussi accessible en app dédiée.
+              Entrée rapide, résultat immédiat.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {PLANS.map((plan, idx) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {[
+              {
+                url: "horpen.ai/thumbnails",
+                title: "Générateur de miniatures",
+                desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.",
+                gradient: "linear-gradient(135deg, #f472b6 0%, #a78bfa 100%)",
+              },
+              {
+                url: "horpen.ai/photoshoot",
+                title: "Shooting produit IA",
+                desc: "Upload ton produit, choisis l'ambiance, reçois 20 photos pro.",
+                gradient: "linear-gradient(135deg, #60a5fa 0%, #34d399 100%)",
+              },
+              {
+                url: "horpen.ai/pixea",
+                title: "Style transfer IA",
+                desc: "Transforme n'importe quelle image dans le style de ton choix.",
+                gradient: "linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)",
+              },
+            ].map((app) => (
+              <div
+                key={app.url}
+                className="horpen-card-3d rounded-2xl overflow-hidden"
+                style={{ background: "#fafafa", border: "1px solid #ececec" }}
+              >
+                <div style={{ height: 140, background: app.gradient, position: "relative" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 14,
+                      left: 16,
+                      background: "rgba(255,255,255,0.9)",
+                      backdropFilter: "blur(10px)",
+                      padding: "6px 12px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#0a0a0a",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {app.url}
+                  </div>
+                </div>
+                <div style={{ padding: 22 }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
+                    {app.title}
+                  </h3>
+                  <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
+                    {app.desc}
+                  </p>
+                  <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 500, color: "#0a0a0a" }}>
+                    Essayer <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ PRICING ══════════════════════ */}
+      <section id="pricing" className="py-20 md:py-28 px-5 md:px-8">
+        <div className="max-w-[1080px] mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Tarifs
+            </div>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
+              Une fraction du prix <span style={{ color: "#9ca3af" }}>d&apos;Arcads, Weavy ou Makeugc.</span>
+            </h2>
+            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 560, margin: "18px auto 0" }}>
+              Annule à tout moment. Droits commerciaux inclus dès le premier plan payant.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {PLANS.map((plan) => (
               <div
                 key={plan.slug}
-                className="horpen-reveal rounded-2xl p-6 md:p-7 flex flex-col transition-all duration-300 hover:-translate-y-2"
+                className="horpen-card-3d rounded-2xl p-7 flex flex-col"
                 style={{
                   background: plan.highlighted ? "#0a0a0a" : "#ffffff",
-                  color: plan.highlighted ? "#fafafa" : "#0a0a0a",
-                  border: plan.highlighted
-                    ? "1px solid #0a0a0a"
-                    : "1px solid #ececec",
-                  boxShadow: plan.highlighted
-                    ? "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(0,0,0,0.35), 0 15px 30px -10px rgba(0,0,0,0.2)"
-                    : "0 1px 2px rgba(0,0,0,0.02), 0 8px 24px rgba(15,15,40,0.04)",
-                  transform: plan.highlighted ? "scale(1.03)" : undefined,
-                  ["--horpen-reveal-delay" as string]: `${idx * 140}ms`,
+                  border: plan.highlighted ? "1px solid #0a0a0a" : "1px solid #ececec",
+                  color: plan.highlighted ? "#ffffff" : "#0a0a0a",
+                  position: "relative",
                 }}
               >
-                <div
-                  className="text-[13px] font-semibold uppercase tracking-widest"
-                  style={{
-                    color: plan.highlighted ? "#9a9a9a" : "#9a9a9a",
-                  }}
-                >
-                  {plan.name}
-                </div>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span
-                    className="text-[42px] font-semibold"
-                    style={{ letterSpacing: "-0.02em" }}
+                {plan.highlighted && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -12,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      background: "#ffffff",
+                      color: "#0a0a0a",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      letterSpacing: "0.05em",
+                      textTransform: "uppercase",
+                    }}
                   >
-                    ${plan.price}
-                  </span>
-                  {plan.price > 0 && (
-                    <span
-                      className="text-[14px]"
-                      style={{
-                        color: plan.highlighted ? "#9a9a9a" : "#7a7a7a",
-                      }}
-                    >
-                      / month
-                    </span>
-                  )}
+                    Populaire
+                  </div>
+                )}
+                <div style={{ fontSize: 14, fontWeight: 500, opacity: 0.7 }}>{plan.name}</div>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em" }}>{plan.price}€</span>
+                  <span style={{ fontSize: 14, opacity: 0.6 }}>/ mois</span>
                 </div>
-                <div
-                  className="mt-1 text-[13px]"
-                  style={{ color: plan.highlighted ? "#bbb" : "#555" }}
-                >
-                  {plan.credits} · {plan.sub}
-                </div>
+                <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>{plan.credits}</div>
+                <div style={{ fontSize: 13, opacity: 0.6, marginTop: 8, lineHeight: 1.4 }}>{plan.sub}</div>
 
                 <ul className="mt-6 space-y-2.5 flex-1">
                   {plan.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-[14px]"
-                      style={{
-                        color: plan.highlighted ? "#ddd" : "#444",
-                      }}
-                    >
-                      <Check
-                        size={16}
-                        color={plan.highlighted ? "#8ee0a9" : "#0a0a0a"}
-                      />
+                    <li key={f} className="flex gap-2" style={{ fontSize: 14, opacity: 0.85 }}>
+                      <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <span>{f}</span>
                     </li>
                   ))}
@@ -1087,14 +1076,14 @@ export default function Home() {
 
                 <Link
                   href="/signup"
-                  className="mt-6 inline-flex items-center justify-center gap-2 text-[14px] font-semibold px-5 py-3 rounded-full transition"
+                  className="mt-8 py-2.5 px-4 rounded-full text-center font-medium transition"
                   style={{
                     background: plan.highlighted ? "#ffffff" : "#0a0a0a",
                     color: plan.highlighted ? "#0a0a0a" : "#ffffff",
+                    fontSize: 14,
                   }}
                 >
                   {plan.cta}
-                  <ArrowRight size={13} color="currentColor" />
                 </Link>
               </div>
             ))}
@@ -1102,71 +1091,44 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═════════════════════════ FAQ ═════════════════════════ */}
-      <section id="faq" className="py-16 md:py-24 px-5 md:px-8">
-        <div className="max-w-[860px] mx-auto">
-          <div className="text-center mb-10 md:mb-14">
-            <div
-              className="inline-block text-[11px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
-              style={{
-                background: "#ffffff",
-                border: "1px solid #ececec",
-                color: "#555",
-              }}
-            >
+      {/* ══════════════════════ SECTION 9 — FAQ ══════════════════════ */}
+      <section id="faq" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
+        <div className="max-w-[820px] mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
               FAQ
             </div>
-            <h2
-              className="text-[32px] md:text-[44px] font-semibold leading-[1.08]"
-              style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
-            >
-              Questions, answered.
+            <h2 style={{ fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
+              Toujours des questions ? <span style={{ color: "#9ca3af" }}>On a les réponses.</span>
             </h2>
           </div>
 
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{
-              background: "#ffffff",
-              border: "1px solid #ececec",
-            }}
-          >
-            {FAQ.map((item, idx) => {
-              const open = openFaq === idx;
+          <div className="space-y-2">
+            {FAQ.map((item, i) => {
+              const open = openFaq === i;
               return (
                 <div
-                  key={idx}
+                  key={i}
                   style={{
-                    borderTop: idx > 0 ? "1px solid #ececec" : undefined,
+                    background: "#fafafa",
+                    border: "1px solid #ececec",
+                    borderRadius: 14,
+                    overflow: "hidden",
                   }}
                 >
                   <button
-                    type="button"
-                    onClick={() => setOpenFaq(open ? null : idx)}
-                    className="w-full text-left px-5 md:px-6 py-4 flex items-center justify-between gap-4 transition"
-                    style={{
-                      background: open ? "#fafafa" : "#ffffff",
-                    }}
+                    onClick={() => setOpenFaq(open ? null : i)}
+                    className="w-full text-left px-5 py-4 flex items-center justify-between gap-4"
+                    style={{ color: "#0a0a0a", fontSize: 15, fontWeight: 500 }}
                   >
-                    <span
-                      className="text-[15px] md:text-[16px] font-medium"
-                      style={{ color: "#0a0a0a" }}
-                    >
-                      {item.q}
-                    </span>
+                    <span>{item.q}</span>
                     <ChevronDown
-                      size={16}
-                      color="#7a7a7a"
-                      className={`shrink-0 transition-transform ${
-                        open ? "rotate-180" : ""
-                      }`}
+                      className="w-4 h-4 flex-shrink-0 transition-transform"
+                      style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "#6b7280" }}
                     />
                   </button>
                   {open && (
-                    <div
-                      className="px-5 md:px-6 pb-5 text-[14px] leading-[1.6]"
-                      style={{ color: "#555" }}
-                    >
+                    <div style={{ padding: "0 20px 18px", color: "#6b7280", fontSize: 14.5, lineHeight: 1.6 }}>
                       {item.a}
                     </div>
                   )}
@@ -1174,858 +1136,604 @@ export default function Home() {
               );
             })}
           </div>
+
+          <div className="text-center mt-10">
+            <a
+              href="mailto:support@horpen.ai"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+              style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
+            >
+              Réserver une démo
+              <ArrowRight className="w-4 h-4" />
+            </a>
+          </div>
         </div>
       </section>
 
-      {/* ═════════════════════════ FINAL CTA ═════════════════════════ */}
-      <section className="py-16 md:py-24 px-5 md:px-8">
-        <div
-          className="max-w-[1100px] mx-auto rounded-3xl px-6 md:px-12 py-14 md:py-20 text-center"
-          style={{
-            background:
-              "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)",
-            color: "#fff",
-          }}
-        >
-          <h2
-            className="text-[32px] md:text-[52px] font-semibold leading-[1.05]"
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            Start shipping today.
-          </h2>
-          <p
-            className="mt-4 md:mt-6 text-[15px] md:text-[17px] leading-[1.55] max-w-[520px] mx-auto"
-            style={{ color: "#aaa" }}
-          >
-            3 free credits. The whole studio unlocked. Your first video in 60
-            seconds.
-          </p>
-          <Link
-            href="/signup"
-            className="mt-8 md:mt-10 inline-flex items-center justify-center gap-2 text-[15px] font-semibold px-7 py-4 rounded-full transition"
+      {/* ══════════════════════ SECTION 10 — CTA FINAL + AEO ══════════════════════ */}
+      <section className="py-24 md:py-32 px-5 md:px-8">
+        <div className="max-w-[960px] mx-auto">
+          <div
+            className="rounded-[28px] p-10 md:p-16 text-center relative overflow-hidden"
             style={{
-              background: "#ffffff",
-              color: "#0a0a0a",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+              background: "radial-gradient(120% 100% at 50% 0%, #0b1f3d 0%, #08101d 50%, #02040a 100%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 60px 120px -30px rgba(8,16,29,0.4)",
             }}
           >
-            Start for free
-            <ArrowRight size={15} color="currentColor" />
-          </Link>
+            <div className="relative z-10">
+              <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff", maxWidth: 780, margin: "0 auto" }}>
+                T&apos;es descendu jusqu&apos;ici.
+                <br />
+                <span style={{ color: "#94a3b8" }}>C&apos;est le moment de tester.</span>
+              </h2>
+              <p style={{ marginTop: 18, color: "#cbd5e1", fontSize: 17, maxWidth: 540, margin: "18px auto 0", lineHeight: 1.55 }}>
+                Génère tes premières créas gratuitement. Pas de CB, pas d&apos;engagement, pas de bullshit.
+              </p>
+              <div className="mt-9">
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-medium transition"
+                  style={{
+                    background: "#ffffff",
+                    color: "#0a0a0a",
+                    fontSize: 16,
+                    boxShadow: "0 8px 24px rgba(255,255,255,0.15)",
+                  }}
+                >
+                  Commencer gratuitement
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* AEO — Ask ChatGPT / Claude / Perplexity */}
+          <div className="mt-16 text-center">
+            <p style={{ color: "#6b7280", fontSize: 15, maxWidth: 560, margin: "0 auto" }}>
+              Tu hésites encore ? Demande à ton IA préférée ce qu&apos;elle pense d&apos;Horpen.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              {[
+                {
+                  name: "ChatGPT",
+                  bg: "#10a37f",
+                  href: "https://chat.openai.com/?q=Que+penses-tu+de+Horpen.ai+pour+g%C3%A9n%C3%A9rer+des+UGC+et+des+ads+IA+pour+e-commerce+%3F",
+                },
+                {
+                  name: "Claude",
+                  bg: "#cc785c",
+                  href: "https://claude.ai/new?q=Que+penses-tu+de+Horpen.ai+pour+g%C3%A9n%C3%A9rer+des+UGC+et+des+ads+IA+pour+e-commerce+%3F",
+                },
+                {
+                  name: "Perplexity",
+                  bg: "#20808d",
+                  href: "https://www.perplexity.ai/search?q=Que+penses-tu+de+Horpen.ai+pour+g%C3%A9n%C3%A9rer+des+UGC+et+des+ads+IA+pour+e-commerce+%3F",
+                },
+              ].map((btn) => (
+                <a
+                  key={btn.name}
+                  href={btn.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #ececec",
+                    color: "#0a0a0a",
+                    fontSize: 14,
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: btn.bg }} />
+                  Demander à {btn.name}
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ═════════════════════════ FOOTER ═════════════════════════ */}
-      <footer
-        className="px-5 md:px-8 py-10 md:py-14"
-        style={{ borderTop: "1px solid #ececec" }}
-      >
-        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div
-              className="rounded-lg flex items-center justify-center shrink-0"
-              style={{ width: 28, height: 28, background: "#0a0a0a" }}
+      {/* ══════════════════════ SECTION 11 — BUILD IN PUBLIC ══════════════════════ */}
+      <section className="py-16 md:py-20 px-5 md:px-8" style={{ background: "#fafafa", borderTop: "1px solid #ececec" }}>
+        <div className="max-w-[820px] mx-auto text-center">
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🛠️</div>
+          <h3 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", lineHeight: 1.25, letterSpacing: "-0.025em", fontWeight: 600, color: "#0a0a0a", maxWidth: 640, margin: "0 auto" }}>
+            Horpen se construit avec toi.
+            <br />
+            <span style={{ color: "#9ca3af" }}>Rejoins la communauté. La roadmap est publique.</span>
+          </h3>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="https://www.skool.com/horpen"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+              style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
             >
-              <Image
-                src="/horpen-logo.png"
-                alt=""
-                width={16}
-                height={16}
-                style={{ objectFit: "contain" }}
-              />
-            </div>
-            <span
-              className="text-[15px] font-semibold"
-              style={{ color: "#0a0a0a", letterSpacing: "-0.02em" }}
-            >
-              Horpen
-            </span>
-            <span className="text-[13px] ml-2" style={{ color: "#9a9a9a" }}>
-              © {new Date().getFullYear()}
-            </span>
-          </div>
-
-          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
-            <Link href="/login" style={{ color: "#555" }}>
-              Sign in
-            </Link>
-            <Link href="/signup" style={{ color: "#555" }}>
-              Start free
-            </Link>
-            <a href="#pricing" style={{ color: "#555" }}>
-              Pricing
-            </a>
-            <a href="#faq" style={{ color: "#555" }}>
-              FAQ
+              Rejoindre le Skool Horpen
+              <ArrowRight className="w-4 h-4" />
             </a>
             <a
-              href="mailto:anskoju@gmail.com"
-              style={{ color: "#555" }}
+              href="/roadmap"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+              style={{ background: "#ffffff", border: "1px solid #ececec", color: "#0a0a0a", fontSize: 14 }}
             >
-              Support
+              Voir la roadmap publique
             </a>
-          </nav>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 12 — FOOTER ══════════════════════ */}
+      <footer style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
+        <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-14 md:py-18">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-10">
+            <div className="col-span-2">
+              <Link href="/" className="flex items-center gap-2">
+                <div
+                  className="rounded-lg flex items-center justify-center"
+                  style={{ width: 32, height: 32, background: "#0a0a0a" }}
+                >
+                  <Image src="/horpen-logo.png" alt="" width={20} height={20} style={{ objectFit: "contain" }} />
+                </div>
+                <span style={{ fontSize: 17, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>Horpen</span>
+              </Link>
+              <p style={{ marginTop: 14, color: "#6b7280", fontSize: 14, lineHeight: 1.55, maxWidth: 320 }}>
+                L&apos;IA tout-en-un pour créer, cloner et décliner tes contenus marketing. UGC,
+                ads, miniatures, photos produit, influenceurs IA.
+              </p>
+              <div style={{ marginTop: 16, color: "#9ca3af", fontSize: 13 }}>
+                Build in public — Roadmap ouverte 🛠️
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0a0a0a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                Features
+              </div>
+              <ul className="space-y-2.5">
+                {["UGC IA", "Ads", "Miniatures", "Photo produit", "Influenceur IA", "Workspace", "Extension Chrome", "API"].map((x) => (
+                  <li key={x}>
+                    <Link href="/signup" style={{ fontSize: 13.5, color: "#6b7280" }} className="hover:text-[#0a0a0a] transition">
+                      {x}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0a0a0a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                Apps
+              </div>
+              <ul className="space-y-2.5">
+                {["horpen.ai/thumbnails", "horpen.ai/photoshoot", "horpen.ai/pixea"].map((x) => (
+                  <li key={x}>
+                    <Link href="/signup" style={{ fontSize: 13.5, color: "#6b7280" }} className="hover:text-[#0a0a0a] transition">
+                      {x}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0a0a0a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14, marginTop: 24 }}>
+                Communauté
+              </div>
+              <ul className="space-y-2.5">
+                {["Skool Horpen", "Discord", "YouTube", "Instagram", "X", "TikTok"].map((x) => (
+                  <li key={x}>
+                    <a href="#" style={{ fontSize: 13.5, color: "#6b7280" }} className="hover:text-[#0a0a0a] transition">
+                      {x}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0a0a0a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                Légal
+              </div>
+              <ul className="space-y-2.5">
+                {["CGU", "DPA", "Privacy Policy", "Politique IA"].map((x) => (
+                  <li key={x}>
+                    <Link href="/legal" style={{ fontSize: 13.5, color: "#6b7280" }} className="hover:text-[#0a0a0a] transition">
+                      {x}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0a0a0a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14, marginTop: 24 }}>
+                Contact
+              </div>
+              <ul className="space-y-2.5">
+                <li>
+                  <a href="mailto:support@horpen.ai" style={{ fontSize: 13.5, color: "#6b7280" }} className="hover:text-[#0a0a0a] transition">
+                    support@horpen.ai
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3" style={{ borderTop: "1px solid #ececec" }}>
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>
+              © {new Date().getFullYear()} Horpen.ai — Tous droits réservés.
+            </div>
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>
+              Fait avec ❤️ pour les créateurs et les marques e-com.
+            </div>
+          </div>
         </div>
       </footer>
+
       </div>
     </main>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- *  Feature card primitive
- * ─────────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+ *  SUB-COMPONENTS
+ * ═════════════════════════════════════════════════════════════════ */
 
-function FeatureCard({
-  illustration,
-  title,
-  body,
-  badge,
-  highlight,
-  revealDelay = 0,
-}: {
-  illustration: React.ReactNode;
-  title: string;
-  body: string;
-  badge?: string;
-  highlight?: boolean;
-  revealDelay?: number;
-}) {
-  /* `perspective` on a wrapper lets the child `rotate` a little into 3D
-     space without distorting the rest of the grid. We pair that with a
-     deeper shadow stack on hover for a tangible "card lifted off the
-     paper" feel — the gold-standard SaaS landing look. */
+/* Hero preview — grille d'aperçus avec vraies images showcase si dispo. */
+function HeroPreview({ showcase }: { showcase: ShowcaseData }) {
+  const tiles: { url?: string; aspect: string; fallback: string }[] = [
+    {
+      url: showcase.thumbnails[0]?.url,
+      aspect: "16/9",
+      fallback: "linear-gradient(135deg, #f472b6 0%, #a78bfa 100%)",
+    },
+    {
+      url: showcase.avatars[0]?.url,
+      aspect: "1/1",
+      fallback: "linear-gradient(135deg, #60a5fa 0%, #34d399 100%)",
+    },
+    {
+      url: showcase.ads[0]?.url,
+      aspect: "1/1",
+      fallback: "linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)",
+    },
+    {
+      url: showcase.images[0]?.url,
+      aspect: "1/1",
+      fallback: "linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%)",
+    },
+    {
+      url: showcase.thumbnails[1]?.url,
+      aspect: "16/9",
+      fallback: "linear-gradient(135deg, #34d399 0%, #60a5fa 100%)",
+    },
+  ];
+
   return (
     <div
-      className="horpen-reveal"
       style={{
-        perspective: 1200,
-        ["--horpen-reveal-delay" as string]: `${revealDelay}ms`,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 20,
+        padding: 20,
+        backdropFilter: "blur(20px)",
       }}
     >
-      <div
-        className="horpen-card-3d rounded-2xl p-5 md:p-7"
-        style={{
-          background: "#ffffff",
-          border: highlight
-            ? "1px solid #d4d4d4"
-            : "1px solid #ececec",
-          boxShadow: highlight
-            ? "0 1px 2px rgba(0,0,0,0.04), 0 18px 50px -10px rgba(15,15,40,0.10), 0 8px 20px -8px rgba(15,15,40,0.08)"
-            : "0 1px 2px rgba(0,0,0,0.02), 0 10px 30px -8px rgba(15,15,40,0.06)",
-        }}
-      >
-        {/* Illustration — soft-tinted pill with an inner shadow so it
-            reads like a recessed panel, giving the card a two-layer
-            depth. */}
-        <div
-          className="relative rounded-xl overflow-hidden mb-6 md:mb-7"
-          style={{
-            background:
-              "linear-gradient(180deg, #fafafa 0%, #f1f1f5 100%)",
-            border: "1px solid #ececec",
-            height: 240,
-            boxShadow: "inset 0 2px 6px rgba(15,15,40,0.04)",
-          }}
-        >
-          {illustration}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fbbf24" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
         </div>
+        <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: "0.05em" }}>
+          app.horpen.ai/workspace
+        </div>
+        <div style={{ width: 40 }} />
+      </div>
 
-        {badge && (
-          <div
-            className="inline-block text-[10px] font-semibold tracking-widest uppercase px-2 py-0.5 rounded-full mb-3"
-            style={{
-              background: highlight ? "#0a0a0a" : "#f4f4f5",
-              color: highlight ? "#fff" : "#555",
-              boxShadow: highlight
-                ? "0 4px 12px rgba(10,10,10,0.25)"
-                : undefined,
-            }}
-          >
-            {badge}
+      <div className="grid grid-cols-6 gap-3" style={{ minHeight: 240 }}>
+        <div className="col-span-2 row-span-2 rounded-xl overflow-hidden" style={{ aspectRatio: "1/1.2", background: tiles[1].fallback, position: "relative" }}>
+          {tiles[1].url && (
+            <img src={tiles[1].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
+            Avatar IA
           </div>
-        )}
+        </div>
+        <div className="col-span-4 rounded-xl overflow-hidden" style={{ aspectRatio: "16/9", background: tiles[0].fallback, position: "relative" }}>
+          {tiles[0].url && (
+            <img src={tiles[0].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
+            Miniature YTB
+          </div>
+        </div>
+        <div className="col-span-2 rounded-xl overflow-hidden" style={{ aspectRatio: "1/1", background: tiles[2].fallback, position: "relative" }}>
+          {tiles[2].url && (
+            <img src={tiles[2].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
+            Ad
+          </div>
+        </div>
+        <div className="col-span-2 rounded-xl overflow-hidden" style={{ aspectRatio: "1/1", background: tiles[3].fallback, position: "relative" }}>
+          {tiles[3].url && (
+            <img src={tiles[3].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
+            Image
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        <h3
-          className="text-[20px] md:text-[22px] font-semibold mb-2"
-          style={{ color: "#0a0a0a", letterSpacing: "-0.02em" }}
-        >
+/* Piliers — row alternée image / texte. */
+function PilierRow({
+  reverse,
+  index,
+  title,
+  desc,
+  tags,
+  visual,
+}: {
+  reverse: boolean;
+  index: number;
+  title: string;
+  desc: string;
+  tags: string[];
+  visual: React.ReactNode;
+}) {
+  return (
+    <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
+      <div className="horpen-reveal">
+        <div style={{ color: "#9ca3af", fontSize: 13, letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>
+          Pilier {String(index).padStart(2, "0")}
+        </div>
+        <h3 style={{ fontSize: "clamp(26px, 3.4vw, 40px)", lineHeight: 1.15, letterSpacing: "-0.03em", fontWeight: 600, color: "#0a0a0a", maxWidth: 480 }}>
           {title}
         </h3>
-        <p
-          className="text-[14px] leading-[1.55]"
-          style={{ color: "#555" }}
-        >
-          {body}
+        <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, lineHeight: 1.55, maxWidth: 460 }}>
+          {desc}
         </p>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────
- *  Illustrations
- *  All pure HTML/CSS + Icons so the bundle stays thin and the cards
- *  scale crisply on any DPI.
- * ─────────────────────────────────────────────────────────────────── */
-
-/* ─────────────────────────────────────────────────────────────────────
- *  Thumbnails showcase — hero gallery of real generations.
- *
- *  Renders a 4-column masonry-style wall of 16:9 thumbnails pulled
- *  from /showcase/featured. Each tile tilts slightly on hover (same
- *  `.horpen-card-3d` treatment as the feature cards) and fades in on
- *  scroll via `.horpen-reveal`. The section title uses the shared
- *  embossed 3-D class so it reads as part of the same visual family.
- * ─────────────────────────────────────────────────────────────────── */
-
-function ThumbnailsShowcase({ tiles }: { tiles: ShowcaseTile[] }) {
-  // Always show 8 slots. Fill from real thumbnails first, then pad
-  // with gradient placeholders so the section never looks half-empty.
-  const gradientPool = [
-    "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 100%)",
-    "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)",
-    "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)",
-    "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)",
-    "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)",
-    "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)",
-    "linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%)",
-    "linear-gradient(135deg, #fed7aa 0%, #ea580c 100%)",
-  ];
-  const slots = Array.from({ length: 8 }, (_, i) => ({
-    url: tiles[i]?.url,
-    grad: gradientPool[i % gradientPool.length],
-  }));
-  const hasRealContent = tiles.length > 0;
-
-  return (
-    <section className="py-12 md:py-20 px-5 md:px-8 relative">
-      <div className="max-w-[1200px] mx-auto">
-        <div className="text-center max-w-[720px] mx-auto mb-10 md:mb-14">
-          <div
-            className="inline-block text-[11px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
-            style={{
-              background: "#ffffff",
-              border: "1px solid #ececec",
-              color: "#555",
-            }}
-          >
-            Viral thumbnails
-          </div>
-          <h2
-            className="text-[32px] md:text-[48px] font-semibold leading-[1.08]"
-            style={{ letterSpacing: "-0.03em", color: "#0a0a0a" }}
-          >
-            Thumbnails that stop
-            <br />
-            <span style={{ color: "#7a7a7a" }}>the scroll.</span>
-          </h2>
-          <p
-            className="mt-5 text-[15px] md:text-[16px] leading-[1.55]"
-            style={{ color: "#555" }}
-          >
-            Real thumbnails generated with Horpen — YouTube-ready,
-            click-optimised, produced in seconds. No Photoshop, no
-            designer, no template library.
-          </p>
-        </div>
-
-        {/* 4-col grid of 16:9 thumbnails with 3-D tilt on hover */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {slots.map((slot, i) => (
-            <div
-              key={i}
-              className="horpen-reveal"
+        <div className="mt-6 flex flex-wrap gap-2">
+          {tags.map((t) => (
+            <span
+              key={t}
               style={{
-                perspective: 1200,
-                ["--horpen-reveal-delay" as string]: `${i * 80}ms`,
+                fontSize: 12.5,
+                fontWeight: 500,
+                padding: "5px 11px",
+                borderRadius: 999,
+                background: "#f3f4f6",
+                color: "#4b5563",
               }}
             >
-              <div
-                className="horpen-card-3d relative rounded-xl overflow-hidden"
-                style={{
-                  aspectRatio: "16 / 9",
-                  background: slot.url ? "#000" : slot.grad,
-                  border: "1px solid #ececec",
-                  boxShadow:
-                    "0 1px 2px rgba(0,0,0,0.04), 0 14px 32px -8px rgba(15,15,40,0.12)",
-                }}
-              >
-                {slot.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={slot.url}
-                    alt={`Thumbnail generated with Horpen (#${i + 1})`}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div
-                      className="text-[11px] font-semibold tracking-widest uppercase"
-                      style={{ color: "rgba(255,255,255,0.85)" }}
-                    >
-                      AI Thumbnail
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+              {t}
+            </span>
           ))}
         </div>
-
-        {/* CTA row under the grid — reinforces value + funnel */}
-        <div className="mt-10 md:mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
-          <Link
-            href="/signup"
-            className="inline-flex items-center justify-center gap-2 text-[14px] font-semibold px-5 py-3 rounded-full transition"
-            style={{
-              background: "#0a0a0a",
-              color: "#fff",
-              boxShadow:
-                "0 1px 1px rgba(255,255,255,0.1) inset, 0 8px 20px rgba(0,0,0,0.2)",
-            }}
-          >
-            Generate your first thumbnail
-            <ArrowRight size={14} color="currentColor" />
-          </Link>
-          {!hasRealContent && (
-            <span
-              className="text-[12px]"
-              style={{ color: "#888" }}
-            >
-              Sample visuals shown — your gallery fills in with your own
-              generations.
-            </span>
-          )}
-        </div>
       </div>
-    </section>
-  );
-}
-
-/* ─── 1. AI Avatars ──────────────────────────────────────────────
-   A "photo" tile morphs into 3 generated avatar variations cycling
-   behind it. The face silhouette is abstract so it reads as "any
-   person" rather than a specific demo. */
-function AvatarsIllustration() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center gap-4 p-4">
-      {/* Uploaded photo tile (left) */}
-      <div
-        className="relative rounded-xl overflow-hidden shadow-md shrink-0"
-        style={{
-          width: 80,
-          height: 100,
-          background: "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 50%, #93c5fd 100%)",
-          border: "2px solid #fff",
-          animation: "avatars-upload-pulse 3.5s ease-in-out infinite",
-        }}
-      >
-        {/* Face silhouette */}
-        <svg viewBox="0 0 80 100" className="absolute inset-0 w-full h-full">
-          <circle cx="40" cy="36" r="14" fill="rgba(255,255,255,0.6)" />
-          <ellipse cx="40" cy="90" rx="28" ry="22" fill="rgba(255,255,255,0.6)" />
-        </svg>
-        <div
-          className="absolute top-1 left-1 text-[8px] font-semibold px-1.5 py-0.5 rounded"
-          style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
-        >
-          Photo
-        </div>
+      <div className="horpen-reveal" style={{ "--horpen-reveal-delay": "0.1s" } as React.CSSProperties}>
+        {visual}
       </div>
-
-      <ArrowRight size={14} color="#bbb" />
-
-      {/* Generated avatar variations (right) — 3 stacked, cycling which is on top */}
-      <div className="relative shrink-0" style={{ width: 100, height: 110 }}>
-        {[
-          { grad: "linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)" },
-          { grad: "linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)" },
-          { grad: "linear-gradient(135deg, #f472b6 0%, #db2777 100%)" },
-        ].map((v, i) => (
-          <div
-            key={i}
-            className="absolute rounded-xl overflow-hidden shadow-md"
-            style={{
-              width: 72,
-              height: 92,
-              top: i * 6,
-              left: i * 8,
-              background: v.grad,
-              border: "2px solid #fff",
-              animation: `avatars-card-cycle 4.5s ease-in-out ${i * 1.5}s infinite`,
-              zIndex: 3 - i,
-            }}
-          >
-            <svg viewBox="0 0 72 92" className="absolute inset-0 w-full h-full">
-              <circle cx="36" cy="34" r="12" fill="rgba(255,255,255,0.5)" />
-              <ellipse cx="36" cy="84" rx="24" ry="18" fill="rgba(255,255,255,0.5)" />
-            </svg>
-          </div>
-        ))}
-      </div>
-
-      {/* Keyframes (avatars-upload-pulse, avatars-card-cycle) live
-          in the global stylesheet block inside <Home /> because
-          Next.js 16 Turbopack rejects nested styled-jsx. */}
     </div>
   );
 }
 
-/* ─── 2. AI Images ───────────────────────────────────────────────
-   A 2×3 grid of image tiles with different use-case labels
-   (Thumbnail / Portrait / Product / Lifestyle). Each tile gently
-   pulses on its own beat so the whole gallery feels alive. */
-function ImagesIllustration() {
-  const tiles = [
-    { grad: "linear-gradient(135deg, #fca5d1 0%, #f472b6 100%)", label: "Thumbnail" },
-    { grad: "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)", label: "Product" },
-    { grad: "linear-gradient(135deg, #bae6fd 0%, #0ea5e9 100%)", label: "Portrait" },
-    { grad: "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)", label: "Lifestyle" },
-    { grad: "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)", label: "Style" },
-    { grad: "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)", label: "Poster" },
-  ];
+/* Pilier visuals — mockups HTML/CSS. */
+function PilierVisualConvertir() {
   return (
-    <div className="absolute inset-0 p-4 flex items-center justify-center">
-      <div className="grid grid-cols-3 gap-2">
+    <div
+      className="horpen-card-3d rounded-2xl p-6"
+      style={{
+        background: "#ffffff",
+        border: "1px solid #ececec",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
+      }}
+    >
+      <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+        Hook scoring en direct
+      </div>
+      {[
+        { h: "POV : tu découvres qu'on peut…", s: 94, ok: true },
+        { h: "Je l'ai testé pendant 7 jours…", s: 78, ok: true },
+        { h: "Mon expert beauté m'a dit…", s: 52, ok: false },
+        { h: "Regarde ce qui arrive quand…", s: 86, ok: true },
+      ].map((item, i) => (
+        <div key={i} className="mb-2.5" style={{ padding: "11px 14px", background: "#fafafa", border: "1px solid #ececec", borderRadius: 10 }}>
+          <div className="flex items-center justify-between gap-3">
+            <div style={{ fontSize: 13.5, color: "#0a0a0a", fontWeight: 500, flex: 1 }}>{item.h}</div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "3px 8px",
+                borderRadius: 999,
+                background: item.ok ? "#dcfce7" : "#fee2e2",
+                color: item.ok ? "#16a34a" : "#dc2626",
+              }}
+            >
+              {item.s}
+            </div>
+          </div>
+          <div style={{ marginTop: 8, height: 4, borderRadius: 999, background: "#ececec", overflow: "hidden" }}>
+            <div style={{ width: `${item.s}%`, height: "100%", background: item.ok ? "#16a34a" : "#dc2626" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PilierVisualCloner() {
+  return (
+    <div
+      className="horpen-card-3d rounded-2xl p-6"
+      style={{
+        background: "#ffffff",
+        border: "1px solid #ececec",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
+      }}
+    >
+      <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+        Clone d&apos;ad concurrente
+      </div>
+
+      <div style={{ background: "#fafafa", border: "1px solid #ececec", borderRadius: 10, padding: 12, marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 10, height: 10, borderRadius: 3, background: "#6b7280" }} />
+        <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "ui-monospace, monospace" }}>
+          tiktok.com/@competitor/video/7445...
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Source</div>
+          <div style={{ aspectRatio: "9/16", borderRadius: 10, background: "linear-gradient(180deg, #a78bfa 0%, #60a5fa 100%)", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.15)" }} />
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Ta version</div>
+          <div style={{ aspectRatio: "9/16", borderRadius: 10, background: "linear-gradient(180deg, #f472b6 0%, #fbbf24 100%)", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.15)" }} />
+            <div style={{ position: "absolute", top: 8, right: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "2px 7px", borderRadius: 999, fontWeight: 600 }}>
+              NEW
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2 justify-center" style={{ fontSize: 12, color: "#6b7280" }}>
+        <span>Style conservé · Produit remplacé · 100 % original</span>
+      </div>
+    </div>
+  );
+}
+
+function PilierVisualUnifier() {
+  return (
+    <div
+      className="horpen-card-3d rounded-2xl p-6"
+      style={{
+        background: "#ffffff",
+        border: "1px solid #ececec",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
+      }}
+    >
+      <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+        Avant / Après
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-[13px]">
+        <div style={{ padding: 14, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10 }}>
+          <div style={{ color: "#dc2626", fontWeight: 600, marginBottom: 8 }}>Avant</div>
+          {["Shooting photo : 600€", "UGC creator : 1200€", "Designer miniatures : 300€", "Monteur : 500€", "5 outils SaaS : 220€"].map((x) => (
+            <div key={x} style={{ color: "#991b1b", marginBottom: 4 }}>— {x}</div>
+          ))}
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fecaca", fontWeight: 700, color: "#dc2626" }}>
+            Total : 2 820 € / mois
+          </div>
+        </div>
+        <div style={{ padding: 14, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10 }}>
+          <div style={{ color: "#16a34a", fontWeight: 600, marginBottom: 8 }}>Avec Horpen</div>
+          {["Tout le studio inclus", "UGC + ads + miniatures", "Photo produit IA", "Clonage d'ads", "Workspace unifié"].map((x) => (
+            <div key={x} style={{ color: "#166534", marginBottom: 4 }}>+ {x}</div>
+          ))}
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed #bbf7d0", fontWeight: 700, color: "#16a34a" }}>
+            Total : 85 € / mois
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 text-center" style={{ fontSize: 13, color: "#6b7280" }}>
+        Économies moyennes : <span style={{ fontWeight: 700, color: "#0a0a0a" }}>-96 %</span>
+      </div>
+    </div>
+  );
+}
+
+/* Workspace hub visual — tuiles agencées autour d'un centre. */
+function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
+  const sample = (arr: ShowcaseTile[], i: number): string | undefined => arr[i]?.url;
+  const tiles = [
+    { label: "Avatar", url: sample(showcase.avatars, 0), g: "linear-gradient(135deg, #60a5fa, #34d399)", w: 130, h: 130, top: 0, left: 0 },
+    { label: "Miniature", url: sample(showcase.thumbnails, 0), g: "linear-gradient(135deg, #f472b6, #a78bfa)", w: 220, h: 124, top: 20, left: 170 },
+    { label: "Ad", url: sample(showcase.ads, 0), g: "linear-gradient(135deg, #fbbf24, #f472b6)", w: 130, h: 130, top: 0, left: 410 },
+    { label: "Photo produit", url: sample(showcase.images, 0), g: "linear-gradient(135deg, #a78bfa, #60a5fa)", w: 130, h: 130, top: 160, left: 0 },
+    { label: "Miniature 2", url: sample(showcase.thumbnails, 1), g: "linear-gradient(135deg, #34d399, #60a5fa)", w: 220, h: 124, top: 168, left: 170 },
+    { label: "Ad 2", url: sample(showcase.ads, 1), g: "linear-gradient(135deg, #60a5fa, #f472b6)", w: 130, h: 130, top: 160, left: 410 },
+  ];
+
+  return (
+    <div
+      className="mx-auto relative"
+      style={{
+        background: "#ffffff",
+        border: "1px solid #ececec",
+        borderRadius: 24,
+        padding: 30,
+        maxWidth: 640,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
+      }}
+    >
+      <div style={{ position: "relative", width: "100%", height: 320 }}>
+        {/* Centre = logo Horpen */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 72,
+            height: 72,
+            borderRadius: 20,
+            background: "#0a0a0a",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
+          }}
+        >
+          <Image src="/horpen-logo.png" alt="" width={36} height={36} style={{ objectFit: "contain" }} />
+        </div>
+
         {tiles.map((t, i) => (
           <div
             key={i}
-            className="relative rounded-lg overflow-hidden shadow-sm"
+            className="absolute rounded-lg overflow-hidden"
             style={{
-              width: 60,
-              height: 60,
-              background: t.grad,
-              border: "2px solid #fff",
-              animation: `images-pulse 4s ease-in-out ${i * 0.4}s infinite`,
+              width: t.w,
+              height: t.h,
+              top: t.top,
+              left: t.left,
+              background: t.g,
+              border: "2px solid #ffffff",
+              boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
+              animation: `pillar-float ${4 + (i % 3)}s ease-in-out infinite`,
+              animationDelay: `${i * 0.3}s`,
             }}
           >
+            {t.url && (
+              <img src={t.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
             <div
-              className="absolute bottom-0.5 left-0.5 right-0.5 text-[7px] font-semibold text-center py-0.5 rounded-sm"
               style={{
-                background: "rgba(0,0,0,0.55)",
+                position: "absolute",
+                bottom: 6,
+                left: 6,
+                fontSize: 10,
                 color: "#fff",
+                background: "rgba(0,0,0,0.5)",
+                padding: "2px 7px",
+                borderRadius: 999,
+                backdropFilter: "blur(6px)",
+                fontWeight: 500,
               }}
             >
               {t.label}
             </div>
           </div>
         ))}
-      </div>
-
-      {/* images-pulse lives in the global stylesheet block. */}
-    </div>
-  );
-}
-
-/* ─── 3. AI Videos ───────────────────────────────────────────────
-   Prompt field + 3 stacked scene cards + playback bar with a
-   progressing indicator. The progress bar fills left-to-right on a
-   loop to convey "video being built". */
-function VideosIllustration() {
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
-      {/* Prompt field */}
-      <div
-        className="flex items-center gap-2 rounded-full px-3 py-1.5 shadow-sm"
-        style={{
-          background: "#ffffff",
-          border: "1px solid #ececec",
-          minWidth: 220,
-        }}
-      >
-        <SparkleIcon size={11} color="#0a0a0a" />
-        <span className="text-[11px]" style={{ color: "#555" }}>
-          Generate a video about…
-        </span>
-      </div>
-
-      {/* Row of 3 stacked scene preview cards */}
-      <div className="flex gap-2">
-        {[
-          "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)",
-          "linear-gradient(135deg, #fca5d1 0%, #db2777 100%)",
-          "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)",
-        ].map((grad, i) => (
-          <div
-            key={i}
-            className="relative rounded-lg overflow-hidden shadow-md"
-            style={{
-              width: 50,
-              height: 88,
-              background: grad,
-              border: "2px solid #fff",
-              animation: `videos-scene 3.5s ease-in-out ${i * 0.4}s infinite`,
-            }}
-          >
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ color: "rgba(255,255,255,0.85)" }}
-            >
-              <Play size={14} color="currentColor" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Progress bar at the bottom */}
-      <div
-        className="relative rounded-full overflow-hidden"
-        style={{
-          width: 180,
-          height: 6,
-          background: "#ececec",
-        }}
-      >
-        <div
-          className="absolute top-0 left-0 h-full rounded-full"
-          style={{
-            background:
-              "linear-gradient(90deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)",
-            animation: "videos-progress 2.5s ease-in-out infinite",
-          }}
-        />
-      </div>
-      <span className="text-[9px]" style={{ color: "#888" }}>
-        Rendering scenes…
-      </span>
-
-      {/* videos-scene / videos-progress live in the global stylesheet. */}
-    </div>
-  );
-}
-
-/* ─── 4. Ad Creatives ────────────────────────────────────────────
-   A product photo on the left + 3 ad variations on the right, each
-   with a different marketing label ("30% OFF", "NEW", "Sale"). The
-   variations cycle which one is highlighted. */
-function AdsIllustration() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center gap-4 p-4">
-      {/* Product source card */}
-      <div
-        className="relative rounded-xl overflow-hidden shadow-md shrink-0"
-        style={{
-          width: 70,
-          height: 70,
-          background:
-            "linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #d97706 100%)",
-          border: "2px solid #fff",
-        }}
-      >
-        {/* Abstract bottle/product shape */}
-        <svg viewBox="0 0 70 70" className="absolute inset-0 w-full h-full">
-          <rect x="27" y="14" width="16" height="10" rx="2" fill="rgba(255,255,255,0.7)" />
-          <rect x="22" y="24" width="26" height="40" rx="4" fill="rgba(255,255,255,0.8)" />
-          <rect x="26" y="38" width="18" height="8" rx="1" fill="rgba(0,0,0,0.15)" />
-        </svg>
-        <div
-          className="absolute top-1 left-1 text-[8px] font-semibold px-1.5 py-0.5 rounded"
-          style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
-        >
-          Product
-        </div>
-      </div>
-
-      <ArrowRight size={14} color="#bbb" />
-
-      {/* 3 ad variations stacked */}
-      <div className="flex flex-col gap-2">
-        {[
-          { grad: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)", tag: "30% OFF" },
-          { grad: "linear-gradient(135deg, #10b981 0%, #047857 100%)", tag: "NEW" },
-          { grad: "linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)", tag: "Best seller" },
-        ].map((v, i) => (
-          <div
-            key={i}
-            className="relative rounded-lg overflow-hidden shadow-sm"
-            style={{
-              width: 100,
-              height: 30,
-              background: v.grad,
-              border: "2px solid #fff",
-              animation: `ads-highlight 5s ease-in-out ${i * 1.6}s infinite`,
-            }}
-          >
-            {/* Mini product silhouette in the ad */}
-            <svg viewBox="0 0 100 30" className="absolute inset-0 w-full h-full">
-              <rect x="6" y="6" width="18" height="18" rx="3" fill="rgba(255,255,255,0.8)" />
-            </svg>
-            <div
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-bold"
-              style={{ color: "#fff" }}
-            >
-              {v.tag}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ads-highlight lives in the global stylesheet. */}
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────
- *  Hero app preview — minimal, light-mode window mockup
- * ─────────────────────────────────────────────────────────────────── */
-
-function HeroPreview({ showcase }: { showcase: ShowcaseData }) {
-  /* Build a mixed gallery prioritising real thumbnails (user asked to
-     "mettre en avant les miniatures") with avatars + images filling
-     the rest. Tiles fall back to labelled gradients when no real
-     content is loaded yet. */
-  type HeroTile = {
-    url?: string;
-    label: string;
-    grad: string;
-    aspect: string;
-    priority?: boolean;
-  };
-  const gradientPool = [
-    "linear-gradient(135deg, #fca5d1 0%, #c4b5fd 100%)",
-    "linear-gradient(135deg, #fde68a 0%, #f59e0b 100%)",
-    "linear-gradient(135deg, #bae6fd 0%, #0284c7 100%)",
-    "linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)",
-    "linear-gradient(135deg, #bbf7d0 0%, #10b981 100%)",
-    "linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)",
-    "linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%)",
-    "linear-gradient(135deg, #fed7aa 0%, #ea580c 100%)",
-  ];
-
-  const tiles: HeroTile[] = [];
-  // 1. First 4 thumbnails get a big 16:9 slot each — this is what the
-  //    user asked to emphasise.
-  showcase.thumbnails.slice(0, 4).forEach((t, i) => {
-    tiles.push({
-      url: t.url,
-      label: "Thumbnail",
-      grad: gradientPool[i % gradientPool.length],
-      aspect: "16 / 9",
-      priority: true,
-    });
-  });
-  // 2. Then a mix of avatars (1:1) + ads (1:1) + images (1:1)
-  showcase.avatars.slice(0, 2).forEach((t, i) => {
-    tiles.push({
-      url: t.url,
-      label: "Avatar",
-      grad: gradientPool[(i + 4) % gradientPool.length],
-      aspect: "1 / 1",
-    });
-  });
-  showcase.ads.slice(0, 2).forEach((t, i) => {
-    tiles.push({
-      url: t.url,
-      label: "Ad",
-      grad: gradientPool[(i + 6) % gradientPool.length],
-      aspect: "1 / 1",
-    });
-  });
-  // 3. Pad the grid to 8 total with gradient placeholders tagged with
-  //    category labels so the layout stays full on a cold start.
-  const padLabels = ["Video", "Portrait", "Poster", "Lifestyle"];
-  const padAspects = ["9 / 16", "9 / 16", "1 / 1", "4 / 5"];
-  while (tiles.length < 8) {
-    const idx = tiles.length;
-    tiles.push({
-      label: padLabels[idx % padLabels.length],
-      grad: gradientPool[idx % gradientPool.length],
-      aspect: padAspects[idx % padAspects.length],
-    });
-  }
-  const gallery = tiles.slice(0, 8);
-
-  return (
-    <div
-      className="max-w-[980px] mx-auto mt-12 md:mt-16 px-3 md:px-0"
-      style={{ perspective: 1800 }}
-    >
-      <div
-        className="rounded-2xl overflow-hidden transition-transform duration-700"
-        style={{
-          background: "#ffffff",
-          border: "1px solid #ececec",
-          boxShadow:
-            "0 1px 2px rgba(0,0,0,0.03), 0 40px 80px -20px rgba(15,15,40,0.18), 0 20px 40px -12px rgba(15,15,40,0.12)",
-          transform: "rotateX(2deg) rotateY(0deg)",
-          animation: "horpen-float-slow 8s ease-in-out infinite",
-        }}
-      >
-        {/* Window chrome */}
-        <div
-          className="flex items-center gap-1.5 px-4 py-2.5"
-          style={{ borderBottom: "1px solid #ececec", background: "#fafafa" }}
-        >
-          <div
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ background: "#f87171" }}
-          />
-          <div
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ background: "#fbbf24" }}
-          />
-          <div
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ background: "#34d399" }}
-          />
-          <span
-            className="ml-3 text-[11px]"
-            style={{ color: "#9a9a9a" }}
-          >
-            horpen.ai / AI Video
-          </span>
-        </div>
-
-        {/* App body */}
-        <div
-          className="grid grid-cols-1 md:grid-cols-[180px_1fr]"
-          style={{ minHeight: 320 }}
-        >
-          {/* Sidebar */}
-          <div
-            className="hidden md:flex flex-col p-3 gap-1"
-            style={{ borderRight: "1px solid #ececec", background: "#fafafa" }}
-          >
-            {[
-              { icon: "✨", label: "AI Video", active: true },
-              { icon: "✂️", label: "Auto-Clip" },
-              { icon: "🎭", label: "Avatars" },
-              { icon: "🖼️", label: "Thumbnails" },
-              { icon: "📢", label: "Ads" },
-            ].map((n, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px]"
-                style={{
-                  background: n.active ? "#ffffff" : "transparent",
-                  color: n.active ? "#0a0a0a" : "#666",
-                  border: n.active ? "1px solid #ececec" : "1px solid transparent",
-                  fontWeight: n.active ? 600 : 400,
-                }}
-              >
-                <span>{n.icon}</span>
-                <span>{n.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Main — mixed gallery of recent generations across tools
-              (an avatar, two images, a thumbnail, a video). Gives the
-              visitor a one-glance sense of "this app makes every
-              asset type". Every tile pulses gently so the dashboard
-              looks alive. */}
-          <div className="p-4 md:p-6">
-            {/* Top bar: tool + generating state */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className="rounded-md flex items-center justify-center"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    background: "#0a0a0a",
-                    color: "#fff",
-                  }}
-                >
-                  <SparkleIcon size={12} color="currentColor" />
-                </div>
-                <span
-                  className="text-[12px] font-medium"
-                  style={{ color: "#0a0a0a" }}
-                >
-                  Latest generations
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "#555" }}>
-                <div
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: "#34d399",
-                    animation: "hero-dot-pulse 1.8s ease-in-out infinite",
-                  }}
-                />
-                Rendering · 67%
-              </div>
-            </div>
-
-            {/* Gallery grid — blends real thumbnails + avatars + ads
-                from /showcase/featured with gradient placeholders for
-                any missing slots. Real images always win when
-                available, per the user's request to "mettre en avant
-                les miniatures". */}
-            <div className="grid grid-cols-4 gap-2">
-              {gallery.map((tile, i) => (
-                <div
-                  key={i}
-                  className="relative rounded-md overflow-hidden shadow-sm"
-                  style={{
-                    aspectRatio: tile.aspect,
-                    background: tile.url ? "#000" : tile.grad,
-                    border: "1.5px solid #ffffff",
-                    animation: `hero-tile-pulse 3.5s ease-in-out ${i * 0.25}s infinite`,
-                  }}
-                >
-                  {tile.url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={tile.url}
-                      alt={tile.label}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  <div
-                    className="absolute bottom-1 left-1 right-1 text-[7px] font-semibold text-center py-0.5 rounded-sm"
-                    style={{
-                      background: "rgba(0,0,0,0.55)",
-                      color: "#fff",
-                    }}
-                  >
-                    {tile.label}
-                  </div>
-                  {tile.priority && tile.url && (
-                    <div
-                      className="absolute top-1 left-1 text-[7px] font-semibold px-1.5 py-0.5 rounded"
-                      style={{
-                        background: "rgba(255,255,255,0.95)",
-                        color: "#0a0a0a",
-                      }}
-                    >
-                      ★
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* hero-tile-pulse / hero-dot-pulse live in the global stylesheet. */}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────
- *  Stats primitive (for the dark social-proof band)
- * ─────────────────────────────────────────────────────────────────── */
-
-function Stat({ k, l }: { k: string; l: string }) {
-  return (
-    <div>
-      <div
-        className="text-[32px] md:text-[42px] font-semibold leading-none"
-        style={{ letterSpacing: "-0.03em", color: "#fff" }}
-      >
-        {k}
-      </div>
-      <div
-        className="mt-1 text-[12px] md:text-[13px]"
-        style={{ color: "#888" }}
-      >
-        {l}
       </div>
     </div>
   );
