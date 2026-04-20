@@ -159,9 +159,9 @@ type TabKey = "ugc" | "avatars" | "thumbnails" | "ads" | "photo";
 
 const FEATURE_TABS: { key: TabKey; label: string; icon: React.ElementType; accent: string }[] = [
   { key: "ugc", label: "UGC Vidéo", icon: VideoCamera, accent: "#3b82f6" },
-  { key: "avatars", label: "Avatars IA", icon: User, accent: "#a855f7" },
-  { key: "thumbnails", label: "Miniatures YTB", icon: PlaySquare, accent: "#ec4899" },
-  { key: "ads", label: "Ads créatives", icon: Megaphone, accent: "#f97316" },
+  { key: "avatars", label: "Avatars IA", icon: User, accent: "#3b82f6" },
+  { key: "thumbnails", label: "Miniatures YTB", icon: PlaySquare, accent: "#0a0a0a" },
+  { key: "ads", label: "Ads créatives", icon: Megaphone, accent: "#3b82f6" },
   { key: "photo", label: "Photo produit", icon: Camera, accent: "#10b981" },
 ];
 
@@ -387,7 +387,7 @@ export default function Home() {
       {/* Orbs animées */}
       <div aria-hidden="true" className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
         <div style={{ position: "absolute", top: "5%", left: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(59,130,246,0.18), transparent 70%)", filter: "blur(40px)", animation: "orb-float 24s ease-in-out infinite" }} />
-        <div style={{ position: "absolute", top: "40%", right: "5%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(168,85,247,0.15), transparent 70%)", filter: "blur(40px)", animation: "orb-float 30s ease-in-out infinite reverse" }} />
+        <div style={{ position: "absolute", top: "40%", right: "5%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(59,130,246,0.12), transparent 70%)", filter: "blur(40px)", animation: "orb-float 30s ease-in-out infinite reverse" }} />
       </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
@@ -467,11 +467,11 @@ export default function Home() {
           <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
             {[
               { left: "8%", color: "rgba(96,165,250,0.35)", width: 140, delay: "0s" },
-              { left: "22%", color: "rgba(167,139,250,0.28)", width: 160, delay: "1.2s" },
+              { left: "22%", color: "rgba(96,165,250,0.28)", width: 160, delay: "1.2s" },
               { left: "36%", color: "rgba(96,165,250,0.4)", width: 180, delay: "2.4s" },
               { left: "50%", color: "rgba(147,197,253,0.5)", width: 200, delay: "0.6s" },
               { left: "64%", color: "rgba(96,165,250,0.4)", width: 180, delay: "1.8s" },
-              { left: "78%", color: "rgba(167,139,250,0.28)", width: 160, delay: "3s" },
+              { left: "78%", color: "rgba(96,165,250,0.28)", width: 160, delay: "3s" },
               { left: "92%", color: "rgba(96,165,250,0.35)", width: 140, delay: "0.9s" },
             ].map((b, i) => (
               <div
@@ -633,8 +633,8 @@ export default function Home() {
           <div className="mt-14 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               { big: "10×", label: "moins cher qu'un shooting UGC traditionnel", icon: Zap, color: "#3b82f6" },
-              { big: "+50 000", label: "créas générées chaque mois par la communauté", icon: SparkleIcon, color: "#a855f7" },
-              { big: "< 2 min", label: "du prompt à la vidéo prête à publier", icon: Video, color: "#ec4899" },
+              { big: "+50 000", label: "créas générées chaque mois par la communauté", icon: SparkleIcon, color: "#3b82f6" },
+              { big: "< 2 min", label: "du prompt à la vidéo prête à publier", icon: Video, color: "#0a0a0a" },
             ].map((m, i) => {
               const MIcon = m.icon;
               return (
@@ -707,7 +707,7 @@ export default function Home() {
               desc="Chaque UGC, chaque ad, chaque miniature est optimisée pour un seul objectif : faire cliquer, faire acheter. Templates battle-testés sur les niches e-com, hook generator intégré."
               tags={[
                 { label: "Hook generator", color: "#3b82f6" },
-                { label: "Templates e-com", color: "#a855f7" },
+                { label: "Templates e-com", color: "#3b82f6" },
               ]}
               visual={<PilierVisualConvertir />}
               accent="#3b82f6"
@@ -719,8 +719,8 @@ export default function Home() {
               desc="Colle un lien. Remplace le produit. Horpen reproduit le style, l&apos;angle, le format. Extension Chrome pour capturer à la volée. Tu restes 100 % original."
               tags={[
                 { label: "Clonage d'ads", color: "#60a5fa" },
-                { label: "Duplication de trend", color: "#c084fc" },
-                { label: "Extension Chrome", color: "#fbbf24" },
+                { label: "Duplication de trend", color: "#3b82f6" },
+                { label: "Extension Chrome", color: "#6b7280" },
               ]}
               visual={<PilierVisualCloner />}
               accent="#60a5fa"
@@ -733,8 +733,8 @@ export default function Home() {
               tags={[
                 { label: "UGC vidéo", color: "#10b981" },
                 { label: "Photo produit", color: "#3b82f6" },
-                { label: "Miniature YTB", color: "#ec4899" },
-                { label: "Avatar IA", color: "#a855f7" },
+                { label: "Miniature YTB", color: "#0a0a0a" },
+                { label: "Avatar IA", color: "#3b82f6" },
               ]}
               visual={<PilierVisualUnifier />}
               accent="#10b981"
@@ -804,10 +804,10 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {[
-              { icon: Heart, title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure.", color: "#ec4899" },
-              { icon: Palette, title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas.", color: "#a855f7" },
-              { icon: PlaySquare, title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes.", color: "#ef4444" },
-              { icon: Package, title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts.", color: "#f97316" },
+              { icon: Heart, title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure.", color: "#0a0a0a" },
+              { icon: Palette, title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas.", color: "#3b82f6" },
+              { icon: PlaySquare, title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes.", color: "#0a0a0a" },
+              { icon: Package, title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts.", color: "#3b82f6" },
               { icon: MagicWand, title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme.", color: "#3b82f6" },
               { icon: Copy, title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche.", color: "#10b981" },
             ].map((f, i) => {
@@ -857,7 +857,7 @@ export default function Home() {
         <div className="max-w-[880px] mx-auto text-center">
           <div className="flex items-center justify-center gap-1 mb-6">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Star key={i} className="w-5 h-5" style={{ color: "#fbbf24" }} />
+              <Star key={i} className="w-5 h-5" style={{ color: "#6b7280" }} />
             ))}
           </div>
           <blockquote
@@ -881,7 +881,7 @@ export default function Home() {
                 width: 48,
                 height: 48,
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #f472b6, #a78bfa)",
+                background: "linear-gradient(135deg, #3b82f6, #3b82f6)",
                 border: "2px solid #ffffff",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
@@ -950,7 +950,7 @@ export default function Home() {
       {/* ══════════════════════ SECTION 8 — WORKSPACE HUB ══════════════════════ */}
       <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[1080px] mx-auto text-center">
-          <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#fef3f2", color: "#ec4899", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+          <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#eff6ff", color: "#0a0a0a", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
             <LinkIcon className="w-3.5 h-3.5" />
             Workspace
           </div>
@@ -984,7 +984,7 @@ export default function Home() {
       <section id="micro-apps" className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#fffbeb", color: "#f59e0b", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               <Package className="w-3.5 h-3.5" />
               Apps
             </div>
@@ -999,9 +999,9 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { url: "horpen.ai/thumbnails", title: "Générateur de miniatures", desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.", icon: PlaySquare, color: "#ef4444" },
+              { url: "horpen.ai/thumbnails", title: "Générateur de miniatures", desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.", icon: PlaySquare, color: "#0a0a0a" },
               { url: "horpen.ai/photoshoot", title: "Shooting produit IA", desc: "Upload ton produit, choisis l'ambiance, reçois 20 photos pro.", icon: Camera, color: "#3b82f6" },
-              { url: "horpen.ai/pixea", title: "Style transfer IA", desc: "Transforme n'importe quelle image dans le style de ton choix.", icon: Brush, color: "#a855f7" },
+              { url: "horpen.ai/pixea", title: "Style transfer IA", desc: "Transforme n'importe quelle image dans le style de ton choix.", icon: Brush, color: "#3b82f6" },
             ].map((app) => {
               const AIcon = app.icon;
               return (
@@ -1321,7 +1321,7 @@ export default function Home() {
               width: 56,
               height: 56,
               borderRadius: 16,
-              background: "linear-gradient(135deg, #3b82f620, #a855f720)",
+              background: "linear-gradient(135deg, #3b82f620, #3b82f620)",
               border: "1px solid #ececec",
               display: "inline-flex",
               alignItems: "center",
@@ -1483,8 +1483,8 @@ function HeroDemo({ activeTab, showcase }: { activeTab: TabKey; showcase: Showca
       {/* Browser chrome */}
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-2">
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fbbf24" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#0a0a0a" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#6b7280" }} />
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
         </div>
         <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: "0.05em" }}>
@@ -1525,7 +1525,7 @@ function DemoUGC({ showcase }: { showcase: ShowcaseData }) {
             aspectRatio: "9/16",
             background: thumbs[i]?.url
               ? "transparent"
-              : `linear-gradient(180deg, ${["#3b82f6", "#a855f7", "#ec4899", "#10b981"][i]}88, ${["#1e40af", "#6b21a8", "#831843", "#064e3b"][i]}88)`,
+              : `linear-gradient(180deg, ${["#3b82f6", "#3b82f6", "#0a0a0a", "#10b981"][i]}88, ${["#1e40af", "#6b21a8", "#831843", "#064e3b"][i]}88)`,
           }}
         >
           {thumbs[i]?.url && (
@@ -1548,7 +1548,7 @@ function DemoUGC({ showcase }: { showcase: ShowcaseData }) {
 
 function DemoAvatars({ showcase }: { showcase: ShowcaseData }) {
   const avatars = showcase.avatars.slice(0, 6);
-  const gradients = ["#3b82f6", "#a855f7", "#ec4899", "#10b981", "#f97316", "#06b6d4"];
+  const gradients = ["#3b82f6", "#3b82f6", "#0a0a0a", "#10b981", "#3b82f6", "#6b7280"];
   return (
     <div className="p-5">
       <div className="flex items-center gap-2 mb-4" style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -1598,7 +1598,7 @@ function DemoThumbnails({ showcase }: { showcase: ShowcaseData }) {
             style={{
               width: 160,
               height: 90,
-              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#ef4444", "#a855f7", "#3b82f6"][i]}, ${["#991b1b", "#6b21a8", "#1e40af"][i]})`,
+              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#0a0a0a", "#3b82f6", "#3b82f6"][i]}, ${["#991b1b", "#6b21a8", "#1e40af"][i]})`,
             }}
           >
             {thumbs[i]?.url && (
@@ -1626,7 +1626,7 @@ function DemoThumbnails({ showcase }: { showcase: ShowcaseData }) {
 
 function DemoAds({ showcase }: { showcase: ShowcaseData }) {
   const ads = showcase.ads.slice(0, 4);
-  const colors = ["#f97316", "#ec4899", "#8b5cf6", "#06b6d4"];
+  const colors = ["#3b82f6", "#0a0a0a", "#3b82f6", "#6b7280"];
   return (
     <div className="p-5 grid grid-cols-4 gap-3">
       {[0, 1, 2, 3].map((i) => (
@@ -1663,7 +1663,7 @@ function DemoAds({ showcase }: { showcase: ShowcaseData }) {
 
 function DemoPhoto({ showcase }: { showcase: ShowcaseData }) {
   const imgs = showcase.images.slice(0, 5);
-  const colors = ["#06b6d4", "#10b981", "#84cc16", "#eab308", "#f59e0b"];
+  const colors = ["#6b7280", "#10b981", "#3b82f6", "#6b7280", "#6b7280"];
   return (
     <div className="p-5">
       <div className="flex items-center gap-2 mb-4" style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -1698,16 +1698,16 @@ function DemoPhoto({ showcase }: { showcase: ShowcaseData }) {
 function FloatingLogos() {
   const logos = [
     { label: "OP", color: "#3b82f6", size: 64 },
-    { label: "NV", color: "#a855f7", size: 72 },
-    { label: "KR", color: "#ec4899", size: 56 },
+    { label: "NV", color: "#3b82f6", size: 72 },
+    { label: "KR", color: "#0a0a0a", size: 56 },
     { label: "MR", color: "#0a0a0a", size: 80 },
-    { label: "OR", color: "#f59e0b", size: 60 },
+    { label: "OR", color: "#6b7280", size: 60 },
     { label: "LM", color: "#10b981", size: 68 },
-    { label: "FJ", color: "#ef4444", size: 62 },
-    { label: "AR", color: "#06b6d4", size: 70 },
-    { label: "PR", color: "#8b5cf6", size: 64 },
-    { label: "ZN", color: "#f97316", size: 58 },
-    { label: "HL", color: "#ec4899", size: 66 },
+    { label: "FJ", color: "#0a0a0a", size: 62 },
+    { label: "AR", color: "#6b7280", size: 70 },
+    { label: "PR", color: "#3b82f6", size: 64 },
+    { label: "ZN", color: "#3b82f6", size: 58 },
+    { label: "HL", color: "#0a0a0a", size: 66 },
     { label: "VT", color: "#10b981", size: 58 },
   ];
   return (
@@ -1816,8 +1816,8 @@ function PilierCard({
 function PilierVisualConvertir() {
   const events = [
     { label: "Hook A — POV scroll-stop", score: 94, color: "#3b82f6" },
-    { label: "Hook B — Problème produit", score: 78, color: "#a855f7" },
-    { label: "Hook C — Social proof", score: 52, color: "#ef4444" },
+    { label: "Hook B — Problème produit", score: 78, color: "#3b82f6" },
+    { label: "Hook C — Social proof", score: 52, color: "#0a0a0a" },
     { label: "Hook D — Before/after", score: 86, color: "#10b981" },
   ];
   return (
@@ -1858,9 +1858,9 @@ function PilierVisualConvertir() {
 function PilierVisualCloner() {
   const nodes = [
     { label: "Link", x: 50, y: 20, color: "#60a5fa", size: 14 },
-    { label: "Style", x: 20, y: 55, color: "#a78bfa", size: 12 },
-    { label: "Produit", x: 80, y: 55, color: "#fbbf24", size: 12 },
-    { label: "Clone", x: 50, y: 85, color: "#f472b6", size: 16 },
+    { label: "Style", x: 20, y: 55, color: "#3b82f6", size: 12 },
+    { label: "Produit", x: 80, y: 55, color: "#6b7280", size: 12 },
+    { label: "Clone", x: 50, y: 85, color: "#3b82f6", size: 16 },
   ];
   return (
     <div className="relative w-full max-w-[300px]" style={{ aspectRatio: "1/1" }}>
@@ -1869,7 +1869,7 @@ function PilierVisualCloner() {
         <defs>
           <linearGradient id="pilier2-line" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#f472b6" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.7" />
           </linearGradient>
         </defs>
         {[
@@ -1923,14 +1923,14 @@ function PilierVisualCloner() {
 function PilierVisualUnifier() {
   const cells = [
     { icon: VideoCamera, color: "#3b82f6", bg: "#dbeafe" },
-    { icon: User, color: "#a855f7", bg: "#f3e8ff" },
-    { icon: PlaySquare, color: "#ec4899", bg: "#fce7f3" },
-    { icon: Megaphone, color: "#f97316", bg: "#ffedd5" },
+    { icon: User, color: "#3b82f6", bg: "#f3e8ff" },
+    { icon: PlaySquare, color: "#0a0a0a", bg: "#eff6ff" },
+    { icon: Megaphone, color: "#3b82f6", bg: "#eff6ff" },
     { icon: Camera, color: "#10b981", bg: "#d1fae5" },
-    { icon: Brush, color: "#06b6d4", bg: "#cffafe" },
-    { icon: MagicWand, color: "#f59e0b", bg: "#fef3c7" },
-    { icon: Package, color: "#8b5cf6", bg: "#ede9fe" },
-    { icon: Type, color: "#ef4444", bg: "#fee2e2" },
+    { icon: Brush, color: "#6b7280", bg: "#f3f4f6" },
+    { icon: MagicWand, color: "#6b7280", bg: "#f3f4f6" },
+    { icon: Package, color: "#3b82f6", bg: "#eff6ff" },
+    { icon: Type, color: "#0a0a0a", bg: "#f3f4f6" },
   ];
   return (
     <div className="relative" style={{ width: 240, height: 240 }}>
@@ -1983,9 +1983,9 @@ function FeatureShowcaseTabs({
     color: string;
   }[] = [
     { key: "ugc", label: "UGC Vidéo", sub: "Tes créateurs IA prêts à l'emploi.", icon: VideoCamera, color: "#3b82f6" },
-    { key: "avatars", label: "Avatars IA", sub: "Un visage cohérent sur toutes tes créas.", icon: User, color: "#a855f7" },
-    { key: "thumbnails", label: "Miniatures YTB", sub: "Un clic et ta miniature fait scroller.", icon: PlaySquare, color: "#ec4899" },
-    { key: "ads", label: "Ads créatives", sub: "Génère 10 variantes. Détecte la gagnante.", icon: Megaphone, color: "#f97316" },
+    { key: "avatars", label: "Avatars IA", sub: "Un visage cohérent sur toutes tes créas.", icon: User, color: "#3b82f6" },
+    { key: "thumbnails", label: "Miniatures YTB", sub: "Un clic et ta miniature fait scroller.", icon: PlaySquare, color: "#0a0a0a" },
+    { key: "ads", label: "Ads créatives", sub: "Génère 10 variantes. Détecte la gagnante.", icon: Megaphone, color: "#3b82f6" },
     { key: "photo", label: "Photo produit", sub: "Shooting studio IA en 8 secondes.", icon: Camera, color: "#10b981" },
   ];
 
@@ -2077,7 +2077,7 @@ function ShowcaseDemo({ tab, showcase }: { tab: TabKey; showcase: ShowcaseData }
             style={{
               width: "28%",
               aspectRatio: "9/16",
-              background: thumbs[i]?.url ? "transparent" : `linear-gradient(180deg, ${["#3b82f6", "#a855f7", "#ec4899"][i]}, ${["#1e40af", "#6b21a8", "#831843"][i]})`,
+              background: thumbs[i]?.url ? "transparent" : `linear-gradient(180deg, ${["#3b82f6", "#3b82f6", "#0a0a0a"][i]}, ${["#1e40af", "#6b21a8", "#831843"][i]})`,
               border: "3px solid #ffffff",
               boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
               transform: i === 1 ? "translateY(-16px)" : "translateY(0)",
@@ -2099,7 +2099,7 @@ function ShowcaseDemo({ tab, showcase }: { tab: TabKey; showcase: ShowcaseData }
 
   if (tab === "avatars") {
     const avs = showcase.avatars.slice(0, 5);
-    const colors = ["#3b82f6", "#a855f7", "#ec4899", "#10b981", "#f97316"];
+    const colors = ["#3b82f6", "#3b82f6", "#0a0a0a", "#10b981", "#3b82f6"];
     return (
       <div className="h-full flex items-center justify-center gap-3">
         {[0, 1, 2, 3, 4].map((i) => (
@@ -2135,7 +2135,7 @@ function ShowcaseDemo({ tab, showcase }: { tab: TabKey; showcase: ShowcaseData }
             style={{
               width: "70%",
               aspectRatio: "16/9",
-              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#ef4444", "#3b82f6"][i]}, ${["#991b1b", "#1e40af"][i]})`,
+              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#0a0a0a", "#3b82f6"][i]}, ${["#991b1b", "#1e40af"][i]})`,
               border: "3px solid #ffffff",
               boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
             }}
@@ -2154,7 +2154,7 @@ function ShowcaseDemo({ tab, showcase }: { tab: TabKey; showcase: ShowcaseData }
 
   if (tab === "ads") {
     const ads = showcase.ads.slice(0, 4);
-    const colors = ["#f97316", "#ec4899", "#8b5cf6", "#06b6d4"];
+    const colors = ["#3b82f6", "#0a0a0a", "#3b82f6", "#6b7280"];
     return (
       <div className="h-full grid grid-cols-4 gap-3 p-4">
         {[0, 1, 2, 3].map((i) => (
@@ -2182,7 +2182,7 @@ function ShowcaseDemo({ tab, showcase }: { tab: TabKey; showcase: ShowcaseData }
 
   // photo
   const imgs = showcase.images.slice(0, 4);
-  const colors = ["#10b981", "#3b82f6", "#a855f7", "#f59e0b"];
+  const colors = ["#10b981", "#3b82f6", "#3b82f6", "#6b7280"];
   return (
     <div className="h-full grid grid-cols-4 gap-3 p-4">
       {[0, 1, 2, 3].map((i) => (
@@ -2266,12 +2266,12 @@ function AnalyticsMockup() {
 function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
   const sample = (arr: ShowcaseTile[], i: number): string | undefined => arr[i]?.url;
   const tiles = [
-    { label: "Avatar", url: sample(showcase.avatars, 0), g: "linear-gradient(135deg, #a855f7, #ec4899)", w: 130, h: 130, top: 0, left: 0 },
-    { label: "Miniature", url: sample(showcase.thumbnails, 0), g: "linear-gradient(135deg, #3b82f6, #06b6d4)", w: 220, h: 124, top: 20, left: 170 },
-    { label: "Ad", url: sample(showcase.ads, 0), g: "linear-gradient(135deg, #f97316, #ec4899)", w: 130, h: 130, top: 0, left: 410 },
-    { label: "Photo produit", url: sample(showcase.images, 0), g: "linear-gradient(135deg, #8b5cf6, #3b82f6)", w: 130, h: 130, top: 160, left: 0 },
-    { label: "Miniature 2", url: sample(showcase.thumbnails, 1), g: "linear-gradient(135deg, #10b981, #06b6d4)", w: 220, h: 124, top: 168, left: 170 },
-    { label: "Ad 2", url: sample(showcase.ads, 1), g: "linear-gradient(135deg, #06b6d4, #ec4899)", w: 130, h: 130, top: 160, left: 410 },
+    { label: "Avatar", url: sample(showcase.avatars, 0), g: "linear-gradient(135deg, #3b82f6, #0a0a0a)", w: 130, h: 130, top: 0, left: 0 },
+    { label: "Miniature", url: sample(showcase.thumbnails, 0), g: "linear-gradient(135deg, #3b82f6, #6b7280)", w: 220, h: 124, top: 20, left: 170 },
+    { label: "Ad", url: sample(showcase.ads, 0), g: "linear-gradient(135deg, #3b82f6, #0a0a0a)", w: 130, h: 130, top: 0, left: 410 },
+    { label: "Photo produit", url: sample(showcase.images, 0), g: "linear-gradient(135deg, #3b82f6, #3b82f6)", w: 130, h: 130, top: 160, left: 0 },
+    { label: "Miniature 2", url: sample(showcase.thumbnails, 1), g: "linear-gradient(135deg, #10b981, #6b7280)", w: 220, h: 124, top: 168, left: 170 },
+    { label: "Ad 2", url: sample(showcase.ads, 1), g: "linear-gradient(135deg, #6b7280, #0a0a0a)", w: 130, h: 130, top: 160, left: 410 },
   ];
 
   return (
