@@ -642,38 +642,30 @@ export default function Home() {
             dans 30+ pays.
           </p>
 
-          {/* 3 metrics — no icons, gros chiffre + label, 3D embossed */}
-          <div className="mt-14 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* 3 metrics — icône 3D à gradient + chiffre gros + label,
+              style Taap.it (pas de carte, pas d'ombre externe). */}
+          <div className="mt-14 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
             {[
-              { big: "10×", label: "moins cher qu'un shooting UGC traditionnel", sub: "vs. agence" },
-              { big: "+50 000", label: "créas générées chaque mois par la communauté", sub: "et ça monte" },
-              { big: "< 2 min", label: "du prompt à la vidéo prête à publier", sub: "en moyenne" },
+              { big: "10×", prefix: "Jusqu'à", label: "moins cher qu'un shooting UGC traditionnel", kind: "savings" },
+              { big: "+50 000", prefix: "", label: "créas générées chaque mois par la communauté", kind: "grid" },
+              { big: "< 2 min", prefix: "", label: "du prompt à la vidéo prête à publier", kind: "bolt" },
             ].map((m, i) => (
               <div
                 key={i}
-                className="horpen-reveal horpen-card-3d horpen-emboss p-8 md:p-10 rounded-2xl"
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #ececec",
-                  "--horpen-reveal-delay": `${0.1 * i}s`,
-                } as React.CSSProperties}
+                className="horpen-reveal flex items-start gap-4 p-4"
+                style={{ "--horpen-reveal-delay": `${0.1 * i}s` } as React.CSSProperties}
               >
-                <div
-                  style={{
-                    fontSize: "clamp(44px, 5vw, 64px)",
-                    fontWeight: 600,
-                    letterSpacing: "-0.04em",
-                    color: "#0a0a0a",
-                    lineHeight: 0.95,
-                  }}
-                >
-                  {m.big}
-                </div>
-                <div style={{ marginTop: 14, color: "#0a0a0a", fontSize: 16, fontWeight: 500, lineHeight: 1.4 }}>
-                  {m.label}
-                </div>
-                <div style={{ marginTop: 4, color: "#9ca3af", fontSize: 13 }}>
-                  {m.sub}
+                <Metric3DIcon kind={m.kind} />
+                <div className="flex-1 min-w-0 pt-1">
+                  <div style={{ color: "#0a0a0a", fontSize: 18, fontWeight: 500, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
+                    {m.prefix && (
+                      <span style={{ color: "#6b7280", fontWeight: 400 }}>{m.prefix} </span>
+                    )}
+                    <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.03em" }}>{m.big}</span>
+                  </div>
+                  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 15, lineHeight: 1.45 }}>
+                    {m.label}
+                  </div>
                 </div>
               </div>
             ))}
@@ -2644,6 +2636,63 @@ function FeatureMiniMockup({ kind }: { kind: string }) {
           TOI
         </div>
       </div>
+    </div>
+  );
+}
+
+/* METRIC 3D ICON — petit carré arrondi à gradient subtil, inset
+   highlight en haut et inset shadow en bas pour le relief 3D, picto
+   monochrome fin dedans. Style Taap.it (pas d'ombre externe forte,
+   tout le relief vient des inset shadows). */
+function Metric3DIcon({ kind }: { kind: string }) {
+  const box: React.CSSProperties = {
+    width: 56,
+    height: 56,
+    flexShrink: 0,
+    borderRadius: 14,
+    background: "linear-gradient(145deg, #ffffff 0%, #e5e7eb 100%)",
+    border: "1px solid rgba(15,15,40,0.06)",
+    boxShadow:
+      "inset 0 1px 1px rgba(255,255,255,0.95), inset 0 -2px 0 rgba(15,15,40,0.04), 0 1px 2px rgba(15,15,40,0.04)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#6b7280",
+  };
+
+  if (kind === "savings") {
+    // Price-tag / discount
+    return (
+      <div style={box}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3 H20 V11 L11 20 L4 13 L12 3 Z" />
+          <circle cx="16" cy="8" r="1" fill="currentColor" stroke="none" />
+          <path d="M14 14 L10 18" strokeDasharray="1 2" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (kind === "grid") {
+    // Gallery / créations grid
+    return (
+      <div style={box}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+        </svg>
+      </div>
+    );
+  }
+
+  // bolt — vitesse / < 2 min
+  return (
+    <div style={box}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M13 2 L4 14 H11 L10 22 L20 10 H13 L13 2 Z" />
+      </svg>
     </div>
   );
 }
