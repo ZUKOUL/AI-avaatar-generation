@@ -1,25 +1,27 @@
 "use client";
 
 /**
- * Horpen.ai — landing page (FR, structure Taap.it).
+ * Horpen.ai — landing page (FR, Taap.it-grade).
  *
- * 12 sections, inspirées du blueprint Taap.it :
+ * Sections :
  *   1.  Hero (dark panel + beams)
- *   2.  Social proof band
- *   3.  3 piliers (Convertir / Cloner / Unifier)
- *   4.  6 features
- *   5.  Témoignage unique
- *   6.  Analytics
- *   7.  Workspace hub
- *   8.  Micro-apps
- *   9.  FAQ
- *   10. CTA final + AEO (Ask ChatGPT / Claude / Perplexity)
- *   11. Build in public / Skool
- *   12. Footer détaillé
+ *   2.  Feature tabs interactifs (UGC / Avatars / Miniatures / Ads)
+ *   3.  Social proof — logos flottants + 3 metrics
+ *   4.  3 piliers (Convertir / Cloner / Unifier) + illustrations SVG
+ *   5.  Feature showcase (sidebar tabs + demo)
+ *   6.  6 features (icônes vectorielles, pas d'emoji)
+ *   7.  Témoignage unique
+ *   8.  Analytics + mockup
+ *   9.  Workspace hub
+ *   10. Micro-apps
+ *   11. Pricing
+ *   12. FAQ
+ *   13. CTA final + AEO (Ask ChatGPT / Claude / Perplexity)
+ *   14. Build in public
+ *   15. Footer
  *
- * Toutes les @keyframes sont centralisées dans un seul <style jsx global>
- * au sommet du composant — Next.js 16 (Turbopack) refuse les blocs
- * styled-jsx imbriqués plus profondément.
+ * Tous les @keyframes sont dans un seul <style jsx global> top-level
+ * (Turbopack refuse les styled-jsx imbriqués).
  */
 
 import { useEffect, useState } from "react";
@@ -34,9 +36,27 @@ import {
   Play,
   SparkleIcon,
   ChevronDown,
+  VideoCamera,
+  User,
+  Megaphone,
+  PlaySquare,
+  MagicWand,
+  Zap,
+  Camera,
+  Brush,
+  Copy,
+  Globe,
+  Package,
+  Palette,
+  LinkIcon,
+  Shield,
+  Video,
+  Heart,
+  Star,
+  Type,
 } from "@/components/Icons";
 
-/* ─── Pricing (miroir de app/core/pricing.py) ─────────────────────── */
+/* ─── Pricing ─────────────────────────────────────────────────────── */
 
 const PLANS = [
   {
@@ -88,7 +108,7 @@ const PLANS = [
   },
 ] as const;
 
-/* ─── FAQ (10 questions FR d'après blueprint section 9) ───────────── */
+/* ─── FAQ ─────────────────────────────────────────────────────────── */
 
 const FAQ = [
   {
@@ -97,7 +117,7 @@ const FAQ = [
   },
   {
     q: "C'est pour qui ?",
-    a: "E-commerçants, dropshippers, créateurs UGC, faceless content creators, opérateurs d'influenceurs IA, agences créa. Si tu vis de contenu qui doit convertir, Horpen est fait pour toi.",
+    a: "E-commerçants, dropshippers, créateurs UGC, faceless content creators, opérateurs d'influenceurs IA, agences créa.",
   },
   {
     q: "C'est gratuit pour commencer ?",
@@ -113,27 +133,39 @@ const FAQ = [
   },
   {
     q: "Quelle qualité de vidéo je peux sortir ?",
-    a: "Full HD par défaut, 4K en plan Studio. Compatible Kling 2.5 Turbo Pro, Veo 3.1 Fast, Hailuo 02 et Grok Imagine — tu choisis le moteur selon ton besoin qualité / vitesse.",
+    a: "Full HD par défaut, 4K en plan Studio. Compatible Kling 2.5 Turbo Pro, Veo 3.1 Fast, Hailuo 02 et Grok Imagine.",
   },
   {
     q: "Combien ça coûte réellement à l'usage ?",
-    a: "Free (0€, 3 crédits), Creator (35€/mois, 200 crédits), Studio (85€/mois, 450 crédits). Au-delà : pay-as-you-go sans engagement. Pas de surprise, pas de facture cachée.",
+    a: "Free (0€, 3 crédits), Creator (35€/mois, 200 crédits), Studio (85€/mois, 450 crédits). Au-delà : pay-as-you-go sans engagement.",
   },
   {
     q: "Mes créas m'appartiennent ?",
-    a: "100 %. Droits commerciaux inclus sur tous les plans payants. Tu publies, tu monétises, tu revendiques — c'est à toi.",
+    a: "100 %. Droits commerciaux inclus sur tous les plans payants. Tu publies, tu monétises, tu revendiques.",
   },
   {
     q: "Je peux cloner une ad concurrente légalement ?",
-    a: "Horpen te permet de reproduire un style, un angle ou un format. Tu restes responsable de ne pas copier de contenu sous copyright. Notre extension Chrome te guide sur ce qui est safe.",
+    a: "Horpen te permet de reproduire un style, un angle ou un format. Tu restes responsable de ne pas copier de contenu sous copyright.",
   },
   {
     q: "Comment je peux vous contacter ?",
-    a: "Discord communauté, email support@horpen.ai, ou Skool Horpen pour les clients qui veulent aller plus loin (masterclasses, feedback prioritaire, roadmap votée).",
+    a: "Discord communauté, email support@horpen.ai, ou Skool Horpen pour les clients qui veulent aller plus loin.",
   },
 ];
 
-/* ─── Showcase shape ──────────────────────────────────────────────── */
+/* ─── Tabs interactifs (section post-hero) ────────────────────────── */
+
+type TabKey = "ugc" | "avatars" | "thumbnails" | "ads" | "photo";
+
+const FEATURE_TABS: { key: TabKey; label: string; icon: React.ElementType; accent: string }[] = [
+  { key: "ugc", label: "UGC Vidéo", icon: VideoCamera, accent: "#3b82f6" },
+  { key: "avatars", label: "Avatars IA", icon: User, accent: "#a855f7" },
+  { key: "thumbnails", label: "Miniatures YTB", icon: PlaySquare, accent: "#ec4899" },
+  { key: "ads", label: "Ads créatives", icon: Megaphone, accent: "#f97316" },
+  { key: "photo", label: "Photo produit", icon: Camera, accent: "#10b981" },
+];
+
+/* ─── Showcase ────────────────────────────────────────────────────── */
 
 interface ShowcaseTile {
   url: string;
@@ -173,8 +205,9 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showcase, setShowcase] = useState<ShowcaseData>(EMPTY_SHOWCASE);
+  const [activeTab, setActiveTab] = useState<TabKey>("ugc");
+  const [activeShowcaseTab, setActiveShowcaseTab] = useState<TabKey>("ugc");
 
-  /* Auth redirect — côté client uniquement (localStorage SSR-unsafe). */
   useEffect(() => {
     if (isAuthenticated()) {
       router.replace("/dashboard");
@@ -184,7 +217,6 @@ export default function Home() {
     }
   }, [router]);
 
-  /* Showcase fetch — silencieux si indisponible. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -200,7 +232,7 @@ export default function Home() {
           });
         }
       } catch (e) {
-        console.debug("Showcase fetch failed, using placeholders:", e);
+        console.debug("Showcase fetch failed:", e);
       }
     })();
     return () => {
@@ -210,10 +242,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div
-        className="h-screen flex items-center justify-center"
-        style={{ background: "#fafafa" }}
-      >
+      <div className="h-screen flex items-center justify-center" style={{ background: "#fafafa" }}>
         <div className="spinner" />
       </div>
     );
@@ -228,31 +257,19 @@ export default function Home() {
         fontFeatureSettings: '"cv11", "ss01"',
       }}
     >
-      {/* Global keyframes — UN SEUL bloc, top-level (Turbopack-safe). */}
+      {/* Global keyframes — UN SEUL bloc (Turbopack-safe). */}
       <style jsx global>{`
-        @keyframes horpen-orb-a {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(60px, 40px); }
-        }
-        @keyframes horpen-orb-b {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(-50px, 70px); }
-        }
-        @keyframes horpen-orb-c {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(40px, -60px) scale(1.1); }
-        }
         @keyframes horpen-fade-up {
           0% { opacity: 0; transform: translate3d(0, 24px, 0); }
           100% { opacity: 1; transform: translate3d(0, 0, 0); }
         }
-        @keyframes horpen-hero-in {
-          0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.98); }
-          100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        @keyframes horpen-fade-in {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
-        @keyframes horpen-shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
+        @keyframes horpen-scale-in {
+          0% { opacity: 0; transform: scale(0.92); }
+          100% { opacity: 1; transform: scale(1); }
         }
         @keyframes hero-beam-breathe {
           0%, 100% { opacity: 0.55; }
@@ -266,9 +283,33 @@ export default function Home() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-6px); }
         }
-        @keyframes feature-glow {
-          0%, 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 20px 40px -15px rgba(15,15,40,0.12); }
-          50% { box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.18); }
+        @keyframes orb-float {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(40px, -30px); }
+        }
+        @keyframes timeline-dot {
+          0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59,130,246,0.5); }
+          50% { transform: scale(1.3); box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+        }
+        @keyframes graph-pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+        @keyframes graph-dash {
+          0% { stroke-dashoffset: 40; }
+          100% { stroke-dashoffset: 0; }
+        }
+        @keyframes tile-bounce {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-4px) scale(1.04); }
+        }
+        @keyframes bubble-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes tab-indicator {
+          0% { transform: scaleX(0); }
+          100% { transform: scaleX(1); }
         }
 
         .horpen-reveal {
@@ -287,6 +328,7 @@ export default function Home() {
         }
         @media (prefers-reduced-motion: reduce) {
           .horpen-reveal { opacity: 1; transform: none; animation: none; }
+          .marquee-track, .horpen-bubble { animation: none !important; }
         }
 
         .horpen-card-3d {
@@ -305,9 +347,48 @@ export default function Home() {
         .marquee-track {
           display: flex;
           width: max-content;
-          animation: marquee-scroll 40s linear infinite;
+          animation: marquee-scroll 45s linear infinite;
+        }
+
+        .horpen-bubble {
+          animation: bubble-float 6s ease-in-out infinite;
+        }
+
+        /* Dotted grid background — subtile mais présent partout */
+        .horpen-dotbg {
+          background-image:
+            radial-gradient(circle at 1px 1px, rgba(10,10,10,0.08) 1px, transparent 0);
+          background-size: 22px 22px;
+        }
+        .horpen-dotbg-soft {
+          background-image:
+            radial-gradient(circle at 1px 1px, rgba(10,10,10,0.05) 1px, transparent 0);
+          background-size: 22px 22px;
+        }
+
+        /* Tab underline animation */
+        .tab-active-bar {
+          animation: tab-indicator 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          transform-origin: left;
         }
       `}</style>
+
+      {/* Dotted global background overlay — fondu vers le bas */}
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 pointer-events-none horpen-dotbg-soft"
+        style={{
+          maskImage: "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0) 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0) 100%)",
+          zIndex: 0,
+        }}
+      />
+
+      {/* Orbs animées */}
+      <div aria-hidden="true" className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+        <div style={{ position: "absolute", top: "5%", left: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(59,130,246,0.18), transparent 70%)", filter: "blur(40px)", animation: "orb-float 24s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", top: "40%", right: "5%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(168,85,247,0.15), transparent 70%)", filter: "blur(40px)", animation: "orb-float 30s ease-in-out infinite reverse" }} />
+      </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
 
@@ -325,19 +406,9 @@ export default function Home() {
               className="rounded-lg flex items-center justify-center shrink-0"
               style={{ width: 32, height: 32, background: "#0a0a0a" }}
             >
-              <Image
-                src="/horpen-logo.png"
-                alt=""
-                width={20}
-                height={20}
-                priority
-                style={{ objectFit: "contain" }}
-              />
+              <Image src="/horpen-logo.png" alt="" width={20} height={20} priority style={{ objectFit: "contain" }} />
             </div>
-            <span
-              className="text-[17px] font-semibold"
-              style={{ color: "#0a0a0a", letterSpacing: "-0.02em" }}
-            >
+            <span style={{ fontSize: 17, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
               Horpen
             </span>
           </Link>
@@ -351,29 +422,17 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="hidden md:inline text-[14px]"
-              style={{ color: "#555" }}
-            >
+            <Link href="/login" className="hidden md:inline text-[14px]" style={{ color: "#555" }}>
               Se connecter
             </Link>
             <Link
               href="/signup"
               className="text-[14px] font-medium px-4 py-2 rounded-full transition"
-              style={{
-                background: "#0a0a0a",
-                color: "#ffffff",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-              }}
+              style={{ background: "#0a0a0a", color: "#ffffff", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }}
             >
               Essai gratuit
             </Link>
-            <button
-              className="md:hidden p-2"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Menu"
-            >
+            <button className="md:hidden p-2" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
               <div className="w-5 h-[2px] bg-[#0a0a0a] mb-1" />
               <div className="w-5 h-[2px] bg-[#0a0a0a] mb-1" />
               <div className="w-5 h-[2px] bg-[#0a0a0a]" />
@@ -393,7 +452,7 @@ export default function Home() {
       </nav>
 
       {/* ══════════════════════ SECTION 1 — HERO ══════════════════════ */}
-      <section className="pt-[88px] pb-10 md:pb-16 px-4 md:px-6">
+      <section className="pt-[88px] pb-6 px-4 md:px-6">
         <div
           className="max-w-[1280px] mx-auto rounded-[26px] md:rounded-[32px] relative overflow-hidden"
           style={{
@@ -404,7 +463,7 @@ export default function Home() {
             boxShadow: "0 1px 2px rgba(0,0,0,0.4), 0 60px 120px -30px rgba(8,16,29,0.55)",
           }}
         >
-          {/* 7 god-ray beams */}
+          {/* Beams */}
           <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
             {[
               { left: "8%", color: "rgba(96,165,250,0.35)", width: 140, delay: "0s" },
@@ -433,7 +492,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Contenu hero */}
           <div className="relative z-10 flex flex-col items-center text-center px-5 md:px-10 pt-16 md:pt-24 pb-10">
             <div
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 horpen-reveal"
@@ -499,7 +557,7 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <a
-                href="#demo"
+                href="#feature-tabs"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium transition"
                 style={{
                   background: "rgba(255,255,255,0.08)",
@@ -513,254 +571,294 @@ export default function Home() {
               </a>
             </div>
 
+            {/* Tabs hero */}
             <div
-              className="horpen-reveal mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+              id="feature-tabs"
+              className="horpen-reveal mt-12 w-full flex flex-wrap items-center justify-center gap-2"
               style={{ "--horpen-reveal-delay": "0.4s" } as React.CSSProperties}
             >
-              {["UGC vidéo", "Photos produit", "Ads", "Miniatures YTB", "Influenceur IA"].map(
-                (b, i) => (
-                  <span
-                    key={b}
+              {FEATURE_TABS.map((tab) => {
+                const active = activeTab === tab.key;
+                const TabIcon = tab.icon;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition"
                     style={{
-                      color: "#94a3b8",
-                      fontSize: 13,
-                      letterSpacing: "0.01em",
+                      background: active ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.04)",
+                      border: active ? `1px solid ${tab.accent}` : "1px solid rgba(255,255,255,0.08)",
+                      color: active ? "#ffffff" : "#94a3b8",
+                      fontSize: 13.5,
+                      fontWeight: 500,
+                      boxShadow: active ? `0 0 20px ${tab.accent}40` : "none",
                     }}
                   >
-                    {b}
-                    {i < 4 && <span className="mx-2 opacity-50">·</span>}
-                  </span>
-                )
-              )}
+                    <span style={{ color: active ? tab.accent : "#94a3b8", display: "inline-flex" }}>
+                      <TabIcon className="w-4 h-4" />
+                    </span>
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Hero preview : gallery d'aperçus */}
+            {/* Hero demo — visuel qui change selon le tab actif */}
             <div
-              className="horpen-reveal mt-14 w-full"
+              className="horpen-reveal mt-8 w-full"
               style={{ "--horpen-reveal-delay": "0.5s", maxWidth: 1080 } as React.CSSProperties}
             >
-              <HeroPreview showcase={showcase} />
+              <HeroDemo activeTab={activeTab} showcase={showcase} />
             </div>
           </div>
         </div>
       </section>
 
       {/* ══════════════════════ SECTION 2 — SOCIAL PROOF ══════════════════════ */}
-      <section className="py-14 md:py-20 px-5 md:px-8">
+      <section className="py-16 md:py-24 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
+          {/* Logos en bulles flottantes */}
+          <FloatingLogos />
+
           <p
-            className="text-center horpen-reveal"
-            style={{
-              color: "#6b7280",
-              fontSize: 14,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              fontWeight: 500,
-            }}
+            className="text-center mt-10"
+            style={{ color: "#6b7280", fontSize: 15 }}
           >
-            Utilisé par créateurs et marques e-com dans 30+ pays
+            Ils nous font confiance —{" "}
+            <span style={{ color: "#0a0a0a", fontWeight: 600 }}>1 200+ créateurs et marques e-com</span>{" "}
+            dans 30+ pays.
           </p>
 
-          {/* Logos carousel (placeholders texte — remplacer par vrais logos) */}
-          <div className="mt-8 overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}>
-            <div className="marquee-track items-center gap-12 md:gap-16">
-              {[...Array(2)].flatMap((_, dup) =>
-                ["OPALE", "NOVA", "Kairos", "MERIDIAN", "Orbit", "LUMEN", "Fjord", "Aria", "PRISMA", "Zenith", "Halo", "VOLT"].map((name, i) => (
-                  <span
-                    key={`${dup}-${i}`}
-                    style={{
-                      fontSize: 22,
-                      letterSpacing: "0.2em",
-                      color: "#9ca3af",
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {name}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-
           {/* 3 metrics */}
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
+          <div className="mt-14 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { big: "10×", label: "moins cher qu'un shooting UGC traditionnel" },
-              { big: "+50 000", label: "créas générées chaque mois par la communauté" },
-              { big: "< 2 min", label: "du prompt à la vidéo prête à publier" },
-            ].map((m, i) => (
-              <div
-                key={i}
-                className="horpen-reveal text-center md:text-left"
-                style={{ "--horpen-reveal-delay": `${0.1 * i}s` } as React.CSSProperties}
-              >
+              { big: "10×", label: "moins cher qu'un shooting UGC traditionnel", icon: Zap, color: "#3b82f6" },
+              { big: "+50 000", label: "créas générées chaque mois par la communauté", icon: SparkleIcon, color: "#a855f7" },
+              { big: "< 2 min", label: "du prompt à la vidéo prête à publier", icon: Video, color: "#ec4899" },
+            ].map((m, i) => {
+              const MIcon = m.icon;
+              return (
                 <div
+                  key={i}
+                  className="horpen-reveal horpen-card-3d p-8 rounded-2xl"
                   style={{
-                    fontSize: "clamp(40px, 4.5vw, 56px)",
-                    fontWeight: 600,
-                    letterSpacing: "-0.03em",
-                    color: "#0a0a0a",
-                    lineHeight: 1,
-                  }}
-                >
-                  {m.big}
-                </div>
-                <div style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.5 }}>
-                  {m.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════ SECTION 3 — 3 PILIERS ══════════════════════ */}
-      <section id="piliers" className="py-16 md:py-24 px-5 md:px-8">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-14 md:mb-20">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Pensé pour vendre
-            </div>
-            <h2 className="horpen-reveal" style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 860, margin: "0 auto" }}>
-              Trois raisons pour lesquelles Horpen remplace ta stack créa.
-            </h2>
-          </div>
-
-          <div className="space-y-24 md:space-y-32">
-            <PilierRow
-              reverse={false}
-              index={1}
-              title="Des contenus pensés pour convertir, pas pour faire joli."
-              desc="Chaque UGC, chaque ad, chaque miniature est optimisée pour un seul objectif : faire cliquer, faire acheter. Templates battle-testés sur les niches e-com, hook generator intégré, A/B test en un clic."
-              tags={["UGC vidéo", "Ads IA", "Hook generator", "Templates e-com"]}
-              visual={<PilierVisualConvertir />}
-            />
-            <PilierRow
-              reverse={true}
-              index={2}
-              title="Clone ce qui cartonne. En 1 clic."
-              desc="Une ad qui marche chez un concurrent ? Colle le lien, remplace le produit ou le personnage, récupère ta version. Trend virale sur TikTok ? Duplique le style, garde la viralité. Extension Chrome pour capturer à la volée."
-              tags={["Clonage d'ads", "Duplication de trend", "Swap produit", "Extension Chrome"]}
-              visual={<PilierVisualCloner />}
-            />
-            <PilierRow
-              reverse={false}
-              index={3}
-              title="Ta stack créa, enfin unifiée."
-              desc="Remplace ton shooting produit, ton UGC creator freelance, ton designer de miniatures, ton monteur vidéo et ton éditeur photo. Un seul workspace, une seule facture, zéro aller-retour."
-              tags={["Workspace e-com", "Photo produit", "Miniature YTB", "Influenceur IA"]}
-              visual={<PilierVisualUnifier />}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════ SECTION 4 — 6 FEATURES ══════════════════════ */}
-      <section id="features" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-14">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Features
-            </div>
-            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
-              Des outils pensés pour vendre, <span style={{ color: "#9ca3af" }}>pas pour impressionner.</span>
-            </h2>
-            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 620, margin: "18px auto 0" }}>
-              Chaque feature d&apos;Horpen a été créée pour une chose : te faire gagner du temps et te faire gagner de l&apos;argent. Pas pour remplir un changelog.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-            {[
-              {
-                emoji: "🔥",
-                title: "Tinder des ads",
-                desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure.",
-              },
-              {
-                emoji: "🎭",
-                title: "Style personnalisé",
-                desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas.",
-              },
-              {
-                emoji: "🎬",
-                title: "Miniatures YTB",
-                desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes.",
-              },
-              {
-                emoji: "📦",
-                title: "Templates de packs",
-                desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts à l'emploi.",
-              },
-              {
-                emoji: "🤖",
-                title: "Agents IA connectés",
-                desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme.",
-              },
-              {
-                emoji: "🌀",
-                title: "Duplicateur de trends",
-                desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche.",
-              },
-            ].map((f, i) => (
-              <div
-                key={f.title}
-                className="horpen-reveal horpen-card-3d p-7 rounded-2xl"
-                style={{
-                  background: "#fafafa",
-                  border: "1px solid #ececec",
-                  "--horpen-reveal-delay": `${0.05 * i}s`,
-                } as React.CSSProperties}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
                     background: "#ffffff",
                     border: "1px solid #ececec",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 22,
-                    marginBottom: 18,
-                  }}
+                    "--horpen-reveal-delay": `${0.1 * i}s`,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  } as React.CSSProperties}
                 >
-                  {f.emoji}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: `${m.color}15`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: m.color,
+                      }}
+                    >
+                      <MIcon className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "clamp(40px, 4.5vw, 54px)",
+                      fontWeight: 600,
+                      letterSpacing: "-0.03em",
+                      color: "#0a0a0a",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {m.big}
+                  </div>
+                  <div style={{ marginTop: 12, color: "#6b7280", fontSize: 15, lineHeight: 1.5 }}>
+                    {m.label}
+                  </div>
                 </div>
-                <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
-                  {f.title}
-                </h3>
-                <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
-                  {f.desc}
-                </p>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 3 — 3 PILIERS (style Taap Optimize) ══════════════════════ */}
+      <section id="piliers" className="py-16 md:py-24 px-5 md:px-8">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-14 md:mb-16">
+            <div className="inline-flex items-center gap-1.5 mb-5 px-3 py-1.5 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+              <SparkleIcon className="w-3.5 h-3.5" />
+              Optimize
+            </div>
+            <h2 className="horpen-reveal" style={{ fontSize: "clamp(32px, 4.5vw, 54px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
+              Conçu pour les créateurs et les marques{" "}
+              <span style={{ color: "#9ca3af" }}>qui veulent des résultats, pas du décoratif.</span>
+            </h2>
+          </div>
+
+          {/* 3 cards Taap-style */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+            <PilierCard
+              index={0}
+              title="Des contenus faits pour convertir"
+              desc="Chaque UGC, chaque ad, chaque miniature est optimisée pour un seul objectif : faire cliquer, faire acheter. Templates battle-testés sur les niches e-com, hook generator intégré."
+              tags={[
+                { label: "Hook generator", color: "#3b82f6" },
+                { label: "Templates e-com", color: "#a855f7" },
+              ]}
+              visual={<PilierVisualConvertir />}
+              accent="#3b82f6"
+              dark={false}
+            />
+            <PilierCard
+              index={1}
+              title="Le clonage intégré à l&apos;outil"
+              desc="Colle un lien. Remplace le produit. Horpen reproduit le style, l&apos;angle, le format. Extension Chrome pour capturer à la volée. Tu restes 100 % original."
+              tags={[
+                { label: "Clonage d'ads", color: "#60a5fa" },
+                { label: "Duplication de trend", color: "#c084fc" },
+                { label: "Extension Chrome", color: "#fbbf24" },
+              ]}
+              visual={<PilierVisualCloner />}
+              accent="#60a5fa"
+              dark={true}
+            />
+            <PilierCard
+              index={2}
+              title="Toute ta stack créa, unifiée"
+              desc="Remplace ton shooting produit, ton UGC creator, ton designer miniatures et ton monteur vidéo. Un seul workspace. Tous tes liens branded, organisés et centralisés."
+              tags={[
+                { label: "UGC vidéo", color: "#10b981" },
+                { label: "Photo produit", color: "#3b82f6" },
+                { label: "Miniature YTB", color: "#ec4899" },
+                { label: "Avatar IA", color: "#a855f7" },
+              ]}
+              visual={<PilierVisualUnifier />}
+              accent="#10b981"
+              dark={false}
+            />
           </div>
 
           <div className="text-center mt-12">
             <Link
               href="/signup"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
-              style={{
-                background: "#0a0a0a",
-                color: "#ffffff",
-                fontSize: 14,
-              }}
+              style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
             >
-              Explorer toutes les features
+              Essai gratuit
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 5 — TÉMOIGNAGE ══════════════════════ */}
-      <section className="py-20 md:py-28 px-5 md:px-8">
+      {/* ══════════════════════ SECTION 4 — FEATURE SHOWCASE (sidebar tabs) ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-14">
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
+              Des outils faits pour vendre,{" "}
+              <span style={{ color: "#9ca3af" }}>pas juste pour afficher.</span>
+            </h2>
+            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
+              UGC, avatars IA, miniatures, photos produit, ads : chaque feature que tu crées avec
+              Horpen est pensée pour ramener des clics, pas des likes de politesse.
+            </p>
+            <div className="mt-7">
+              <Link
+                href="/signup"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
+                style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
+              >
+                Explorer les features
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          <FeatureShowcaseTabs
+            active={activeShowcaseTab}
+            setActive={setActiveShowcaseTab}
+            showcase={showcase}
+          />
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 5 — 6 FEATURES ══════════════════════ */}
+      <section id="features" className="py-20 md:py-28 px-5 md:px-8">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+              <Zap className="w-3.5 h-3.5" />
+              Features
+            </div>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
+              Tout ce qu&apos;il te faut pour produire.
+              <br />
+              <span style={{ color: "#9ca3af" }}>Rien de superflu.</span>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {[
+              { icon: Heart, title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure.", color: "#ec4899" },
+              { icon: Palette, title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas.", color: "#a855f7" },
+              { icon: PlaySquare, title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes.", color: "#ef4444" },
+              { icon: Package, title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts.", color: "#f97316" },
+              { icon: MagicWand, title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme.", color: "#3b82f6" },
+              { icon: Copy, title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche.", color: "#10b981" },
+            ].map((f, i) => {
+              const FIcon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  className="horpen-reveal horpen-card-3d p-7 rounded-2xl"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #ececec",
+                    "--horpen-reveal-delay": `${0.05 * i}s`,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  } as React.CSSProperties}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      background: `linear-gradient(135deg, ${f.color}20, ${f.color}08)`,
+                      border: `1px solid ${f.color}25`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: f.color,
+                      marginBottom: 18,
+                    }}
+                  >
+                    <FIcon className="w-5 h-5" />
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
+                    {f.title}
+                  </h3>
+                  <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
+                    {f.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ SECTION 6 — TÉMOIGNAGE ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
         <div className="max-w-[880px] mx-auto text-center">
-          <div className="inline-block mb-6 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            Témoignage
+          <div className="flex items-center justify-center gap-1 mb-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star key={i} className="w-5 h-5" style={{ color: "#fbbf24" }} />
+            ))}
           </div>
           <blockquote
             className="horpen-reveal"
@@ -773,9 +871,9 @@ export default function Home() {
             }}
           >
             &ldquo;Avant Horpen, je dépensais 1 800&nbsp;€/mois en UGC creators pour 4&nbsp;vidéos.
-            Aujourd&apos;hui j&apos;en génère <span style={{ color: "#9ca3af" }}>20 par semaine</span>,
-            mes ads tournent en continu, et mon ROAS est passé de 1,4 à 3,1. Le truc qui change
-            tout, c&apos;est le clonage d&apos;ads concurrentes.&rdquo;
+            Aujourd&apos;hui j&apos;en génère <span style={{ color: "#3b82f6" }}>20 par semaine</span>,
+            mes ads tournent en continu, et mon ROAS est passé de 1,4 à 3,1. Le truc qui change tout,
+            c&apos;est le clonage d&apos;ads concurrentes.&rdquo;
           </blockquote>
           <div className="mt-10 flex items-center justify-center gap-4">
             <div
@@ -796,26 +894,28 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 6 — ANALYTICS ══════════════════════ */}
-      <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
+      {/* ══════════════════════ SECTION 7 — ANALYTICS ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Analytics
+            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#ecfdf5", color: "#10b981", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+              <Zap className="w-3.5 h-3.5" />
+              Mesure
             </div>
             <h2 style={{ fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
-              Sache exactement <span style={{ color: "#9ca3af" }}>quelles créas rapportent.</span>
+              Sache exactement{" "}
+              <span style={{ color: "#9ca3af" }}>quelles créas rapportent.</span>
             </h2>
             <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, lineHeight: 1.55, maxWidth: 520 }}>
               Pas besoin de deviner. Horpen track quelle ad convertit, quel hook fonctionne,
               quel style génère le plus d&apos;engagement. Tu gardes ce qui marche, tu jettes le reste.
             </p>
 
-            <div className="mt-8 space-y-5">
+            <div className="mt-8 space-y-4">
               {[
                 { t: "Performance par créa", d: "ROAS, CTR, taux de scroll-stop. Pour chaque ad générée, tu vois ce qu'elle a ramené." },
                 { t: "A/B test automatique", d: "Lance 10 variantes d'un même angle. Horpen détecte la gagnante et duplique le style." },
-                { t: "Hook scoring", d: "Chaque hook généré est scoré sur sa probabilité de faire arrêter le scroll. Avant même de publier." },
+                { t: "Hook scoring", d: "Chaque hook est scoré sur sa probabilité de faire arrêter le scroll. Avant même de publier." },
                 { t: "Trend tracking", d: "Horpen suit les vidéos virales dans ta niche en temps réel. Tu dupliques avant les autres." },
               ].map((it) => (
                 <div key={it.t} className="flex gap-3">
@@ -843,76 +943,24 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Mockup dashboard */}
-          <div
-            className="horpen-reveal"
-            style={{
-              background: "#fafafa",
-              border: "1px solid #ececec",
-              borderRadius: 20,
-              padding: 22,
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
-            }}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>Performance — 7 derniers jours</div>
-              <div style={{ fontSize: 11, color: "#16a34a", background: "#dcfce7", padding: "3px 8px", borderRadius: 999, fontWeight: 600 }}>
-                +34%
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              {[
-                { label: "Impressions", val: "128k", d: "+12%" },
-                { label: "CTR", val: "3,8%", d: "+0,6pt" },
-                { label: "ROAS", val: "3,1×", d: "+0,4" },
-              ].map((k) => (
-                <div key={k.label} style={{ background: "#ffffff", border: "1px solid #ececec", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", marginTop: 4 }}>{k.val}</div>
-                  <div style={{ fontSize: 11, color: "#16a34a", marginTop: 2 }}>{k.d}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Fake chart */}
-            <div style={{ background: "#ffffff", border: "1px solid #ececec", borderRadius: 12, padding: 16, height: 180, position: "relative", overflow: "hidden" }}>
-              <svg viewBox="0 0 300 120" preserveAspectRatio="none" style={{ width: "100%", height: "100%" }}>
-                <defs>
-                  <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0a0a0a" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#0a0a0a" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M0,90 C30,85 60,70 90,60 C120,50 150,65 180,45 C210,30 240,35 270,20 L300,15 L300,120 L0,120 Z"
-                  fill="url(#chart-fill)"
-                />
-                <path
-                  d="M0,90 C30,85 60,70 90,60 C120,50 150,65 180,45 C210,30 240,35 270,20 L300,15"
-                  fill="none"
-                  stroke="#0a0a0a"
-                  strokeWidth="2"
-                />
-              </svg>
-            </div>
-          </div>
+          <AnalyticsMockup />
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 7 — WORKSPACE HUB ══════════════════════ */}
-      <section className="py-20 md:py-28 px-5 md:px-8">
+      {/* ══════════════════════ SECTION 8 — WORKSPACE HUB ══════════════════════ */}
+      <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[1080px] mx-auto text-center">
-          <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#fef3f2", color: "#ec4899", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <LinkIcon className="w-3.5 h-3.5" />
             Workspace
           </div>
           <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
-            Un seul espace qui remplace <span style={{ color: "#9ca3af" }}>ton agence créa.</span>
+            Un seul espace qui remplace{" "}
+            <span style={{ color: "#9ca3af" }}>ton agence créa.</span>
           </h2>
           <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
             Ton logo, tes produits, tes UGC, tes ads, tes miniatures, tes influenceurs IA.
-            Tout au même endroit, tout réutilisable, tout déclinable. Comme avoir un studio créa
-            en illimité dans le cloud.
+            Tout au même endroit, tout réutilisable, tout déclinable.
           </p>
 
           <div className="mt-14">
@@ -932,93 +980,117 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 8 — MICRO-APPS ══════════════════════ */}
-      <section id="micro-apps" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
+      {/* ══════════════════════ SECTION 9 — MICRO-APPS ══════════════════════ */}
+      <section id="micro-apps" className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
           <div className="text-center mb-14">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Micro-apps
+            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#fffbeb", color: "#f59e0b", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+              <Package className="w-3.5 h-3.5" />
+              Apps
             </div>
             <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 860, margin: "0 auto" }}>
-              Un besoin précis ? <span style={{ color: "#9ca3af" }}>On a l&apos;app pour ça.</span>
+              Un besoin précis ?{" "}
+              <span style={{ color: "#9ca3af" }}>On a l&apos;app pour ça.</span>
             </h2>
             <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
-              Horpen, c&apos;est une plateforme. Mais chaque brique est aussi accessible en app dédiée.
-              Entrée rapide, résultat immédiat.
+              Chaque brique d&apos;Horpen est aussi accessible en micro-app dédiée. Entrée rapide, résultat immédiat.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              {
-                url: "horpen.ai/thumbnails",
-                title: "Générateur de miniatures",
-                desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.",
-                gradient: "linear-gradient(135deg, #f472b6 0%, #a78bfa 100%)",
-              },
-              {
-                url: "horpen.ai/photoshoot",
-                title: "Shooting produit IA",
-                desc: "Upload ton produit, choisis l'ambiance, reçois 20 photos pro.",
-                gradient: "linear-gradient(135deg, #60a5fa 0%, #34d399 100%)",
-              },
-              {
-                url: "horpen.ai/pixea",
-                title: "Style transfer IA",
-                desc: "Transforme n'importe quelle image dans le style de ton choix.",
-                gradient: "linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)",
-              },
-            ].map((app) => (
-              <div
-                key={app.url}
-                className="horpen-card-3d rounded-2xl overflow-hidden"
-                style={{ background: "#fafafa", border: "1px solid #ececec" }}
-              >
-                <div style={{ height: 140, background: app.gradient, position: "relative" }}>
+              { url: "horpen.ai/thumbnails", title: "Générateur de miniatures", desc: "Colle un lien, récupère une miniature YTB qui fait cliquer. En 5 secondes.", icon: PlaySquare, color: "#ef4444" },
+              { url: "horpen.ai/photoshoot", title: "Shooting produit IA", desc: "Upload ton produit, choisis l'ambiance, reçois 20 photos pro.", icon: Camera, color: "#3b82f6" },
+              { url: "horpen.ai/pixea", title: "Style transfer IA", desc: "Transforme n'importe quelle image dans le style de ton choix.", icon: Brush, color: "#a855f7" },
+            ].map((app) => {
+              const AIcon = app.icon;
+              return (
+                <div
+                  key={app.url}
+                  className="horpen-card-3d rounded-2xl overflow-hidden"
+                  style={{ background: "#ffffff", border: "1px solid #ececec", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}
+                >
                   <div
                     style={{
-                      position: "absolute",
-                      bottom: 14,
-                      left: 16,
-                      background: "rgba(255,255,255,0.9)",
-                      backdropFilter: "blur(10px)",
-                      padding: "6px 12px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#0a0a0a",
-                      letterSpacing: "-0.01em",
+                      height: 160,
+                      background: `linear-gradient(135deg, ${app.color}25 0%, ${app.color}08 100%)`,
+                      position: "relative",
+                      borderBottom: "1px solid #ececec",
+                      overflow: "hidden",
                     }}
                   >
-                    {app.url}
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 horpen-dotbg-soft opacity-60"
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: 72,
+                        height: 72,
+                        borderRadius: 18,
+                        background: "#ffffff",
+                        border: `1px solid ${app.color}30`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: app.color,
+                        boxShadow: `0 12px 32px ${app.color}25`,
+                      }}
+                    >
+                      <AIcon className="w-8 h-8" />
+                    </div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 14,
+                        left: 16,
+                        background: "rgba(255,255,255,0.9)",
+                        backdropFilter: "blur(10px)",
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#0a0a0a",
+                        letterSpacing: "-0.01em",
+                        border: "1px solid rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      {app.url}
+                    </div>
+                  </div>
+                  <div style={{ padding: 22 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
+                      {app.title}
+                    </h3>
+                    <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
+                      {app.desc}
+                    </p>
+                    <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 500, color: app.color }}>
+                      Essayer <ArrowRight className="w-3.5 h-3.5" />
+                    </div>
                   </div>
                 </div>
-                <div style={{ padding: 22 }}>
-                  <h3 style={{ fontSize: 18, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
-                    {app.title}
-                  </h3>
-                  <p style={{ marginTop: 8, color: "#6b7280", fontSize: 14.5, lineHeight: 1.55 }}>
-                    {app.desc}
-                  </p>
-                  <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 500, color: "#0a0a0a" }}>
-                    Essayer <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ══════════════════════ PRICING ══════════════════════ */}
-      <section id="pricing" className="py-20 md:py-28 px-5 md:px-8">
+      {/* ══════════════════════ SECTION 10 — PRICING ══════════════════════ */}
+      <section id="pricing" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
         <div className="max-w-[1080px] mx-auto">
           <div className="text-center mb-14">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+              <Shield className="w-3.5 h-3.5" />
               Tarifs
             </div>
             <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
-              Une fraction du prix <span style={{ color: "#9ca3af" }}>d&apos;Arcads, Weavy ou Makeugc.</span>
+              Une fraction du prix{" "}
+              <span style={{ color: "#9ca3af" }}>d&apos;Arcads, Weavy ou Makeugc.</span>
             </h2>
             <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 560, margin: "18px auto 0" }}>
               Annule à tout moment. Droits commerciaux inclus dès le premier plan payant.
@@ -1035,6 +1107,7 @@ export default function Home() {
                   border: plan.highlighted ? "1px solid #0a0a0a" : "1px solid #ececec",
                   color: plan.highlighted ? "#ffffff" : "#0a0a0a",
                   position: "relative",
+                  boxShadow: plan.highlighted ? "0 30px 60px -15px rgba(0,0,0,0.3)" : "0 1px 2px rgba(0,0,0,0.03)",
                 }}
               >
                 {plan.highlighted && (
@@ -1091,15 +1164,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 9 — FAQ ══════════════════════ */}
-      <section id="faq" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
+      {/* ══════════════════════ SECTION 11 — FAQ ══════════════════════ */}
+      <section id="faq" className="py-20 md:py-28 px-5 md:px-8">
         <div className="max-w-[820px] mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
               FAQ
             </div>
             <h2 style={{ fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
-              Toujours des questions ? <span style={{ color: "#9ca3af" }}>On a les réponses.</span>
+              Toujours des questions ?{" "}
+              <span style={{ color: "#9ca3af" }}>On a les réponses.</span>
             </h2>
           </div>
 
@@ -1110,10 +1184,12 @@ export default function Home() {
                 <div
                   key={i}
                   style={{
-                    background: "#fafafa",
+                    background: "#ffffff",
                     border: "1px solid #ececec",
                     borderRadius: 14,
                     overflow: "hidden",
+                    boxShadow: open ? "0 4px 12px rgba(0,0,0,0.04)" : "none",
+                    transition: "box-shadow 0.2s ease",
                   }}
                 >
                   <button
@@ -1150,7 +1226,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 10 — CTA FINAL + AEO ══════════════════════ */}
+      {/* ══════════════════════ SECTION 12 — CTA FINAL + AEO ══════════════════════ */}
       <section className="py-24 md:py-32 px-5 md:px-8">
         <div className="max-w-[960px] mx-auto">
           <div
@@ -1161,6 +1237,15 @@ export default function Home() {
               boxShadow: "0 60px 120px -30px rgba(8,16,29,0.4)",
             }}
           >
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)",
+                backgroundSize: "22px 22px",
+                maskImage: "radial-gradient(circle at 50% 0%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 80%)",
+              }}
+            />
             <div className="relative z-10">
               <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff", maxWidth: 780, margin: "0 auto" }}>
                 T&apos;es descendu jusqu&apos;ici.
@@ -1168,7 +1253,7 @@ export default function Home() {
                 <span style={{ color: "#94a3b8" }}>C&apos;est le moment de tester.</span>
               </h2>
               <p style={{ marginTop: 18, color: "#cbd5e1", fontSize: 17, maxWidth: 540, margin: "18px auto 0", lineHeight: 1.55 }}>
-                Génère tes premières créas gratuitement. Pas de CB, pas d&apos;engagement, pas de bullshit.
+                Génère tes premières créas gratuitement. Pas de CB, pas d&apos;engagement.
               </p>
               <div className="mt-9">
                 <Link
@@ -1188,7 +1273,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* AEO — Ask ChatGPT / Claude / Perplexity */}
+          {/* AEO trick */}
           <div className="mt-16 text-center">
             <p style={{ color: "#6b7280", fontSize: 15, maxWidth: 560, margin: "0 auto" }}>
               Tu hésites encore ? Demande à ton IA préférée ce qu&apos;elle pense d&apos;Horpen.
@@ -1216,13 +1301,8 @@ export default function Home() {
                   href={btn.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid #ececec",
-                    color: "#0a0a0a",
-                    fontSize: 14,
-                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition horpen-card-3d"
+                  style={{ background: "#ffffff", border: "1px solid #ececec", color: "#0a0a0a", fontSize: 14 }}
                 >
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: btn.bg }} />
                   Demander à {btn.name}
@@ -1233,10 +1313,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 11 — BUILD IN PUBLIC ══════════════════════ */}
-      <section className="py-16 md:py-20 px-5 md:px-8" style={{ background: "#fafafa", borderTop: "1px solid #ececec" }}>
+      {/* ══════════════════════ SECTION 13 — BUILD IN PUBLIC ══════════════════════ */}
+      <section className="py-16 md:py-20 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[820px] mx-auto text-center">
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🛠️</div>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #3b82f620, #a855f720)",
+              border: "1px solid #ececec",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 18,
+              color: "#3b82f6",
+            }}
+          >
+            <Globe className="w-7 h-7" />
+          </div>
           <h3 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", lineHeight: 1.25, letterSpacing: "-0.025em", fontWeight: 600, color: "#0a0a0a", maxWidth: 640, margin: "0 auto" }}>
             Horpen se construit avec toi.
             <br />
@@ -1264,26 +1359,23 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 12 — FOOTER ══════════════════════ */}
-      <footer style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
+      {/* ══════════════════════ SECTION 14 — FOOTER ══════════════════════ */}
+      <footer style={{ background: "#fafafa", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-14 md:py-18">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-10">
             <div className="col-span-2">
               <Link href="/" className="flex items-center gap-2">
-                <div
-                  className="rounded-lg flex items-center justify-center"
-                  style={{ width: 32, height: 32, background: "#0a0a0a" }}
-                >
+                <div className="rounded-lg flex items-center justify-center" style={{ width: 32, height: 32, background: "#0a0a0a" }}>
                   <Image src="/horpen-logo.png" alt="" width={20} height={20} style={{ objectFit: "contain" }} />
                 </div>
                 <span style={{ fontSize: 17, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>Horpen</span>
               </Link>
               <p style={{ marginTop: 14, color: "#6b7280", fontSize: 14, lineHeight: 1.55, maxWidth: 320 }}>
-                L&apos;IA tout-en-un pour créer, cloner et décliner tes contenus marketing. UGC,
-                ads, miniatures, photos produit, influenceurs IA.
+                L&apos;IA tout-en-un pour créer, cloner et décliner tes contenus marketing. UGC, ads,
+                miniatures, photos produit, influenceurs IA.
               </p>
               <div style={{ marginTop: 16, color: "#9ca3af", fontSize: 13 }}>
-                Build in public — Roadmap ouverte 🛠️
+                Build in public — Roadmap ouverte
               </div>
             </div>
 
@@ -1360,7 +1452,7 @@ export default function Home() {
               © {new Date().getFullYear()} Horpen.ai — Tous droits réservés.
             </div>
             <div style={{ fontSize: 13, color: "#9ca3af" }}>
-              Fait avec ❤️ pour les créateurs et les marques e-com.
+              Fait en France, pour créateurs et marques e-com.
             </div>
           </div>
         </div>
@@ -1375,187 +1467,78 @@ export default function Home() {
  *  SUB-COMPONENTS
  * ═════════════════════════════════════════════════════════════════ */
 
-/* Hero preview — grille d'aperçus avec vraies images showcase si dispo. */
-function HeroPreview({ showcase }: { showcase: ShowcaseData }) {
-  const tiles: { url?: string; aspect: string; fallback: string }[] = [
-    {
-      url: showcase.thumbnails[0]?.url,
-      aspect: "16/9",
-      fallback: "linear-gradient(135deg, #f472b6 0%, #a78bfa 100%)",
-    },
-    {
-      url: showcase.avatars[0]?.url,
-      aspect: "1/1",
-      fallback: "linear-gradient(135deg, #60a5fa 0%, #34d399 100%)",
-    },
-    {
-      url: showcase.ads[0]?.url,
-      aspect: "1/1",
-      fallback: "linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)",
-    },
-    {
-      url: showcase.images[0]?.url,
-      aspect: "1/1",
-      fallback: "linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%)",
-    },
-    {
-      url: showcase.thumbnails[1]?.url,
-      aspect: "16/9",
-      fallback: "linear-gradient(135deg, #34d399 0%, #60a5fa 100%)",
-    },
-  ];
-
+/* HERO DEMO — visuel qui change selon le tab actif. */
+function HeroDemo({ activeTab, showcase }: { activeTab: TabKey; showcase: ShowcaseData }) {
   return (
     <div
+      className="relative"
       style={{
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: 22,
+        padding: 18,
         backdropFilter: "blur(20px)",
       }}
     >
-      <div className="flex items-center justify-between mb-4">
+      {/* Browser chrome */}
+      <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-2">
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fbbf24" }} />
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
         </div>
         <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: "0.05em" }}>
-          app.horpen.ai/workspace
+          app.horpen.ai / {activeTab}
         </div>
         <div style={{ width: 40 }} />
       </div>
 
-      <div className="grid grid-cols-6 gap-3" style={{ minHeight: 240 }}>
-        <div className="col-span-2 row-span-2 rounded-xl overflow-hidden" style={{ aspectRatio: "1/1.2", background: tiles[1].fallback, position: "relative" }}>
-          {tiles[1].url && (
-            <img src={tiles[1].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
-            Avatar IA
-          </div>
-        </div>
-        <div className="col-span-4 rounded-xl overflow-hidden" style={{ aspectRatio: "16/9", background: tiles[0].fallback, position: "relative" }}>
-          {tiles[0].url && (
-            <img src={tiles[0].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
-            Miniature YTB
-          </div>
-        </div>
-        <div className="col-span-2 rounded-xl overflow-hidden" style={{ aspectRatio: "1/1", background: tiles[2].fallback, position: "relative" }}>
-          {tiles[2].url && (
-            <img src={tiles[2].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
-            Ad
-          </div>
-        </div>
-        <div className="col-span-2 rounded-xl overflow-hidden" style={{ aspectRatio: "1/1", background: tiles[3].fallback, position: "relative" }}>
-          {tiles[3].url && (
-            <img src={tiles[3].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", bottom: 8, left: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 8px", borderRadius: 999, backdropFilter: "blur(8px)" }}>
-            Image
-          </div>
-        </div>
+      {/* Zone de démo — key force un remount à chaque changement = animation */}
+      <div
+        key={activeTab}
+        className="relative rounded-xl overflow-hidden"
+        style={{
+          minHeight: 320,
+          background: "rgba(255,255,255,0.02)",
+          animation: "horpen-scale-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        }}
+      >
+        {activeTab === "ugc" && <DemoUGC showcase={showcase} />}
+        {activeTab === "avatars" && <DemoAvatars showcase={showcase} />}
+        {activeTab === "thumbnails" && <DemoThumbnails showcase={showcase} />}
+        {activeTab === "ads" && <DemoAds showcase={showcase} />}
+        {activeTab === "photo" && <DemoPhoto showcase={showcase} />}
       </div>
     </div>
   );
 }
 
-/* Piliers — row alternée image / texte. */
-function PilierRow({
-  reverse,
-  index,
-  title,
-  desc,
-  tags,
-  visual,
-}: {
-  reverse: boolean;
-  index: number;
-  title: string;
-  desc: string;
-  tags: string[];
-  visual: React.ReactNode;
-}) {
+function DemoUGC({ showcase }: { showcase: ShowcaseData }) {
+  const thumbs = showcase.thumbnails.slice(0, 4);
   return (
-    <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
-      <div className="horpen-reveal">
-        <div style={{ color: "#9ca3af", fontSize: 13, letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>
-          Pilier {String(index).padStart(2, "0")}
-        </div>
-        <h3 style={{ fontSize: "clamp(26px, 3.4vw, 40px)", lineHeight: 1.15, letterSpacing: "-0.03em", fontWeight: 600, color: "#0a0a0a", maxWidth: 480 }}>
-          {title}
-        </h3>
-        <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, lineHeight: 1.55, maxWidth: 460 }}>
-          {desc}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {tags.map((t) => (
-            <span
-              key={t}
-              style={{
-                fontSize: 12.5,
-                fontWeight: 500,
-                padding: "5px 11px",
-                borderRadius: 999,
-                background: "#f3f4f6",
-                color: "#4b5563",
-              }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="horpen-reveal" style={{ "--horpen-reveal-delay": "0.1s" } as React.CSSProperties}>
-        {visual}
-      </div>
-    </div>
-  );
-}
-
-/* Pilier visuals — mockups HTML/CSS. */
-function PilierVisualConvertir() {
-  return (
-    <div
-      className="horpen-card-3d rounded-2xl p-6"
-      style={{
-        background: "#ffffff",
-        border: "1px solid #ececec",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
-      }}
-    >
-      <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
-        Hook scoring en direct
-      </div>
-      {[
-        { h: "POV : tu découvres qu'on peut…", s: 94, ok: true },
-        { h: "Je l'ai testé pendant 7 jours…", s: 78, ok: true },
-        { h: "Mon expert beauté m'a dit…", s: 52, ok: false },
-        { h: "Regarde ce qui arrive quand…", s: 86, ok: true },
-      ].map((item, i) => (
-        <div key={i} className="mb-2.5" style={{ padding: "11px 14px", background: "#fafafa", border: "1px solid #ececec", borderRadius: 10 }}>
-          <div className="flex items-center justify-between gap-3">
-            <div style={{ fontSize: 13.5, color: "#0a0a0a", fontWeight: 500, flex: 1 }}>{item.h}</div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                padding: "3px 8px",
-                borderRadius: 999,
-                background: item.ok ? "#dcfce7" : "#fee2e2",
-                color: item.ok ? "#16a34a" : "#dc2626",
-              }}
-            >
-              {item.s}
+    <div className="p-5 grid grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="rounded-lg overflow-hidden relative"
+          style={{
+            aspectRatio: "9/16",
+            background: thumbs[i]?.url
+              ? "transparent"
+              : `linear-gradient(180deg, ${["#3b82f6", "#a855f7", "#ec4899", "#10b981"][i]}88, ${["#1e40af", "#6b21a8", "#831843", "#064e3b"][i]}88)`,
+          }}
+        >
+          {thumbs[i]?.url && (
+            <img src={thumbs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#fff" }}>
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.4)" }} />
+            <div style={{ background: "rgba(0,0,0,0.6)", padding: "2px 7px", borderRadius: 999, backdropFilter: "blur(4px)" }}>
+              UGC #{i + 1}
             </div>
           </div>
-          <div style={{ marginTop: 8, height: 4, borderRadius: 999, background: "#ececec", overflow: "hidden" }}>
-            <div style={{ width: `${item.s}%`, height: "100%", background: item.ok ? "#16a34a" : "#dc2626" }} />
+          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 6, fontSize: 9, color: "#fff", fontWeight: 600 }}>
+            {[98, 87, 92, 81][i]}
           </div>
         </div>
       ))}
@@ -1563,109 +1546,737 @@ function PilierVisualConvertir() {
   );
 }
 
-function PilierVisualCloner() {
+function DemoAvatars({ showcase }: { showcase: ShowcaseData }) {
+  const avatars = showcase.avatars.slice(0, 6);
+  const gradients = ["#3b82f6", "#a855f7", "#ec4899", "#10b981", "#f97316", "#06b6d4"];
   return (
-    <div
-      className="horpen-card-3d rounded-2xl p-6"
-      style={{
-        background: "#ffffff",
-        border: "1px solid #ececec",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
-      }}
-    >
-      <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
-        Clone d&apos;ad concurrente
+    <div className="p-5">
+      <div className="flex items-center gap-2 mb-4" style={{ fontSize: 11, color: "#94a3b8" }}>
+        <User className="w-3.5 h-3.5" />
+        <span>6 avatars IA actifs</span>
       </div>
-
-      <div style={{ background: "#fafafa", border: "1px solid #ececec", borderRadius: 10, padding: 12, marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 10, height: 10, borderRadius: 3, background: "#6b7280" }} />
-        <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "ui-monospace, monospace" }}>
-          tiktok.com/@competitor/video/7445...
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Source</div>
-          <div style={{ aspectRatio: "9/16", borderRadius: 10, background: "linear-gradient(180deg, #a78bfa 0%, #60a5fa 100%)", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.15)" }} />
+      <div className="grid grid-cols-6 gap-3">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="relative"
+            style={{
+              aspectRatio: "3/4",
+              borderRadius: 12,
+              overflow: "hidden",
+              background: avatars[i]?.url
+                ? "transparent"
+                : `linear-gradient(135deg, ${gradients[i]}, ${gradients[(i + 2) % 6]})`,
+              border: "2px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            {avatars[i]?.url && (
+              <img src={avatars[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 999, fontSize: 9, color: "#fff", backdropFilter: "blur(4px)" }}>
+              Avatar {i + 1}
+            </div>
           </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Ta version</div>
-          <div style={{ aspectRatio: "9/16", borderRadius: 10, background: "linear-gradient(180deg, #f472b6 0%, #fbbf24 100%)", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.15)" }} />
-            <div style={{ position: "absolute", top: 8, right: 8, fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "2px 7px", borderRadius: 999, fontWeight: 600 }}>
-              NEW
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DemoThumbnails({ showcase }: { showcase: ShowcaseData }) {
+  const thumbs = showcase.thumbnails.slice(0, 3);
+  return (
+    <div className="p-5 space-y-3">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-lg p-3"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div
+            className="flex-shrink-0 relative overflow-hidden rounded"
+            style={{
+              width: 160,
+              height: 90,
+              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#ef4444", "#a855f7", "#3b82f6"][i]}, ${["#991b1b", "#6b21a8", "#1e40af"][i]})`,
+            }}
+          >
+            {thumbs[i]?.url && (
+              <img src={thumbs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", bottom: 4, right: 4, background: "rgba(0,0,0,0.75)", padding: "1px 5px", borderRadius: 3, fontSize: 9, color: "#fff", fontWeight: 600 }}>
+              {["12:34", "8:21", "15:02"][i]}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 13, color: "#fff", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {["Comment j'ai scalé mon shop à 50k/mois", "3 hooks qui convertissent à 5%+ CTR", "La vérité sur l'IA pour le e-commerce"][i]}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5" style={{ fontSize: 10, color: "#94a3b8" }}>
+              <span>CTR estimé : <span style={{ color: "#10b981", fontWeight: 600 }}>{[9.2, 7.5, 6.8][i]}%</span></span>
+              <span>·</span>
+              <span>Score {[94, 87, 81][i]}/100</span>
             </div>
           </div>
         </div>
-      </div>
+      ))}
+    </div>
+  );
+}
 
-      <div className="mt-4 flex items-center gap-2 justify-center" style={{ fontSize: 12, color: "#6b7280" }}>
-        <span>Style conservé · Produit remplacé · 100 % original</span>
+function DemoAds({ showcase }: { showcase: ShowcaseData }) {
+  const ads = showcase.ads.slice(0, 4);
+  const colors = ["#f97316", "#ec4899", "#8b5cf6", "#06b6d4"];
+  return (
+    <div className="p-5 grid grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="relative rounded-lg overflow-hidden"
+          style={{
+            aspectRatio: "1/1",
+            background: ads[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 1) % 4]})`,
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          {ads[i]?.url && (
+            <img src={ads[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.7)", padding: "2px 7px", borderRadius: 999, fontSize: 9, color: "#fff", fontWeight: 600, backdropFilter: "blur(4px)" }}>
+            Ad {i + 1}
+          </div>
+          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 4, backdropFilter: "blur(4px)" }}>
+              ROAS {[3.1, 2.7, 4.2, 1.9][i]}×
+            </span>
+            {[true, true, true, false][i] && (
+              <span style={{ fontSize: 10, color: "#fff", background: "#10b98180", padding: "2px 6px", borderRadius: 4, backdropFilter: "blur(4px)", fontWeight: 600 }}>
+                WIN
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DemoPhoto({ showcase }: { showcase: ShowcaseData }) {
+  const imgs = showcase.images.slice(0, 5);
+  const colors = ["#06b6d4", "#10b981", "#84cc16", "#eab308", "#f59e0b"];
+  return (
+    <div className="p-5">
+      <div className="flex items-center gap-2 mb-4" style={{ fontSize: 11, color: "#94a3b8" }}>
+        <Camera className="w-3.5 h-3.5" />
+        <span>Shooting IA — 5 variantes en 8s</span>
+      </div>
+      <div className="grid grid-cols-5 gap-2.5">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="relative rounded-lg overflow-hidden"
+            style={{
+              aspectRatio: "3/4",
+              background: imgs[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 1) % 5]})`,
+            }}
+          >
+            {imgs[i]?.url && (
+              <img src={imgs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.4) 100%)" }} />
+            <div style={{ position: "absolute", bottom: 6, left: 6, fontSize: 9, color: "#fff", fontWeight: 500 }}>
+              {["Studio", "Outdoor", "Lifestyle", "Top-down", "Flatlay"][i]}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function PilierVisualUnifier() {
+/* FLOATING LOGOS — bulles pour social proof. */
+function FloatingLogos() {
+  const logos = [
+    { label: "OP", color: "#3b82f6", size: 64 },
+    { label: "NV", color: "#a855f7", size: 72 },
+    { label: "KR", color: "#ec4899", size: 56 },
+    { label: "MR", color: "#0a0a0a", size: 80 },
+    { label: "OR", color: "#f59e0b", size: 60 },
+    { label: "LM", color: "#10b981", size: 68 },
+    { label: "FJ", color: "#ef4444", size: 62 },
+    { label: "AR", color: "#06b6d4", size: 70 },
+    { label: "PR", color: "#8b5cf6", size: 64 },
+    { label: "ZN", color: "#f97316", size: 58 },
+    { label: "HL", color: "#ec4899", size: 66 },
+    { label: "VT", color: "#10b981", size: 58 },
+  ];
+  return (
+    <div className="relative overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}>
+      <div className="marquee-track items-center gap-6">
+        {[...Array(2)].flatMap((_, dup) =>
+          logos.map((l, i) => (
+            <div
+              key={`${dup}-${i}`}
+              className="horpen-bubble flex-shrink-0 rounded-full flex items-center justify-center"
+              style={{
+                width: l.size,
+                height: l.size,
+                background: l.color,
+                color: "#ffffff",
+                fontSize: l.size / 4,
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                boxShadow: `0 8px 24px ${l.color}40, inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -4px 8px rgba(0,0,0,0.15)`,
+                animationDelay: `${i * 0.3}s`,
+              }}
+            >
+              {l.label}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* PILIER CARD — structure commune, Taap-style. */
+function PilierCard({
+  index,
+  title,
+  desc,
+  tags,
+  visual,
+  accent,
+  dark,
+}: {
+  index: number;
+  title: string;
+  desc: string;
+  tags: { label: string; color: string }[];
+  visual: React.ReactNode;
+  accent: string;
+  dark: boolean;
+}) {
+  void accent;
   return (
     <div
-      className="horpen-card-3d rounded-2xl p-6"
+      className="horpen-reveal horpen-card-3d rounded-2xl flex flex-col overflow-hidden"
+      style={{
+        background: dark ? "#0a0a0a" : "#ffffff",
+        border: dark ? "1px solid #1f2937" : "1px solid #ececec",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+        "--horpen-reveal-delay": `${0.1 * index}s`,
+      } as React.CSSProperties}
+    >
+      <div
+        className="horpen-dotbg-soft relative"
+        style={{
+          height: 280,
+          background: dark ? "#0a0a0a" : "#fafafa",
+          borderBottom: dark ? "1px solid #1f2937" : "1px solid #ececec",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        {visual}
+      </div>
+      <div className="p-7">
+        <h3 style={{ fontSize: 19, fontWeight: 600, color: dark ? "#ffffff" : "#0a0a0a", letterSpacing: "-0.02em", lineHeight: 1.3 }}>
+          {title}
+        </h3>
+        <p style={{ marginTop: 10, color: dark ? "#94a3b8" : "#6b7280", fontSize: 14.5, lineHeight: 1.6 }}>
+          {desc}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {tags.map((t) => (
+            <span
+              key={t.label}
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: `${t.color}15`,
+                color: t.color,
+                border: `1px solid ${t.color}25`,
+              }}
+            >
+              {t.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* PILIER 1 — hook scoring timeline (style Taap "Optimize" card 1). */
+function PilierVisualConvertir() {
+  const events = [
+    { label: "Hook A — POV scroll-stop", score: 94, color: "#3b82f6" },
+    { label: "Hook B — Problème produit", score: 78, color: "#a855f7" },
+    { label: "Hook C — Social proof", score: 52, color: "#ef4444" },
+    { label: "Hook D — Before/after", score: 86, color: "#10b981" },
+  ];
+  return (
+    <div className="w-full max-w-[280px]" style={{ background: "#ffffff", border: "1px solid #ececec", borderRadius: 12, padding: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+        Hook scoring en direct
+      </div>
+      {events.map((e, i) => (
+        <div key={i} className="flex items-center gap-2.5 mb-2.5 last:mb-0">
+          <div
+            className="flex-shrink-0"
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: e.color,
+              animation: `timeline-dot 2.4s ease-in-out infinite ${i * 0.3}s`,
+            }}
+          />
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 11.5, color: "#0a0a0a", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {e.label}
+            </div>
+            <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: "#f3f4f6" }}>
+              <div style={{ width: `${e.score}%`, height: "100%", background: e.color, transition: "width 0.6s ease" }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: e.color, minWidth: 24, textAlign: "right" }}>
+            {e.score}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* PILIER 2 — graph réseau "clonage" (dark, style Taap "Attribution" card). */
+function PilierVisualCloner() {
+  const nodes = [
+    { label: "Link", x: 50, y: 20, color: "#60a5fa", size: 14 },
+    { label: "Style", x: 20, y: 55, color: "#a78bfa", size: 12 },
+    { label: "Produit", x: 80, y: 55, color: "#fbbf24", size: 12 },
+    { label: "Clone", x: 50, y: 85, color: "#f472b6", size: 16 },
+  ];
+  return (
+    <div className="relative w-full max-w-[300px]" style={{ aspectRatio: "1/1" }}>
+      {/* SVG lines */}
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }}>
+        <defs>
+          <linearGradient id="pilier2-line" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#f472b6" stopOpacity="0.7" />
+          </linearGradient>
+        </defs>
+        {[
+          { x1: 50, y1: 20, x2: 20, y2: 55 },
+          { x1: 50, y1: 20, x2: 80, y2: 55 },
+          { x1: 20, y1: 55, x2: 50, y2: 85 },
+          { x1: 80, y1: 55, x2: 50, y2: 85 },
+          { x1: 50, y1: 20, x2: 50, y2: 85 },
+        ].map((l, i) => (
+          <line
+            key={i}
+            x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+            stroke="url(#pilier2-line)"
+            strokeWidth="0.4"
+            strokeDasharray="2 2"
+            style={{ animation: `graph-dash 3s linear infinite` }}
+          />
+        ))}
+      </svg>
+
+      {nodes.map((n, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            top: `${n.y}%`,
+            left: `${n.x}%`,
+            transform: "translate(-50%, -50%)",
+            width: `${n.size}%`,
+            height: `${n.size}%`,
+            borderRadius: "50%",
+            background: `radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}99)`,
+            boxShadow: `0 4px 12px ${n.color}40, inset 0 1px 2px rgba(255,255,255,0.3)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 9,
+            fontWeight: 600,
+            color: "#ffffff",
+            animation: `graph-pulse 2.5s ease-in-out infinite ${i * 0.3}s`,
+          }}
+        >
+          {n.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* PILIER 3 — grille d'apps unifiées (style Taap card 3). */
+function PilierVisualUnifier() {
+  const cells = [
+    { icon: VideoCamera, color: "#3b82f6", bg: "#dbeafe" },
+    { icon: User, color: "#a855f7", bg: "#f3e8ff" },
+    { icon: PlaySquare, color: "#ec4899", bg: "#fce7f3" },
+    { icon: Megaphone, color: "#f97316", bg: "#ffedd5" },
+    { icon: Camera, color: "#10b981", bg: "#d1fae5" },
+    { icon: Brush, color: "#06b6d4", bg: "#cffafe" },
+    { icon: MagicWand, color: "#f59e0b", bg: "#fef3c7" },
+    { icon: Package, color: "#8b5cf6", bg: "#ede9fe" },
+    { icon: Type, color: "#ef4444", bg: "#fee2e2" },
+  ];
+  return (
+    <div className="relative" style={{ width: 240, height: 240 }}>
+      <div className="grid grid-cols-3 gap-3" style={{ padding: 6 }}>
+        {cells.map((c, i) => {
+          const Ic = c.icon;
+          const isCenter = i === 4;
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-center rounded-lg relative"
+              style={{
+                width: 64,
+                height: 64,
+                background: isCenter ? "#0a0a0a" : c.bg,
+                color: isCenter ? "#ffffff" : c.color,
+                border: isCenter ? "1px solid #0a0a0a" : `1px solid ${c.color}20`,
+                animation: `tile-bounce 3s ease-in-out infinite ${i * 0.15}s`,
+                boxShadow: isCenter ? "0 8px 20px rgba(0,0,0,0.2)" : "0 2px 6px rgba(0,0,0,0.05)",
+              }}
+            >
+              {isCenter ? (
+                <Image src="/horpen-logo.png" alt="" width={28} height={28} style={{ objectFit: "contain" }} />
+              ) : (
+                <Ic className="w-6 h-6" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* FEATURE SHOWCASE — sidebar tabs + big demo à droite (style Taap "Deeplinks" section). */
+function FeatureShowcaseTabs({
+  active,
+  setActive,
+  showcase,
+}: {
+  active: TabKey;
+  setActive: (k: TabKey) => void;
+  showcase: ShowcaseData;
+}) {
+  const items: {
+    key: TabKey;
+    label: string;
+    sub: string;
+    icon: React.ElementType;
+    color: string;
+  }[] = [
+    { key: "ugc", label: "UGC Vidéo", sub: "Tes créateurs IA prêts à l'emploi.", icon: VideoCamera, color: "#3b82f6" },
+    { key: "avatars", label: "Avatars IA", sub: "Un visage cohérent sur toutes tes créas.", icon: User, color: "#a855f7" },
+    { key: "thumbnails", label: "Miniatures YTB", sub: "Un clic et ta miniature fait scroller.", icon: PlaySquare, color: "#ec4899" },
+    { key: "ads", label: "Ads créatives", sub: "Génère 10 variantes. Détecte la gagnante.", icon: Megaphone, color: "#f97316" },
+    { key: "photo", label: "Photo produit", sub: "Shooting studio IA en 8 secondes.", icon: Camera, color: "#10b981" },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 md:gap-8 items-start">
+      {/* Sidebar list */}
+      <div className="lg:col-span-2 space-y-1">
+        {items.map((it) => {
+          const It = it.icon;
+          const isActive = active === it.key;
+          return (
+            <button
+              key={it.key}
+              onClick={() => setActive(it.key)}
+              className="w-full text-left relative group p-4 rounded-xl transition-all"
+              style={{
+                background: isActive ? "#ffffff" : "transparent",
+                border: isActive ? `1px solid ${it.color}20` : "1px solid transparent",
+                boxShadow: isActive ? `0 4px 16px ${it.color}12` : "none",
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: isActive ? `${it.color}15` : "#f3f4f6",
+                    color: isActive ? it.color : "#9ca3af",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <It className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 15.5, fontWeight: 600, color: isActive ? "#0a0a0a" : "#4b5563", letterSpacing: "-0.01em" }}>
+                    {it.label}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 3, lineHeight: 1.4 }}>
+                    {it.sub}
+                  </div>
+                </div>
+              </div>
+              {isActive && (
+                <div
+                  className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full tab-active-bar"
+                  style={{ background: it.color }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Demo */}
+      <div className="lg:col-span-3">
+        <div
+          key={active}
+          className="horpen-dotbg-soft relative rounded-2xl overflow-hidden"
+          style={{
+            aspectRatio: "16/10",
+            background: "#fafafa",
+            border: "1px solid #ececec",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+            animation: "horpen-scale-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+            padding: 24,
+          }}
+        >
+          <ShowcaseDemo tab={active} showcase={showcase} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShowcaseDemo({ tab, showcase }: { tab: TabKey; showcase: ShowcaseData }) {
+  if (tab === "ugc") {
+    const thumbs = showcase.thumbnails.slice(0, 3);
+    return (
+      <div className="h-full flex items-center justify-center gap-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="relative rounded-xl overflow-hidden"
+            style={{
+              width: "28%",
+              aspectRatio: "9/16",
+              background: thumbs[i]?.url ? "transparent" : `linear-gradient(180deg, ${["#3b82f6", "#a855f7", "#ec4899"][i]}, ${["#1e40af", "#6b21a8", "#831843"][i]})`,
+              border: "3px solid #ffffff",
+              boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
+              transform: i === 1 ? "translateY(-16px)" : "translateY(0)",
+              zIndex: i === 1 ? 2 : 1,
+            }}
+          >
+            {thumbs[i]?.url && (
+              <img src={thumbs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.5) 100%)" }} />
+            <div style={{ position: "absolute", bottom: 10, left: 10, fontSize: 11, color: "#fff", fontWeight: 600 }}>
+              UGC #{i + 1}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (tab === "avatars") {
+    const avs = showcase.avatars.slice(0, 5);
+    const colors = ["#3b82f6", "#a855f7", "#ec4899", "#10b981", "#f97316"];
+    return (
+      <div className="h-full flex items-center justify-center gap-3">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="relative rounded-xl overflow-hidden"
+            style={{
+              width: "18%",
+              aspectRatio: "3/4",
+              background: avs[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 2) % 5]})`,
+              border: "2px solid #ffffff",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+              animation: `pillar-float ${4 + i * 0.3}s ease-in-out infinite ${i * 0.2}s`,
+            }}
+          >
+            {avs[i]?.url && (
+              <img src={avs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (tab === "thumbnails") {
+    const thumbs = showcase.thumbnails.slice(0, 2);
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="relative rounded-xl overflow-hidden flex items-center justify-center"
+            style={{
+              width: "70%",
+              aspectRatio: "16/9",
+              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#ef4444", "#3b82f6"][i]}, ${["#991b1b", "#1e40af"][i]})`,
+              border: "3px solid #ffffff",
+              boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
+            }}
+          >
+            {thumbs[i]?.url && (
+              <img src={thumbs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.75)", padding: "3px 9px", borderRadius: 999, fontSize: 10, color: "#fff", fontWeight: 700 }}>
+              CTR +{[9.2, 7.8][i]}%
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (tab === "ads") {
+    const ads = showcase.ads.slice(0, 4);
+    const colors = ["#f97316", "#ec4899", "#8b5cf6", "#06b6d4"];
+    return (
+      <div className="h-full grid grid-cols-4 gap-3 p-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="relative rounded-xl overflow-hidden"
+            style={{
+              aspectRatio: "1/1",
+              background: ads[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 1) % 4]})`,
+              border: "2px solid #ffffff",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+            }}
+          >
+            {ads[i]?.url && (
+              <img src={ads[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", top: 6, left: 6, fontSize: 9, fontWeight: 700, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 4, backdropFilter: "blur(4px)" }}>
+              {[true, true, false, true][i] ? "A/B WIN" : "TEST"}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // photo
+  const imgs = showcase.images.slice(0, 4);
+  const colors = ["#10b981", "#3b82f6", "#a855f7", "#f59e0b"];
+  return (
+    <div className="h-full grid grid-cols-4 gap-3 p-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="relative rounded-xl overflow-hidden"
+          style={{
+            aspectRatio: "3/4",
+            background: imgs[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 1) % 4]})`,
+            border: "2px solid #ffffff",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+          }}
+        >
+          {imgs[i]?.url && (
+            <img src={imgs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", bottom: 6, left: 6, right: 6, fontSize: 9, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 4, backdropFilter: "blur(4px)", textAlign: "center" }}>
+            {["Studio", "Outdoor", "Lifestyle", "Flatlay"][i]}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ANALYTICS MOCKUP */
+function AnalyticsMockup() {
+  return (
+    <div
+      className="horpen-reveal horpen-dotbg-soft relative"
       style={{
         background: "#ffffff",
         border: "1px solid #ececec",
+        borderRadius: 20,
+        padding: 22,
         boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
       }}
     >
-      <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
-        Avant / Après
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 text-[13px]">
-        <div style={{ padding: 14, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10 }}>
-          <div style={{ color: "#dc2626", fontWeight: 600, marginBottom: 8 }}>Avant</div>
-          {["Shooting photo : 600€", "UGC creator : 1200€", "Designer miniatures : 300€", "Monteur : 500€", "5 outils SaaS : 220€"].map((x) => (
-            <div key={x} style={{ color: "#991b1b", marginBottom: 4 }}>— {x}</div>
-          ))}
-          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fecaca", fontWeight: 700, color: "#dc2626" }}>
-            Total : 2 820 € / mois
-          </div>
-        </div>
-        <div style={{ padding: 14, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10 }}>
-          <div style={{ color: "#16a34a", fontWeight: 600, marginBottom: 8 }}>Avec Horpen</div>
-          {["Tout le studio inclus", "UGC + ads + miniatures", "Photo produit IA", "Clonage d'ads", "Workspace unifié"].map((x) => (
-            <div key={x} style={{ color: "#166534", marginBottom: 4 }}>+ {x}</div>
-          ))}
-          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed #bbf7d0", fontWeight: 700, color: "#16a34a" }}>
-            Total : 85 € / mois
-          </div>
+      <div className="flex items-center justify-between mb-5">
+        <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>Performance — 7 derniers jours</div>
+        <div style={{ fontSize: 11, color: "#16a34a", background: "#dcfce7", padding: "3px 8px", borderRadius: 999, fontWeight: 600 }}>
+          +34%
         </div>
       </div>
 
-      <div className="mt-4 text-center" style={{ fontSize: 13, color: "#6b7280" }}>
-        Économies moyennes : <span style={{ fontWeight: 700, color: "#0a0a0a" }}>-96 %</span>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        {[
+          { label: "Impressions", val: "128k", d: "+12%" },
+          { label: "CTR", val: "3,8%", d: "+0,6pt" },
+          { label: "ROAS", val: "3,1×", d: "+0,4" },
+        ].map((k) => (
+          <div key={k.label} style={{ background: "#fafafa", border: "1px solid #ececec", borderRadius: 12, padding: 12 }}>
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", marginTop: 4 }}>{k.val}</div>
+            <div style={{ fontSize: 11, color: "#16a34a", marginTop: 2 }}>{k.d}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: "#fafafa", border: "1px solid #ececec", borderRadius: 12, padding: 16, height: 180, position: "relative", overflow: "hidden" }}>
+        <svg viewBox="0 0 300 120" preserveAspectRatio="none" style={{ width: "100%", height: "100%" }}>
+          <defs>
+            <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M0,90 C30,85 60,70 90,60 C120,50 150,65 180,45 C210,30 240,35 270,20 L300,15 L300,120 L0,120 Z" fill="url(#chart-fill)" />
+          <path d="M0,90 C30,85 60,70 90,60 C120,50 150,65 180,45 C210,30 240,35 270,20 L300,15" fill="none" stroke="#3b82f6" strokeWidth="2" />
+          {/* Dots */}
+          {[{ x: 90, y: 60 }, { x: 180, y: 45 }, { x: 270, y: 20 }].map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="3" fill="#3b82f6" />
+          ))}
+        </svg>
       </div>
     </div>
   );
 }
 
-/* Workspace hub visual — tuiles agencées autour d'un centre. */
+/* WORKSPACE HUB — tuiles qui orbitent autour du logo central. */
 function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
   const sample = (arr: ShowcaseTile[], i: number): string | undefined => arr[i]?.url;
   const tiles = [
-    { label: "Avatar", url: sample(showcase.avatars, 0), g: "linear-gradient(135deg, #60a5fa, #34d399)", w: 130, h: 130, top: 0, left: 0 },
-    { label: "Miniature", url: sample(showcase.thumbnails, 0), g: "linear-gradient(135deg, #f472b6, #a78bfa)", w: 220, h: 124, top: 20, left: 170 },
-    { label: "Ad", url: sample(showcase.ads, 0), g: "linear-gradient(135deg, #fbbf24, #f472b6)", w: 130, h: 130, top: 0, left: 410 },
-    { label: "Photo produit", url: sample(showcase.images, 0), g: "linear-gradient(135deg, #a78bfa, #60a5fa)", w: 130, h: 130, top: 160, left: 0 },
-    { label: "Miniature 2", url: sample(showcase.thumbnails, 1), g: "linear-gradient(135deg, #34d399, #60a5fa)", w: 220, h: 124, top: 168, left: 170 },
-    { label: "Ad 2", url: sample(showcase.ads, 1), g: "linear-gradient(135deg, #60a5fa, #f472b6)", w: 130, h: 130, top: 160, left: 410 },
+    { label: "Avatar", url: sample(showcase.avatars, 0), g: "linear-gradient(135deg, #a855f7, #ec4899)", w: 130, h: 130, top: 0, left: 0 },
+    { label: "Miniature", url: sample(showcase.thumbnails, 0), g: "linear-gradient(135deg, #3b82f6, #06b6d4)", w: 220, h: 124, top: 20, left: 170 },
+    { label: "Ad", url: sample(showcase.ads, 0), g: "linear-gradient(135deg, #f97316, #ec4899)", w: 130, h: 130, top: 0, left: 410 },
+    { label: "Photo produit", url: sample(showcase.images, 0), g: "linear-gradient(135deg, #8b5cf6, #3b82f6)", w: 130, h: 130, top: 160, left: 0 },
+    { label: "Miniature 2", url: sample(showcase.thumbnails, 1), g: "linear-gradient(135deg, #10b981, #06b6d4)", w: 220, h: 124, top: 168, left: 170 },
+    { label: "Ad 2", url: sample(showcase.ads, 1), g: "linear-gradient(135deg, #06b6d4, #ec4899)", w: 130, h: 130, top: 160, left: 410 },
   ];
 
   return (
     <div
-      className="mx-auto relative"
+      className="mx-auto relative horpen-dotbg-soft"
       style={{
         background: "#ffffff",
         border: "1px solid #ececec",
@@ -1676,7 +2287,6 @@ function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
       }}
     >
       <div style={{ position: "relative", width: "100%", height: 320 }}>
-        {/* Centre = logo Horpen */}
         <div
           style={{
             position: "absolute",
@@ -1691,7 +2301,7 @@ function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
             alignItems: "center",
             justifyContent: "center",
             zIndex: 10,
-            boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
           }}
         >
           <Image src="/horpen-logo.png" alt="" width={36} height={36} style={{ objectFit: "contain" }} />
@@ -1708,7 +2318,7 @@ function WorkspaceHub({ showcase }: { showcase: ShowcaseData }) {
               left: t.left,
               background: t.g,
               border: "2px solid #ffffff",
-              boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
               animation: `pillar-float ${4 + (i % 3)}s ease-in-out infinite`,
               animationDelay: `${i * 0.3}s`,
             }}
