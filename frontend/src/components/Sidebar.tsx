@@ -11,17 +11,16 @@ import {
   House,
   UserCircle,
   ImageSquare,
-  VideoCamera,
   CreditCard,
   Settings,
   Sun,
   Moon,
   XIcon,
-  MagicWand,
   PlaySquare,
   Megaphone,
   Scissors,
   SparkleIcon,
+  Shield,
 } from "@/components/Icons";
 
 type NavDef = {
@@ -34,15 +33,16 @@ const NAV_MAIN: NavDef[] = [
   { href: "/dashboard", label: "Home", icon: House },
 ];
 
+// Produits Horpen — chacun regroupe plusieurs outils via sous-onglets
+// dans sa propre page /dashboard/<slug>. Ordre suit le workflow :
+// observer → créer → performer → automatiser.
 const NAV_TOOLS: NavDef[] = [
-  { href: "/dashboard/characters", label: "Characters", icon: UserCircle },
-  { href: "/dashboard/avatars", label: "Avatar Creator", icon: MagicWand },
-  { href: "/dashboard/images", label: "Image Generator", icon: ImageSquare },
-  { href: "/dashboard/thumbnails", label: "Thumbnails", icon: PlaySquare },
-  { href: "/dashboard/ads", label: "Ads", icon: Megaphone },
-  { href: "/dashboard/videos", label: "Video Generator", icon: VideoCamera },
-  { href: "/dashboard/clips", label: "Auto-Clip", icon: Scissors },
-  { href: "/dashboard/ai-videos", label: "AI Video", icon: SparkleIcon },
+  { href: "/dashboard/spyder", label: "Spyder", icon: Shield },
+  { href: "/dashboard/canvas", label: "Canvas", icon: ImageSquare },
+  { href: "/dashboard/avatar", label: "Avatar", icon: UserCircle },
+  { href: "/dashboard/adlab", label: "Adlab", icon: Megaphone },
+  { href: "/dashboard/thumbs", label: "Thumbs", icon: PlaySquare },
+  { href: "/dashboard/autoclip", label: "Autoclip", icon: Scissors },
 ];
 
 const NAV_ACCOUNT: NavDef[] = [

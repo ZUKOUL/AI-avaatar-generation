@@ -19,6 +19,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronDown } from "@/components/Icons";
 
 export type ProductSlug =
@@ -430,5 +431,408 @@ export function ProductDropdown() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SubLandingNav + SubLandingFooter — partagés entre toutes les
+   sous-landings (/avatar, /spyder, /canvas, /adlab, /thumbs,
+   /autoclip) pour éviter la duplication.
+   ───────────────────────────────────────────────────────────────── */
+
+export function SubLandingNav() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <nav
+      className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md"
+      style={{
+        background: "rgba(250,250,250,0.82)",
+        borderBottom: "1px solid #ececec",
+      }}
+    >
+      <div className="max-w-[1280px] mx-auto px-5 md:px-8 h-[64px] flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <div
+            className="rounded-lg flex items-center justify-center shrink-0"
+            style={{ width: 32, height: 32, background: "#0a0a0a" }}
+          >
+            <Image src="/horpen-logo.png" alt="" width={20} height={20} priority style={{ objectFit: "contain" }} />
+          </div>
+          <span style={{ fontSize: 17, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
+            Horpen
+          </span>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-8 text-[14px]">
+          <ProductDropdownTrigger label="Produit">
+            <ProductDropdown />
+          </ProductDropdownTrigger>
+          <Link href="/#pricing" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Tarifs</Link>
+          <Link href="/#faq" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">FAQ</Link>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="hidden md:inline text-[14px]" style={{ color: "#555" }}>
+            Se connecter
+          </Link>
+          <Link
+            href="/signup"
+            className="text-[14px] font-medium px-4 py-2 rounded-full transition"
+            style={{ background: "#0a0a0a", color: "#ffffff" }}
+          >
+            Essai gratuit
+          </Link>
+          <button className="md:hidden p-2" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+            <div className="w-5 h-[2px] bg-[#0a0a0a] mb-1" />
+            <div className="w-5 h-[2px] bg-[#0a0a0a] mb-1" />
+            <div className="w-5 h-[2px] bg-[#0a0a0a]" />
+          </button>
+        </div>
+      </div>
+      {menuOpen && (
+        <div className="md:hidden px-5 pb-5 flex flex-col gap-3 text-[15px]" style={{ borderTop: "1px solid #ececec" }}>
+          {PRODUCTS.map((p) => (
+            <Link
+              key={p.slug}
+              href={`/${p.slug}`}
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3"
+            >
+              <Product3DLogo product={p} size={32} glow={false} />
+              <div>
+                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>{p.tagline}</div>
+              </div>
+            </Link>
+          ))}
+          <Link href="/#pricing" onClick={() => setMenuOpen(false)}>Tarifs</Link>
+          <Link href="/#faq" onClick={() => setMenuOpen(false)}>FAQ</Link>
+          <Link href="/login">Se connecter</Link>
+        </div>
+      )}
+    </nav>
+  );
+}
+
+export function SubLandingFooter() {
+  return (
+    <footer style={{ background: "#fafafa", borderTop: "1px solid #ececec" }}>
+      <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div
+            className="rounded-lg flex items-center justify-center"
+            style={{ width: 28, height: 28, background: "#0a0a0a" }}
+          >
+            <Image src="/horpen-logo.png" alt="" width={18} height={18} style={{ objectFit: "contain" }} />
+          </div>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#0a0a0a" }}>Horpen</span>
+        </Link>
+        <div style={{ fontSize: 13, color: "#9ca3af" }}>
+          © {new Date().getFullYear()} Horpen.ai — Tous droits réservés.
+        </div>
+        <div className="flex items-center gap-4" style={{ fontSize: 13 }}>
+          <Link href="/" style={{ color: "#6b7280" }} className="hover:text-[#0a0a0a]">Accueil</Link>
+          <Link href="/#pricing" style={{ color: "#6b7280" }} className="hover:text-[#0a0a0a]">Tarifs</Link>
+          <a href="mailto:support@horpen.ai" style={{ color: "#6b7280" }} className="hover:text-[#0a0a0a]">
+            Support
+          </a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SubLandingTemplate — squelette complet pour créer une sous-landing
+   en quelques lignes. Hero dark panel avec beams dans la couleur du
+   produit, 3 benefit cards, FAQ, cross-promo dock, CTA final.
+   ───────────────────────────────────────────────────────────────── */
+
+export function SubLandingHero({ slug, title, subtitle, cta }: { slug: ProductSlug; title: React.ReactNode; subtitle: string; cta: string }) {
+  const product = PRODUCTS.find((p) => p.slug === slug)!;
+  return (
+    <section className="pt-[88px] pb-6 px-4 md:px-6">
+      <div
+        className="max-w-[1280px] mx-auto rounded-[26px] md:rounded-[32px] relative overflow-hidden"
+        style={{
+          background: `radial-gradient(120% 90% at 50% 120%, ${product.color}1a 0%, #0b0a1a 35%, #060514 70%, #030210 100%)`,
+          border: "1px solid rgba(255,255,255,0.06)",
+          minHeight: "min(680px, 86vh)",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.4), 0 60px 120px -30px rgba(10,10,30,0.55)",
+        }}
+      >
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {[{ left: "18%", w: 200 }, { left: "42%", w: 220 }, { left: "66%", w: 200 }, { left: "86%", w: 180 }].map((b, i) => (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                top: "-20%",
+                left: b.left,
+                width: b.w,
+                height: "130%",
+                background: `linear-gradient(180deg, ${product.color}55 0%, transparent 70%)`,
+                filter: "blur(16px)",
+                transform: "skewX(-6deg)",
+                mixBlendMode: "screen",
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center text-center px-5 md:px-10 pt-16 md:pt-24 pb-12">
+          <div className="flex items-center gap-3 mb-8">
+            <Product3DLogo product={product} size={52} />
+            <div className="text-left">
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#cbd5e1",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                Horpen
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#ffffff", letterSpacing: "-0.02em" }}>
+                {product.name}
+              </div>
+            </div>
+          </div>
+
+          <h1
+            style={{
+              color: "#ffffff",
+              fontSize: "clamp(36px, 5.5vw, 68px)",
+              lineHeight: 1.04,
+              letterSpacing: "-0.04em",
+              fontWeight: 600,
+              maxWidth: 960,
+            }}
+          >
+            {title}
+          </h1>
+
+          <p
+            className="mt-6"
+            style={{
+              color: "#cbd5e1",
+              fontSize: "clamp(16px, 1.4vw, 19px)",
+              lineHeight: 1.55,
+              maxWidth: 680,
+            }}
+          >
+            {subtitle}
+          </p>
+
+          <div className="mt-9">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-medium transition"
+              style={{
+                background: "#ffffff",
+                color: "#0a0a0a",
+                fontSize: 16,
+                boxShadow: `0 8px 24px ${product.color}40, 0 1px 0 rgba(255,255,255,0.4) inset`,
+              }}
+            >
+              {cta}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function SubLandingBenefits({ slug, title, benefits }: { slug: ProductSlug; title: React.ReactNode; benefits: { num: string; title: string; desc: string }[] }) {
+  const product = PRODUCTS.find((p) => p.slug === slug)!;
+  return (
+    <section className="py-20 md:py-28 px-5 md:px-8">
+      <div className="max-w-[1080px] mx-auto">
+        <div className="text-center mb-14">
+          <h2
+            style={{
+              fontSize: "clamp(30px, 4vw, 48px)",
+              lineHeight: 1.1,
+              letterSpacing: "-0.035em",
+              fontWeight: 600,
+              color: "#0a0a0a",
+              maxWidth: 760,
+              margin: "0 auto",
+            }}
+          >
+            {title}
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+          {benefits.map((b, i) => (
+            <div
+              key={i}
+              className="rounded-2xl p-7"
+              style={{
+                background: "#ffffff",
+                border: "1px solid #ececec",
+                boxShadow:
+                  "0 1px 1px rgba(15,15,40,0.03), 0 2px 4px rgba(15,15,40,0.04), 0 12px 32px -8px rgba(15,15,40,0.08)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: product.color,
+                  letterSpacing: "0.08em",
+                  marginBottom: 14,
+                }}
+              >
+                {b.num}
+              </div>
+              <h3
+                style={{
+                  fontSize: 20,
+                  fontWeight: 600,
+                  color: "#0a0a0a",
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1.25,
+                }}
+              >
+                {b.title}
+              </h3>
+              <p style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.55 }}>
+                {b.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function SubLandingFAQ({ faq }: { faq: { q: string; a: string }[] }) {
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  return (
+    <section className="py-20 md:py-24 px-5 md:px-8">
+      <div className="max-w-[820px] mx-auto">
+        <h2
+          className="text-center mb-12"
+          style={{
+            fontSize: "clamp(28px, 3.5vw, 40px)",
+            lineHeight: 1.15,
+            letterSpacing: "-0.035em",
+            fontWeight: 600,
+            color: "#0a0a0a",
+          }}
+        >
+          Questions fréquentes
+        </h2>
+        <div className="space-y-2">
+          {faq.map((item, i) => {
+            const open = openFaq === i;
+            return (
+              <div
+                key={i}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #ececec",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  boxShadow: open ? "0 4px 12px rgba(0,0,0,0.04)" : "none",
+                }}
+              >
+                <button
+                  onClick={() => setOpenFaq(open ? null : i)}
+                  className="w-full text-left px-5 py-4 flex items-center justify-between gap-4"
+                  style={{ color: "#0a0a0a", fontSize: 15, fontWeight: 500 }}
+                >
+                  <span>{item.q}</span>
+                  <ChevronDown
+                    className="w-4 h-4 flex-shrink-0 transition-transform"
+                    style={{
+                      transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                      color: "#6b7280",
+                    }}
+                  />
+                </button>
+                {open && (
+                  <div
+                    style={{
+                      padding: "0 20px 18px",
+                      color: "#6b7280",
+                      fontSize: 14.5,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function SubLandingCrossPromo({ exclude }: { exclude: ProductSlug }) {
+  return (
+    <section className="py-16 md:py-20 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
+      <div className="max-w-[1080px] mx-auto">
+        <p
+          className="text-center mb-10"
+          style={{
+            color: "#6b7280",
+            fontSize: 14,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            fontWeight: 500,
+          }}
+        >
+          Fait partie d&apos;une suite de 6 produits
+        </p>
+        <ProductDock dark={false} size={40} exclude={exclude} />
+      </div>
+    </section>
+  );
+}
+
+export function SubLandingCTA({ title, cta }: { title: React.ReactNode; cta: string }) {
+  return (
+    <section className="py-20 md:py-28 px-5 md:px-8">
+      <div className="max-w-[820px] mx-auto text-center">
+        <h2
+          style={{
+            fontSize: "clamp(30px, 4vw, 46px)",
+            lineHeight: 1.1,
+            letterSpacing: "-0.035em",
+            fontWeight: 600,
+            color: "#0a0a0a",
+          }}
+        >
+          {title}
+        </h2>
+        <div className="mt-8">
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-medium transition"
+            style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 16 }}
+          >
+            {cta}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
