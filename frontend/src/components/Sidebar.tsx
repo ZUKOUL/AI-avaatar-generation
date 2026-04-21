@@ -368,6 +368,16 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   const [newAppOpen, setNewAppOpen] = useState(false);
   const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
 
+  /** Folders — organisational groups for pinned tabs, Foreplay-style.
+   *  A folder is a labeled section header; tabs can carry a folder_id
+   *  and get rendered under the matching group. Persists in
+   *  localStorage keyed by workspace_id so each workspace has its
+   *  own folder tree. */
+  const [foldersByWorkspace, setFoldersByWorkspace] = useState<
+    Record<string, { id: string; name: string }[]>
+  >({});
+  const [navPlusOpen, setNavPlusOpen] = useState(false);
+
   /* Hydrate workspaces + mini-apps from backend on mount. */
   useEffect(() => {
     let cancelled = false;
@@ -421,6 +431,53 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
       /* ignore */
     }
   }, [tabsByWorkspace]);
+
+  /* Hydrate + persist folders (local-only, same pattern as tabs). */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("horpen-workspace-folders-v1");
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, { id: string; name: string }[]>;
+        if (parsed && typeof parsed === "object") setFoldersByWorkspace(parsed);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "horpen-workspace-folders-v1",
+        JSON.stringify(foldersByWorkspace)
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [foldersByWorkspace]);
+
+  const activeFolders = activeSpaceId ? foldersByWorkspace[activeSpaceId] ?? [] : [];
+
+  const createFolder = () => {
+    if (!activeSpaceId) return;
+    const name = window.prompt("Nom du dossier :");
+    if (!name || !name.trim()) return;
+    const newFolder = { id: randomId(), name: name.trim() };
+    setFoldersByWorkspace((prev) => ({
+      ...prev,
+      [activeSpaceId]: [...(prev[activeSpaceId] ?? []), newFolder],
+    }));
+    setNavPlusOpen(false);
+  };
+
+  const deleteFolder = (folderId: string) => {
+    if (!activeSpaceId) return;
+    if (!window.confirm("Supprimer ce dossier ? Les onglets à l'intérieur passent en racine.")) return;
+    setFoldersByWorkspace((prev) => ({
+      ...prev,
+      [activeSpaceId]: (prev[activeSpaceId] ?? []).filter((f) => f.id !== folderId),
+    }));
+  };
 
   const activeSpace = workspaces.find((w) => w.id === activeSpaceId);
   const activeTabs = activeSpaceId ? tabsByWorkspace[activeSpaceId] ?? [] : [];
@@ -719,9 +776,9 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           {NAV_ROWS.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
-            return (
+            const isSearchRow = item.label === "Search…";
+            const rowLink = (
               <Link
-                key={item.href}
                 href={item.href}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -730,7 +787,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                     item.action();
                   }
                 }}
-                className="flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors"
+                className="flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors flex-1 min-w-0"
                 style={{
                   color: isActive ? "#f3f4f6" : "#9ca3af",
                   background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
@@ -755,6 +812,158 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 {!collapsed && <span className="flex-1">{item.label}</span>}
               </Link>
             );
+
+            // The Search row gets a trailing "+" button that opens a
+            // popover to create folders / new tabs — Foreplay-style.
+            if (isSearchRow && !collapsed) {
+              return (
+                <div
+                  key={item.href}
+                  className="flex items-center gap-1 relative"
+                >
+                  {rowLink}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNavPlusOpen((o) => !o);
+                    }}
+                    title="Créer"
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: navPlusOpen ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      color: "#9ca3af",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                      e.currentTarget.style.color = "#e5e7eb";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!navPlusOpen) {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                        e.currentTarget.style.color = "#9ca3af";
+                      }
+                    }}
+                  >
+                    <Plus size={13} />
+                  </button>
+                  {navPlusOpen && (
+                    <div
+                      onMouseLeave={() => setNavPlusOpen(false)}
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        right: 0,
+                        marginTop: 6,
+                        zIndex: 60,
+                        background: "rgba(15,15,25,0.98)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 10,
+                        padding: 4,
+                        minWidth: 180,
+                        boxShadow: "0 20px 40px -10px rgba(0,0,0,0.7)",
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          createFolder();
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "8px 12px",
+                          borderRadius: 6,
+                          background: "transparent",
+                          color: "#e5e7eb",
+                          fontSize: 13,
+                          textAlign: "left",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                          <line x1="12" y1="11" x2="12" y2="17" />
+                          <line x1="9" y1="14" x2="15" y2="14" />
+                        </svg>
+                        Créer un dossier
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNavPlusOpen(false);
+                          setNewTabOpen(true);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "8px 12px",
+                          borderRadius: 6,
+                          background: "transparent",
+                          color: "#e5e7eb",
+                          fontSize: 13,
+                          textAlign: "left",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Plus size={14} />
+                        Nouvel onglet
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNavPlusOpen(false);
+                          setNewAppOpen(true);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "8px 12px",
+                          borderRadius: 6,
+                          background: "transparent",
+                          color: "#e5e7eb",
+                          fontSize: 13,
+                          textAlign: "left",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                          <path d="M17.5 14v7M14 17.5h7" />
+                        </svg>
+                        Nouvelle app
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return <div key={item.href}>{rowLink}</div>;
           })}
         </div>
       </nav>
@@ -899,6 +1108,57 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           <div className="flex flex-col gap-0.5">
             {activeTabs.map((tab) => (
               <TabRow key={tab.id} tab={tab} onRemove={() => removeTab(tab.id)} />
+            ))}
+            {activeFolders.map((folder) => (
+              <div key={folder.id} className="mt-2">
+                <div
+                  className="flex items-center gap-2 px-2 py-1.5 group"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {folder.name}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteFolder(folder.id);
+                    }}
+                    style={{
+                      padding: 2,
+                      borderRadius: 4,
+                      background: "transparent",
+                      color: "#4b5563",
+                      border: "none",
+                      cursor: "pointer",
+                      opacity: 0,
+                      transition: "opacity 0.15s",
+                    }}
+                    className="group-hover:!opacity-100"
+                    title="Supprimer le dossier"
+                  >
+                    <XIcon size={10} />
+                  </button>
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#4b5563",
+                    padding: "4px 12px",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Vide — ajoute des onglets ici
+                </div>
+              </div>
             ))}
             <button
               onClick={(e) => {

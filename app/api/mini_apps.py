@@ -200,7 +200,7 @@ def wizard_start(
     parsed = _parse_wizard_reply(raw)
 
     session = {
-        "user_id": user.id,
+        "user_id": user["id"],
         "workspace_id": workspace_id,
         "messages": first_messages + [{"role": "assistant", "content": raw}],
         "draft_spec": parsed.get("spec") if parsed.get("type") == "spec" else None,
@@ -227,7 +227,7 @@ def wizard_message(
         supabase.table("mini_app_wizard_sessions")
         .select("*")
         .eq("id", body.session_id)
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .limit(1)
         .execute()
     )
@@ -270,7 +270,7 @@ def create_mini_app(
         supabase.table("mini_app_wizard_sessions")
         .select("*")
         .eq("id", body.session_id)
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .limit(1)
         .execute()
     )
@@ -295,7 +295,7 @@ def create_mini_app(
     existing = (
         supabase.table("mini_apps")
         .select("slug")
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .eq("slug", slug)
         .limit(1)
         .execute()
@@ -304,7 +304,7 @@ def create_mini_app(
         slug = f"{slug}-{uuid.uuid4().hex[:4]}"
 
     payload = {
-        "user_id": user.id,
+        "user_id": user["id"],
         "workspace_id": workspace_id,
         "name": name,
         "slug": slug,
@@ -334,7 +334,7 @@ def list_mini_apps(
     q = (
         supabase.table("mini_apps")
         .select("id, slug, name, description, logo_url, accent, tool, run_count, last_run_at, created_at")
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .order("created_at", desc=True)
     )
     if workspace_id:
@@ -351,7 +351,7 @@ def get_mini_app(
     res = (
         supabase.table("mini_apps")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .eq("slug", slug)
         .limit(1)
         .execute()
@@ -367,7 +367,7 @@ def delete_mini_app(
     user: Annotated[User, Depends(get_current_user)],
 ):
     supabase.table("mini_apps").delete().eq("id", app_id).eq(
-        "user_id", user.id
+        "user_id", user["id"]
     ).execute()
     return None
 

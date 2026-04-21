@@ -155,12 +155,12 @@ def list_workspaces(user: Annotated[User, Depends(get_current_user)]):
     primary workspace on first call so existing accounts start with
     something sensible.
     """
-    _ensure_primary_exists(user.id)
+    _ensure_primary_exists(user["id"])
 
     res = (
         supabase.table("workspaces")
         .select("id, name, color, is_primary, created_at")
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .order("is_primary", desc=True)
         .order("created_at", desc=False)
         .execute()
@@ -178,12 +178,12 @@ def create_workspace(
     has no workspace at all yet (fresh account), the first call will
     lazily create the primary first, then this call adds the second.
     """
-    _ensure_primary_exists(user.id)
+    _ensure_primary_exists(user["id"])
 
     count_res = (
         supabase.table("workspaces")
         .select("id", count="exact")
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .execute()
     )
     current_count = count_res.count or 0
@@ -194,7 +194,7 @@ def create_workspace(
         )
 
     payload = {
-        "user_id": user.id,
+        "user_id": user["id"],
         "name": body.name.strip(),
         "color": _sanitize_color(body.color),
         "is_primary": False,
@@ -209,7 +209,7 @@ def update_workspace(
     body: WorkspaceUpdate,
     user: Annotated[User, Depends(get_current_user)],
 ):
-    _require_workspace(user.id, workspace_id)
+    _require_workspace(user["id"], workspace_id)
 
     updates: dict = {}
     if body.name is not None:
@@ -224,7 +224,7 @@ def update_workspace(
         supabase.table("workspaces")
         .update(updates)
         .eq("id", workspace_id)
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .execute()
     )
     return res.data[0]
@@ -242,12 +242,12 @@ def delete_workspace(
     NULL (ON DELETE SET NULL) and get re-attached to the primary on
     next read.
     """
-    target = _require_workspace(user.id, workspace_id)
+    target = _require_workspace(user["id"], workspace_id)
 
     count_res = (
         supabase.table("workspaces")
         .select("id", count="exact")
-        .eq("user_id", user.id)
+        .eq("user_id", user["id"])
         .execute()
     )
     if (count_res.count or 0) <= 1:
@@ -263,7 +263,7 @@ def delete_workspace(
         )
 
     supabase.table("workspaces").delete().eq("id", workspace_id).eq(
-        "user_id", user.id
+        "user_id", user["id"]
     ).execute()
     return None
 
@@ -298,7 +298,7 @@ def resolve_workspace_id(
                 supabase.table("workspaces")
                 .select("id")
                 .eq("id", x_workspace_id)
-                .eq("user_id", user.id)
+                .eq("user_id", user["id"])
                 .limit(1)
                 .execute()
             )
@@ -307,4 +307,4 @@ def resolve_workspace_id(
         except Exception:
             logger.exception("resolve_workspace_id lookup failed")
     # Header missing or invalid → primary workspace (lazy-create).
-    return _ensure_primary_exists(user.id)["id"]
+    return _ensure_primary_exists(user["id"])["id"]
