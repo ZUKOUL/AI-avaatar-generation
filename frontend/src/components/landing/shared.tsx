@@ -101,6 +101,7 @@ export const PRODUCTS: Product[] = [
     color: "#ef4444",
     cluster: "performer",
     shape: "play",
+    logoSrc: "/logos/thumbs.png",
   },
   {
     slug: "autoclip",
