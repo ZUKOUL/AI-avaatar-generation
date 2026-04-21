@@ -931,13 +931,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                   aspectRatio: "1",
                   flex: collapsed ? undefined : "1 1 0",
                   background: isActive
-                    ? `linear-gradient(145deg, ${p.color}22, ${p.color}08)`
+                    ? `linear-gradient(145deg, ${p.color}30, ${p.color}10)`
                     : "rgba(255,255,255,0.02)",
                   border: isActive
-                    ? `1.5px solid ${p.color}70`
+                    ? `1.5px solid ${p.color}aa`
                     : "1px solid rgba(255,255,255,0.05)",
+                  // Bigger colored halo — the chip below is gone so the
+                  // glow is now the ONLY "you are here" indicator.
                   boxShadow: isActive
-                    ? `0 0 22px ${p.color}38, inset 0 1px 0 rgba(255,255,255,0.08)`
+                    ? `0 0 28px 2px ${p.color}66, 0 0 10px ${p.color}80, inset 0 1px 0 rgba(255,255,255,0.12)`
                     : "none",
                 }}
                 onMouseDown={(e) => {
@@ -957,10 +959,13 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           })}
         </div>
 
-        {/* Active / hovered chip — just the product name, no shortcut */}
-        {!collapsed && shownProduct && (
+        {/* Hovered-only chip — when a product is actually ACTIVE
+            (user is on its page) we rely on the colored glow around
+            the tile, no chip needed. The chip only surfaces on hover
+            so unfamiliar logos stay discoverable. */}
+        {!collapsed && hoveredProduct && (
           <div
-            key={shownProduct.slug /* re-render per product to restart fade */}
+            key={hoveredProduct.slug /* re-render per product to restart fade */}
             className="mt-3 mx-auto inline-flex items-center px-2.5 py-1.5 rounded-lg"
             style={{
               background: "rgba(15,15,20,0.85)",
@@ -971,7 +976,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             }}
           >
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
-              {shownProduct.name}
+              {hoveredProduct.name}
             </span>
           </div>
         )}
