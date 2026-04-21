@@ -67,7 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           background: "var(--bg-primary)",
           // When collapsed, the fixed sidebar narrows to 64px and the main
           // region reclaims the freed space via its `md:ml-[var(--sidebar-width)]`.
-          ["--sidebar-width" as string]: collapsed ? "64px" : "220px",
+          ["--sidebar-width" as string]: collapsed ? "64px" : "260px",
         } as React.CSSProperties
       }
     >

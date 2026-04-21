@@ -1,61 +1,60 @@
 "use client";
 
 /**
- * Sidebar — dark, product-centric, Foreplay-grade.
+ * Sidebar — dark, product-centric, inspired by modern SaaS dashboards.
  *
  * Layout :
- *   - Header    : Horpen logo + collapse toggle
- *   - Products  : 3x2 grid of 3D product logos, tinted by active
- *   - Main nav  : Home / Subscription / Settings (dark list)
- *   - Upgrade   : subtle card linking to /dashboard/credits
- *   - Bottom    : user button that opens UserMenuPopover → SettingsModal
+ *   - Header     : Horpen logo + collapse toggle
+ *   - Products   : single horizontal row of 6 product 3D tiles
+ *   - Active pill: small chip below the tiles with the active product
+ *                  name and its keyboard shortcut
+ *   - Main nav   : Home / Search / Starred (compact rows)
+ *   - Upgrade    : subtle trial/upgrade card
+ *   - Bottom     : user button → UserMenuPopover → SettingsModal
  *
- * DA choices :
- *   - Background is radial-gradient tinted by the active product color
- *     at very low opacity, so the sidebar breathes color as the user
- *     navigates between products.
- *   - Sidebar always renders dark regardless of the app theme — keeps
- *     the product brand consistent like Linear / Foreplay / Discord.
- *   - CSS vars (--bg-hover etc.) are scoped locally to the aside, so
- *     the rest of the app's light/dark theme is untouched.
+ * The whole sidebar is always dark regardless of app theme. A radial
+ * gradient tint based on the active product colour washes the header
+ * area so the bar breathes colour as you navigate.
+ *
+ * Keyboard shortcuts : ⌘/Ctrl + S/C/A/D/T/L jumps to each product.
  */
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { getStoredUser } from "@/lib/auth";
 import Logo from "@/components/Logo";
 import { SettingsModal, UserMenuPopover } from "@/components/settings";
-import { PRODUCTS, Product3DLogo } from "@/components/landing/shared";
-import { House, CreditCard, Settings, XIcon } from "@/components/Icons";
+import {
+  PRODUCTS,
+  Product3DLogo,
+  ProductSlug,
+} from "@/components/landing/shared";
+import { House, Search, Star, XIcon } from "@/components/Icons";
 
-/* ─── Main nav (non-product rows) ─── */
-
-type NavDef = {
-  href: string;
-  label: string;
-  icon: React.FC<{ size?: number }>;
-};
-
-const NAV_MAIN: NavDef[] = [
-  { href: "/dashboard", label: "Home", icon: House },
-  { href: "/dashboard/credits", label: "Subscription", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+/* Keyboard shortcut map for the 6 products. ⌘ on mac, Ctrl elsewhere. */
+const PRODUCT_SHORTCUTS: { slug: ProductSlug; key: string; label: string }[] = [
+  { slug: "spyder", key: "s", label: "⌘S" },
+  { slug: "canvas", key: "c", label: "⌘C" },
+  { slug: "avatar", key: "a", label: "⌘A" },
+  { slug: "adlab", key: "d", label: "⌘D" },
+  { slug: "thumbs", key: "t", label: "⌘T" },
+  { slug: "autoclip", key: "l", label: "⌘L" },
 ];
 
-/* ─── Collapse toggle icon ─── */
+function shortcutFor(slug: ProductSlug): string | undefined {
+  return PRODUCT_SHORTCUTS.find((s) => s.slug === slug)?.label;
+}
 
-function PanelToggleIcon({ collapsed }: { collapsed: boolean }) {
+/* Collapse toggle glyph. */
+function PanelToggleIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
       <line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" strokeWidth="1.4" />
-      {collapsed && <rect x="2.5" y="3.5" width="3" height="9" rx="1" fill="currentColor" opacity="0.5" />}
     </svg>
   );
 }
-
-/* ─── Sidebar ─── */
 
 interface SidebarProps {
   open: boolean;
@@ -66,10 +65,12 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose, collapsed = false, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const user = typeof window !== "undefined" ? getStoredUser() : null;
   const [isMobile, setIsMobile] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hovered, setHovered] = useState<ProductSlug | null>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -78,240 +79,235 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Close mobile drawer on navigation.
+  // Close drawer on navigation (mobile).
   useEffect(() => {
     if (isMobile && onClose) onClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Figure out which product tab is currently active — drives the
-  // background tint + the glow on the corresponding tile.
+  // Keyboard shortcuts : ⌘/Ctrl + letter jumps between products.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.shiftKey || e.altKey) return;
+      const match = PRODUCT_SHORTCUTS.find((s) => s.key === e.key.toLowerCase());
+      if (!match) return;
+      // Don't steal shortcuts from text inputs.
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      router.push(`/dashboard/${match.slug}`);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [router]);
+
   const activeProduct = PRODUCTS.find((p) =>
     pathname?.startsWith(`/dashboard/${p.slug}`)
   );
-  const tintColor = activeProduct?.color ?? "#3b82f6";
+  const hoveredProduct = hovered
+    ? PRODUCTS.find((p) => p.slug === hovered)
+    : null;
+  const shownProduct = hoveredProduct ?? activeProduct;
+  const tintColor = shownProduct?.color ?? activeProduct?.color ?? "#3b82f6";
 
   const handleSidebarClick = () => {
     if (collapsed && onToggleCollapsed) onToggleCollapsed();
   };
 
+  const NAV_ROWS: { href: string; label: string; icon: React.FC<{ size?: number }>; action?: () => void }[] = [
+    { href: "/dashboard", label: "Home", icon: House },
+    { href: "/dashboard/search", label: "Search…", icon: Search },
+    { href: "/dashboard/starred", label: "Starred", icon: Star },
+  ];
+
   const sidebarContent = (
     <>
       {/* ── Header ── */}
       <div
-        className="flex items-center px-3 h-14 shrink-0"
+        className="flex items-center px-4 h-14 shrink-0"
         style={{
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
           justifyContent: collapsed ? "center" : "space-between",
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget) e.stopPropagation();
         }}
       >
-        {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" onClick={(e) => e.stopPropagation()}>
-            <Logo size={28} />
-            <span style={{ fontSize: 15, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
-              Horpen
-            </span>
-          </Link>
-        )}
-        {collapsed && (
+        {!collapsed ? (
+          <>
+            <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+              <Logo size={26} />
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
+                Horpen
+              </span>
+            </Link>
+            {!isMobile && onToggleCollapsed && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCollapsed();
+                }}
+                className="p-1.5 rounded-md transition-colors"
+                style={{ color: "#6b7280" }}
+                title="Collapse sidebar"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  e.currentTarget.style.color = "#e5e7eb";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#6b7280";
+                }}
+              >
+                <PanelToggleIcon />
+              </button>
+            )}
+            {isMobile && onClose && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="p-1.5 rounded-md"
+                style={{ color: "#6b7280" }}
+              >
+                <XIcon size={16} />
+              </button>
+            )}
+          </>
+        ) : (
           <Link href="/dashboard" onClick={(e) => e.stopPropagation()}>
-            <Logo size={28} />
+            <Logo size={26} />
           </Link>
-        )}
-        {!isMobile && onToggleCollapsed && !collapsed && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleCollapsed();
-            }}
-            className="p-1.5 rounded-md transition-colors"
-            style={{ color: "#6b7280" }}
-            title="Collapse sidebar"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-              e.currentTarget.style.color = "#e5e7eb";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "#6b7280";
-            }}
-          >
-            <PanelToggleIcon collapsed={collapsed} />
-          </button>
-        )}
-        {isMobile && onClose && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-1.5 rounded-md"
-            style={{ color: "#6b7280" }}
-          >
-            <XIcon size={16} />
-          </button>
         )}
       </div>
 
-      {/* ── Product tiles ── */}
+      {/* ── Product tiles : single horizontal row in expanded mode,
+            stacked vertically when collapsed. ── */}
       <div
-        className="px-2.5 pt-4 pb-2 shrink-0"
+        className={collapsed ? "px-2 pb-3" : "px-4 pb-1"}
         onClick={(e) => e.stopPropagation()}
       >
-        {!collapsed && (
-          <div
-            className="px-1 mb-2"
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              color: "#4b5563",
-              textTransform: "uppercase",
-            }}
-          >
-            Produits
-          </div>
-        )}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: collapsed ? "1fr" : "repeat(3, 1fr)",
-            gap: 6,
+            display: "flex",
+            flexDirection: collapsed ? "column" : "row",
+            alignItems: "center",
+            gap: collapsed ? 8 : 6,
+            flexWrap: collapsed ? "nowrap" : "nowrap",
           }}
         >
           {PRODUCTS.map((p) => {
             const isActive = pathname?.startsWith(`/dashboard/${p.slug}`);
+            const shortcut = shortcutFor(p.slug);
             return (
               <Link
                 key={p.slug}
                 href={`/dashboard/${p.slug}`}
-                title={p.name}
+                title={shortcut ? `${p.name} (${shortcut})` : p.name}
                 onClick={(e) => e.stopPropagation()}
+                onMouseEnter={() => setHovered(p.slug)}
+                onMouseLeave={() => setHovered(null)}
                 className="relative flex items-center justify-center rounded-xl transition-all"
                 style={{
+                  width: collapsed ? 40 : "100%",
                   aspectRatio: "1",
+                  flex: collapsed ? undefined : "1 1 0",
                   background: isActive
-                    ? `linear-gradient(145deg, ${p.color}28, ${p.color}0a)`
-                    : "rgba(255,255,255,0.025)",
+                    ? `linear-gradient(145deg, ${p.color}22, ${p.color}08)`
+                    : "rgba(255,255,255,0.02)",
                   border: isActive
-                    ? `1.5px solid ${p.color}60`
+                    ? `1.5px solid ${p.color}70`
                     : "1px solid rgba(255,255,255,0.05)",
                   boxShadow: isActive
-                    ? `0 0 24px ${p.color}35, inset 0 1px 0 rgba(255,255,255,0.08)`
+                    ? `0 0 22px ${p.color}38, inset 0 1px 0 rgba(255,255,255,0.08)`
                     : "none",
                 }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-                  }
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = "scale(0.96)";
                 }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.025)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
-                  }
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
                 <Product3DLogo
                   product={p}
-                  size={collapsed ? 28 : 32}
+                  size={collapsed ? 28 : 30}
                   glow={false}
                 />
-                {isActive && !collapsed && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: -2,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      width: 14,
-                      height: 2,
-                      borderRadius: 2,
-                      background: p.color,
-                      boxShadow: `0 0 8px ${p.color}`,
-                    }}
-                  />
-                )}
               </Link>
             );
           })}
         </div>
 
-        {/* Active product label — shows below the grid in expanded mode */}
-        {!collapsed && activeProduct && (
+        {/* Active / hovered chip — floats directly under the row and
+            surfaces the product name + keyboard shortcut. Only shown
+            when expanded. */}
+        {!collapsed && shownProduct && (
           <div
-            className="mt-3 mx-1 flex items-center justify-between gap-2"
+            key={shownProduct.slug /* re-render per product to restart fade */}
+            className="mt-3 mx-auto inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
             style={{
-              padding: "6px 8px",
-              borderRadius: 8,
-              background: `linear-gradient(90deg, ${activeProduct.color}12, transparent)`,
-              borderLeft: `2px solid ${activeProduct.color}`,
+              background: "rgba(15,15,20,0.85)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
+              backdropFilter: "blur(6px)",
+              animation: "sidebar-chip-in 0.25s ease-out forwards",
             }}
           >
-            <div>
-              <div style={{ fontSize: 9.5, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Actif
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
-                {activeProduct.name}
-              </div>
-            </div>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
+              {shownProduct.name}
+            </span>
+            {shortcutFor(shownProduct.slug) && (
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  padding: "2px 6px",
+                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#9ca3af",
+                  fontFamily: "ui-monospace, monospace",
+                }}
+              >
+                {shortcutFor(shownProduct.slug)}
+              </span>
+            )}
           </div>
         )}
       </div>
 
+      <style jsx global>{`
+        @keyframes sidebar-chip-in {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       {/* ── Main nav ── */}
       <nav
-        className="flex-1 px-2.5 py-3 overflow-y-auto"
+        className={collapsed ? "flex-1 overflow-y-auto px-2 py-2" : "flex-1 overflow-y-auto px-3 py-3"}
         onClick={(e) => e.stopPropagation()}
       >
-        {!collapsed && (
-          <div
-            className="px-1 mb-1.5 mt-1"
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              color: "#4b5563",
-              textTransform: "uppercase",
-            }}
-          >
-            Général
-          </div>
-        )}
         <div className="flex flex-col gap-0.5">
-          {NAV_MAIN.map((item) => {
+          {NAV_ROWS.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname?.startsWith(item.href));
-
-            // Intercept the "Settings" row so it opens the modal
-            // instead of navigating to the legacy /dashboard/settings
-            // page.
-            const onItemClick = (e: React.MouseEvent) => {
-              if (item.label === "Settings") {
-                e.preventDefault();
-                setSettingsOpen(true);
-              }
-            };
-
+            const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onItemClick}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.action) {
+                    e.preventDefault();
+                    item.action();
+                  }
+                }}
                 className="flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors"
                 style={{
                   color: isActive ? "#f3f4f6" : "#9ca3af",
                   background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
-                  border: isActive
-                    ? "1px solid rgba(255,255,255,0.08)"
-                    : "1px solid transparent",
                   justifyContent: collapsed ? "center" : "flex-start",
                   fontSize: 13.5,
                   fontWeight: isActive ? 600 : 500,
@@ -330,47 +326,68 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 }}
               >
                 <Icon size={16} />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span className="flex-1">{item.label}</span>}
+                {!collapsed && item.label === "Search…" && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      padding: "1px 5px",
+                      borderRadius: 4,
+                      background: "rgba(255,255,255,0.05)",
+                      color: "#6b7280",
+                      fontFamily: "ui-monospace, monospace",
+                    }}
+                  >
+                    ⌘K
+                  </span>
+                )}
               </Link>
             );
           })}
         </div>
+      </nav>
 
-        {/* Upgrade card — subtle, only when expanded */}
-        {!collapsed && (
+      {/* ── Upgrade card ── */}
+      {!collapsed && (
+        <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
           <div
-            className="mt-5 rounded-xl p-3"
+            className="rounded-xl p-3.5"
             style={{
-              background: "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.02))",
-              border: "1px solid rgba(59,130,246,0.18)",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#93c5fd", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
-              Upgrade
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#f3f4f6", marginBottom: 4 }}>
+              Passe au plan supérieur
             </div>
-            <div style={{ fontSize: 12.5, color: "#cbd5e1", lineHeight: 1.4, marginBottom: 10 }}>
-              Plus de crédits, 4K, A/B tests illimités.
+            <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.45, marginBottom: 12 }}>
+              Plus de crédits, 4K, A/B tests illimités, toute la suite.
             </div>
             <Link
               href="/dashboard/credits"
-              className="inline-flex items-center gap-1.5 w-full justify-center rounded-lg"
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg"
               style={{
-                padding: "6px 10px",
-                background: "#3b82f6",
-                color: "#ffffff",
+                padding: "8px 10px",
+                background: "#ffffff",
+                color: "#0a0a0a",
                 fontSize: 12.5,
                 fontWeight: 600,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
               }}
             >
-              Voir les plans →
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+              Upgrade Horpen
             </Link>
           </div>
-        )}
-      </nav>
+        </div>
+      )}
 
-      {/* ── User button ── */}
+      {/* ── User row ── */}
       <div
-        className="shrink-0 p-2.5"
+        className="shrink-0"
         style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -380,15 +397,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
               e.stopPropagation();
               setUserMenuOpen(true);
             }}
-            className="w-10 h-10 flex items-center justify-center rounded-lg mx-auto"
+            className="w-full h-14 flex items-center justify-center"
             title={user?.email ?? "Compte"}
           >
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold uppercase"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold uppercase"
               style={{
                 background: "linear-gradient(135deg, #3b82f6, #1e40af)",
                 color: "#ffffff",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
               }}
             >
               {user?.email?.charAt(0) || "?"}
@@ -400,46 +417,50 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
               e.stopPropagation();
               setUserMenuOpen(true);
             }}
-            className="w-full flex items-center gap-2.5 p-2 rounded-lg transition-colors"
-            style={{ background: userMenuOpen ? "rgba(255,255,255,0.06)" : "transparent" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+            className="w-full flex items-center justify-between px-3 h-14 transition-colors"
+            style={{
+              background: userMenuOpen ? "rgba(255,255,255,0.04)" : "transparent",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
             onMouseLeave={(e) => {
               if (!userMenuOpen) e.currentTarget.style.background = "transparent";
             }}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold uppercase shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #3b82f6, #1e40af)",
-                color: "#ffffff",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-              }}
-            >
-              {user?.email?.charAt(0) || "?"}
-            </div>
-            <div className="flex-1 min-w-0 text-left">
+            <div className="flex items-center gap-2.5 min-w-0">
               <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold uppercase shrink-0"
                 style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "#f3f4f6",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  background: "linear-gradient(135deg, #3b82f6, #1e40af)",
+                  color: "#ffffff",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
                 }}
               >
-                {user?.email?.split("@")[0] || "Utilisateur"}
+                {user?.email?.charAt(0) || "?"}
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {user?.email || ""}
+              <div className="min-w-0 text-left">
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: "#f3f4f6",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {user?.email?.split("@")[0] || "Utilisateur"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {user?.email || ""}
+                </div>
               </div>
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "#6b7280", flexShrink: 0 }}>
@@ -449,9 +470,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* Popovers and modal mounted inside the sidebar so their
-          positioning anchors to it. UserMenuPopover has its own
-          backdrop for click-to-dismiss. */}
       <UserMenuPopover
         open={userMenuOpen}
         onClose={() => setUserMenuOpen(false)}
@@ -461,20 +479,17 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     </>
   );
 
-  // Background : dark base + radial gradient tinted by the active
-  // product color at very low opacity. Transitions smoothly between
-  // products via the 0.6s background transition.
-  const darkBg = {
+  // Dark theme + radial tint driven by the active / hovered product.
+  const darkBg: React.CSSProperties = {
     background: `
-      radial-gradient(140% 60% at 50% -20%, ${tintColor}18 0%, transparent 55%),
-      linear-gradient(180deg, #0a0a12 0%, #06060d 50%, #030308 100%)
+      radial-gradient(140% 45% at 50% 0%, ${tintColor}1c 0%, transparent 55%),
+      linear-gradient(180deg, #0a0b14 0%, #070810 50%, #040510 100%)
     `,
     color: "#e5e7eb",
     borderRight: "1px solid rgba(255,255,255,0.06)",
-    transition: "background 0.6s ease, width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-  } as React.CSSProperties;
+    transition: "background 0.5s ease, width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+  };
 
-  // Mobile: overlay drawer.
   if (isMobile) {
     return (
       <>
@@ -500,7 +515,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     );
   }
 
-  // Desktop : fixed sidebar, width driven by --sidebar-width.
   return (
     <aside
       className="fixed left-0 top-0 h-full z-40 flex flex-col"
