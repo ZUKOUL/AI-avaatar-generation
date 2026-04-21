@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { clearAuth, getStoredUser } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import Logo from "@/components/Logo";
+import { SettingsModal, UserMenuPopover } from "@/components/settings";
 import {
   House,
   UserCircle,
@@ -13,7 +14,6 @@ import {
   VideoCamera,
   CreditCard,
   Settings,
-  SignOut,
   Sun,
   Moon,
   XIcon,
@@ -118,6 +118,7 @@ function NavSection({
 
   useEffect(() => {
     if (collapsed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndicator((s) => ({ ...s, visible: false, animate: false }));
       prevCollapsedRef.current = true;
       return;
@@ -283,6 +284,8 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   const { theme, toggleTheme } = useTheme();
   const user = typeof window !== "undefined" ? getStoredUser() : null;
   const [isMobile, setIsMobile] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -296,10 +299,9 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     if (isMobile && onClose) onClose();
   }, [pathname]);
 
-  const handleLogout = () => {
-    clearAuth();
-    window.location.href = "/login";
-  };
+  // handleLogout is consumed via the UserMenuPopover + SettingsModal now,
+  // keep the helper available in case a future shortcut needs it directly.
+  void clearAuth; // silence unused-import if clearAuth ever gets dropped
 
   // Compute active href across all sections
   const allItems = [...NAV_MAIN, ...NAV_TOOLS, ...NAV_ACCOUNT];
@@ -461,12 +463,12 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleLogout();
+              setUserMenuOpen(true);
             }}
             className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
             style={{ color: "var(--text-muted)" }}
-            title={user?.email ? `Sign out (${user.email})` : "Sign out"}
-            aria-label="Sign out"
+            title={user?.email ? `Compte (${user.email})` : "Compte"}
+            aria-label="Compte"
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "var(--bg-hover)";
               e.currentTarget.style.color = "var(--text-primary)";
@@ -476,33 +478,50 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
               e.currentTarget.style.color = "var(--text-muted)";
             }}
           >
-            <SignOut size={16} />
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold uppercase"
+              style={{ background: "linear-gradient(135deg, #3b82f6, #1e40af)", color: "#fff" }}
+            >
+              {user?.email?.charAt(0) || "?"}
+            </div>
           </button>
         ) : (
-          <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setUserMenuOpen(true);
+            }}
+            className="w-full flex items-center justify-between p-2 rounded-lg transition-colors"
+            style={{ background: userMenuOpen ? "var(--bg-hover)" : "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+            onMouseLeave={(e) => {
+              if (!userMenuOpen) e.currentTarget.style.background = "transparent";
+            }}
+          >
             <div className="flex items-center gap-2.5 min-w-0">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold uppercase shrink-0"
-                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                style={{ background: "linear-gradient(135deg, #3b82f6, #1e40af)", color: "#ffffff" }}
               >
                 {user?.email?.charAt(0) || "?"}
               </div>
-              <span className="text-[12px] truncate" style={{ color: "var(--text-secondary)" }}>
+              <span className="text-[12px] truncate text-left" style={{ color: "var(--text-secondary)" }}>
                 {user?.email || ""}
               </span>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-md transition-colors shrink-0"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-            >
-              <SignOut size={16} />
-            </button>
-          </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
         )}
       </div>
+
+      <UserMenuPopover
+        open={userMenuOpen}
+        onClose={() => setUserMenuOpen(false)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 

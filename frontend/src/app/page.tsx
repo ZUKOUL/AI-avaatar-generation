@@ -524,7 +524,7 @@ export default function Home() {
               }}
             >
               <SparkleIcon className="w-3.5 h-3.5" />
-              <span>Nouveau — Clonage d&apos;ads en 1 clic</span>
+              <span>Le Google de la création de contenu IA</span>
             </div>
 
             <h1
@@ -554,9 +554,9 @@ export default function Home() {
                 "--horpen-reveal-delay": "0.2s",
               } as React.CSSProperties}
             >
-              Horpen génère tes UGC, tes ads, tes miniatures et tes visuels produit
-              avec l&apos;IA la plus économique du marché. Clone ce qui cartonne. Décline
-              à l&apos;infini. Publie.
+              Tout ce que tu publies en ligne — avatars, ads, miniatures, vidéos, photos
+              produit. Track tes meilleurs concurrents, clone ce qui marche, assigne des
+              tâches à ta team. Un seul workspace, 6 produits connectés.
             </p>
 
             <div
