@@ -33,7 +33,6 @@ import Image from "next/image";
 import {
   ArrowRight,
   Check,
-  Play,
   SparkleIcon,
   ChevronDown,
   VideoCamera,
@@ -47,6 +46,13 @@ import {
   Star,
   Type,
 } from "@/components/Icons";
+import {
+  PRODUCTS,
+  ProductDock,
+  ProductDropdown,
+  ProductDropdownTrigger,
+  Product3DLogo,
+} from "@/components/landing/shared";
 
 /* ─── Pricing ─────────────────────────────────────────────────────── */
 
@@ -145,17 +151,9 @@ const FAQ = [
   },
 ];
 
-/* ─── Tabs interactifs (section post-hero) ────────────────────────── */
+/* ─── Showcase tab key (réutilisé par FeatureShowcaseTabs seulement) ── */
 
 type TabKey = "ugc" | "avatars" | "thumbnails" | "ads" | "photo";
-
-const FEATURE_TABS: { key: TabKey; label: string; icon: React.ElementType; accent: string }[] = [
-  { key: "ugc", label: "UGC Vidéo", icon: VideoCamera, accent: "#3b82f6" },
-  { key: "avatars", label: "Avatars IA", icon: User, accent: "#3b82f6" },
-  { key: "thumbnails", label: "Miniatures YTB", icon: PlaySquare, accent: "#0a0a0a" },
-  { key: "ads", label: "Ads créatives", icon: Megaphone, accent: "#3b82f6" },
-  { key: "photo", label: "Photo produit", icon: Camera, accent: "#10b981" },
-];
 
 /* ─── Showcase ────────────────────────────────────────────────────── */
 
@@ -197,7 +195,6 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showcase, setShowcase] = useState<ShowcaseData>(EMPTY_SHOWCASE);
-  const [activeTab, setActiveTab] = useState<TabKey>("ugc");
   const [activeShowcaseTab, setActiveShowcaseTab] = useState<TabKey>("ugc");
 
   useEffect(() => {
@@ -421,9 +418,10 @@ export default function Home() {
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-[14px]">
-            <a href="#piliers" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Produit</a>
-            <a href="#features" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Features</a>
-            <a href="#micro-apps" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Apps</a>
+            <ProductDropdownTrigger label="Produit">
+              <ProductDropdown />
+            </ProductDropdownTrigger>
+            <a href="#suite" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Suite</a>
             <a href="#pricing" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Tarifs</a>
             <a href="#faq" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">FAQ</a>
           </div>
@@ -448,9 +446,24 @@ export default function Home() {
         </div>
         {menuOpen && (
           <div className="md:hidden px-5 pb-5 flex flex-col gap-3 text-[15px]" style={{ borderTop: "1px solid #ececec" }}>
-            <a href="#piliers" onClick={() => setMenuOpen(false)}>Produit</a>
-            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="#micro-apps" onClick={() => setMenuOpen(false)}>Apps</a>
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 12 }}>
+              Produits
+            </div>
+            {PRODUCTS.map((p) => (
+              <Link
+                key={p.slug}
+                href={`/${p.slug}`}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3"
+              >
+                <Product3DLogo product={p} size={32} glow={false} />
+                <div>
+                  <div style={{ fontWeight: 600, color: "#0a0a0a" }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>{p.tagline}</div>
+                </div>
+              </Link>
+            ))}
+            <div style={{ height: 1, background: "#ececec", margin: "8px 0" }} />
             <a href="#pricing" onClick={() => setMenuOpen(false)}>Tarifs</a>
             <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
             <Link href="/login">Se connecter</Link>
@@ -547,81 +560,31 @@ export default function Home() {
             </p>
 
             <div
-              className="horpen-reveal mt-9 flex flex-col sm:flex-row items-center gap-3"
+              className="horpen-reveal mt-9"
               style={{ "--horpen-reveal-delay": "0.3s" } as React.CSSProperties}
             >
               <Link
                 href="/signup"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium transition"
+                className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-medium transition"
                 style={{
                   background: "#ffffff",
                   color: "#0a0a0a",
-                  fontSize: 15,
+                  fontSize: 16,
                   boxShadow: "0 8px 24px rgba(255,255,255,0.15), 0 1px 0 rgba(255,255,255,0.4) inset",
                 }}
               >
-                Commencer gratuitement
+                Essai gratuit
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              <a
-                href="#feature-tabs"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium transition"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#ffffff",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  fontSize: 15,
-                }}
-              >
-                <Play className="w-4 h-4" />
-                Voir la démo (2 min)
-              </a>
             </div>
 
-            {/* Tabs hero */}
+            {/* Product Dock — 6 produits Foreplay-style */}
             <div
-              id="feature-tabs"
-              className="horpen-reveal mt-12 w-full flex flex-wrap items-center justify-center gap-2"
+              id="product-dock"
+              className="horpen-reveal mt-16 w-full"
               style={{ "--horpen-reveal-delay": "0.4s" } as React.CSSProperties}
             >
-              {FEATURE_TABS.map((tab) => {
-                const active = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition"
-                    style={{
-                      background: active ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.04)",
-                      border: active ? "1px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)",
-                      color: active ? "#ffffff" : "#94a3b8",
-                      fontSize: 13.5,
-                      fontWeight: 500,
-                      boxShadow: active ? "0 0 20px rgba(59,130,246,0.3), 0 1px 0 rgba(255,255,255,0.08) inset" : "0 1px 0 rgba(255,255,255,0.04) inset",
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: active ? "#3b82f6" : "rgba(255,255,255,0.2)",
-                        boxShadow: active ? "0 0 8px rgba(59,130,246,0.8)" : "none",
-                      }}
-                    />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Hero demo — visuel qui change selon le tab actif */}
-            <div
-              className="horpen-reveal mt-8 w-full"
-              style={{ "--horpen-reveal-delay": "0.5s", maxWidth: 1080 } as React.CSSProperties}
-            >
-              <HeroDemo activeTab={activeTab} showcase={showcase} />
+              <ProductDock dark={true} size={44} />
             </div>
           </div>
         </div>
@@ -1422,233 +1385,6 @@ export default function Home() {
 /* ═══════════════════════════════════════════════════════════════════
  *  SUB-COMPONENTS
  * ═════════════════════════════════════════════════════════════════ */
-
-/* HERO DEMO — visuel qui change selon le tab actif. */
-function HeroDemo({ activeTab, showcase }: { activeTab: TabKey; showcase: ShowcaseData }) {
-  return (
-    <div
-      className="relative"
-      style={{
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 22,
-        padding: 18,
-        backdropFilter: "blur(20px)",
-      }}
-    >
-      {/* Browser chrome */}
-      <div className="flex items-center justify-between mb-4 px-1">
-        <div className="flex items-center gap-2">
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#0a0a0a" }} />
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#6b7280" }} />
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
-        </div>
-        <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: "0.05em" }}>
-          app.horpen.ai / {activeTab}
-        </div>
-        <div style={{ width: 40 }} />
-      </div>
-
-      {/* Zone de démo — key force un remount à chaque changement = animation */}
-      <div
-        key={activeTab}
-        className="relative rounded-xl overflow-hidden"
-        style={{
-          minHeight: 320,
-          background: "rgba(255,255,255,0.02)",
-          animation: "horpen-scale-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards",
-        }}
-      >
-        {activeTab === "ugc" && <DemoUGC showcase={showcase} />}
-        {activeTab === "avatars" && <DemoAvatars showcase={showcase} />}
-        {activeTab === "thumbnails" && <DemoThumbnails showcase={showcase} />}
-        {activeTab === "ads" && <DemoAds showcase={showcase} />}
-        {activeTab === "photo" && <DemoPhoto showcase={showcase} />}
-      </div>
-    </div>
-  );
-}
-
-function DemoUGC({ showcase }: { showcase: ShowcaseData }) {
-  const thumbs = showcase.thumbnails.slice(0, 4);
-  return (
-    <div className="p-5 grid grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="rounded-lg overflow-hidden relative"
-          style={{
-            aspectRatio: "9/16",
-            background: thumbs[i]?.url
-              ? "transparent"
-              : `linear-gradient(180deg, ${["#3b82f6", "#3b82f6", "#0a0a0a", "#10b981"][i]}88, ${["#1e40af", "#6b21a8", "#831843", "#064e3b"][i]}88)`,
-          }}
-        >
-          {thumbs[i]?.url && (
-            <img src={thumbs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#fff" }}>
-            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.4)" }} />
-            <div style={{ background: "rgba(0,0,0,0.6)", padding: "2px 7px", borderRadius: 999, backdropFilter: "blur(4px)" }}>
-              UGC #{i + 1}
-            </div>
-          </div>
-          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 6, fontSize: 9, color: "#fff", fontWeight: 600 }}>
-            {[98, 87, 92, 81][i]}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DemoAvatars({ showcase }: { showcase: ShowcaseData }) {
-  const avatars = showcase.avatars.slice(0, 6);
-  const gradients = ["#3b82f6", "#3b82f6", "#0a0a0a", "#10b981", "#3b82f6", "#6b7280"];
-  return (
-    <div className="p-5">
-      <div className="flex items-center gap-2 mb-4" style={{ fontSize: 11, color: "#94a3b8" }}>
-        <User className="w-3.5 h-3.5" />
-        <span>6 avatars IA actifs</span>
-      </div>
-      <div className="grid grid-cols-6 gap-3">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="relative"
-            style={{
-              aspectRatio: "3/4",
-              borderRadius: 12,
-              overflow: "hidden",
-              background: avatars[i]?.url
-                ? "transparent"
-                : `linear-gradient(135deg, ${gradients[i]}, ${gradients[(i + 2) % 6]})`,
-              border: "2px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            {avatars[i]?.url && (
-              <img src={avatars[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            )}
-            <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 999, fontSize: 9, color: "#fff", backdropFilter: "blur(4px)" }}>
-              Avatar {i + 1}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DemoThumbnails({ showcase }: { showcase: ShowcaseData }) {
-  const thumbs = showcase.thumbnails.slice(0, 3);
-  return (
-    <div className="p-5 space-y-3">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 rounded-lg p-3"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-        >
-          <div
-            className="flex-shrink-0 relative overflow-hidden rounded"
-            style={{
-              width: 160,
-              height: 90,
-              background: thumbs[i]?.url ? "transparent" : `linear-gradient(135deg, ${["#0a0a0a", "#3b82f6", "#3b82f6"][i]}, ${["#991b1b", "#6b21a8", "#1e40af"][i]})`,
-            }}
-          >
-            {thumbs[i]?.url && (
-              <img src={thumbs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            )}
-            <div style={{ position: "absolute", bottom: 4, right: 4, background: "rgba(0,0,0,0.75)", padding: "1px 5px", borderRadius: 3, fontSize: 9, color: "#fff", fontWeight: 600 }}>
-              {["12:34", "8:21", "15:02"][i]}
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 13, color: "#fff", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {["Comment j'ai scalé mon shop à 50k/mois", "3 hooks qui convertissent à 5%+ CTR", "La vérité sur l'IA pour le e-commerce"][i]}
-            </div>
-            <div className="flex items-center gap-2 mt-1.5" style={{ fontSize: 10, color: "#94a3b8" }}>
-              <span>CTR estimé : <span style={{ color: "#10b981", fontWeight: 600 }}>{[9.2, 7.5, 6.8][i]}%</span></span>
-              <span>·</span>
-              <span>Score {[94, 87, 81][i]}/100</span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DemoAds({ showcase }: { showcase: ShowcaseData }) {
-  const ads = showcase.ads.slice(0, 4);
-  const colors = ["#3b82f6", "#0a0a0a", "#3b82f6", "#6b7280"];
-  return (
-    <div className="p-5 grid grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="relative rounded-lg overflow-hidden"
-          style={{
-            aspectRatio: "1/1",
-            background: ads[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 1) % 4]})`,
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          {ads[i]?.url && (
-            <img src={ads[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.7)", padding: "2px 7px", borderRadius: 999, fontSize: 9, color: "#fff", fontWeight: 600, backdropFilter: "blur(4px)" }}>
-            Ad {i + 1}
-          </div>
-          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 10, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: 4, backdropFilter: "blur(4px)" }}>
-              ROAS {[3.1, 2.7, 4.2, 1.9][i]}×
-            </span>
-            {[true, true, true, false][i] && (
-              <span style={{ fontSize: 10, color: "#fff", background: "#10b98180", padding: "2px 6px", borderRadius: 4, backdropFilter: "blur(4px)", fontWeight: 600 }}>
-                WIN
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DemoPhoto({ showcase }: { showcase: ShowcaseData }) {
-  const imgs = showcase.images.slice(0, 5);
-  const colors = ["#6b7280", "#10b981", "#3b82f6", "#6b7280", "#6b7280"];
-  return (
-    <div className="p-5">
-      <div className="flex items-center gap-2 mb-4" style={{ fontSize: 11, color: "#94a3b8" }}>
-        <Camera className="w-3.5 h-3.5" />
-        <span>Shooting IA — 5 variantes en 8s</span>
-      </div>
-      <div className="grid grid-cols-5 gap-2.5">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="relative rounded-lg overflow-hidden"
-            style={{
-              aspectRatio: "3/4",
-              background: imgs[i]?.url ? "transparent" : `linear-gradient(135deg, ${colors[i]}, ${colors[(i + 1) % 5]})`,
-            }}
-          >
-            {imgs[i]?.url && (
-              <img src={imgs[i].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            )}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.4) 100%)" }} />
-            <div style={{ position: "absolute", bottom: 6, left: 6, fontSize: 9, color: "#fff", fontWeight: 500 }}>
-              {["Studio", "Outdoor", "Lifestyle", "Top-down", "Flatlay"][i]}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* FLOATING LOGOS — bulles pour social proof. */
 function FloatingLogos() {
