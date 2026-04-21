@@ -16,6 +16,8 @@ from app.api.ai_videos import router as ai_videos_router
 from app.api.showcase import router as showcase_router
 from app.api.spyder import router as spyder_router
 from app.api.team import router as team_router
+from app.api.workspaces import router as workspaces_router
+from app.api.mini_apps import router as mini_apps_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -97,6 +99,16 @@ app.include_router(
     team_router,
     prefix="/team",
     tags=["Team (collaboration + tasks)"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    workspaces_router,
+    tags=["Workspaces (personal isolated spaces)"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    mini_apps_router,
+    tags=["Mini Apps (user-created recipes)"],
     dependencies=[Depends(get_current_user)],
 )
 

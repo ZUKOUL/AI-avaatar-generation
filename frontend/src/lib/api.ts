@@ -7,12 +7,22 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach JWT token to every request
+/** localStorage key where the active workspace id is persisted.
+ *  Exported so the Sidebar + WorkspaceContext can read/write in sync. */
+export const WORKSPACE_STORAGE_KEY = "horpen_active_workspace_id";
+
+// Attach JWT token + active workspace header to every request. The
+// backend's resolve_workspace_id dependency reads X-Workspace-Id,
+// falls back to the user's primary workspace when missing.
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("horpen_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    if (workspaceId) {
+      config.headers["X-Workspace-Id"] = workspaceId;
     }
   }
   return config;
@@ -362,6 +372,84 @@ export const userAPI = {
     }),
   adminAddCredits: (amount: number) =>
     api.post("/credits/admin/add", { amount, description: "Admin self-grant" }),
+};
+
+// ── Workspaces (personal isolated spaces) ──
+export interface Workspace {
+  id: string;
+  name: string;
+  color: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+export const workspacesAPI = {
+  list: () => api.get<Workspace[]>("/workspaces"),
+  create: (name: string, color?: string) =>
+    api.post<Workspace>("/workspaces", { name, color }),
+  update: (id: string, data: { name?: string; color?: string }) =>
+    api.patch<Workspace>(`/workspaces/${id}`, data),
+  delete: (id: string) => api.delete(`/workspaces/${id}`),
+};
+
+// ── Mini Apps ("New App" wizard) ──
+export interface MiniAppSpec {
+  name: string;
+  description?: string;
+  tool: "canvas" | "avatar" | "adlab" | "thumbs" | "clipsy" | "trackify";
+  accent?: string;
+  logo_prompt?: string;
+  system_prompt: string;
+  fields: Array<{
+    key: string;
+    label: string;
+    type: "text" | "textarea" | "select" | "number";
+    options?: string[];
+    default?: string | number;
+  }>;
+}
+
+export interface MiniApp {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  logo_url?: string;
+  accent: string;
+  tool: string;
+  spec: MiniAppSpec;
+  run_count?: number;
+  last_run_at?: string;
+  created_at: string;
+}
+
+export type WizardReply =
+  | { type: "question"; text: string; hint?: string }
+  | { type: "spec"; spec: MiniAppSpec }
+  | { type: "out_of_scope"; reason: string; suggestion?: string };
+
+export const miniAppsAPI = {
+  list: () => api.get<MiniApp[]>("/mini-apps"),
+  get: (slug: string) => api.get<MiniApp>(`/mini-apps/${slug}`),
+  delete: (id: string) => api.delete(`/mini-apps/${id}`),
+  run: (slug: string, field_values: Record<string, unknown>) =>
+    api.post<{ tool: string; composed_prompt: string; accent: string; name: string }>(
+      `/mini-apps/${slug}/run`,
+      { field_values }
+    ),
+
+  wizardStart: (initial_intent: string) =>
+    api.post<{ session_id: string; reply: WizardReply }>(
+      "/mini-apps/wizard/start",
+      { initial_intent }
+    ),
+  wizardMessage: (session_id: string, user_message: string) =>
+    api.post<{ reply: WizardReply; status: string }>(
+      "/mini-apps/wizard/message",
+      { session_id, user_message }
+    ),
+  create: (session_id: string) =>
+    api.post<MiniApp>("/mini-apps", { session_id }),
 };
 
 export default api;

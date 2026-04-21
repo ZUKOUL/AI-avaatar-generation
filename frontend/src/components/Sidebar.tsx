@@ -25,6 +25,14 @@ import { usePathname } from "next/navigation";
 import { getStoredUser } from "@/lib/auth";
 import Logo from "@/components/Logo";
 import { SettingsModal, UserMenuPopover } from "@/components/settings";
+import NewAppWizard from "@/components/NewAppWizard";
+import {
+  workspacesAPI,
+  miniAppsAPI,
+  WORKSPACE_STORAGE_KEY,
+  type Workspace,
+  type MiniApp,
+} from "@/lib/api";
 import {
   PRODUCTS,
   Product3DLogo,
@@ -56,22 +64,6 @@ interface SidebarTab {
   label: string;
   favicon: string;
 }
-
-interface SidebarSpace {
-  id: string;
-  name: string;
-  color: string;
-  tabs: SidebarTab[];
-}
-
-const SPACES_STORAGE_KEY = "horpen-sidebar-spaces-v1";
-const ACTIVE_SPACE_KEY = "horpen-sidebar-active-space-v1";
-
-const SPACE_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
-
-const DEFAULT_SPACES: SidebarSpace[] = [
-  { id: "main", name: "Workspace", color: "#3b82f6", tabs: [] },
-];
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -350,151 +342,6 @@ function NewTabModal({
   );
 }
 
-/* ─── Spaces switcher (bottom dots + new-space button) ──────────── */
-
-function SpacesSwitcher({
-  spaces,
-  activeId,
-  onSwitch,
-  onCreate,
-  onRename,
-  onDelete,
-}: {
-  spaces: SidebarSpace[];
-  activeId: string;
-  onSwitch: (id: string) => void;
-  onCreate: () => void;
-  onRename: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [menuFor, setMenuFor] = useState<string | null>(null);
-  return (
-    <div
-      className="flex items-center justify-center gap-2.5 py-3 px-3 relative"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-    >
-      {spaces.map((s) => {
-        const active = s.id === activeId;
-        return (
-          <button
-            key={s.id}
-            onClick={() => onSwitch(s.id)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setMenuFor(menuFor === s.id ? null : s.id);
-            }}
-            title={`${s.name} — clic droit pour renommer/supprimer`}
-            style={{
-              width: active ? 20 : 9,
-              height: 9,
-              borderRadius: 99,
-              background: active ? s.color : "rgba(255,255,255,0.18)",
-              boxShadow: active ? `0 0 10px ${s.color}aa` : "none",
-              transition: "all 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          />
-        );
-      })}
-      <button
-        onClick={onCreate}
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 6,
-          marginLeft: 2,
-          color: "#9ca3af",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          cursor: "pointer",
-        }}
-        title="Créer un nouvel espace"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-          e.currentTarget.style.color = "#e5e7eb";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-          e.currentTarget.style.color = "#9ca3af";
-        }}
-      >
-        <Plus size={11} />
-      </button>
-      {menuFor && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            marginBottom: 8,
-            background: "rgba(15,15,25,0.97)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            padding: 4,
-            minWidth: 140,
-            boxShadow: "0 10px 30px -5px rgba(0,0,0,0.6)",
-            zIndex: 10,
-          }}
-          onMouseLeave={() => setMenuFor(null)}
-        >
-          <button
-            onClick={() => {
-              onRename(menuFor);
-              setMenuFor(null);
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "7px 12px",
-              borderRadius: 6,
-              background: "transparent",
-              color: "#e5e7eb",
-              fontSize: 13,
-              textAlign: "left",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            Renommer
-          </button>
-          {spaces.length > 1 && (
-            <button
-              onClick={() => {
-                onDelete(menuFor);
-                setMenuFor(null);
-              }}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "7px 12px",
-                borderRadius: 6,
-                background: "transparent",
-                color: "#f87171",
-                fontSize: 13,
-                textAlign: "left",
-                border: "none",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(248,113,113,0.08)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              Supprimer l&apos;espace
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface SidebarProps {
   open: boolean;
   onClose?: () => void;
@@ -513,94 +360,119 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
    *  clickable "expand sidebar" toggle icon. Reverts on mouse leave. */
   const [logoHover, setLogoHover] = useState(false);
 
-  /** Spaces system : each space has its own pinned tab list. */
-  const [spaces, setSpaces] = useState<SidebarSpace[]>(DEFAULT_SPACES);
-  const [activeSpaceId, setActiveSpaceId] = useState<string>("main");
+  /** Workspaces from the backend (personal isolated spaces). */
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeSpaceId, setActiveSpaceId] = useState<string>("");
+  const [tabsByWorkspace, setTabsByWorkspace] = useState<Record<string, SidebarTab[]>>({});
   const [newTabOpen, setNewTabOpen] = useState(false);
+  const [newAppOpen, setNewAppOpen] = useState(false);
+  const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
 
-  /* Hydrate spaces from localStorage on mount. */
+  /* Hydrate workspaces + mini-apps from backend on mount. */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SPACES_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as SidebarSpace[];
-        if (Array.isArray(parsed) && parsed.length > 0) setSpaces(parsed);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [wsRes, appsRes] = await Promise.all([
+          workspacesAPI.list(),
+          miniAppsAPI.list().catch(() => ({ data: [] as MiniApp[] })),
+        ]);
+        if (cancelled) return;
+        const ws = wsRes.data || [];
+        setWorkspaces(ws);
+        setMiniApps(appsRes.data || []);
+
+        const storedActive = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+        const resolved =
+          storedActive && ws.find((w) => w.id === storedActive)
+            ? storedActive
+            : ws[0]?.id ?? "";
+        setActiveSpaceId(resolved);
+        if (resolved) localStorage.setItem(WORKSPACE_STORAGE_KEY, resolved);
+      } catch {
+        /* backend unreachable — stay silent, the user can still navigate */
       }
-      const active = localStorage.getItem(ACTIVE_SPACE_KEY);
-      if (active) setActiveSpaceId(active);
-    } catch {
-      /* ignore corrupt localStorage */
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  /* Persist spaces on every change. */
+  /* Hydrate pinned tabs (kept purely client-side, scoped per workspace). */
   useEffect(() => {
     try {
-      localStorage.setItem(SPACES_STORAGE_KEY, JSON.stringify(spaces));
-    } catch {
-      /* quota / private-mode — ignore */
-    }
-  }, [spaces]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(ACTIVE_SPACE_KEY, activeSpaceId);
+      const raw = localStorage.getItem("horpen-workspace-tabs-v1");
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, SidebarTab[]>;
+        if (parsed && typeof parsed === "object") setTabsByWorkspace(parsed);
+      }
     } catch {
       /* ignore */
     }
-  }, [activeSpaceId]);
+  }, []);
 
-  const activeSpace = spaces.find((s) => s.id === activeSpaceId) ?? spaces[0];
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "horpen-workspace-tabs-v1",
+        JSON.stringify(tabsByWorkspace)
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [tabsByWorkspace]);
+
+  const activeSpace = workspaces.find((w) => w.id === activeSpaceId);
+  const activeTabs = activeSpaceId ? tabsByWorkspace[activeSpaceId] ?? [] : [];
 
   const addTabToActiveSpace = (url: string, label: string) => {
+    if (!activeSpaceId) return;
     const newTab: SidebarTab = {
       id: randomId(),
       url,
       label,
       favicon: faviconFor(url),
     };
-    setSpaces((prev) =>
-      prev.map((s) => (s.id === activeSpace.id ? { ...s, tabs: [...s.tabs, newTab] } : s))
-    );
+    setTabsByWorkspace((prev) => ({
+      ...prev,
+      [activeSpaceId]: [...(prev[activeSpaceId] ?? []), newTab],
+    }));
     setNewTabOpen(false);
   };
 
   const removeTab = (tabId: string) => {
-    setSpaces((prev) =>
-      prev.map((s) =>
-        s.id === activeSpace.id ? { ...s, tabs: s.tabs.filter((t) => t.id !== tabId) } : s
-      )
-    );
+    if (!activeSpaceId) return;
+    setTabsByWorkspace((prev) => ({
+      ...prev,
+      [activeSpaceId]: (prev[activeSpaceId] ?? []).filter((t) => t.id !== tabId),
+    }));
   };
 
-  const createSpace = () => {
+  /** Switch workspace = persist + hard reload so every data query
+   *  refetches with the new X-Workspace-Id header. This is the
+   *  simplest path to guaranteed isolation (no stale React Query
+   *  cache bleeding data between workspaces). */
+  const switchWorkspace = (id: string) => {
+    if (id === activeSpaceId) return;
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, id);
+    window.location.reload();
+  };
+
+  const createSpace = async () => {
     const name = window.prompt("Nom du nouvel espace :");
     if (!name || !name.trim()) return;
-    const newSpace: SidebarSpace = {
-      id: randomId(),
-      name: name.trim(),
-      color: SPACE_COLORS[spaces.length % SPACE_COLORS.length],
-      tabs: [],
-    };
-    setSpaces((prev) => [...prev, newSpace]);
-    setActiveSpaceId(newSpace.id);
-  };
-
-  const renameSpace = (id: string) => {
-    const target = spaces.find((s) => s.id === id);
-    if (!target) return;
-    const name = window.prompt("Renommer l'espace :", target.name);
-    if (!name || !name.trim()) return;
-    setSpaces((prev) => prev.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)));
-  };
-
-  const deleteSpace = (id: string) => {
-    if (spaces.length <= 1) return;
-    if (!window.confirm("Supprimer cet espace et tous ses onglets ?")) return;
-    setSpaces((prev) => prev.filter((s) => s.id !== id));
-    if (activeSpaceId === id) {
-      const next = spaces.find((s) => s.id !== id);
-      if (next) setActiveSpaceId(next.id);
+    try {
+      const res = await workspacesAPI.create(name.trim());
+      const created = res.data;
+      setWorkspaces((prev) => [...prev, created]);
+      // Switch into it immediately (hard reload gives a clean slate).
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, created.id);
+      window.location.reload();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "Impossible de créer le workspace.";
+      window.alert(message);
     }
   };
 
@@ -887,7 +759,111 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </div>
       </nav>
 
-      {/* ── Spaces : pinned tabs for the active space ── */}
+      {/* ── Mes apps : user-created mini apps (New App wizard) ── */}
+      {!collapsed && (
+        <div className="px-2 pb-2">
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "#6b7280",
+              }}
+            >
+              Mes Apps
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setNewAppOpen(true);
+              }}
+              className="p-1 rounded-md transition-colors"
+              style={{ color: "#9ca3af", background: "transparent", border: "none", cursor: "pointer" }}
+              title="Créer une nouvelle app"
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#e5e7eb")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {miniApps.map((app) => (
+              <Link
+                key={app.id}
+                href={`/dashboard/apps/${app.slug}`}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors"
+                style={{ color: "#e5e7eb", fontSize: 13 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                title={app.description ?? app.name}
+              >
+                {app.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={app.logo_url}
+                    alt=""
+                    width={16}
+                    height={16}
+                    style={{ borderRadius: 4, flexShrink: 0 }}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 4,
+                      background: `linear-gradient(135deg, ${app.accent}60, ${app.accent}20)`,
+                      border: `1px solid ${app.accent}80`,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <span
+                  style={{
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {app.name}
+                </span>
+              </Link>
+            ))}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setNewAppOpen(true);
+              }}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors w-full"
+              style={{
+                color: "#6b7280",
+                fontSize: 13,
+                background: "transparent",
+                border: "1px dashed rgba(255,255,255,0.1)",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                e.currentTarget.style.color = "#9ca3af";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#6b7280";
+              }}
+            >
+              <Plus size={13} />
+              <span>New App</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pinned tabs for the active workspace ── */}
       {!collapsed && activeSpace && (
         <div className="px-2 pb-2">
           <div className="flex items-center justify-between px-2 py-1.5">
@@ -921,7 +897,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             </button>
           </div>
           <div className="flex flex-col gap-0.5">
-            {activeSpace.tabs.map((tab) => (
+            {activeTabs.map((tab) => (
               <TabRow key={tab.id} tab={tab} onRemove={() => removeTab(tab.id)} />
             ))}
             <button
@@ -1080,18 +1056,33 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         open={userMenuOpen}
         onClose={() => setUserMenuOpen(false)}
         onOpenSettings={() => setSettingsOpen(true)}
-        workspaces={spaces.map((s) => ({ id: s.id, name: s.name, color: s.color }))}
+        workspaces={workspaces.map((w) => ({ id: w.id, name: w.name, color: w.color }))}
         activeWorkspaceId={activeSpaceId}
         onSwitchWorkspace={(id) => {
-          setActiveSpaceId(id);
           setUserMenuOpen(false);
+          switchWorkspace(id);
         }}
         onCreateWorkspace={() => {
-          createSpace();
           setUserMenuOpen(false);
+          createSpace();
         }}
       />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {newTabOpen && (
+        <NewTabModal
+          onClose={() => setNewTabOpen(false)}
+          onAdd={(url, label) => addTabToActiveSpace(url, label)}
+        />
+      )}
+      {newAppOpen && (
+        <NewAppWizard
+          onClose={() => setNewAppOpen(false)}
+          onCreated={(app) => {
+            setMiniApps((prev) => [app, ...prev]);
+            setNewAppOpen(false);
+          }}
+        />
+      )}
     </>
   );
 

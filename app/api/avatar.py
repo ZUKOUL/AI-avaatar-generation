@@ -21,6 +21,7 @@ from app.services.credit_service import deduct_credits, get_balance, is_admin
 # image URL) without duplicating the parsing logic. No circular-import
 # risk because thumbnail.py doesn't import from avatar.py.
 from app.api.thumbnail import decode_thumbnail_prefix, extract_youtube_id
+from app.api.workspaces import resolve_workspace_id as _resolve_ws
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +49,7 @@ async def generate_avatar(
     prompt: str = Form(..., description="Describe the avatar you want to generate"),
     nickname: str = Form(..., max_length=100, description="A unique nickname for this avatar"),
     files: List[UploadFile] = File(default=[], description="Optional reference images (max 3)"),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     Generate an AI avatar and store it in the avatar library (characters table).
@@ -169,6 +171,7 @@ async def generate_avatar(
                     data = {
                         "id": avatar_id,
                         "user_id": current_user["id"],
+                        "workspace_id": workspace_id or None,
                         "image_paths": [storage_path],
                         "name": nickname_clean if nickname_clean else None,
                     }
@@ -220,6 +223,7 @@ async def generate_image(
     prompt: str = Form(..., description="Describe the scene you want to generate"),
     avatar_id: Optional[str] = Form(None, description="Optional: Select an avatar from your library"),
     files: List[UploadFile] = File(default=[], description="Optional: Upload reference images (max 3)"),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     Generate a scene/image and store it in the generated_images table.
@@ -363,6 +367,7 @@ async def generate_image(
                     supabase.table("generated_images").insert({
                         "id": image_id,
                         "user_id": current_user["id"],
+                        "workspace_id": workspace_id or None,
                         "avatar_id": avatar_id,
                         "prompt": prompt,
                         "image_url": image_url,
@@ -676,16 +681,24 @@ async def delete_character(
 
 
 @router.get("/avatars")
-async def get_avatars(current_user: Annotated[User, Depends(get_current_user)]):
-    """List all avatars in the user's library (from characters table)."""
+async def get_avatars(
+    current_user: Annotated[User, Depends(get_current_user)],
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
+):
+    """
+    List all avatars in the user's library (from characters table),
+    scoped to the active workspace. The primary workspace inherits
+    legacy rows via the backfill in workspaces.py.
+    """
     try:
-        res = (
+        q = (
             supabase.table("characters")
-            .select("id, name, image_paths, created_at")
+            .select("id, name, image_paths, created_at, workspace_id")
             .eq("user_id", current_user["id"])
+            .eq("workspace_id", workspace_id)
             .order("created_at", desc=True)
-            .execute()
         )
+        res = q.execute()
         avatars = []
         for char in res.data:
             thumb_url = None
@@ -715,6 +728,7 @@ async def get_images(
     current_user: Annotated[User, Depends(get_current_user)],
     avatar_id: Optional[str] = None,
     limit: int = 50,
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     Get generated image history from the database.
@@ -740,6 +754,7 @@ async def get_images(
             supabase.table("generated_images")
             .select("id, avatar_id, prompt, image_url, created_at")
             .eq("user_id", current_user["id"])
+            .eq("workspace_id", workspace_id)
             .order("created_at", desc=True)
             .limit(limit)
         )
