@@ -8,7 +8,7 @@
  * problème, features alternantes, how-it-works, témoignage, tableau
  * comparatif, FAQ, cross-promo, CTA final avec AEO buttons.
  *
- * Chaque sous-landing (`/avatar`, `/canvas`, `/spyder`, `/adlab`,
+ * Chaque sous-landing (`/avatar`, `/canvas`, `/trackify`, `/adlab`,
  * `/thumbs`, `/autoclip`) se résume à un fichier de ~40 lignes qui
  * déclare ses sections et passe au composant.
  */

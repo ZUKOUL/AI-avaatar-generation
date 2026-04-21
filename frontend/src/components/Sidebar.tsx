@@ -35,7 +35,7 @@ import { House, Search, Star, XIcon } from "@/components/Icons";
 
 /* Keyboard shortcut map for the 6 products. ⌘ on mac, Ctrl elsewhere. */
 const PRODUCT_SHORTCUTS: { slug: ProductSlug; key: string; label: string }[] = [
-  { slug: "spyder", key: "s", label: "⌘S" },
+  { slug: "trackify", key: "r", label: "⌘R" },
   { slug: "canvas", key: "c", label: "⌘C" },
   { slug: "avatar", key: "a", label: "⌘A" },
   { slug: "adlab", key: "d", label: "⌘D" },

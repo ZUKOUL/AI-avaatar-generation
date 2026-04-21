@@ -294,17 +294,17 @@ export const creditsAPI = {
   history: (limit = 50) => api.get("/credits/history", { params: { limit } }),
 };
 
-// ── Spyder (competitor tracking) ──
-export const spyderAPI = {
-  listBrands: () => api.get("/spyder/brands"),
+// ── Trackify (competitor tracking) ──
+export const trackifyAPI = {
+  listBrands: () => api.get("/trackify/brands"),
   addBrand: (payload: { source_url: string; platform: string; display_name?: string }) =>
-    api.post("/spyder/brands", payload),
-  deleteBrand: (brandId: string) => api.delete(`/spyder/brands/${brandId}`),
+    api.post("/trackify/brands", payload),
+  deleteBrand: (brandId: string) => api.delete(`/trackify/brands/${brandId}`),
   feed: (params?: { limit?: number; offset?: number; brand_id?: string; platform?: string }) =>
-    api.get("/spyder/feed", { params }),
-  getAd: (adId: string) => api.get(`/spyder/ads/${adId}`),
-  recreate: (adId: string) => api.post(`/spyder/recreate/${adId}`),
-  stats: () => api.get("/spyder/stats"),
+    api.get("/trackify/feed", { params }),
+  getAd: (adId: string) => api.get(`/trackify/ads/${adId}`),
+  recreate: (adId: string) => api.post(`/trackify/recreate/${adId}`),
+  stats: () => api.get("/trackify/stats"),
 };
 
 // ── Team (collaboration + tasks) ──

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /dashboard/spyder — fonctionnel, pas un explainer.
+ * /dashboard/trackify — fonctionnel, pas un explainer.
  *
  * Affiche :
  *   - Header produit (logo + nom + Upgrade pill)
@@ -9,7 +9,7 @@
  *   - Liste des brands trackées avec status + delete
  *   - État vide quand y'a rien encore
  *
- * Wiré sur /spyder/brands + /spyder/stats. L'utilisateur peut ajouter
+ * Wiré sur /trackify/brands + /trackify/stats. L'utilisateur peut ajouter
  * un concurrent et voir ses brands en temps réel — plus aucun
  * intermédiaire "click to go".
  */
@@ -17,11 +17,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { spyderAPI } from "@/lib/api";
+import { trackifyAPI } from "@/lib/api";
 import { PRODUCTS, Product3DLogo } from "@/components/landing/shared";
 import { SparkleIcon, Trash, ArrowRight, XIcon } from "@/components/Icons";
 
-const SPYDER = PRODUCTS.find((p) => p.slug === "spyder")!;
+const TRACKIFY = PRODUCTS.find((p) => p.slug === "trackify")!;
 
 interface Brand {
   id: string;
@@ -42,7 +42,7 @@ const PLATFORMS = [
   { value: "web", label: "Site web" },
 ];
 
-export default function SpyderPage() {
+export default function TrackifyPage() {
   const router = useRouter();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,10 +57,10 @@ export default function SpyderPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await spyderAPI.listBrands();
+      const res = await trackifyAPI.listBrands();
       setBrands(res.data || []);
     } catch (e) {
-      console.warn("Spyder list failed:", e);
+      console.warn("Trackify list failed:", e);
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function SpyderPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await spyderAPI.addBrand({
+      await trackifyAPI.addBrand({
         source_url: sourceUrl,
         platform,
         display_name: displayName || undefined,
@@ -98,10 +98,10 @@ export default function SpyderPage() {
   const removeBrand = async (id: string) => {
     if (!confirm("Supprimer cette brand ? Toutes ses archives seront aussi effacées.")) return;
     try {
-      await spyderAPI.deleteBrand(id);
+      await trackifyAPI.deleteBrand(id);
       setBrands((prev) => prev.filter((b) => b.id !== id));
     } catch (e) {
-      console.warn("Spyder delete failed:", e);
+      console.warn("Trackify delete failed:", e);
     }
   };
 
@@ -120,7 +120,7 @@ export default function SpyderPage() {
       >
         <div className="px-6 md:px-8 py-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Product3DLogo product={SPYDER} size={40} glow={false} />
+            <Product3DLogo product={TRACKIFY} size={40} glow={false} />
             <div className="min-w-0">
               <div
                 style={{
@@ -130,10 +130,10 @@ export default function SpyderPage() {
                   color: "var(--text-primary)",
                 }}
               >
-                Spyder
+                Trackify
               </div>
               <div style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                {SPYDER.tagline}
+                {TRACKIFY.tagline}
               </div>
             </div>
           </div>
@@ -143,11 +143,11 @@ export default function SpyderPage() {
               onClick={() => setAddOpen(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full"
               style={{
-                background: SPYDER.color,
+                background: TRACKIFY.color,
                 color: "#ffffff",
                 fontSize: 13,
                 fontWeight: 500,
-                boxShadow: `0 4px 12px ${SPYDER.color}40`,
+                boxShadow: `0 4px 12px ${TRACKIFY.color}40`,
               }}
             >
               + Ajouter une brand
@@ -180,7 +180,7 @@ export default function SpyderPage() {
           <BrandsGrid
             brands={brands}
             onDelete={removeBrand}
-            onOpen={(b) => router.push(`/dashboard/spyder?brand=${b.id}`)}
+            onOpen={(b) => router.push(`/dashboard/trackify?brand=${b.id}`)}
           />
         )}
       </div>
@@ -291,7 +291,7 @@ export default function SpyderPage() {
                 disabled={submitting || !sourceUrl}
                 className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full"
                 style={{
-                  background: SPYDER.color,
+                  background: TRACKIFY.color,
                   color: "#ffffff",
                   fontSize: 13,
                   fontWeight: 500,
@@ -330,18 +330,18 @@ function EmptyBrands({ onAddClick }: { onAddClick: () => void }) {
           lineHeight: 1.55,
         }}
       >
-        Colle un lien Meta Ads Library, TikTok, Instagram ou YouTube. Spyder
+        Colle un lien Meta Ads Library, TikTok, Instagram ou YouTube. Trackify
         commence à scanner sous 5 minutes et archive chaque nouvelle créa.
       </div>
       <button
         onClick={onAddClick}
         className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full"
         style={{
-          background: SPYDER.color,
+          background: TRACKIFY.color,
           color: "#ffffff",
           fontSize: 13.5,
           fontWeight: 500,
-          boxShadow: `0 4px 12px ${SPYDER.color}40`,
+          boxShadow: `0 4px 12px ${TRACKIFY.color}40`,
         }}
       >
         + Ajouter ma première brand

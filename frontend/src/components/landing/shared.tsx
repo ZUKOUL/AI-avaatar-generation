@@ -23,7 +23,7 @@ import Image from "next/image";
 import { ChevronDown } from "@/components/Icons";
 
 export type ProductSlug =
-  | "spyder"
+  | "trackify"
   | "canvas"
   | "avatar"
   | "adlab"
@@ -56,13 +56,14 @@ export interface Product {
 
 export const PRODUCTS: Product[] = [
   {
-    slug: "spyder",
-    name: "Spyder",
+    slug: "trackify",
+    name: "Trackify",
     tagline: "Tracker tes concurrents 24/7",
     headline: "Vois tout ce que tes concurrents publient. Recréé leurs meilleures ads en 1 clic.",
     color: "#dc2626",
     cluster: "intelligence",
     shape: "radar",
+    logoSrc: "/logos/trackify.png",
   },
   {
     slug: "canvas",
@@ -129,7 +130,7 @@ export const CLUSTERS: { key: ClusterKey; label: string; desc: string }[] = [
    as active for the current pathname. */
 
 export const PRODUCT_APP_ROUTES: Record<ProductSlug, { href: string; paths: string[] }> = {
-  spyder:   { href: "/dashboard/spyder",     paths: ["/dashboard/spyder"] },
+  trackify: { href: "/dashboard/trackify",   paths: ["/dashboard/trackify"] },
   canvas:   { href: "/dashboard/videos",     paths: ["/dashboard/videos", "/dashboard/images", "/dashboard/canvas"] },
   avatar:   { href: "/dashboard/avatars",    paths: ["/dashboard/avatars", "/dashboard/characters", "/dashboard/avatar"] },
   adlab:    { href: "/dashboard/ads",        paths: ["/dashboard/ads", "/dashboard/adlab"] },
@@ -280,7 +281,7 @@ function Shape3D({ shape, size }: { shape: ProductShape; size: number }) {
     );
   }
   if (shape === "radar") {
-    // Target / radar — concentric arcs + center dot (Spyder)
+    // Target / radar — concentric arcs + center dot (Trackify)
     return (
       <svg {...common}>
         <circle cx="12" cy="12" r="2.5" fill="#ffffff" />
@@ -498,7 +499,7 @@ export function ProductDropdown() {
 
 /* ─────────────────────────────────────────────────────────────────
    SubLandingNav + SubLandingFooter — partagés entre toutes les
-   sous-landings (/avatar, /spyder, /canvas, /adlab, /thumbs,
+   sous-landings (/avatar, /trackify, /canvas, /adlab, /thumbs,
    /autoclip) pour éviter la duplication.
    ───────────────────────────────────────────────────────────────── */
 

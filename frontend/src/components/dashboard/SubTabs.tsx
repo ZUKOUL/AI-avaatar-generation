@@ -6,7 +6,7 @@
  * Affiche les sous-onglets d'un produit en haut de page, avec un
  * indicateur actif bleu et un survol doux. Conçu pour être plug-and-
  * play dans n'importe quelle page produit du dashboard (Canvas,
- * Avatar, Spyder, Adlab, Thumbs, Autoclip).
+ * Avatar, Trackify, Adlab, Thumbs, Autoclip).
  *
  * Usage :
  *   <SubTabs

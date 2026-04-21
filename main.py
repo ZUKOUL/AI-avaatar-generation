@@ -89,8 +89,8 @@ app.include_router(
 )
 app.include_router(
     spyder_router,
-    prefix="/spyder",
-    tags=["Spyder (competitor tracking)"],
+    prefix="/trackify",
+    tags=["Trackify (competitor tracking)"],
     dependencies=[Depends(get_current_user)],
 )
 app.include_router(

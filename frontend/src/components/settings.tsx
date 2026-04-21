@@ -39,7 +39,7 @@ type SectionKey =
   | "referral"
   | "team"
   | "avatars"
-  | "spyder"
+  | "trackify"
   | "integrations";
 
 interface SectionMeta {
@@ -57,7 +57,7 @@ const SECTIONS: SectionMeta[] = [
   { key: "referral", label: "Referral", group: "account", icon: Globe },
   { key: "team", label: "Team", group: "workspace", icon: User },
   { key: "avatars", label: "Avatars", group: "workspace", icon: User },
-  { key: "spyder", label: "Spyder Brands", group: "workspace", icon: Shield },
+  { key: "trackify", label: "Trackify Brands", group: "workspace", icon: Shield },
   { key: "integrations", label: "Integrations", group: "workspace", icon: SettingsIcon },
 ];
 
@@ -245,7 +245,7 @@ export function SettingsModal({
             {section === "referral" && <ReferralSection />}
             {section === "team" && <TeamSection />}
             {section === "avatars" && <AvatarsSection />}
-            {section === "spyder" && <SpyderSection />}
+            {section === "trackify" && <TrackifySection />}
             {section === "integrations" && <IntegrationsSection />}
           </div>
         </div>
@@ -717,7 +717,7 @@ function TeamSection() {
         {[
           { role: "Admin", desc: "Accès complet, facturation, gestion team." },
           { role: "Creative", desc: "Génère du contenu, utilise tous les outils." },
-          { role: "Analyst", desc: "Accès Spyder + analytics, lecture seule sur les créas." },
+          { role: "Analyst", desc: "Accès Trackify + analytics, lecture seule sur les créas." },
         ].map((r) => (
           <div
             key={r.role}
@@ -760,11 +760,11 @@ function AvatarsSection() {
   );
 }
 
-function SpyderSection() {
+function TrackifySection() {
   return (
     <SectionShell
-      title="Spyder Brands"
-      subtitle="Gère les concurrents trackés par Spyder. Chaque brand est scannée 24/7."
+      title="Trackify Brands"
+      subtitle="Gère les concurrents trackés par Trackify. Chaque brand est scannée 24/7."
     >
       <div
         className="rounded-xl p-10 text-center"
@@ -778,7 +778,7 @@ function SpyderSection() {
           Tu peux tracker jusqu&apos;à 3 concurrents en plan Free, 20 en Creator, illimité en Studio.
         </div>
         <Link
-          href="/spyder"
+          href="/trackify"
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full"
           style={{ background: "#dc2626", color: "#ffffff", fontSize: 13, fontWeight: 500 }}
         >
@@ -801,7 +801,7 @@ function IntegrationsSection() {
           { name: "API", desc: "Génère via l'API Horpen depuis tes propres apps." },
           { name: "Stripe", desc: "Accepter les paiements sur tes créas monétisées." },
           { name: "Zapier", desc: "Automatise tes workflows créa." },
-          { name: "Extension Chrome", desc: "Capture des ads à la volée pour Spyder." },
+          { name: "Extension Chrome", desc: "Capture des ads à la volée pour Trackify." },
         ].map((i) => (
           <div
             key={i.name}
