@@ -45,25 +45,15 @@ type RecentItem = {
   href: string;
 };
 
-const TOOLS = [
-  {
-    href: "/dashboard/avatars",
-    icon: UserCircle,
-    label: "Avatar",
-    accent: false,
-  },
-  {
-    href: "/dashboard/images",
-    icon: ImageSquare,
-    label: "Image",
-    accent: false,
-  },
-  {
-    href: "/dashboard/videos",
-    icon: VideoCamera,
-    label: "Video",
-    accent: false,
-  },
+import { PRODUCTS, Product3DLogo } from "@/components/landing/shared";
+
+/** Mini tool pills shown under the prompt hero — wired to the bespoke
+ *  Horpen app logos so the visual identity matches the rest of the
+ *  marketing surface (landings, sidebar, cross-promo). */
+const TOOLS: { href: string; slug: "avatar" | "canvas" | "clipsy"; label: string }[] = [
+  { href: "/dashboard/avatars",   slug: "avatar", label: "Avatar" },
+  { href: "/dashboard/images",    slug: "canvas", label: "Image"  },
+  { href: "/dashboard/ai-videos", slug: "clipsy", label: "Video"  },
 ];
 
 function formatDate(dateStr: string) {
@@ -241,15 +231,17 @@ export default function DashboardHome() {
             </div>
           </div>
 
-          {/* Tool pills */}
+          {/* Tool pills — show bespoke app logos (Product3DLogo) so the
+              mini-tabs reflect the actual Horpen app identity. */}
           <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
             {TOOLS.map((tool) => {
-              const Icon = tool.icon;
+              const product = PRODUCTS.find((p) => p.slug === tool.slug);
+              if (!product) return null;
               return (
                 <Link
                   key={tool.href}
                   href={tool.href}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                  className="inline-flex items-center gap-2 pl-1.5 pr-3.5 py-1 rounded-full text-[13px] font-medium transition-all"
                   style={{
                     border: "1px solid var(--border-color)",
                     color: "var(--text-secondary)",
@@ -266,7 +258,7 @@ export default function DashboardHome() {
                     e.currentTarget.style.background = "transparent";
                   }}
                 >
-                  <Icon size={14} />
+                  <Product3DLogo product={product} size={22} glow={false} />
                   {tool.label}
                 </Link>
               );
@@ -289,10 +281,12 @@ export default function DashboardHome() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {/* New creation card */}
+              {/* New creation card — same structure as recent items
+                  (4:3 visual block + text block) so heights align in
+                  the grid. */}
               <Link
                 href="/dashboard/avatars"
-                className="group flex flex-col items-center justify-center rounded-xl aspect-[4/3] transition-all"
+                className="group rounded-xl overflow-hidden transition-all hover:-translate-y-0.5"
                 style={{
                   border: "1.5px dashed var(--border-color)",
                   background: "transparent",
@@ -307,17 +301,28 @@ export default function DashboardHome() {
                 }}
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors"
+                  className="aspect-[4/3] flex flex-col items-center justify-center"
                   style={{ color: "var(--text-muted)" }}
                 >
                   <Plus size={24} />
                 </div>
-                <span
-                  className="text-[13px] font-medium"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  New Creation
-                </span>
+                <div className="px-3 py-2">
+                  <p
+                    className="text-[12px] font-medium truncate"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    New Creation
+                  </p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Plus size={10} color="var(--text-muted)" />
+                    <span
+                      className="text-[10px]"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Démarrer
+                    </span>
+                  </div>
+                </div>
               </Link>
 
               {/* Recent items */}
