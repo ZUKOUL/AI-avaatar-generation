@@ -4,7 +4,7 @@ import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/c
 
 const CANVAS: LandingConfig = {
   slug: "canvas",
-  heroBadge: "⌘C pour ouvrir",
+  heroBadge: "Nouveau",
   heroTitle: (
     <>
       Tes visuels et tes vidéos IA,

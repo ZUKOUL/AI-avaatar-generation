@@ -4,7 +4,7 @@ import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/c
 
 const THUMBS: LandingConfig = {
   slug: "thumbs",
-  heroBadge: "⌘T pour ouvrir",
+  heroBadge: "Nouveau",
   heroTitle: (
     <>
       La miniature YouTube

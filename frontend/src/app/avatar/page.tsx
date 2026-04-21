@@ -4,7 +4,7 @@ import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/c
 
 const AVATAR: LandingConfig = {
   slug: "avatar",
-  heroBadge: "⌘A pour ouvrir",
+  heroBadge: "Nouveau",
   heroTitle: (
     <>
       Ton influenceur IA,

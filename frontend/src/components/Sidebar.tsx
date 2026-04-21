@@ -21,7 +21,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { getStoredUser } from "@/lib/auth";
 import Logo from "@/components/Logo";
 import { SettingsModal, UserMenuPopover } from "@/components/settings";
@@ -32,20 +32,6 @@ import {
   PRODUCT_APP_ROUTES,
 } from "@/components/landing/shared";
 import { House, Search, Star, XIcon } from "@/components/Icons";
-
-/* Keyboard shortcut map for the 6 products. ⌘ on mac, Ctrl elsewhere. */
-const PRODUCT_SHORTCUTS: { slug: ProductSlug; key: string; label: string }[] = [
-  { slug: "trackify", key: "r", label: "⌘R" },
-  { slug: "canvas", key: "c", label: "⌘C" },
-  { slug: "avatar", key: "a", label: "⌘A" },
-  { slug: "adlab", key: "d", label: "⌘D" },
-  { slug: "thumbs", key: "t", label: "⌘T" },
-  { slug: "clipsy", key: "l", label: "⌘L" },
-];
-
-function shortcutFor(slug: ProductSlug): string | undefined {
-  return PRODUCT_SHORTCUTS.find((s) => s.slug === slug)?.label;
-}
 
 /* Collapse toggle glyph. */
 function PanelToggleIcon() {
@@ -66,7 +52,6 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose, collapsed = false, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const user = typeof window !== "undefined" ? getStoredUser() : null;
   const [isMobile, setIsMobile] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -89,22 +74,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Keyboard shortcuts : ⌘/Ctrl + letter jumps to the real feature
-  // route for each product (bypasses any intermediate page).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.shiftKey || e.altKey) return;
-      const match = PRODUCT_SHORTCUTS.find((s) => s.key === e.key.toLowerCase());
-      if (!match) return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      e.preventDefault();
-      router.push(PRODUCT_APP_ROUTES[match.slug].href);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+
 
   // Active product detection checks every path that counts as
   // "belonging" to a product (Canvas = /videos + /images, Avatar =
@@ -259,12 +229,11 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             const isActive = routes.paths.some(
               (path) => pathname === path || pathname?.startsWith(`${path}/`)
             );
-            const shortcut = shortcutFor(p.slug);
             return (
               <Link
                 key={p.slug}
                 href={routes.href}
-                title={shortcut ? `${p.name} (${shortcut})` : p.name}
+                title={p.name}
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHovered(p.slug)}
                 onMouseLeave={() => setHovered(null)}
@@ -300,13 +269,11 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           })}
         </div>
 
-        {/* Active / hovered chip — floats directly under the row and
-            surfaces the product name + keyboard shortcut. Only shown
-            when expanded. */}
+        {/* Active / hovered chip — just the product name, no shortcut */}
         {!collapsed && shownProduct && (
           <div
             key={shownProduct.slug /* re-render per product to restart fade */}
-            className="mt-3 mx-auto inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+            className="mt-3 mx-auto inline-flex items-center px-2.5 py-1.5 rounded-lg"
             style={{
               background: "rgba(15,15,20,0.85)",
               border: "1px solid rgba(255,255,255,0.08)",
@@ -318,21 +285,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
               {shownProduct.name}
             </span>
-            {shortcutFor(shownProduct.slug) && (
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  padding: "2px 6px",
-                  borderRadius: 6,
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#9ca3af",
-                  fontFamily: "ui-monospace, monospace",
-                }}
-              >
-                {shortcutFor(shownProduct.slug)}
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -386,20 +338,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
               >
                 <Icon size={16} />
                 {!collapsed && <span className="flex-1">{item.label}</span>}
-                {!collapsed && item.label === "Search…" && (
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      padding: "1px 5px",
-                      borderRadius: 4,
-                      background: "rgba(255,255,255,0.05)",
-                      color: "#6b7280",
-                      fontFamily: "ui-monospace, monospace",
-                    }}
-                  >
-                    ⌘K
-                  </span>
-                )}
               </Link>
             );
           })}

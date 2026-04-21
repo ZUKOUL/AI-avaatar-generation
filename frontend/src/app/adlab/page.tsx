@@ -4,7 +4,7 @@ import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/c
 
 const ADLAB: LandingConfig = {
   slug: "adlab",
-  heroBadge: "⌘D pour ouvrir",
+  heroBadge: "Nouveau",
   heroTitle: (
     <>
       Des ads qui convertissent.

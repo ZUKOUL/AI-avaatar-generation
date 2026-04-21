@@ -4,7 +4,7 @@ import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/c
 
 const CLIPSY: LandingConfig = {
   slug: "clipsy",
-  heroBadge: "⌘L pour ouvrir",
+  heroBadge: "Nouveau",
   heroTitle: (
     <>
       Du prompt à la vidéo short.

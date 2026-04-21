@@ -4,7 +4,7 @@ import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/c
 
 const TRACKIFY: LandingConfig = {
   slug: "trackify",
-  heroBadge: "⌘R pour ouvrir",
+  heroBadge: "Nouveau",
   heroTitle: (
     <>
       Tracke tes concurrents.
