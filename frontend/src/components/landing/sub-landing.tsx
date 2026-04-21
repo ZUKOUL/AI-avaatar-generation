@@ -9,7 +9,7 @@
  * comparatif, FAQ, cross-promo, CTA final avec AEO buttons.
  *
  * Chaque sous-landing (`/avatar`, `/canvas`, `/trackify`, `/adlab`,
- * `/thumbs`, `/autoclip`) se résume à un fichier de ~40 lignes qui
+ * `/thumbs`, `/clipsy`) se résume à un fichier de ~40 lignes qui
  * déclare ses sections et passe au composant.
  */
 

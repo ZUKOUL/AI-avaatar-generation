@@ -737,7 +737,7 @@ function AvatarsSection() {
   return (
     <SectionShell
       title="Avatars"
-      subtitle="Gère tes avatars IA entraînés. Ils sont réutilisables dans Canvas, Adlab, Thumbs et Autoclip."
+      subtitle="Gère tes avatars IA entraînés. Ils sont réutilisables dans Canvas, Adlab, Thumbs et Clipsy."
     >
       <Link
         href="/dashboard/avatars"

@@ -13,7 +13,7 @@ const CANVAS: LandingConfig = {
     </>
   ),
   heroSubtitle:
-    "Générateur d'images Gemini 3 Pro Image + vidéo multi-moteur (Kling, Veo, Hailuo, Grok). Un seul espace pour créer tout ce qui sera ensuite décliné dans Adlab, Thumbs et Autoclip.",
+    "Générateur d'images Gemini 3 Pro Image + vidéo multi-moteur (Kling, Veo, Hailuo, Grok). Un seul espace pour créer tout ce qui sera ensuite décliné dans Adlab, Thumbs et Clipsy.",
   heroCta: "Générer mon premier visuel",
   heroMockup: <HeroMockup />,
 
@@ -57,7 +57,7 @@ const CANVAS: LandingConfig = {
       eyebrow: "Références",
       title: "Upload tes visuels de marque — Canvas les utilise comme style guide",
       desc:
-        "Charge 3-10 images de ton univers (palette, ambiance, produit). Toutes tes futures générations dans Horpen (Canvas, Adlab, Thumbs, Autoclip) s'alignent automatiquement sur ce style.",
+        "Charge 3-10 images de ton univers (palette, ambiance, produit). Toutes tes futures générations dans Horpen (Canvas, Adlab, Thumbs, Clipsy) s'alignent automatiquement sur ce style.",
       tags: ["Style guide global", "Cross-product", "Palette locking"],
       visual: <FeatureReferences />,
     },
@@ -137,7 +137,7 @@ const CANVAS: LandingConfig = {
     },
     {
       q: "Canvas se connecte à mes images de référence ?",
-      a: "Oui. Upload jusqu'à 10 images dans le tab “Références” — Canvas les utilise comme style guide. Elles pilotent aussi le rendu dans Adlab, Thumbs et Autoclip, pour une cohérence totale.",
+      a: "Oui. Upload jusqu'à 10 images dans le tab “Références” — Canvas les utilise comme style guide. Elles pilotent aussi le rendu dans Adlab, Thumbs et Clipsy, pour une cohérence totale.",
     },
     {
       q: "Je peux sauvegarder mes prompts ?",
@@ -322,7 +322,7 @@ function FeatureReferences() {
           ))}
         </div>
         <div style={{ fontSize: 11, color: "#6b7280", marginTop: 8, textAlign: "center" }}>
-          Pilote Canvas + Adlab + Thumbs + Autoclip
+          Pilote Canvas + Adlab + Thumbs + Clipsy
         </div>
       </div>
     </MockupFrame>

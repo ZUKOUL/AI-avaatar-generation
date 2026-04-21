@@ -13,7 +13,7 @@ const AVATAR: LandingConfig = {
     </>
   ),
   heroSubtitle:
-    "Charge 6 à 12 photos, ou décris un persona. Avatar crée ton visage IA ultra-cohérent en 8 minutes — réutilisable dans Canvas, Adlab, Thumbs et Autoclip. Un seul visage, des milliers de variations.",
+    "Charge 6 à 12 photos, ou décris un persona. Avatar crée ton visage IA ultra-cohérent en 8 minutes — réutilisable dans Canvas, Adlab, Thumbs et Clipsy. Un seul visage, des milliers de variations.",
   heroCta: "Entraîner mon avatar",
   heroMockup: <HeroMockup />,
 
@@ -49,8 +49,8 @@ const AVATAR: LandingConfig = {
       eyebrow: "Cross-product",
       title: "Ton avatar alimente toute la suite Horpen",
       desc:
-        "Entraîne-le une fois, réutilise-le gratuitement. Canvas l'intègre dans tes visuels, Adlab en fait des ads UGC, Thumbs le met sur tes miniatures, Autoclip l'anime dans tes shorts. Ton brand facial est partout.",
-      tags: ["Canvas · Adlab · Thumbs · Autoclip", "Réutilisation illimitée", "Cohérence garantie"],
+        "Entraîne-le une fois, réutilise-le gratuitement. Canvas l'intègre dans tes visuels, Adlab en fait des ads UGC, Thumbs le met sur tes miniatures, Clipsy l'anime dans tes shorts. Ton brand facial est partout.",
+      tags: ["Canvas · Adlab · Thumbs · Clipsy", "Réutilisation illimitée", "Cohérence garantie"],
       visual: <FeatureCrossProduct />,
     },
     {
@@ -81,7 +81,7 @@ const AVATAR: LandingConfig = {
     steps: [
       { number: "01", title: "Upload tes photos", desc: "6-12 photos du même visage, angles variés, bonne lumière. Ou décris un persona fictif." },
       { number: "02", title: "Avatar s'entraîne", desc: "8 minutes chrono, 1 crédit. Tu peux lancer d'autres tâches pendant." },
-      { number: "03", title: "Réutilise partout", desc: "Dans Canvas, Adlab, Thumbs, Autoclip — gratis, illimité, cohérent à chaque fois." },
+      { number: "03", title: "Réutilise partout", desc: "Dans Canvas, Adlab, Thumbs, Clipsy — gratis, illimité, cohérent à chaque fois." },
     ],
   },
 
@@ -145,7 +145,7 @@ const AVATAR: LandingConfig = {
     },
     {
       q: "C'est compatible avec mes ads Meta / TikTok ?",
-      a: "Entièrement. Tu peux utiliser ton avatar dans Adlab pour générer des ads Meta / TikTok, dans Thumbs pour des miniatures YouTube, dans Autoclip pour des Shorts vidéo. Droits commerciaux inclus dès Creator.",
+      a: "Entièrement. Tu peux utiliser ton avatar dans Adlab pour générer des ads Meta / TikTok, dans Thumbs pour des miniatures YouTube, dans Clipsy pour des Shorts vidéo. Droits commerciaux inclus dès Creator.",
     },
     {
       q: "En quoi c'est différent d'Arcads ou Makeugc ?",
@@ -296,7 +296,7 @@ function FeatureCrossProduct() {
     { name: "Canvas", color: "#3b82f6" },
     { name: "Adlab", color: "#f59e0b" },
     { name: "Thumbs", color: "#ef4444" },
-    { name: "Autoclip", color: "#10b981" },
+    { name: "Clipsy", color: "#10b981" },
   ];
   return (
     <MockupFrame aspect="4/3">

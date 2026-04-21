@@ -47,7 +47,7 @@ router = APIRouter()
 
 ALLOWED_ROLES = {"admin", "creative", "analyst"}
 ALLOWED_TASK_STATUSES = {"todo", "in_progress", "done", "cancelled"}
-ALLOWED_PRODUCT_SLUGS = {"trackify", "canvas", "avatar", "adlab", "thumbs", "autoclip"}
+ALLOWED_PRODUCT_SLUGS = {"trackify", "canvas", "avatar", "adlab", "thumbs", "clipsy"}
 
 
 # ─────────────────────────────────────────────────────────────────

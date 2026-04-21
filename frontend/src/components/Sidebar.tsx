@@ -40,7 +40,7 @@ const PRODUCT_SHORTCUTS: { slug: ProductSlug; key: string; label: string }[] = [
   { slug: "avatar", key: "a", label: "⌘A" },
   { slug: "adlab", key: "d", label: "⌘D" },
   { slug: "thumbs", key: "t", label: "⌘T" },
-  { slug: "autoclip", key: "l", label: "⌘L" },
+  { slug: "clipsy", key: "l", label: "⌘L" },
 ];
 
 function shortcutFor(slug: ProductSlug): string | undefined {

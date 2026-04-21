@@ -28,7 +28,7 @@ export type ProductSlug =
   | "avatar"
   | "adlab"
   | "thumbs"
-  | "autoclip";
+  | "clipsy";
 
 export type ProductShape =
   | "canvas"
@@ -105,13 +105,14 @@ export const PRODUCTS: Product[] = [
     logoSrc: "/logos/thumbs.png",
   },
   {
-    slug: "autoclip",
-    name: "Autoclip",
+    slug: "clipsy",
+    name: "Clipsy",
     tagline: "Du prompt à la vidéo short",
     headline: "Du long-form, une URL ou un prompt — à la vidéo courte. Direct.",
     color: "#10b981",
     cluster: "automatiser",
     shape: "loop",
+    logoSrc: "/logos/clipsy.png",
   },
 ];
 
@@ -135,7 +136,7 @@ export const PRODUCT_APP_ROUTES: Record<ProductSlug, { href: string; paths: stri
   avatar:   { href: "/dashboard/avatars",    paths: ["/dashboard/avatars", "/dashboard/characters", "/dashboard/avatar"] },
   adlab:    { href: "/dashboard/ads",        paths: ["/dashboard/ads", "/dashboard/adlab"] },
   thumbs:   { href: "/dashboard/thumbnails", paths: ["/dashboard/thumbnails", "/dashboard/thumbs"] },
-  autoclip: { href: "/dashboard/ai-videos",  paths: ["/dashboard/ai-videos", "/dashboard/clips", "/dashboard/autoclip"] },
+  clipsy:   { href: "/dashboard/ai-videos",  paths: ["/dashboard/ai-videos", "/dashboard/clips", "/dashboard/clipsy", "/dashboard/autoclip"] },
 };
 
 /* ─────────────────────────────────────────────────────────────────
@@ -500,7 +501,7 @@ export function ProductDropdown() {
 /* ─────────────────────────────────────────────────────────────────
    SubLandingNav + SubLandingFooter — partagés entre toutes les
    sous-landings (/avatar, /trackify, /canvas, /adlab, /thumbs,
-   /autoclip) pour éviter la duplication.
+   /clipsy) pour éviter la duplication.
    ───────────────────────────────────────────────────────────────── */
 
 export function SubLandingNav() {

@@ -2,8 +2,8 @@
 
 import { SubLanding, LandingConfig, MockupFrame, MockupBrowserChrome } from "@/components/landing/sub-landing";
 
-const AUTOCLIP: LandingConfig = {
-  slug: "autoclip",
+const CLIPSY: LandingConfig = {
+  slug: "clipsy",
   heroBadge: "⌘L pour ouvrir",
   heroTitle: (
     <>
@@ -13,7 +13,7 @@ const AUTOCLIP: LandingConfig = {
     </>
   ),
   heroSubtitle:
-    "Décris ton idée, colle une URL long-form, ou programme la publication — Autoclip assemble script, voix, visuels, sous-titres et coupes en pipeline automatisé. Publie sur TikTok / Reels / Shorts sans jamais ouvrir CapCut.",
+    "Décris ton idée, colle une URL long-form, ou programme la publication — Clipsy assemble script, voix, visuels, sous-titres et coupes en pipeline automatisé. Publie sur TikTok / Reels / Shorts sans jamais ouvrir CapCut.",
   heroCta: "Générer mon premier clip",
   heroMockup: <HeroMockup />,
 
@@ -39,7 +39,7 @@ const AUTOCLIP: LandingConfig = {
   features: [
     {
       eyebrow: "Depuis un prompt",
-      title: "Décris ta vidéo, Autoclip assemble tout",
+      title: "Décris ta vidéo, Clipsy assemble tout",
       desc:
         "Script généré par Gemini, voix-over ElevenLabs, visuels Canvas, sous-titres animés, musique fond. Pipeline complet de l'idée à l'export MP4 1080×1920 prêt à publier.",
       tags: ["Gemini 2.5 Pro", "ElevenLabs voice", "Sous-titres animés"],
@@ -49,7 +49,7 @@ const AUTOCLIP: LandingConfig = {
       eyebrow: "Depuis une URL",
       title: "Long-form → 5 shorts, automatiquement",
       desc:
-        "Colle un lien YouTube, Loom, Vimeo, un podcast. Autoclip détecte les passages les plus engageants (hook-stop, moment émotionnel, punchline), les découpe en 30-60s, ajoute sous-titres + reframe 9:16.",
+        "Colle un lien YouTube, Loom, Vimeo, un podcast. Clipsy détecte les passages les plus engageants (hook-stop, moment émotionnel, punchline), les découpe en 30-60s, ajoute sous-titres + reframe 9:16.",
       tags: ["YouTube · Loom · Podcast", "Moment detection IA", "Reframe 9:16 intelligent"],
       visual: <FeatureURL />,
     },
@@ -65,7 +65,7 @@ const AUTOCLIP: LandingConfig = {
       eyebrow: "Publication auto",
       title: "TikTok, Reels, Shorts — publiés aux créneaux optimaux",
       desc:
-        "Connecte tes comptes, programme la publication. Autoclip choisit l'heure de post optimale pour ton audience par plateforme, écrit descriptions et hashtags adaptés. Multi-posting illimité.",
+        "Connecte tes comptes, programme la publication. Clipsy choisit l'heure de post optimale pour ton audience par plateforme, écrit descriptions et hashtags adaptés. Multi-posting illimité.",
       tags: ["TikTok · Reels · Shorts", "Scheduler IA", "Descriptions + hashtags auto"],
       visual: <FeatureScheduler />,
     },
@@ -79,7 +79,7 @@ const AUTOCLIP: LandingConfig = {
       </>
     ),
     steps: [
-      { number: "01", title: "Prompt ou URL", desc: "Décris ta vidéo ou colle un lien long-form. Autoclip comprend et démarre le pipeline." },
+      { number: "01", title: "Prompt ou URL", desc: "Décris ta vidéo ou colle un lien long-form. Clipsy comprend et démarre le pipeline." },
       { number: "02", title: "Pipeline auto", desc: "Script, voix, visuels, sous-titres, reframe 9:16, export. 1-3 min selon durée et moteur." },
       { number: "03", title: "Publie ou programme", desc: "Download direct, ou scheduler auto sur TikTok + Reels + Shorts aux heures optimales." },
     ],
@@ -87,7 +87,7 @@ const AUTOCLIP: LandingConfig = {
 
   testimonial: {
     quote:
-      "J'ai un podcast de 1h par semaine. Avant, je passais 6h à sortir 3 shorts. Avec Autoclip, je colle le lien, je récupère 5 shorts auto-montés en 10 min. Mon compte TikTok est passé de 2k à 40k abonnés en 3 mois.",
+      "J'ai un podcast de 1h par semaine. Avant, je passais 6h à sortir 3 shorts. Avec Clipsy, je colle le lien, je récupère 5 shorts auto-montés en 10 min. Mon compte TikTok est passé de 2k à 40k abonnés en 3 mois.",
     author: "Thomas L.",
     role: "Podcasteur / business creator · 40k abonnés TikTok",
     metrics: [
@@ -100,12 +100,12 @@ const AUTOCLIP: LandingConfig = {
   comparison: {
     title: (
       <>
-        Autoclip vs{" "}
+        Clipsy vs{" "}
         <span style={{ color: "#9ca3af" }}>les auto-clippers classiques</span>
       </>
     ),
-    subtitle: "Les concurrents découpent. Autoclip assemble de A à Z et publie.",
-    usLabel: "Horpen Autoclip",
+    subtitle: "Les concurrents découpent. Clipsy assemble de A à Z et publie.",
+    usLabel: "Horpen Clipsy",
     competitorLabels: ["Opus Clip", "Vizard", "Munch"],
     rows: [
       { feature: "URL → shorts découpés IA", us: true, them: [true, true, true] },
@@ -121,7 +121,7 @@ const AUTOCLIP: LandingConfig = {
   faq: [
     {
       q: "Quelle différence entre mode Prompt et mode URL ?",
-      a: "Prompt : tu pars d'une idée sans contenu existant. Autoclip écrit le script, génère la voix, les visuels, tout. Idéal pour créer des shorts éducatifs ou faceless. URL : tu pars d'une vidéo long-form existante. Autoclip détecte les moments engageants et découpe.",
+      a: "Prompt : tu pars d'une idée sans contenu existant. Clipsy écrit le script, génère la voix, les visuels, tout. Idéal pour créer des shorts éducatifs ou faceless. URL : tu pars d'une vidéo long-form existante. Clipsy détecte les moments engageants et découpe.",
     },
     {
       q: "Quels formats d'export ?",
@@ -133,7 +133,7 @@ const AUTOCLIP: LandingConfig = {
     },
     {
       q: "Je peux programmer la publication ?",
-      a: "Oui. Connecte TikTok, Instagram Reels, YouTube Shorts. Autoclip programme aux créneaux où ton audience est active (détection auto via l'API de chaque plateforme), écrit descriptions + hashtags natifs par plateforme.",
+      a: "Oui. Connecte TikTok, Instagram Reels, YouTube Shorts. Clipsy programme aux créneaux où ton audience est active (détection auto via l'API de chaque plateforme), écrit descriptions + hashtags natifs par plateforme.",
     },
     {
       q: "Le moteur de voix-over ?",
@@ -141,7 +141,7 @@ const AUTOCLIP: LandingConfig = {
     },
     {
       q: "Je peux utiliser mon avatar dans les shorts ?",
-      a: "Oui. Si tu as un Avatar entraîné, Autoclip l'intègre comme visage parlant (lipsync auto). Parfait pour un compte faceless avec ton persona IA.",
+      a: "Oui. Si tu as un Avatar entraîné, Clipsy l'intègre comme visage parlant (lipsync auto). Parfait pour un compte faceless avec ton persona IA.",
     },
     {
       q: "Combien de crédits par short ?",
@@ -164,8 +164,8 @@ const AUTOCLIP: LandingConfig = {
   finalCta: "Générer mon premier short",
 };
 
-export default function AutoclipLanding() {
-  return <SubLanding config={AUTOCLIP} />;
+export default function ClipsyLanding() {
+  return <SubLanding config={CLIPSY} />;
 }
 
 /* ─── Mockups ─── */
@@ -181,7 +181,7 @@ function HeroMockup() {
           boxShadow: "0 32px 80px -16px rgba(16,185,129,0.35)",
         }}
       >
-        <MockupBrowserChrome url="horpen.ai/autoclip" />
+        <MockupBrowserChrome url="horpen.ai/clipsy" />
         <div className="p-5">
           <div
             style={{
