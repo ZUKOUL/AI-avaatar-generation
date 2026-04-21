@@ -357,14 +357,13 @@ function Problem({
       <div className="max-w-[1080px] mx-auto">
         <div className="text-center mb-14">
           <div
-            className="inline-block mb-4 px-3 py-1 rounded-full"
             style={{
-              background: "#fee2e2",
-              color: "#dc2626",
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: "0.08em",
+              letterSpacing: "0.22em",
               textTransform: "uppercase",
+              color: "#9ca3af",
+              marginBottom: 18,
             }}
           >
             Sans Horpen
@@ -411,16 +410,11 @@ function Problem({
             >
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: "#fee2e2",
                   color: "#dc2626",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
+                  fontSize: 22,
+                  lineHeight: 1,
                   marginBottom: 14,
+                  fontWeight: 600,
                 }}
               >
                 ✕
@@ -552,14 +546,13 @@ function HowItWorks({
       <div className="max-w-[1080px] mx-auto">
         <div className="text-center mb-14">
           <div
-            className="inline-block mb-4 px-3 py-1 rounded-full"
             style={{
-              background: `${accent}15`,
-              color: accent,
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: "0.08em",
+              letterSpacing: "0.22em",
               textTransform: "uppercase",
+              color: "#9ca3af",
+              marginBottom: 18,
             }}
           >
             Comment ça marche
@@ -728,14 +721,13 @@ function Comparison({
       <div className="max-w-[980px] mx-auto">
         <div className="text-center mb-12">
           <div
-            className="inline-block mb-4 px-3 py-1 rounded-full"
             style={{
-              background: "#f3f4f6",
-              color: "#6b7280",
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: "0.08em",
+              letterSpacing: "0.22em",
               textTransform: "uppercase",
+              color: "#9ca3af",
+              marginBottom: 18,
             }}
           >
             Comparatif

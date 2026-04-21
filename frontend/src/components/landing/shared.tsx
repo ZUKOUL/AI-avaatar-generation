@@ -60,7 +60,8 @@ export const PRODUCTS: Product[] = [
     name: "Trackify",
     tagline: "Tracker tes concurrents 24/7",
     headline: "Vois tout ce que tes concurrents publient. Recréé leurs meilleures ads en 1 clic.",
-    color: "#dc2626",
+    // Logo is silver/black metallic radar — neutral slate grey accent
+    color: "#6b7280",
     cluster: "intelligence",
     shape: "radar",
     logoSrc: "/logos/trackify.png",
@@ -90,7 +91,8 @@ export const PRODUCTS: Product[] = [
     name: "Adlab",
     tagline: "Les ads qui convertissent",
     headline: "Des ads qui scrollent-stop. Testées à l'infini.",
-    color: "#f59e0b",
+    // Logo is cyan neon TV frame — cyan accent
+    color: "#06b6d4",
     cluster: "performer",
     shape: "bolt",
     logoSrc: "/logos/adlab.png",
@@ -100,7 +102,8 @@ export const PRODUCTS: Product[] = [
     name: "Thumbs",
     tagline: "La miniature qui fait cliquer",
     headline: "Colle un lien. Récupère la miniature qui performe.",
-    color: "#ef4444",
+    // Logo is emerald neon play button — emerald green accent
+    color: "#10b981",
     cluster: "performer",
     shape: "play",
     logoSrc: "/logos/thumbs.png",
@@ -110,7 +113,8 @@ export const PRODUCTS: Product[] = [
     name: "Clipsy",
     tagline: "Du prompt à la vidéo short",
     headline: "Du long-form, une URL ou un prompt — à la vidéo courte. Direct.",
-    color: "#10b981",
+    // Logo is gold/yellow neon movie projector — amber accent
+    color: "#f59e0b",
     cluster: "automatiser",
     shape: "loop",
     logoSrc: "/logos/clipsy.png",
