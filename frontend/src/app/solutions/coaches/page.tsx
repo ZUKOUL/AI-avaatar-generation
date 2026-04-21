@@ -1,4 +1,4 @@
-import { SolutionLanding, SOLUTIONS } from "@/components/landing/solutions";
+import { SolutionLanding } from "@/components/landing/solutions";
 
 export const metadata = {
   title: "Horpen pour les coaches & infopreneurs — Recycle ton expertise | Horpen.ai",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function CoachesSolution() {
-  return <SolutionLanding config={SOLUTIONS.coaches} />;
+  return <SolutionLanding slug="coaches" />;
 }

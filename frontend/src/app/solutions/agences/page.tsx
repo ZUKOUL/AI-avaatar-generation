@@ -1,4 +1,4 @@
-import { SolutionLanding, SOLUTIONS } from "@/components/landing/solutions";
+import { SolutionLanding } from "@/components/landing/solutions";
 
 export const metadata = {
   title: "Horpen pour les agences créa — 10× de livrables par client | Horpen.ai",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function AgencesSolution() {
-  return <SolutionLanding config={SOLUTIONS.agences} />;
+  return <SolutionLanding slug="agences" />;
 }

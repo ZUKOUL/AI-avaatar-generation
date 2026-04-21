@@ -1,4 +1,4 @@
-import { SolutionLanding, SOLUTIONS } from "@/components/landing/solutions";
+import { SolutionLanding } from "@/components/landing/solutions";
 
 export const metadata = {
   title: "Horpen pour les SaaS B2B — Démos, ads et content en pipeline | Horpen.ai",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function SaasSolution() {
-  return <SolutionLanding config={SOLUTIONS.saas} />;
+  return <SolutionLanding slug="saas" />;
 }

@@ -1,4 +1,4 @@
-import { SolutionLanding, SOLUTIONS } from "@/components/landing/solutions";
+import { SolutionLanding } from "@/components/landing/solutions";
 
 export const metadata = {
   title: "Horpen pour les chaînes faceless — 3 vidéos/jour sur 5 comptes | Horpen.ai",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function FacelessSolution() {
-  return <SolutionLanding config={SOLUTIONS.faceless} />;
+  return <SolutionLanding slug="faceless" />;
 }

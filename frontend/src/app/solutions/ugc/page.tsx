@@ -1,4 +1,4 @@
-import { SolutionLanding, SOLUTIONS } from "@/components/landing/solutions";
+import { SolutionLanding } from "@/components/landing/solutions";
 
 export const metadata = {
   title: "Horpen pour les créateurs UGC — 10× de livrables par shoot | Horpen.ai",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function UgcSolution() {
-  return <SolutionLanding config={SOLUTIONS.ugc} />;
+  return <SolutionLanding slug="ugc" />;
 }

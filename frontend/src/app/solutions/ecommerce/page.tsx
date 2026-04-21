@@ -1,4 +1,4 @@
-import { SolutionLanding, SOLUTIONS } from "@/components/landing/solutions";
+import { SolutionLanding } from "@/components/landing/solutions";
 
 export const metadata = {
   title: "Horpen pour l'e-commerce — UGC, ads, photos produit IA | Horpen.ai",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function EcommerceSolution() {
-  return <SolutionLanding config={SOLUTIONS.ecommerce} />;
+  return <SolutionLanding slug="ecommerce" />;
 }

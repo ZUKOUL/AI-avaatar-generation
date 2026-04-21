@@ -351,7 +351,8 @@ export const SOLUTIONS: Record<SolutionSlug, SolutionConfig> = {
 
 /* ─── SolutionLanding — the actual page layout ────────────────────── */
 
-export function SolutionLanding({ config }: { config: SolutionConfig }) {
+export function SolutionLanding({ slug }: { slug: SolutionSlug }) {
+  const config = SOLUTIONS[slug];
   return (
     <>
       <SubLandingNav />
@@ -1041,7 +1042,7 @@ export function SolutionsDropdown({ onClose }: { onClose?: () => void }) {
           <Link
             key={s.slug}
             href={`/solutions/${s.slug}`}
-            onClick={onClose}
+            onClick={() => onClose?.()}
             className="flex items-center gap-3 p-3 rounded-xl transition"
             style={{ color: "#ffffff" }}
             onMouseEnter={(e) => {
