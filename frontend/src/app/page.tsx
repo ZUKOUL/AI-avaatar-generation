@@ -52,6 +52,8 @@ import {
   ProductDropdown,
   ProductDropdownTrigger,
   Product3DLogo,
+  type Product,
+  type ProductSlug,
 } from "@/components/landing/shared";
 
 /* ─── Pricing ─────────────────────────────────────────────────────── */
@@ -375,6 +377,12 @@ export default function Home() {
           animation: tab-indicator 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
           transform-origin: left;
         }
+
+        /* Soft crossfade utility — used when a feature bullet changes
+           and we swap the mockup content in place. */
+        .horpen-fade-in {
+          animation: horpen-fade-in 0.25s ease-out both;
+        }
       `}</style>
 
       {/* Dotted global background overlay — fondu vers le bas */}
@@ -593,11 +601,8 @@ export default function Home() {
       {/* ══════════════════════ SECTION 2 — SOCIAL PROOF ══════════════════════ */}
       <section className="py-16 md:py-24 px-5 md:px-8">
         <div className="max-w-[1280px] mx-auto">
-          {/* Logos en bulles flottantes */}
-          <FloatingLogos />
-
           <p
-            className="text-center mt-10"
+            className="text-center"
             style={{ color: "#6b7280", fontSize: 15 }}
           >
             Ils nous font confiance —{" "}
@@ -636,16 +641,55 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 3 — 3 PILIERS (style Taap Optimize) ══════════════════════ */}
-      <section id="piliers" className="py-16 md:py-24 px-5 md:px-8">
-        <div className="max-w-[1280px] mx-auto">
+      {/* ══════════════════════ SECTION 3 — 3 PILIERS (dark switch) ══════════════════════ */}
+      <section
+        id="piliers"
+        className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+        style={{
+          background: "#000000",
+          color: "#f3f4f6",
+        }}
+      >
+        {/* Fine dotted grid overlay — light grey/white dots on pure black.
+            No mask, no gradient wash : on veut du vrai noir avec juste la
+            texture pointillée discrète. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="max-w-[1280px] mx-auto relative">
           <div className="text-center mb-14 md:mb-16">
-            <div className="inline-block mb-5 px-3 py-1 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "#9ca3af",
+                marginBottom: 18,
+              }}
+            >
               Optimize
             </div>
-            <h2 className="horpen-reveal" style={{ fontSize: "clamp(32px, 4.5vw, 54px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
+            <h2
+              className="horpen-reveal"
+              style={{
+                fontSize: "clamp(32px, 4.5vw, 54px)",
+                lineHeight: 1.08,
+                letterSpacing: "-0.035em",
+                fontWeight: 600,
+                color: "#ffffff",
+                maxWidth: 820,
+                margin: "0 auto",
+              }}
+            >
               Conçu pour les créateurs et les marques{" "}
-              <span style={{ color: "#9ca3af" }}>qui veulent des résultats, pas du décoratif.</span>
+              <span style={{ color: "#6b7280" }}>qui veulent des résultats, pas du décoratif.</span>
             </h2>
           </div>
 
@@ -705,94 +749,39 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 4 — FEATURE SHOWCASE (sidebar tabs) ══════════════════════ */}
-      <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-14">
-            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
-              Des outils faits pour vendre,{" "}
-              <span style={{ color: "#9ca3af" }}>pas juste pour afficher.</span>
+      {/* ══════════════════════ SECTION 4-5 — PRODUCT FEATURE CARDS (dedicated per app, dark) ══════════════════════ */}
+      <section
+        id="features"
+        className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+        style={{ background: "#000000", color: "#f3f4f6" }}
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="max-w-[1280px] mx-auto relative">
+          <div className="text-center mb-14 md:mb-16">
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
+              Apps dédiées
+            </div>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff", maxWidth: 860, margin: "0 auto" }}>
+              Chaque app fait une chose.{" "}
+              <span style={{ color: "#6b7280" }}>Et elle la fait mieux que les autres.</span>
             </h2>
-            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
-              UGC, avatars IA, miniatures, photos produit, ads : chaque feature que tu crées avec
-              Horpen est pensée pour ramener des clics, pas des likes de politesse.
+            <p style={{ marginTop: 18, color: "#9ca3af", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
+              6 apps spécialisées, connectées entre elles. Clique sur un avantage pour voir
+              l&apos;interface en action, ou ouvre la landing dédiée pour creuser.
             </p>
-            <div className="mt-7">
-              <Link
-                href="/signup"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
-                style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
-              >
-                Explorer les features
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
           </div>
 
-          <FeatureShowcaseTabs
-            active={activeShowcaseTab}
-            setActive={setActiveShowcaseTab}
-            showcase={showcase}
-          />
-        </div>
-      </section>
-
-      {/* ══════════════════════ SECTION 5 — 6 FEATURES ══════════════════════ */}
-      <section id="features" className="py-20 md:py-28 px-5 md:px-8">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-14">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
-              Features
-            </div>
-            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
-              Tout ce qu&apos;il te faut pour produire.
-              <br />
-              <span style={{ color: "#9ca3af" }}>Rien de superflu.</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-            {[
-              { key: "tinder", title: "Tinder des ads", desc: "Swipe. Like. Publie. Le feed infini d'ads pour ton produit, généré sur mesure." },
-              { key: "style", title: "Style personnalisé", desc: "Charge un visage, un univers, une niche. Réutilise-les sur toutes tes créas." },
-              { key: "thumb", title: "Miniatures YTB", desc: "Colle un lien de vidéo. Récupère une miniature qui fait cliquer. En 5 secondes." },
-              { key: "packs", title: "Templates de packs", desc: "Réaction selfie, facecam bagnole, lifestyle étudiant. Des dizaines de packs prêts." },
-              { key: "agents", title: "Agents IA connectés", desc: "Du prompt à la vidéo finale, en pipeline. Tu écris l'histoire, l'IA la filme." },
-              { key: "trends", title: "Duplicateur de trends", desc: "Une vidéo virale ? Un clic. Ta version, ton produit, ta niche." },
-            ].map((f, i) => (
-              <div
-                key={f.title}
-                className="horpen-reveal horpen-card-3d horpen-emboss rounded-2xl overflow-hidden flex flex-col"
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #ececec",
-                  "--horpen-reveal-delay": `${0.05 * i}s`,
-                } as React.CSSProperties}
-              >
-                <div
-                  className="horpen-dotbg-soft relative"
-                  style={{
-                    height: 200,
-                    background: "#fafafa",
-                    borderBottom: "1px solid #ececec",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 18,
-                    overflow: "hidden",
-                  }}
-                >
-                  <FeatureMiniMockup kind={f.key} />
-                </div>
-                <div style={{ padding: 24, flex: 1 }}>
-                  <h3 style={{ fontSize: 19, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.02em", lineHeight: 1.25 }}>
-                    {f.title}
-                  </h3>
-                  <p style={{ marginTop: 10, color: "#6b7280", fontSize: 15, lineHeight: 1.55 }}>
-                    {f.desc}
-                  </p>
-                </div>
-              </div>
+          <div className="space-y-5 md:space-y-6">
+            {PRODUCT_FEATURE_SECTIONS.map((sec, i) => (
+              <ProductFeatureSection key={sec.slug} {...sec} reverse={i % 2 === 1} />
             ))}
           </div>
         </div>
@@ -840,18 +829,30 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 7 — ANALYTICS ══════════════════════ */}
-      <section className="py-20 md:py-28 px-5 md:px-8">
-        <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      {/* ══════════════════════ SECTION 7 — ANALYTICS (dark) ══════════════════════ */}
+      <section
+        className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+        style={{ background: "#000000", color: "#f3f4f6" }}
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative">
           <div>
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#ecfdf5", color: "#10b981", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
               Mesure
             </div>
-            <h2 style={{ fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
+            <h2 style={{ fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff" }}>
               Sache exactement{" "}
-              <span style={{ color: "#9ca3af" }}>quelles créas rapportent.</span>
+              <span style={{ color: "#6b7280" }}>quelles créas rapportent.</span>
             </h2>
-            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, lineHeight: 1.55, maxWidth: 520 }}>
+            <p style={{ marginTop: 18, color: "#9ca3af", fontSize: 17, lineHeight: 1.55, maxWidth: 520 }}>
               Pas besoin de deviner. Horpen track quelle ad convertit, quel hook fonctionne,
               quel style génère le plus d&apos;engagement. Tu gardes ce qui marche, tu jettes le reste.
             </p>
@@ -869,7 +870,7 @@ export default function Home() {
                       width: 22,
                       height: 22,
                       borderRadius: 6,
-                      background: "#0a0a0a",
+                      background: "#ffffff",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -877,11 +878,11 @@ export default function Home() {
                       marginTop: 2,
                     }}
                   >
-                    <Check className="w-3.5 h-3.5" style={{ color: "#fff" }} />
+                    <Check className="w-3.5 h-3.5" style={{ color: "#0a0a0a" }} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 15, color: "#0a0a0a" }}>{it.t}</div>
-                    <div style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.5, marginTop: 2 }}>{it.d}</div>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: "#ffffff" }}>{it.t}</div>
+                    <div style={{ color: "#9ca3af", fontSize: 14, lineHeight: 1.5, marginTop: 2 }}>{it.d}</div>
                   </div>
                 </div>
               ))}
@@ -895,7 +896,7 @@ export default function Home() {
       {/* ══════════════════════ SECTION 8 — WORKSPACE HUB ══════════════════════ */}
       <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[1080px] mx-auto text-center">
-          <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
             Workspace
           </div>
           <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 820, margin: "0 auto" }}>
@@ -924,18 +925,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 9 — MICRO-APPS ══════════════════════ */}
-      <section id="micro-apps" className="py-20 md:py-28 px-5 md:px-8">
-        <div className="max-w-[1280px] mx-auto">
+      {/* ══════════════════════ SECTION 9 — MICRO-APPS (dark) ══════════════════════ */}
+      <section
+        id="micro-apps"
+        className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+        style={{ background: "#000000", color: "#f3f4f6" }}
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="max-w-[1280px] mx-auto relative">
           <div className="text-center mb-14">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
               Apps
             </div>
-            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a", maxWidth: 860, margin: "0 auto" }}>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff", maxWidth: 860, margin: "0 auto" }}>
               Un besoin précis ?{" "}
-              <span style={{ color: "#9ca3af" }}>On a l&apos;app pour ça.</span>
+              <span style={{ color: "#6b7280" }}>On a l&apos;app pour ça.</span>
             </h2>
-            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
+            <p style={{ marginTop: 18, color: "#9ca3af", fontSize: 17, maxWidth: 680, margin: "18px auto 0" }}>
               Chaque brique d&apos;Horpen est aussi accessible en micro-app dédiée. Entrée rapide, résultat immédiat.
             </p>
           </div>
@@ -1013,18 +1027,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 10 — PRICING ══════════════════════ */}
-      <section id="pricing" className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
-        <div className="max-w-[1080px] mx-auto">
+      {/* ══════════════════════ SECTION 10 — PRICING (dark) ══════════════════════ */}
+      <section
+        id="pricing"
+        className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+        style={{ background: "#000000", color: "#f3f4f6" }}
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="max-w-[1080px] mx-auto relative">
           <div className="text-center mb-14">
-            <div className="inline-block mb-4 px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
               Tarifs
             </div>
-            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff" }}>
               Une fraction du prix{" "}
-              <span style={{ color: "#9ca3af" }}>d&apos;Arcads, Weavy ou Makeugc.</span>
+              <span style={{ color: "#6b7280" }}>d&apos;Arcads, Weavy ou Makeugc.</span>
             </h2>
-            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 560, margin: "18px auto 0" }}>
+            <p style={{ marginTop: 18, color: "#9ca3af", fontSize: 17, maxWidth: 560, margin: "18px auto 0" }}>
               Annule à tout moment. Droits commerciaux inclus dès le premier plan payant.
             </p>
           </div>
@@ -1096,16 +1123,29 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════ SECTION 11 — FAQ ══════════════════════ */}
-      <section id="faq" className="py-20 md:py-28 px-5 md:px-8">
-        <div className="max-w-[820px] mx-auto">
+      {/* ══════════════════════ SECTION 11 — FAQ (dark) ══════════════════════ */}
+      <section
+        id="faq"
+        className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+        style={{ background: "#000000", color: "#f3f4f6" }}
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="max-w-[820px] mx-auto relative">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
               FAQ
             </div>
-            <h2 style={{ fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#0a0a0a" }}>
+            <h2 style={{ fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.1, letterSpacing: "-0.035em", fontWeight: 600, color: "#ffffff" }}>
               Toujours des questions ?{" "}
-              <span style={{ color: "#9ca3af" }}>On a les réponses.</span>
+              <span style={{ color: "#6b7280" }}>On a les réponses.</span>
             </h2>
           </div>
 
@@ -1116,27 +1156,27 @@ export default function Home() {
                 <div
                   key={i}
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid #ececec",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: 14,
                     overflow: "hidden",
-                    boxShadow: open ? "0 4px 12px rgba(0,0,0,0.04)" : "none",
-                    transition: "box-shadow 0.2s ease",
+                    boxShadow: open ? "0 4px 12px rgba(0,0,0,0.4)" : "none",
+                    transition: "box-shadow 0.2s ease, background 0.2s ease",
                   }}
                 >
                   <button
                     onClick={() => setOpenFaq(open ? null : i)}
                     className="w-full text-left px-5 py-4 flex items-center justify-between gap-4"
-                    style={{ color: "#0a0a0a", fontSize: 15, fontWeight: 500 }}
+                    style={{ color: "#ffffff", fontSize: 15, fontWeight: 500 }}
                   >
                     <span>{item.q}</span>
                     <ChevronDown
                       className="w-4 h-4 flex-shrink-0 transition-transform"
-                      style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "#6b7280" }}
+                      style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "#9ca3af" }}
                     />
                   </button>
                   {open && (
-                    <div style={{ padding: "0 20px 18px", color: "#6b7280", fontSize: 14.5, lineHeight: 1.6 }}>
+                    <div style={{ padding: "0 20px 18px", color: "#9ca3af", fontSize: 14.5, lineHeight: 1.6 }}>
                       {item.a}
                     </div>
                   )}
@@ -1149,7 +1189,7 @@ export default function Home() {
             <a
               href="mailto:support@horpen.ai"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition"
-              style={{ background: "#0a0a0a", color: "#ffffff", fontSize: 14 }}
+              style={{ background: "#ffffff", color: "#0a0a0a", fontSize: 14 }}
             >
               Réserver une démo
               <ArrowRight className="w-4 h-4" />
@@ -1248,7 +1288,7 @@ export default function Home() {
       {/* ══════════════════════ SECTION 13 — BUILD IN PUBLIC ══════════════════════ */}
       <section className="py-16 md:py-20 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec" }}>
         <div className="max-w-[820px] mx-auto text-center">
-          <div className="inline-block mb-5 px-3 py-1 rounded-full" style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 18 }}>
             Build in public
           </div>
           <h3 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", lineHeight: 1.25, letterSpacing: "-0.025em", fontWeight: 600, color: "#0a0a0a", maxWidth: 640, margin: "0 auto" }}>
@@ -1385,51 +1425,6 @@ export default function Home() {
 /* ═══════════════════════════════════════════════════════════════════
  *  SUB-COMPONENTS
  * ═════════════════════════════════════════════════════════════════ */
-
-/* FLOATING LOGOS — bulles pour social proof. */
-function FloatingLogos() {
-  const logos = [
-    { label: "OP", color: "#3b82f6", size: 64 },
-    { label: "NV", color: "#3b82f6", size: 72 },
-    { label: "KR", color: "#0a0a0a", size: 56 },
-    { label: "MR", color: "#0a0a0a", size: 80 },
-    { label: "OR", color: "#6b7280", size: 60 },
-    { label: "LM", color: "#10b981", size: 68 },
-    { label: "FJ", color: "#0a0a0a", size: 62 },
-    { label: "AR", color: "#6b7280", size: 70 },
-    { label: "PR", color: "#3b82f6", size: 64 },
-    { label: "ZN", color: "#3b82f6", size: 58 },
-    { label: "HL", color: "#0a0a0a", size: 66 },
-    { label: "VT", color: "#10b981", size: 58 },
-  ];
-  return (
-    <div className="relative overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}>
-      <div className="marquee-track items-center gap-6">
-        {[...Array(2)].flatMap((_, dup) =>
-          logos.map((l, i) => (
-            <div
-              key={`${dup}-${i}`}
-              className="horpen-bubble flex-shrink-0 rounded-full flex items-center justify-center"
-              style={{
-                width: l.size,
-                height: l.size,
-                background: l.color,
-                color: "#ffffff",
-                fontSize: l.size / 4,
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
-                boxShadow: `0 8px 24px ${l.color}40, inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -4px 8px rgba(0,0,0,0.15)`,
-                animationDelay: `${i * 0.3}s`,
-              }}
-            >
-              {l.label}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
 
 /* PILIER CARD — structure commune, Taap-style. */
 function PilierCard({
@@ -2429,6 +2424,522 @@ function Metric3DIcon({ kind }: { kind: string }) {
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M13 2 L4 14 H11 L10 22 L20 10 H13 L13 2 Z" />
       </svg>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRODUCT FEATURE SECTIONS — 6 dedicated "Foreplay-style" cards.
+
+   Each config defines the 3 clickable advantages + the LP href. The
+   `ProductFeatureSection` renders a 2-column grid (info / visual) and
+   alternates the column order on odd indices for a zig-zag rhythm.
+   ═══════════════════════════════════════════════════════════════════ */
+
+interface ProductFeatureBullet {
+  key: string;
+  label: string;
+  /** Small chip rows displayed in the right-side mockup when this
+   *  bullet is active — think "live data hints" that sell the feature. */
+  chips: string[];
+}
+
+interface ProductFeatureSectionData {
+  slug: ProductSlug;
+  title: string;
+  href: string;
+  bullets: [ProductFeatureBullet, ProductFeatureBullet, ProductFeatureBullet];
+}
+
+const PRODUCT_FEATURE_SECTIONS: ProductFeatureSectionData[] = [
+  {
+    slug: "trackify",
+    title: "Suis tes concurrents. 24/7. Automatiquement.",
+    href: "/trackify",
+    bullets: [
+      {
+        key: "scraper",
+        label: "Scraper d'ads 24/7",
+        chips: [
+          "553 ads actives chez ton concurrent",
+          "42 nouvelles ads cette semaine",
+          "Alerte quand un test monte en spend",
+        ],
+      },
+      {
+        key: "hooks",
+        label: "Analyse des hooks gagnants",
+        chips: [
+          "Top 10 hooks scorés sur la durée de run",
+          "\"306 jours\" · \"I looked 15 years older\"",
+          "Export CSV direct pour tes briefs",
+        ],
+      },
+      {
+        key: "lps",
+        label: "Landing pages des concurrents",
+        chips: [
+          "41 % du trafic va sur play.google.com/...",
+          "Capture auto des variantes de LP",
+          "Diff visuel entre 2 versions",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "canvas",
+    title: "Shooting produit pro sans shoot.",
+    href: "/canvas",
+    bullets: [
+      {
+        key: "packshot",
+        label: "Packshot studio",
+        chips: [
+          "Fond blanc / noir / dégradé en 1 clic",
+          "Ombres portées réalistes",
+          "Exports 4K prêts pour Amazon / Shopify",
+        ],
+      },
+      {
+        key: "lifestyle",
+        label: "Scènes lifestyle infinies",
+        chips: [
+          "Plage, salle de sport, cuisine, bureau…",
+          "Ton produit intégré à la scène",
+          "20 variantes / minute",
+        ],
+      },
+      {
+        key: "mockups",
+        label: "Mockups photo-réalistes",
+        chips: [
+          "iPhone, MacBook, Billboard, packaging",
+          "Conserve les couleurs de ta marque",
+          "Zoom ultra-détail sans pixellisation",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "avatar",
+    title: "Clone ton meilleur UGC creator.",
+    href: "/avatar",
+    bullets: [
+      {
+        key: "face",
+        label: "Avatar hyper-réaliste",
+        chips: [
+          "Upload 10 photos → avatar vidéo reusable",
+          "Expressions naturelles, pas de uncanny",
+          "Utilisable sur toutes tes ads",
+        ],
+      },
+      {
+        key: "voice",
+        label: "Voix clonée",
+        chips: [
+          "30 secondes d'audio suffisent",
+          "Accent, intonation, respirations",
+          "FR + EN + 15 langues",
+        ],
+      },
+      {
+        key: "scripts",
+        label: "Scripts IA vendeurs",
+        chips: [
+          "Hook → problème → solution → CTA",
+          "Adapté à ta niche et ton offer",
+          "A/B test 10 variantes d'un même script",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "adlab",
+    title: "Des ads qui scroll-stop. Par batch de 50.",
+    href: "/adlab",
+    bullets: [
+      {
+        key: "hooks",
+        label: "Hook generator",
+        chips: [
+          "50 hooks scorés sur la probabilité de stop-scroll",
+          "Variantes par angle, émotion, promesse",
+          "Prêts à coller dans ton ad",
+        ],
+      },
+      {
+        key: "batch",
+        label: "A/B batch ×50",
+        chips: [
+          "Même offer, 50 variantes créatives",
+          "Découvre le gagnant en 72h",
+          "Duplique le style, jette le reste",
+        ],
+      },
+      {
+        key: "export",
+        label: "Meta + TikTok ready",
+        chips: [
+          "Exports 9:16, 1:1, 4:5 automatiques",
+          "Captions SRT + burn-in",
+          "Specs Meta / TikTok Ads validées",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "thumbs",
+    title: "Miniatures YTB qui font cliquer.",
+    href: "/thumbs",
+    bullets: [
+      {
+        key: "extract",
+        label: "Extract + reverse",
+        chips: [
+          "Colle une URL, récupère la miniature",
+          "Reverse-engineer le style et le layout",
+          "Applique-le à ta propre vidéo",
+        ],
+      },
+      {
+        key: "face",
+        label: "Face swap",
+        chips: [
+          "Remplace le visage par le tien",
+          "Expression conservée (choc, rire, sérieux)",
+          "Aucune trace de retouche",
+        ],
+      },
+      {
+        key: "style",
+        label: "Style de créateur",
+        chips: [
+          "MrBeast, Inoxtag, Squeezie, Feastables…",
+          "Palette, typo, composition clonée",
+          "Reste dans les règles YouTube",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "clipsy",
+    title: "Du prompt à la vidéo short. Direct.",
+    href: "/clipsy",
+    bullets: [
+      {
+        key: "longform",
+        label: "Long-form → shorts",
+        chips: [
+          "Colle un lien YouTube long",
+          "Clipsy détecte les moments viraux",
+          "Exporte 5 à 10 shorts en 9:16",
+        ],
+      },
+      {
+        key: "prompt",
+        label: "Prompt-to-video",
+        chips: [
+          "Décris la scène, reçois la vidéo",
+          "Kling, Veo, Hailuo, Grok au choix",
+          "Jusqu'à 10 s, 4K, en < 2 min",
+        ],
+      },
+      {
+        key: "subs",
+        label: "Sous-titres auto",
+        chips: [
+          "Découpage mot par mot, style TikTok",
+          "Animation rebond / zoom / surligné",
+          "FR, EN, ES, DE — 97 % d'accuracy",
+        ],
+      },
+    ],
+  },
+];
+
+function ProductFeatureSection({
+  slug,
+  title,
+  href,
+  bullets,
+  reverse = false,
+}: ProductFeatureSectionData & { reverse?: boolean }) {
+  const [active, setActive] = useState(0);
+  const product = PRODUCTS.find((p) => p.slug === slug)!;
+  const activeBullet = bullets[active];
+  const accent = product.color;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch">
+      {/* ── LEFT : info card ─────────────────────────────────────── */}
+      <div
+        className={reverse ? "md:order-2" : ""}
+        style={{
+          background: "#0a0a0a",
+          borderRadius: 28,
+          border: "1px solid rgba(255,255,255,0.08)",
+          padding: "40px 34px",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 520,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 16 }}>
+          {product.name}
+        </div>
+        <h3
+          style={{
+            fontSize: "clamp(26px, 3vw, 38px)",
+            lineHeight: 1.1,
+            letterSpacing: "-0.03em",
+            fontWeight: 600,
+            color: "#ffffff",
+            marginBottom: 26,
+            maxWidth: 360,
+          }}
+        >
+          {title}
+        </h3>
+
+        <div className="flex items-center gap-2.5 mb-auto flex-wrap">
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full font-medium transition"
+            style={{ background: "#ffffff", color: "#0a0a0a", fontSize: 13.5 }}
+          >
+            Essai gratuit <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full font-medium transition"
+            style={{
+              background: "transparent",
+              color: "#ffffff",
+              border: "1px solid rgba(255,255,255,0.18)",
+              fontSize: 13.5,
+            }}
+          >
+            En savoir plus <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="mt-10 space-y-1">
+          {bullets.map((b, i) => {
+            const isActive = i === active;
+            return (
+              <button
+                key={b.key}
+                onClick={() => setActive(i)}
+                className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl transition"
+                style={{
+                  background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
+                  color: isActive ? "#ffffff" : "#6b7280",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.color = "#d1d5db";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.color = "#6b7280";
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 99,
+                    background: isActive ? accent : "#4b5563",
+                    flexShrink: 0,
+                    boxShadow: isActive ? `0 0 10px ${accent}` : "none",
+                  }}
+                />
+                <span style={{ fontSize: 14.5, fontWeight: isActive ? 600 : 500 }}>{b.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Bottom-left accent glow */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            bottom: -100,
+            left: -100,
+            width: 260,
+            height: 260,
+            background: `radial-gradient(circle, ${accent}30 0%, transparent 70%)`,
+            filter: "blur(40px)",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+
+      {/* ── RIGHT : visual card with live mockup ─────────────────── */}
+      <div
+        className={reverse ? "md:order-1" : ""}
+        style={{
+          background: "#0a0a0a",
+          borderRadius: 28,
+          border: "1px solid rgba(255,255,255,0.08)",
+          minHeight: 520,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(ellipse at 50% 25%, ${accent}30 0%, transparent 55%)`,
+            pointerEvents: "none",
+          }}
+        />
+        <div className="relative flex items-center justify-center h-full p-6 md:p-8">
+          <ProductShowcaseMockup
+            product={product}
+            bulletKey={activeBullet.key}
+            bulletLabel={activeBullet.label}
+            chips={activeBullet.chips}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductShowcaseMockup({
+  product,
+  bulletKey,
+  bulletLabel,
+  chips,
+}: {
+  product: Product;
+  bulletKey: string;
+  bulletLabel: string;
+  chips: string[];
+}) {
+  return (
+    <div
+      key={bulletKey}
+      className="horpen-fade-in"
+      style={{
+        width: "100%",
+        maxWidth: 480,
+        position: "relative",
+        aspectRatio: "1 / 1",
+      }}
+    >
+      {/* App-window frame */}
+      <div
+        style={{
+          position: "absolute",
+          inset: "6% 4% 12% 4%",
+          background: "rgba(10,10,10,0.75)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderRadius: 18,
+          border: "1px solid rgba(255,255,255,0.1)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 30px 80px -20px rgba(0,0,0,0.6)",
+        }}
+      >
+        {/* Traffic lights header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "11px 14px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <span style={{ width: 9, height: 9, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
+          <span style={{ width: 9, height: 9, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
+          <span style={{ width: 9, height: 9, borderRadius: 99, background: "rgba(255,255,255,0.18)" }} />
+          <span style={{ marginLeft: 12, fontSize: 11, color: "#6b7280", letterSpacing: "0.01em" }}>
+            horpen.ai / {product.slug}
+          </span>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, padding: "16px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Highlight: active bullet */}
+          <div
+            style={{
+              padding: "10px 13px",
+              background: `${product.color}22`,
+              border: `1px solid ${product.color}55`,
+              borderRadius: 10,
+              color: "#ffffff",
+              fontSize: 12.5,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 99,
+                background: product.color,
+                boxShadow: `0 0 8px ${product.color}`,
+                flexShrink: 0,
+              }}
+            />
+            {bulletLabel}
+          </div>
+          {/* Chip rows */}
+          {chips.map((c, i) => (
+            <div
+              key={i}
+              style={{
+                padding: "9px 13px",
+                background: "rgba(255,255,255,0.035)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 10,
+                color: "#9ca3af",
+                fontSize: 12,
+                lineHeight: 1.4,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: 99,
+                  background: "#4b5563",
+                  flexShrink: 0,
+                }}
+              />
+              {c}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 3D logo floating bottom-left of frame */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: "2%",
+          zIndex: 5,
+        }}
+      >
+        <Product3DLogo product={product} size={96} />
+      </div>
     </div>
   );
 }
