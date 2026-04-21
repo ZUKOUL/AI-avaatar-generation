@@ -72,6 +72,9 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hovered, setHovered] = useState<ProductSlug | null>(null);
+  /** When collapsed, hovering the top-left Horpen logo swaps it for a
+   *  clickable "expand sidebar" toggle icon. Reverts on mouse leave. */
+  const [logoHover, setLogoHover] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -129,14 +132,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
 
   const sidebarContent = (
     <>
-      {/* ── Header ── */}
+      {/* ── Header ──
+            Collapsed : Horpen logo crossfades on hover to a clickable
+            toggle icon, so the user always has a one-click way to
+            re-expand the sidebar even if they don't realise empty
+            space also works. */}
       <div
         className="flex items-center px-4 h-14 shrink-0"
         style={{
           justifyContent: collapsed ? "center" : "space-between",
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) e.stopPropagation();
         }}
       >
         {!collapsed ? (
@@ -182,18 +186,65 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             )}
           </>
         ) : (
-          <Link href="/dashboard" onClick={(e) => e.stopPropagation()}>
-            <Logo size={26} />
-          </Link>
+          <div
+            className="relative"
+            style={{ width: 30, height: 30 }}
+            onMouseEnter={() => setLogoHover(true)}
+            onMouseLeave={() => setLogoHover(false)}
+          >
+            {/* Horpen logo (default) */}
+            <Link
+              href="/dashboard"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: logoHover && onToggleCollapsed ? 0 : 1,
+                transition: "opacity 0.18s ease",
+                pointerEvents: logoHover && onToggleCollapsed ? "none" : "auto",
+              }}
+            >
+              <Logo size={26} />
+            </Link>
+            {/* Expand-sidebar toggle (appears on hover) */}
+            {onToggleCollapsed && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCollapsed();
+                }}
+                title="Ouvrir la sidebar"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#e5e7eb",
+                  opacity: logoHover ? 1 : 0,
+                  transition: "opacity 0.18s ease",
+                  pointerEvents: logoHover ? "auto" : "none",
+                  cursor: "pointer",
+                }}
+              >
+                <PanelToggleIcon />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
       {/* ── Product tiles : single horizontal row in expanded mode,
-            stacked vertically when collapsed. ── */}
-      <div
-        className={collapsed ? "px-2 pb-3" : "px-4 pb-1"}
-        onClick={(e) => e.stopPropagation()}
-      >
+            stacked vertically when collapsed. Empty space between tiles
+            intentionally lets clicks bubble up so the collapsed
+            sidebar can reopen — interactive children stop propagation
+            individually. ── */}
+      <div className={collapsed ? "px-2 pb-3" : "px-4 pb-1"}>
         <div
           style={{
             display: "flex",
@@ -296,7 +347,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
       {/* ── Main nav ── */}
       <nav
         className={collapsed ? "flex-1 overflow-y-auto px-2 py-2" : "flex-1 overflow-y-auto px-3 py-3"}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col gap-0.5">
           {NAV_ROWS.map((item) => {
@@ -358,7 +408,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
 
       {/* ── Upgrade card ── */}
       {!collapsed && (
-        <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+        <div className="px-3 pb-3">
           <div
             className="rounded-xl p-3.5"
             style={{
@@ -398,7 +448,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
       <div
         className="shrink-0"
         style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-        onClick={(e) => e.stopPropagation()}
       >
         {collapsed ? (
           <button
