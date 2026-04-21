@@ -55,6 +55,7 @@ import {
   type Product,
   type ProductSlug,
 } from "@/components/landing/shared";
+import { SolutionsDropdown, SOLUTIONS } from "@/components/landing/solutions";
 
 /* ─── Pricing ─────────────────────────────────────────────────────── */
 
@@ -429,7 +430,9 @@ export default function Home() {
             <ProductDropdownTrigger label="Produit">
               <ProductDropdown />
             </ProductDropdownTrigger>
-            <a href="#suite" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Suite</a>
+            <ProductDropdownTrigger label="Solutions">
+              <SolutionsDropdown />
+            </ProductDropdownTrigger>
             <a href="#pricing" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Tarifs</a>
             <a href="#faq" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">FAQ</a>
           </div>
@@ -469,6 +472,20 @@ export default function Home() {
                   <div style={{ fontWeight: 600, color: "#0a0a0a" }}>{p.name}</div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>{p.tagline}</div>
                 </div>
+              </Link>
+            ))}
+            <div style={{ height: 1, background: "#ececec", margin: "8px 0" }} />
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              Solutions
+            </div>
+            {Object.values(SOLUTIONS).map((s) => (
+              <Link
+                key={s.slug}
+                href={`/solutions/${s.slug}`}
+                onClick={() => setMenuOpen(false)}
+                style={{ fontSize: 14, color: "#0a0a0a" }}
+              >
+                {s.name}
               </Link>
             ))}
             <div style={{ height: 1, background: "#ececec", margin: "8px 0" }} />

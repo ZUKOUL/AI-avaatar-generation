@@ -9,7 +9,7 @@ const TRACKIFY: LandingConfig = {
     <>
       Tracke tes concurrents.
       <br />
-      <span style={{ color: "#fca5a5" }}>Recrée leurs meilleures ads en 1 clic.</span>
+      <span style={{ color: "#d1d5db" }}>Recrée leurs meilleures ads en 1 clic.</span>
     </>
   ),
   heroSubtitle:

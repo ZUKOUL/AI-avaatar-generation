@@ -72,6 +72,12 @@ export { Link01 as LinkIcon } from "@untitledui/icons/Link01";
 export { Type01 as Type } from "@untitledui/icons/Type01";
 export { Announcement02 as Megaphone } from "@untitledui/icons/Announcement02";
 export { Package as Package } from "@untitledui/icons/Package";
+// Vertical / solutions page glyphs
+export { ShoppingBag01 as ShoppingBag } from "@untitledui/icons/ShoppingBag01";
+export { Briefcase02 as Briefcase } from "@untitledui/icons/Briefcase02";
+export { Users01 as Users } from "@untitledui/icons/Users01";
+export { GraduationHat01 as GraduationHat } from "@untitledui/icons/GraduationHat01";
+export { CodeBrowser } from "@untitledui/icons/CodeBrowser";
 
 // Custom Spinner (Untitled UI has no animated spinner)
 export const Spinner: React.FC<{ size?: number; color?: string; className?: string }> = ({

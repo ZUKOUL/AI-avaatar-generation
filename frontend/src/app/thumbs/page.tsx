@@ -9,7 +9,7 @@ const THUMBS: LandingConfig = {
     <>
       La miniature YouTube
       <br />
-      <span style={{ color: "#fca5a5" }}>qui fait cliquer. En 5 secondes.</span>
+      <span style={{ color: "#6ee7b7" }}>qui fait cliquer. En 5 secondes.</span>
     </>
   ),
   heroSubtitle:

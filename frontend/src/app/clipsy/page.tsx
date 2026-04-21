@@ -9,7 +9,7 @@ const CLIPSY: LandingConfig = {
     <>
       Du prompt à la vidéo short.
       <br />
-      <span style={{ color: "#86efac" }}>Direct. Sans éditeur.</span>
+      <span style={{ color: "#fcd34d" }}>Direct. Sans éditeur.</span>
     </>
   ),
   heroSubtitle:

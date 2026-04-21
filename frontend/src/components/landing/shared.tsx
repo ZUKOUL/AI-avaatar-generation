@@ -74,7 +74,7 @@ export const PRODUCTS: Product[] = [
     color: "#3b82f6",
     cluster: "creer",
     shape: "canvas",
-    logoSrc: "/logos/canvas.png",
+    logoSrc: "/logos/canvas-v2.png",
   },
   {
     slug: "avatar",

@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { XIcon } from "@/components/Icons";
 import {
   PRODUCTS,
   Product3DLogo,
@@ -312,9 +313,21 @@ function LogoBand({ copy }: { copy?: string }) {
     { label: "AR", bg: "#6b7280" },
   ];
   return (
-    <section className="py-14 md:py-18 px-5 md:px-8" style={{ borderBottom: "1px solid #ececec" }}>
-      <div className="max-w-[1080px] mx-auto text-center">
-        <p style={{ color: "#6b7280", fontSize: 13.5, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>
+    <section
+      className="py-14 md:py-18 px-5 md:px-8 relative overflow-hidden"
+      style={{ background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="max-w-[1080px] mx-auto text-center relative">
+        <p style={{ color: "#9ca3af", fontSize: 13.5, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>
           {copy ?? "Utilisé par des créateurs et marques e-com dans 30+ pays"}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-5 md:gap-8">
@@ -353,8 +366,20 @@ function Problem({
 }) {
   void accent;
   return (
-    <section className="py-20 md:py-28 px-5 md:px-8">
-      <div className="max-w-[1080px] mx-auto">
+    <section
+      className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+      style={{ background: "#000000", color: "#f3f4f6" }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="max-w-[1080px] mx-auto relative">
         <div className="text-center mb-14">
           <div
             style={{
@@ -374,7 +399,7 @@ function Problem({
               lineHeight: 1.1,
               letterSpacing: "-0.035em",
               fontWeight: 600,
-              color: "#0a0a0a",
+              color: "#ffffff",
               maxWidth: 800,
               margin: "0 auto",
             }}
@@ -385,7 +410,7 @@ function Problem({
             <p
               style={{
                 marginTop: 18,
-                color: "#6b7280",
+                color: "#9ca3af",
                 fontSize: 17,
                 maxWidth: 620,
                 margin: "18px auto 0",
@@ -403,26 +428,18 @@ function Problem({
               key={i}
               className="sl-reveal rounded-2xl p-6"
               style={{
-                background: "#ffffff",
-                border: "1px solid #ececec",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 "--sl-delay": `${i * 0.06}s`,
               } as React.CSSProperties}
             >
-              <div
-                style={{
-                  color: "#dc2626",
-                  fontSize: 22,
-                  lineHeight: 1,
-                  marginBottom: 14,
-                  fontWeight: 600,
-                }}
-              >
-                ✕
+              <div style={{ color: "#f87171", marginBottom: 14 }}>
+                <XIcon className="w-5 h-5" />
               </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#0a0a0a", letterSpacing: "-0.015em", marginBottom: 8 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#ffffff", letterSpacing: "-0.015em", marginBottom: 8 }}>
                 {p.label}
               </div>
-              <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.55 }}>
+              <div style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.55 }}>
                 {p.desc}
               </div>
             </div>
@@ -443,8 +460,25 @@ function FeatureAlternating({
   accent: string;
 }) {
   return (
-    <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
-      <div className="max-w-[1280px] mx-auto space-y-24 md:space-y-32">
+    <section
+      className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+      style={{
+        background: "#000000",
+        color: "#f3f4f6",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="max-w-[1280px] mx-auto space-y-24 md:space-y-32 relative">
         {features.map((f, i) => {
           const reverse = i % 2 === 1;
           return (
@@ -474,7 +508,7 @@ function FeatureAlternating({
                     lineHeight: 1.1,
                     letterSpacing: "-0.03em",
                     fontWeight: 600,
-                    color: "#0a0a0a",
+                    color: "#ffffff",
                     maxWidth: 460,
                   }}
                 >
@@ -483,7 +517,7 @@ function FeatureAlternating({
                 <p
                   style={{
                     marginTop: 16,
-                    color: "#6b7280",
+                    color: "#9ca3af",
                     fontSize: 17,
                     lineHeight: 1.55,
                     maxWidth: 480,
@@ -501,9 +535,9 @@ function FeatureAlternating({
                           fontWeight: 500,
                           padding: "5px 11px",
                           borderRadius: 999,
-                          background: `${accent}10`,
+                          background: `${accent}18`,
                           color: accent,
-                          border: `1px solid ${accent}25`,
+                          border: `1px solid ${accent}40`,
                         }}
                       >
                         {t}
@@ -513,16 +547,25 @@ function FeatureAlternating({
                 )}
               </div>
               <div
-                className="sl-reveal sl-dotbg relative rounded-2xl overflow-hidden flex items-center justify-center p-8"
+                className="sl-reveal relative rounded-2xl overflow-hidden flex items-center justify-center p-8"
                 style={{
-                  background: "#fafafa",
-                  border: "1px solid #ececec",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
                   aspectRatio: "4/3",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.1)",
+                  boxShadow: "0 30px 60px -15px rgba(0,0,0,0.5)",
                   "--sl-delay": "0.1s",
                 } as React.CSSProperties}
               >
-                {f.visual}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1px, transparent 0)",
+                    backgroundSize: "22px 22px",
+                  }}
+                />
+                <div className="relative">{f.visual}</div>
               </div>
             </div>
           );
@@ -542,8 +585,20 @@ function HowItWorks({
   accent: string;
 }) {
   return (
-    <section className="py-20 md:py-28 px-5 md:px-8">
-      <div className="max-w-[1080px] mx-auto">
+    <section
+      className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+      style={{ background: "#000000", color: "#f3f4f6" }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="max-w-[1080px] mx-auto relative">
         <div className="text-center mb-14">
           <div
             style={{
@@ -563,7 +618,7 @@ function HowItWorks({
               lineHeight: 1.1,
               letterSpacing: "-0.035em",
               fontWeight: 600,
-              color: "#0a0a0a",
+              color: "#ffffff",
               maxWidth: 820,
               margin: "0 auto",
             }}
@@ -571,7 +626,7 @@ function HowItWorks({
             {config.title}
           </h2>
           {config.subtitle && (
-            <p style={{ marginTop: 18, color: "#6b7280", fontSize: 17, maxWidth: 620, margin: "18px auto 0", lineHeight: 1.55 }}>
+            <p style={{ marginTop: 18, color: "#9ca3af", fontSize: 17, maxWidth: 620, margin: "18px auto 0", lineHeight: 1.55 }}>
               {config.subtitle}
             </p>
           )}
@@ -592,7 +647,7 @@ function HowItWorks({
                   color: accent,
                   lineHeight: 1,
                   marginBottom: 12,
-                  opacity: 0.85,
+                  opacity: 0.9,
                 }}
               >
                 {s.number}
@@ -601,7 +656,7 @@ function HowItWorks({
                 style={{
                   fontSize: 20,
                   fontWeight: 600,
-                  color: "#0a0a0a",
+                  color: "#ffffff",
                   letterSpacing: "-0.02em",
                   marginBottom: 8,
                 }}
@@ -629,8 +684,25 @@ function Testimonial({
   accent: string;
 }) {
   return (
-    <section className="py-20 md:py-28 px-5 md:px-8" style={{ background: "#ffffff", borderTop: "1px solid #ececec", borderBottom: "1px solid #ececec" }}>
-      <div className="max-w-[960px] mx-auto">
+    <section
+      className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+      style={{
+        background: "#000000",
+        color: "#f3f4f6",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="max-w-[960px] mx-auto relative">
         <div className="flex items-center justify-center gap-1 mb-6">
           {[1, 2, 3, 4, 5].map((i) => (
             <span key={i} style={{ color: accent, fontSize: 18 }}>★</span>
@@ -642,7 +714,7 @@ function Testimonial({
             fontSize: "clamp(22px, 2.6vw, 32px)",
             lineHeight: 1.35,
             letterSpacing: "-0.02em",
-            color: "#0a0a0a",
+            color: "#ffffff",
             fontWeight: 500,
           }}
         >
@@ -655,13 +727,13 @@ function Testimonial({
               height: 48,
               borderRadius: "50%",
               background: `linear-gradient(135deg, ${accent}, ${accent}88)`,
-              border: "2px solid #ffffff",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              border: "2px solid rgba(255,255,255,0.1)",
+              boxShadow: `0 4px 14px ${accent}40`,
             }}
           />
           <div className="text-left">
-            <div style={{ fontWeight: 600, color: "#0a0a0a", fontSize: 15 }}>{config.author}</div>
-            <div style={{ color: "#6b7280", fontSize: 13 }}>{config.role}</div>
+            <div style={{ fontWeight: 600, color: "#ffffff", fontSize: 15 }}>{config.author}</div>
+            <div style={{ color: "#9ca3af", fontSize: 13 }}>{config.role}</div>
           </div>
         </div>
         {config.metrics && config.metrics.length > 0 && (
@@ -670,7 +742,7 @@ function Testimonial({
               <div
                 key={i}
                 className="text-center rounded-xl p-5"
-                style={{ background: "#fafafa", border: "1px solid #ececec" }}
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
               >
                 <div
                   style={{
@@ -683,7 +755,7 @@ function Testimonial({
                 >
                   {m.value}
                 </div>
-                <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>{m.label}</div>
+                <div style={{ marginTop: 6, color: "#9ca3af", fontSize: 13 }}>{m.label}</div>
               </div>
             ))}
           </div>
@@ -704,21 +776,33 @@ function Comparison({
 }) {
   const renderCell = (val: boolean | string, highlight = false) => {
     if (val === true) {
-      return <span style={{ color: highlight ? accent : "#10b981", fontSize: 18, fontWeight: 600 }}>✓</span>;
+      return <span style={{ color: highlight ? accent : "#34d399", fontSize: 18, fontWeight: 600 }}>✓</span>;
     }
     if (val === false) {
-      return <span style={{ color: "#9ca3af", fontSize: 16 }}>—</span>;
+      return <span style={{ color: "#4b5563", fontSize: 16 }}>—</span>;
     }
     return (
-      <span style={{ fontSize: 13, color: highlight ? "#0a0a0a" : "#6b7280", fontWeight: highlight ? 600 : 400 }}>
+      <span style={{ fontSize: 13, color: highlight ? "#ffffff" : "#9ca3af", fontWeight: highlight ? 600 : 400 }}>
         {val}
       </span>
     );
   };
 
   return (
-    <section className="py-20 md:py-28 px-5 md:px-8">
-      <div className="max-w-[980px] mx-auto">
+    <section
+      className="py-20 md:py-28 px-5 md:px-8 relative overflow-hidden"
+      style={{ background: "#000000", color: "#f3f4f6" }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="max-w-[980px] mx-auto relative">
         <div className="text-center mb-12">
           <div
             style={{
@@ -738,7 +822,7 @@ function Comparison({
               lineHeight: 1.15,
               letterSpacing: "-0.035em",
               fontWeight: 600,
-              color: "#0a0a0a",
+              color: "#ffffff",
               maxWidth: 800,
               margin: "0 auto",
             }}
@@ -746,7 +830,7 @@ function Comparison({
             {config.title}
           </h2>
           {config.subtitle && (
-            <p style={{ marginTop: 16, color: "#6b7280", fontSize: 16, maxWidth: 620, margin: "16px auto 0" }}>
+            <p style={{ marginTop: 16, color: "#9ca3af", fontSize: 16, maxWidth: 620, margin: "16px auto 0" }}>
               {config.subtitle}
             </p>
           )}
@@ -754,12 +838,16 @@ function Comparison({
 
         <div
           className="rounded-2xl overflow-hidden"
-          style={{ background: "#ffffff", border: "1px solid #ececec", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 30px 60px -15px rgba(15,15,40,0.08)" }}
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 30px 60px -15px rgba(0,0,0,0.5)",
+          }}
         >
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr style={{ background: "#fafafa", borderBottom: "1px solid #ececec" }}>
-                <th style={{ padding: "14px 18px", textAlign: "left", fontWeight: 500, color: "#6b7280", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <tr style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <th style={{ padding: "14px 18px", textAlign: "left", fontWeight: 500, color: "#9ca3af", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Feature
                 </th>
                 <th
@@ -769,15 +857,15 @@ function Comparison({
                     fontWeight: 700,
                     color: accent,
                     fontSize: 13,
-                    background: `${accent}08`,
-                    borderLeft: `1px solid ${accent}25`,
-                    borderRight: `1px solid ${accent}25`,
+                    background: `${accent}15`,
+                    borderLeft: `1px solid ${accent}40`,
+                    borderRight: `1px solid ${accent}40`,
                   }}
                 >
                   {config.usLabel}
                 </th>
                 {config.competitorLabels.map((label) => (
-                  <th key={label} style={{ padding: "14px 18px", textAlign: "center", fontWeight: 500, color: "#6b7280", fontSize: 13 }}>
+                  <th key={label} style={{ padding: "14px 18px", textAlign: "center", fontWeight: 500, color: "#9ca3af", fontSize: 13 }}>
                     {label}
                   </th>
                 ))}
@@ -788,17 +876,17 @@ function Comparison({
                 <tr
                   key={i}
                   style={{
-                    borderTop: i === 0 ? "none" : "1px solid #f3f4f6",
+                    borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
                   }}
                 >
-                  <td style={{ padding: "14px 18px", color: "#0a0a0a", fontWeight: 500 }}>{row.feature}</td>
+                  <td style={{ padding: "14px 18px", color: "#e5e7eb", fontWeight: 500 }}>{row.feature}</td>
                   <td
                     style={{
                       padding: "14px 18px",
                       textAlign: "center",
-                      background: `${accent}06`,
-                      borderLeft: `1px solid ${accent}18`,
-                      borderRight: `1px solid ${accent}18`,
+                      background: `${accent}10`,
+                      borderLeft: `1px solid ${accent}30`,
+                      borderRight: `1px solid ${accent}30`,
                     }}
                   >
                     {renderCell(row.us, true)}

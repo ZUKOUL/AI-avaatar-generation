@@ -9,7 +9,7 @@ const ADLAB: LandingConfig = {
     <>
       Des ads qui convertissent.
       <br />
-      <span style={{ color: "#fcd34d" }}>Testées à l&apos;infini.</span>
+      <span style={{ color: "#67e8f9" }}>Testées à l&apos;infini.</span>
     </>
   ),
   heroSubtitle:
