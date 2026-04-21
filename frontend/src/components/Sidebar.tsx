@@ -39,6 +39,8 @@ import {
   Product3DLogo,
   ProductSlug,
   PRODUCT_APP_ROUTES,
+  APP_SUB_ROUTES,
+  type AppSubRoute,
 } from "@/components/landing/shared";
 import { House, Search, Star, XIcon, Plus } from "@/components/Icons";
 
@@ -68,6 +70,28 @@ interface SidebarTab {
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/** An item pinned inside a folder — union of every pinable thing
+ *  in the app. */
+interface FolderItem {
+  id: string;
+  label: string;
+  url: string;
+  kind: "native" | "sub_route" | "mini_app" | "url";
+  /** For native / sub_route : the Horpen app it belongs to, used to
+   *  pick the right 3D logo + accent color at render time. */
+  productSlug?: ProductSlug;
+  /** For mini_app / url : pre-resolved logo URL / favicon. */
+  logoUrl?: string;
+  /** For mini_app : accent color for the left stripe. */
+  accent?: string;
+}
+
+interface SidebarFolder {
+  id: string;
+  name: string;
+  items: FolderItem[];
 }
 
 /** Short "2m / 4h / 3d" style relative time for the Recent feed. */
@@ -231,14 +255,147 @@ function TabRow({ tab, onRemove }: { tab: SidebarTab; onRemove: () => void }) {
  * the grid AND serves as a fallback "open a URL / Google search" entry
  * when the text doesn't match anything.
  */
-function NewTabModal({
+/* ─── Small modal to create / name a folder ─────────────────────── */
+
+function FolderNameModal({
   onClose,
-  onAdd,
-  miniApps,
+  onConfirm,
 }: {
   onClose: () => void;
-  onAdd: (url: string, label: string, favicon?: string) => void;
+  onConfirm: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submit = () => {
+    if (!name.trim()) return;
+    onConfirm(name);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-start justify-center pt-[20vh] px-4"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: "rgba(15,15,25,0.98)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "0 40px 80px -20px rgba(0,0,0,0.7)",
+          width: "min(440px, 100%)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#9ca3af",
+            padding: "14px 18px 6px",
+          }}
+        >
+          Nouveau dossier
+        </div>
+        <input
+          autoFocus
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder="Nom du dossier (ex : Marketing)"
+          style={{
+            width: "100%",
+            padding: "10px 18px 14px",
+            background: "transparent",
+            border: "none",
+            color: "#ffffff",
+            fontSize: 17,
+            outline: "none",
+            fontWeight: 500,
+          }}
+        />
+        <div
+          style={{
+            padding: "12px 18px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 8,
+              background: "transparent",
+              color: "#9ca3af",
+              fontSize: 12.5,
+              fontWeight: 500,
+              border: "1px solid rgba(255,255,255,0.1)",
+              cursor: "pointer",
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={submit}
+            disabled={!name.trim()}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 8,
+              background: name.trim() ? "#ffffff" : "rgba(255,255,255,0.08)",
+              color: name.trim() ? "#0a0a0a" : "#6b7280",
+              fontSize: 12.5,
+              fontWeight: 600,
+              border: "none",
+              cursor: name.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewTabModal({
+  onClose,
+  onPick,
+  miniApps,
+  folderContext,
+}: {
+  onClose: () => void;
+  /** Unified picker callback — receives the structured entry so the
+   *  parent can either pin a generic tab or push to a folder. */
+  onPick: (entry: {
+    label: string;
+    url: string;
+    kind: "native" | "sub_route" | "mini_app" | "url";
+    productSlug?: ProductSlug;
+    logoUrl?: string;
+    accent?: string;
+    favicon?: string;
+  }) => void;
   miniApps: MiniApp[];
+  /** Optional : when the user opened the modal from a folder's "+"
+   *  button, show that folder's name in the title so it's obvious
+   *  where the selection will land. */
+  folderContext?: { name: string } | null;
 }) {
   const [input, setInput] = useState("");
 
@@ -250,34 +407,60 @@ function NewTabModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Flatten all pickable entries : native products + mini-apps.
+  // Flatten all pickable entries : native apps + their sub-routes +
+  // user mini-apps. Each entry carries enough metadata to reconstruct
+  // a pretty pinned-item row later.
   type PickerEntry = {
     key: string;
     label: string;
+    sublabel?: string;
     url: string;
-    kind: "native" | "mini";
+    kind: "native" | "sub_route" | "mini";
+    productSlug?: ProductSlug;
     logoUrl?: string;
     accent?: string;
     product?: typeof PRODUCTS[number];
   };
-  const entries: PickerEntry[] = [
-    ...PRODUCTS.map<PickerEntry>((p) => ({
+  const entries: PickerEntry[] = [];
+  // Native apps + their sub-routes (interleaved so sub-routes sit
+  // right under their parent app in the picker).
+  for (const p of PRODUCTS) {
+    entries.push({
       key: `native-${p.slug}`,
       label: p.name,
+      sublabel: p.tagline,
       url: PRODUCT_APP_ROUTES[p.slug].href,
       kind: "native",
+      productSlug: p.slug,
       product: p,
       accent: p.color,
-    })),
-    ...miniApps.map<PickerEntry>((a) => ({
+    });
+    const subs = APP_SUB_ROUTES[p.slug] ?? [];
+    for (const s of subs) {
+      entries.push({
+        key: `sub-${p.slug}-${s.href}`,
+        label: `${p.name} · ${s.label}`,
+        sublabel: s.description,
+        url: s.href,
+        kind: "sub_route",
+        productSlug: p.slug,
+        product: p,
+        accent: p.color,
+      });
+    }
+  }
+  // Mini apps.
+  for (const a of miniApps) {
+    entries.push({
       key: `mini-${a.id}`,
       label: a.name,
+      sublabel: a.description || `Mini-app · ${a.tool}`,
       url: `/dashboard/apps/${a.slug}`,
       kind: "mini",
       logoUrl: a.logo_url,
       accent: a.accent,
-    })),
-  ];
+    });
+  }
 
   const query = input.trim().toLowerCase();
   const filtered = query
@@ -291,18 +474,31 @@ function NewTabModal({
   const normalizedFreeText = hasFreeText ? normalizeUrl(trimmed) : "";
 
   const addEntry = (entry: PickerEntry) => {
-    onAdd(
-      entry.url,
-      entry.label,
-      entry.logoUrl || (entry.kind === "native" ? undefined : undefined)
-    );
+    onPick({
+      label: entry.label,
+      url: entry.url,
+      kind:
+        entry.kind === "native"
+          ? "native"
+          : entry.kind === "sub_route"
+          ? "sub_route"
+          : "mini_app",
+      productSlug: entry.productSlug,
+      logoUrl: entry.logoUrl,
+      accent: entry.accent,
+    });
   };
 
   const submitFreeText = () => {
     if (!trimmed) return;
     const url = normalizeUrl(trimmed);
     const label = extractDomain(url) || trimmed.slice(0, 32);
-    onAdd(url, label, faviconFor(url));
+    onPick({
+      label,
+      url,
+      kind: "url",
+      favicon: faviconFor(url),
+    });
   };
 
   return (
@@ -332,7 +528,7 @@ function NewTabModal({
             padding: "14px 20px 6px",
           }}
         >
-          Nouvel onglet
+          {folderContext ? `Ajouter à "${folderContext.name}"` : "Nouvel onglet"}
         </div>
         <input
           autoFocus
@@ -490,8 +686,22 @@ function NewTabModal({
                       >
                         {entry.label}
                       </div>
-                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
-                        {entry.kind === "native" ? "App native" : "Mini-app"}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#6b7280",
+                          marginTop: 1,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {entry.sublabel ||
+                          (entry.kind === "native"
+                            ? "App native"
+                            : entry.kind === "sub_route"
+                            ? "Sous-page"
+                            : "Mini-app")}
                       </div>
                     </div>
                   </button>
@@ -555,15 +765,25 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   const [newAppOpen, setNewAppOpen] = useState(false);
   const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
 
-  /** Folders — organisational groups for pinned tabs, Foreplay-style.
-   *  A folder is a labeled section header; tabs can carry a folder_id
-   *  and get rendered under the matching group. Persists in
-   *  localStorage keyed by workspace_id so each workspace has its
-   *  own folder tree. */
+  /** Folders — real Foreplay-style containers. Each folder carries
+   *  a list of items (native apps, app sub-routes, mini-apps, or
+   *  URLs) the user explicitly pinned. Folders render below "Starred"
+   *  in the nav, are expandable, and each one has its own "+ add
+   *  item" entry point. Persisted in localStorage per workspace. */
   const [foldersByWorkspace, setFoldersByWorkspace] = useState<
-    Record<string, { id: string; name: string }[]>
+    Record<string, SidebarFolder[]>
   >({});
+  /** Folder UI state : which ones are expanded. Per-workspace so
+   *  switching doesn't carry over the wrong open state. */
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [navPlusOpen, setNavPlusOpen] = useState(false);
+  /** When set, the NewTabModal will write its selection into this
+   *  folder instead of the workspace-level pinned tabs. */
+  const [addItemTargetFolder, setAddItemTargetFolder] = useState<string | null>(null);
+  /** Modal to create a new folder with a name. Replaces window.prompt
+   *  which was being closed by the popover's mouse-leave before it
+   *  could accept input — that was the "création de dossier bug". */
+  const [folderNameModalOpen, setFolderNameModalOpen] = useState(false);
 
   /** Recent creations — the last few images / avatars the user made
    *  in the active workspace. Auto-populated from the backend so the
@@ -586,8 +806,16 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         const [wsRes, appsRes, imagesRes, avatarsRes] = await Promise.all([
           workspacesAPI.list(),
           miniAppsAPI.list().catch(() => ({ data: [] as MiniApp[] })),
-          avatarAPI.getImages(undefined, 5).catch(() => ({ data: { images: [] } })),
-          avatarAPI.list().catch(() => ({ data: { avatars: [] } })),
+          // Recent sidebar feed intentionally bypasses the workspace
+          // filter — it's a cross-workspace "jump back to your last
+          // work" shortcut so the sidebar has real content even on a
+          // freshly-created empty workspace.
+          avatarAPI
+            .getImages(undefined, 5, { allWorkspaces: true })
+            .catch(() => ({ data: { images: [] } })),
+          avatarAPI
+            .list({ allWorkspaces: true })
+            .catch(() => ({ data: { avatars: [] } })),
         ]);
         if (cancelled) return;
         const ws = wsRes.data || [];
@@ -660,13 +888,27 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     }
   }, [tabsByWorkspace]);
 
-  /* Hydrate + persist folders (local-only, same pattern as tabs). */
+  /* Hydrate + persist folders (local-only, same pattern as tabs).
+     Old shape (v1, no items) is auto-migrated to v2 on load. */
   useEffect(() => {
     try {
+      // Try v2 first (with items); fall back to v1 migration.
+      const rawV2 = localStorage.getItem("horpen-workspace-folders-v2");
+      if (rawV2) {
+        const parsed = JSON.parse(rawV2) as Record<string, SidebarFolder[]>;
+        if (parsed && typeof parsed === "object") setFoldersByWorkspace(parsed);
+        return;
+      }
       const raw = localStorage.getItem("horpen-workspace-folders-v1");
       if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, { id: string; name: string }[]>;
-        if (parsed && typeof parsed === "object") setFoldersByWorkspace(parsed);
+        const legacy = JSON.parse(raw) as Record<string, { id: string; name: string }[]>;
+        if (legacy && typeof legacy === "object") {
+          const migrated: Record<string, SidebarFolder[]> = {};
+          for (const [key, arr] of Object.entries(legacy)) {
+            migrated[key] = (arr || []).map((f) => ({ ...f, items: [] }));
+          }
+          setFoldersByWorkspace(migrated);
+        }
       }
     } catch {
       /* ignore */
@@ -676,7 +918,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   useEffect(() => {
     try {
       localStorage.setItem(
-        "horpen-workspace-folders-v1",
+        "horpen-workspace-folders-v2",
         JSON.stringify(foldersByWorkspace)
       );
     } catch {
@@ -692,16 +934,28 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
    *  anonymous / fresh-session users. */
   const persistKey = activeSpaceId || "local";
 
-  const createFolder = () => {
-    // Close the popover first so the prompt isn't visually fighting it.
+  /** Open the dedicated name modal — the old `window.prompt()` was
+   *  being dismissed by the popover's mouse-leave handler before the
+   *  click could register. */
+  const openCreateFolderFlow = () => {
     setNavPlusOpen(false);
-    const name = window.prompt("Nom du dossier :");
-    if (!name || !name.trim()) return;
-    const newFolder = { id: randomId(), name: name.trim() };
+    setFolderNameModalOpen(true);
+  };
+
+  const confirmCreateFolder = (name: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    const newFolder: SidebarFolder = {
+      id: randomId(),
+      name: clean,
+      items: [],
+    };
     setFoldersByWorkspace((prev) => ({
       ...prev,
       [persistKey]: [...(prev[persistKey] ?? []), newFolder],
     }));
+    setExpandedFolders((prev) => ({ ...prev, [newFolder.id]: true }));
+    setFolderNameModalOpen(false);
   };
 
   const deleteFolder = (folderId: string) => {
@@ -710,6 +964,30 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
       ...prev,
       [persistKey]: (prev[persistKey] ?? []).filter((f) => f.id !== folderId),
     }));
+  };
+
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
+  };
+
+  const removeItemFromFolder = (folderId: string, itemId: string) => {
+    setFoldersByWorkspace((prev) => ({
+      ...prev,
+      [persistKey]: (prev[persistKey] ?? []).map((f) =>
+        f.id === folderId ? { ...f, items: f.items.filter((i) => i.id !== itemId) } : f
+      ),
+    }));
+  };
+
+  const addItemToFolder = (folderId: string, item: Omit<FolderItem, "id">) => {
+    const newItem: FolderItem = { ...item, id: randomId() };
+    setFoldersByWorkspace((prev) => ({
+      ...prev,
+      [persistKey]: (prev[persistKey] ?? []).map((f) =>
+        f.id === folderId ? { ...f, items: [...f.items, newItem] } : f
+      ),
+    }));
+    setExpandedFolders((prev) => ({ ...prev, [folderId]: true }));
   };
 
   const activeSpace = workspaces.find((w) => w.id === activeSpaceId);
@@ -1139,26 +1417,37 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                     <Plus size={13} />
                   </button>
                   {navPlusOpen && (
-                    <div
-                      onMouseLeave={() => setNavPlusOpen(false)}
-                      style={{
-                        position: "absolute",
-                        top: "100%",
-                        right: 0,
-                        marginTop: 6,
-                        zIndex: 60,
-                        background: "rgba(15,15,25,0.98)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 10,
-                        padding: 4,
-                        minWidth: 180,
-                        boxShadow: "0 20px 40px -10px rgba(0,0,0,0.7)",
-                      }}
-                    >
+                    <>
+                      {/* Click-outside backdrop — more reliable than
+                          mouseLeave, which was closing the popover
+                          before the click could register on an item. */}
+                      <div
+                        className="fixed inset-0"
+                        style={{ zIndex: 55 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNavPlusOpen(false);
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          right: 0,
+                          marginTop: 6,
+                          zIndex: 60,
+                          background: "rgba(15,15,25,0.98)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: 10,
+                          padding: 4,
+                          minWidth: 180,
+                          boxShadow: "0 20px 40px -10px rgba(0,0,0,0.7)",
+                        }}
+                      >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          createFolder();
+                          openCreateFolderFlow();
                         }}
                         style={{
                           display: "flex",
@@ -1241,7 +1530,8 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                         </svg>
                         Nouvelle app
                       </button>
-                    </div>
+                      </div>
+                    </>
                   )}
                 </div>
               );
@@ -1249,6 +1539,203 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
 
             return <div key={item.href}>{rowLink}</div>;
           })}
+
+          {/* ── Folders — rendered directly inside the nav, right
+                under "Starred". Each one is expandable and holds a
+                list of user-picked items (native apps, app
+                sub-routes, mini apps, URLs). ── */}
+          {!collapsed &&
+            activeFolders.map((folder) => {
+              const isOpen = !!expandedFolders[folder.id];
+              return (
+                <div key={folder.id} className="flex flex-col">
+                  <div
+                    className="group flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors"
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFolder(folder.id);
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#9ca3af"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                        transition: "transform 0.15s ease",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ color: "#9ca3af", flexShrink: 0 }}
+                    >
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: 13.5,
+                        fontWeight: 500,
+                        color: "#e5e7eb",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {folder.name}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAddItemTargetFolder(folder.id);
+                        setNewTabOpen(true);
+                      }}
+                      title="Ajouter un onglet dans ce dossier"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{
+                        padding: 2,
+                        borderRadius: 4,
+                        background: "transparent",
+                        color: "#6b7280",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Plus size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteFolder(folder.id);
+                      }}
+                      title="Supprimer le dossier"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{
+                        padding: 2,
+                        borderRadius: 4,
+                        background: "transparent",
+                        color: "#6b7280",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <XIcon size={11} />
+                    </button>
+                  </div>
+
+                  {/* Folder contents */}
+                  {isOpen && (
+                    <div style={{ paddingLeft: 18 }}>
+                      {folder.items.length === 0 && (
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: "#6b7280",
+                            fontStyle: "italic",
+                            padding: "4px 12px 6px",
+                          }}
+                        >
+                          Vide. Clique sur + pour ajouter.
+                        </div>
+                      )}
+                      {folder.items.map((it) => {
+                        const product = it.productSlug
+                          ? PRODUCTS.find((p) => p.slug === it.productSlug)
+                          : undefined;
+                        return (
+                          <div
+                            key={it.id}
+                            className="group/item flex items-center gap-2 rounded-lg"
+                            style={{ color: "#e5e7eb" }}
+                          >
+                            <Link
+                              href={it.url}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-lg transition-colors"
+                              style={{ color: "#e5e7eb" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                              title={it.label}
+                            >
+                              {product ? (
+                                <Product3DLogo product={product} size={18} glow={false} />
+                              ) : it.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={it.logoUrl}
+                                  alt=""
+                                  width={18}
+                                  height={18}
+                                  style={{ borderRadius: 4, flexShrink: 0 }}
+                                />
+                              ) : (
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: 4,
+                                    background: `linear-gradient(135deg, ${it.accent || "#3b82f6"}, ${it.accent || "#3b82f6"}55)`,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              )}
+                              <span
+                                style={{
+                                  flex: 1,
+                                  fontSize: 12.5,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {it.label}
+                              </span>
+                            </Link>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeItemFromFolder(folder.id, it.id);
+                              }}
+                              title="Retirer"
+                              className="opacity-0 group-hover/item:opacity-100 transition-opacity"
+                              style={{
+                                padding: 3,
+                                marginRight: 4,
+                                borderRadius: 4,
+                                background: "transparent",
+                                color: "#6b7280",
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <XIcon size={10} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
         </div>
       </nav>
 
@@ -1484,52 +1971,13 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </div>
       )}
 
-      {/* ── Pinned tabs + folders (no workspace-related label here —
-            workspace management lives exclusively in the bottom
-            profile menu). ── */}
-      {!collapsed && (activeTabs.length > 0 || activeFolders.length > 0) && (
+      {/* Ungrouped pinned tabs — kept so URLs added via the New Tab
+          modal (when no folder is selected) still have a home. */}
+      {!collapsed && activeTabs.length > 0 && (
         <div className="px-2 pb-2">
           <div className="flex flex-col gap-0.5">
             {activeTabs.map((tab) => (
               <TabRow key={tab.id} tab={tab} onRemove={() => removeTab(tab.id)} />
-            ))}
-            {activeFolders.map((folder) => (
-              <div key={folder.id} className="mt-2">
-                <div
-                  className="flex items-center gap-2 px-2 py-1.5 group"
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: "#6b7280",
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {folder.name}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteFolder(folder.id);
-                    }}
-                    style={{
-                      padding: 2,
-                      borderRadius: 4,
-                      background: "transparent",
-                      color: "#4b5563",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                    title="Supprimer le dossier"
-                  >
-                    <XIcon size={10} />
-                  </button>
-                </div>
-              </div>
             ))}
           </div>
         </div>
@@ -1683,9 +2131,32 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {newTabOpen && (
         <NewTabModal
-          onClose={() => setNewTabOpen(false)}
-          onAdd={(url, label, favicon) => addTabToActiveSpace(url, label, favicon)}
+          onClose={() => {
+            setNewTabOpen(false);
+            setAddItemTargetFolder(null);
+          }}
+          onPick={(entry) => {
+            if (addItemTargetFolder) {
+              addItemToFolder(addItemTargetFolder, {
+                label: entry.label,
+                url: entry.url,
+                kind: entry.kind,
+                productSlug: entry.productSlug,
+                logoUrl: entry.logoUrl,
+                accent: entry.accent,
+              });
+            } else {
+              addTabToActiveSpace(entry.url, entry.label, entry.favicon || entry.logoUrl);
+            }
+            setNewTabOpen(false);
+            setAddItemTargetFolder(null);
+          }}
           miniApps={miniApps}
+          folderContext={
+            addItemTargetFolder
+              ? { name: activeFolders.find((f) => f.id === addItemTargetFolder)?.name ?? "" }
+              : null
+          }
         />
       )}
       {newAppOpen && (
@@ -1695,6 +2166,12 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             setMiniApps((prev) => [app, ...prev]);
             setNewAppOpen(false);
           }}
+        />
+      )}
+      {folderNameModalOpen && (
+        <FolderNameModal
+          onClose={() => setFolderNameModalOpen(false)}
+          onConfirm={confirmCreateFolder}
         />
       )}
     </>

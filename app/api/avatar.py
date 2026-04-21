@@ -684,20 +684,26 @@ async def delete_character(
 async def get_avatars(
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
+    all_workspaces: bool = False,
 ):
     """
-    List all avatars in the user's library (from characters table),
-    scoped to the active workspace. The primary workspace inherits
-    legacy rows via the backfill in workspaces.py.
+    List avatars in the user's library.
+
+    Default : scoped to the active workspace (via `_resolve_ws`).
+    When `all_workspaces=true`, returns the user's entire avatar
+    history across every workspace — used by the sidebar's "Recent"
+    feed so users can jump back to anything they recently made even
+    after switching to a fresh workspace.
     """
     try:
         q = (
             supabase.table("characters")
             .select("id, name, image_paths, created_at, workspace_id")
             .eq("user_id", current_user["id"])
-            .eq("workspace_id", workspace_id)
             .order("created_at", desc=True)
         )
+        if not all_workspaces:
+            q = q.eq("workspace_id", workspace_id)
         res = q.execute()
         avatars = []
         for char in res.data:
@@ -729,6 +735,7 @@ async def get_images(
     avatar_id: Optional[str] = None,
     limit: int = 50,
     workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
+    all_workspaces: bool = False,
 ):
     """
     Get generated image history from the database.
@@ -754,10 +761,11 @@ async def get_images(
             supabase.table("generated_images")
             .select("id, avatar_id, prompt, image_url, created_at")
             .eq("user_id", current_user["id"])
-            .eq("workspace_id", workspace_id)
             .order("created_at", desc=True)
             .limit(limit)
         )
+        if not all_workspaces:
+            query = query.eq("workspace_id", workspace_id)
         if avatar_id:
             query = query.eq("avatar_id", avatar_id)
         rows = (query.execute().data) or []

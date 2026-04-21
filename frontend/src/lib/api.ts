@@ -79,9 +79,18 @@ export const avatarAPI = {
     api.post("/avatar/train-character", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
-  list: () => api.get("/avatar/avatars"),
-  getImages: (avatarId?: string, limit = 50) =>
-    api.get("/avatar/images", { params: { avatar_id: avatarId, limit } }),
+  list: (opts: { allWorkspaces?: boolean } = {}) =>
+    api.get("/avatar/avatars", {
+      params: opts.allWorkspaces ? { all_workspaces: true } : undefined,
+    }),
+  getImages: (avatarId?: string, limit = 50, opts: { allWorkspaces?: boolean } = {}) =>
+    api.get("/avatar/images", {
+      params: {
+        avatar_id: avatarId,
+        limit,
+        ...(opts.allWorkspaces ? { all_workspaces: true } : {}),
+      },
+    }),
   getImage: (imageId: string) => api.get(`/avatar/images/${imageId}`),
   updateNickname: (characterId: string, nickname: string) =>
     api.put(`/avatar/characters/${characterId}/nickname`, { nickname }),

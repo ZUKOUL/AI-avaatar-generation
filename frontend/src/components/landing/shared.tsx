@@ -144,6 +144,41 @@ export const PRODUCT_APP_ROUTES: Record<ProductSlug, { href: string; paths: stri
   clipsy:   { href: "/dashboard/ai-videos",  paths: ["/dashboard/ai-videos", "/dashboard/clips", "/dashboard/clipsy", "/dashboard/autoclip"] },
 };
 
+/** Sub-routes catalog — the deep-link entries a user can pin inside
+ *  a folder. This is what makes folders useful : you can grab the
+ *  "Image Generator" page of Canvas or the "Characters" page of
+ *  Avatar instead of just landing on the app root. */
+export interface AppSubRoute {
+  label: string;
+  href: string;
+  /** Optional one-line description shown in the picker. */
+  description?: string;
+}
+
+export const APP_SUB_ROUTES: Record<ProductSlug, AppSubRoute[]> = {
+  canvas: [
+    { label: "Image Generator",      href: "/dashboard/images",   description: "Gemini 3 Pro Image — visuels depuis un prompt" },
+    { label: "Video Generator",      href: "/dashboard/videos",   description: "Kling / Veo / Hailuo / Grok" },
+  ],
+  avatar: [
+    { label: "Avatar Creator",       href: "/dashboard/avatars",  description: "Entraînement + rendu d'avatars IA" },
+    { label: "Characters",           href: "/dashboard/characters", description: "Bibliothèque de personnages" },
+  ],
+  trackify: [
+    { label: "Competitor Tracker",   href: "/dashboard/trackify", description: "Scan des ads des concurrents" },
+  ],
+  thumbs: [
+    { label: "Thumbnail Generator",  href: "/dashboard/thumbnails", description: "Miniatures YTB qui font cliquer" },
+  ],
+  adlab: [
+    { label: "Ad Generator",         href: "/dashboard/ads",      description: "Variantes d'ads + A/B batch" },
+  ],
+  clipsy: [
+    { label: "AI Video Generator",   href: "/dashboard/ai-videos", description: "Prompt → short IA" },
+    { label: "Auto-Clip",            href: "/dashboard/clips",    description: "Long-form → shorts auto" },
+  ],
+};
+
 /* ─────────────────────────────────────────────────────────────────
    Product3DLogo — Foreplay-style 3D tile.
 
