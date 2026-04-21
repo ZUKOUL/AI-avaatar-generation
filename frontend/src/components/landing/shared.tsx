@@ -72,6 +72,7 @@ export const PRODUCTS: Product[] = [
     color: "#3b82f6",
     cluster: "creer",
     shape: "canvas",
+    logoSrc: "/logos/canvas.png",
   },
   {
     slug: "avatar",
@@ -81,6 +82,7 @@ export const PRODUCTS: Product[] = [
     color: "#8b5cf6",
     cluster: "creer",
     shape: "face",
+    logoSrc: "/logos/avatar.png",
   },
   {
     slug: "adlab",
