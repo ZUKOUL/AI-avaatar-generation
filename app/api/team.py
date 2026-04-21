@@ -36,7 +36,7 @@ import secrets
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from app.core.auth import get_current_user
 from app.core.supabase import supabase
@@ -69,7 +69,9 @@ class TeamResponse(BaseModel):
 
 
 class InviteRequest(BaseModel):
-    email: EmailStr
+    # Using plain str + basic regex rather than EmailStr to avoid the
+    # extra `email-validator` runtime dep on the EC2 deploy.
+    email: str = Field(..., pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     role: str = "creative"
 
 

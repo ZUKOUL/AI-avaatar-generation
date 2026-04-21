@@ -118,6 +118,22 @@ export const CLUSTERS: { key: ClusterKey; label: string; desc: string }[] = [
   { key: "automatiser", label: "Automatiser", desc: "Du prompt à la publication" },
 ];
 
+/* ─── Dashboard route mapping ───────────────────────────────────────
+   Each product maps to an existing functional feature route in the
+   dashboard. The sidebar tiles use `href` for navigation (so clicking
+   Thumbs lands directly on the generator, not on an intermediate
+   explainer page) and `paths` to decide whether a tile should show
+   as active for the current pathname. */
+
+export const PRODUCT_APP_ROUTES: Record<ProductSlug, { href: string; paths: string[] }> = {
+  spyder:   { href: "/dashboard/spyder",     paths: ["/dashboard/spyder"] },
+  canvas:   { href: "/dashboard/videos",     paths: ["/dashboard/videos", "/dashboard/images", "/dashboard/canvas"] },
+  avatar:   { href: "/dashboard/avatars",    paths: ["/dashboard/avatars", "/dashboard/characters", "/dashboard/avatar"] },
+  adlab:    { href: "/dashboard/ads",        paths: ["/dashboard/ads", "/dashboard/adlab"] },
+  thumbs:   { href: "/dashboard/thumbnails", paths: ["/dashboard/thumbnails", "/dashboard/thumbs"] },
+  autoclip: { href: "/dashboard/ai-videos",  paths: ["/dashboard/ai-videos", "/dashboard/clips", "/dashboard/autoclip"] },
+};
+
 /* ─────────────────────────────────────────────────────────────────
    Product3DLogo — Foreplay-style 3D tile.
 

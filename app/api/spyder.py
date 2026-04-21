@@ -21,7 +21,6 @@ real scan isn't triggered from the HTTP side.
 from __future__ import annotations
 
 import logging
-import secrets
 from typing import Annotated, Optional
 from urllib.parse import urlparse
 

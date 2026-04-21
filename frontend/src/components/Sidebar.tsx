@@ -29,6 +29,7 @@ import {
   PRODUCTS,
   Product3DLogo,
   ProductSlug,
+  PRODUCT_APP_ROUTES,
 } from "@/components/landing/shared";
 import { House, Search, Star, XIcon } from "@/components/Icons";
 
@@ -85,25 +86,30 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Keyboard shortcuts : ⌘/Ctrl + letter jumps between products.
+  // Keyboard shortcuts : ⌘/Ctrl + letter jumps to the real feature
+  // route for each product (bypasses any intermediate page).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.shiftKey || e.altKey) return;
       const match = PRODUCT_SHORTCUTS.find((s) => s.key === e.key.toLowerCase());
       if (!match) return;
-      // Don't steal shortcuts from text inputs.
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       e.preventDefault();
-      router.push(`/dashboard/${match.slug}`);
+      router.push(PRODUCT_APP_ROUTES[match.slug].href);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
+  // Active product detection checks every path that counts as
+  // "belonging" to a product (Canvas = /videos + /images, Avatar =
+  // /avatars + /characters, etc. — see PRODUCT_APP_ROUTES).
   const activeProduct = PRODUCTS.find((p) =>
-    pathname?.startsWith(`/dashboard/${p.slug}`)
+    PRODUCT_APP_ROUTES[p.slug].paths.some((path) =>
+      pathname === path || pathname?.startsWith(`${path}/`)
+    )
   );
   const hoveredProduct = hovered
     ? PRODUCTS.find((p) => p.slug === hovered)
@@ -198,12 +204,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           }}
         >
           {PRODUCTS.map((p) => {
-            const isActive = pathname?.startsWith(`/dashboard/${p.slug}`);
+            const routes = PRODUCT_APP_ROUTES[p.slug];
+            const isActive = routes.paths.some(
+              (path) => pathname === path || pathname?.startsWith(`${path}/`)
+            );
             const shortcut = shortcutFor(p.slug);
             return (
               <Link
                 key={p.slug}
-                href={`/dashboard/${p.slug}`}
+                href={routes.href}
                 title={shortcut ? `${p.name} (${shortcut})` : p.name}
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHovered(p.slug)}

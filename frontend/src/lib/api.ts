@@ -294,6 +294,55 @@ export const creditsAPI = {
   history: (limit = 50) => api.get("/credits/history", { params: { limit } }),
 };
 
+// ── Spyder (competitor tracking) ──
+export const spyderAPI = {
+  listBrands: () => api.get("/spyder/brands"),
+  addBrand: (payload: { source_url: string; platform: string; display_name?: string }) =>
+    api.post("/spyder/brands", payload),
+  deleteBrand: (brandId: string) => api.delete(`/spyder/brands/${brandId}`),
+  feed: (params?: { limit?: number; offset?: number; brand_id?: string; platform?: string }) =>
+    api.get("/spyder/feed", { params }),
+  getAd: (adId: string) => api.get(`/spyder/ads/${adId}`),
+  recreate: (adId: string) => api.post(`/spyder/recreate/${adId}`),
+  stats: () => api.get("/spyder/stats"),
+};
+
+// ── Team (collaboration + tasks) ──
+export const teamAPI = {
+  listTeams: () => api.get("/team/teams"),
+  createTeam: (name: string) => api.post("/team/teams", { name }),
+  getTeam: (teamId: string) => api.get(`/team/teams/${teamId}`),
+  deleteTeam: (teamId: string) => api.delete(`/team/teams/${teamId}`),
+  listMembers: (teamId: string) => api.get(`/team/teams/${teamId}/members`),
+  removeMember: (teamId: string, userId: string) =>
+    api.delete(`/team/teams/${teamId}/members/${userId}`),
+  invite: (teamId: string, email: string, role = "creative") =>
+    api.post(`/team/teams/${teamId}/invite`, { email, role }),
+  acceptInvite: (token: string) => api.post("/team/invites/accept", { token }),
+  listTasks: (teamId: string) => api.get(`/team/teams/${teamId}/tasks`),
+  createTask: (
+    teamId: string,
+    payload: {
+      title: string;
+      description?: string;
+      category?: string;
+      product_slug?: string;
+      assignee_id?: string;
+      due_at?: string;
+    }
+  ) => api.post(`/team/teams/${teamId}/tasks`, payload),
+  updateTask: (
+    taskId: string,
+    payload: {
+      status?: string;
+      title?: string;
+      description?: string;
+      assignee_id?: string;
+      due_at?: string;
+    }
+  ) => api.patch(`/team/tasks/${taskId}`, payload),
+};
+
 // ── Payments ──
 export const paymentsAPI = {
   tiers: () => api.get("/payments/tiers"),
