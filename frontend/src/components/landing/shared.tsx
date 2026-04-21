@@ -544,6 +544,9 @@ export function SubLandingNav() {
           <ProductDropdownTrigger label="Produit">
             <ProductDropdown />
           </ProductDropdownTrigger>
+          <ProductDropdownTrigger label="Solutions">
+            <SolutionsMiniDropdown />
+          </ProductDropdownTrigger>
           <Link href="/#pricing" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">Tarifs</Link>
           <Link href="/#faq" style={{ color: "#555" }} className="transition hover:text-[#0a0a0a]">FAQ</Link>
         </div>
@@ -568,6 +571,9 @@ export function SubLandingNav() {
       </div>
       {menuOpen && (
         <div className="md:hidden px-5 pb-5 flex flex-col gap-3 text-[15px]" style={{ borderTop: "1px solid #ececec" }}>
+          <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 12 }}>
+            Produits
+          </div>
           {PRODUCTS.map((p) => (
             <Link
               key={p.slug}
@@ -582,12 +588,106 @@ export function SubLandingNav() {
               </div>
             </Link>
           ))}
+          <div style={{ height: 1, background: "#ececec", margin: "8px 0" }} />
+          <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Solutions
+          </div>
+          {SOLUTIONS_MINI.map((s) => (
+            <Link
+              key={s.slug}
+              href={`/solutions/${s.slug}`}
+              onClick={() => setMenuOpen(false)}
+              style={{ fontSize: 14, color: "#0a0a0a" }}
+            >
+              {s.name}
+            </Link>
+          ))}
+          <div style={{ height: 1, background: "#ececec", margin: "8px 0" }} />
           <Link href="/#pricing" onClick={() => setMenuOpen(false)}>Tarifs</Link>
           <Link href="/#faq" onClick={() => setMenuOpen(false)}>FAQ</Link>
           <Link href="/login">Se connecter</Link>
         </div>
       )}
     </nav>
+  );
+}
+
+/* ─── Solutions mini-dropdown (lives in shared to avoid circular imports
+       with solutions.tsx). Data is duplicated here as a minimal index —
+       the full SOLUTIONS object + landing components stay in solutions.tsx. */
+
+const SOLUTIONS_MINI = [
+  { slug: "ecommerce", name: "E-commerce & DTC", desc: "Shopify, dropshippers, marques DTC", accent: "#3b82f6" },
+  { slug: "agences",   name: "Agences créa",      desc: "Agences marketing, SEA, UGC, social", accent: "#8b5cf6" },
+  { slug: "ugc",       name: "Créateurs UGC",     desc: "Créateurs UGC freelances", accent: "#f59e0b" },
+  { slug: "faceless",  name: "Faceless & IA",     desc: "Chaînes YouTube, TikTok, avatars", accent: "#8b5cf6" },
+  { slug: "coaches",   name: "Coaches & Infopreneurs", desc: "Formateurs, coaches, info", accent: "#10b981" },
+  { slug: "saas",      name: "SaaS B2B",          desc: "Startups B2B, outils SaaS", accent: "#06b6d4" },
+] as const;
+
+function SolutionsMiniDropdown() {
+  return (
+    <div
+      className="absolute top-full left-1/2 -translate-x-1/2 pt-3"
+      style={{ zIndex: 50 }}
+    >
+      <div
+        className="rounded-[20px] overflow-hidden"
+        style={{
+          background: "rgba(10,10,15,0.96)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 30px 60px -20px rgba(0,0,0,0.6)",
+          width: "min(640px, 90vw)",
+          padding: 14,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#9ca3af",
+            padding: "6px 8px 12px",
+          }}
+        >
+          Horpen est pour
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SOLUTIONS_MINI.map((s) => (
+            <Link
+              key={s.slug}
+              href={`/solutions/${s.slug}`}
+              className="flex items-center gap-3 p-3 rounded-xl transition"
+              style={{ color: "#ffffff" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 99,
+                  background: s.accent,
+                  boxShadow: `0 0 10px ${s.accent}`,
+                  flexShrink: 0,
+                }}
+              />
+              <div className="text-left">
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#ffffff" }}>{s.name}</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{s.desc}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
