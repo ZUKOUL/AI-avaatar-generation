@@ -29,6 +29,7 @@ import NewAppWizard from "@/components/NewAppWizard";
 import {
   workspacesAPI,
   miniAppsAPI,
+  avatarAPI,
   WORKSPACE_STORAGE_KEY,
   type Workspace,
   type MiniApp,
@@ -67,6 +68,27 @@ interface SidebarTab {
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/** Short "2m / 4h / 3d" style relative time for the Recent feed. */
+function timeAgo(iso: string): string {
+  try {
+    const diff = Date.now() - new Date(iso).getTime();
+    if (diff < 0) return "now";
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "à l'instant";
+    if (mins < 60) return `${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} j`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 5) return `${weeks} sem`;
+    const months = Math.floor(days / 30);
+    return `${months} mois`;
+  } catch {
+    return "";
+  }
 }
 
 function extractDomain(url: string): string {
@@ -543,19 +565,60 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   >({});
   const [navPlusOpen, setNavPlusOpen] = useState(false);
 
-  /* Hydrate workspaces + mini-apps from backend on mount. */
+  /** Recent creations — the last few images / avatars the user made
+   *  in the active workspace. Auto-populated from the backend so the
+   *  sidebar fills with real content instead of static links. */
+  type RecentItem = {
+    id: string;
+    kind: "image" | "avatar";
+    thumbnail?: string;
+    label: string;
+    created_at: string;
+    href: string;
+  };
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+
+  /* Hydrate workspaces + mini-apps + recents from backend on mount. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [wsRes, appsRes] = await Promise.all([
+        const [wsRes, appsRes, imagesRes, avatarsRes] = await Promise.all([
           workspacesAPI.list(),
           miniAppsAPI.list().catch(() => ({ data: [] as MiniApp[] })),
+          avatarAPI.getImages(undefined, 5).catch(() => ({ data: { images: [] } })),
+          avatarAPI.list().catch(() => ({ data: { avatars: [] } })),
         ]);
         if (cancelled) return;
         const ws = wsRes.data || [];
         setWorkspaces(ws);
         setMiniApps(appsRes.data || []);
+
+        // Merge recent creations from both image + avatar endpoints
+        // and sort by date desc so the sidebar always shows what the
+        // user just made.
+        const images = (imagesRes.data as { images?: { image_id: string; image_url: string; prompt?: string; created_at: string }[] })?.images || [];
+        const avatars = (avatarsRes.data as { avatars?: { avatar_id: string; name: string; thumbnail?: string; created_at: string }[] })?.avatars || [];
+        const merged: RecentItem[] = [
+          ...images.slice(0, 5).map((i) => ({
+            id: i.image_id,
+            kind: "image" as const,
+            thumbnail: i.image_url,
+            label: (i.prompt || "Image").slice(0, 32),
+            created_at: i.created_at,
+            href: "/dashboard/images",
+          })),
+          ...avatars.slice(0, 5).map((a) => ({
+            id: a.avatar_id,
+            kind: "avatar" as const,
+            thumbnail: a.thumbnail,
+            label: a.name || "Avatar",
+            created_at: a.created_at,
+            href: "/dashboard/avatars",
+          })),
+        ];
+        merged.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+        setRecentItems(merged.slice(0, 6));
 
         const storedActive = localStorage.getItem(WORKSPACE_STORAGE_KEY);
         const resolved =
@@ -1189,7 +1252,86 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </div>
       </nav>
 
-      {/* ── Mes apps : user-created mini apps (New App wizard) ── */}
+      {/* ── Récents : auto-populated feed of the last creations made
+            in the active workspace. Each row has a real thumbnail so
+            the sidebar has texture even on a fresh account. ── */}
+      {!collapsed && recentItems.length > 0 && (
+        <div className="px-2 pb-3">
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: "#6b7280",
+              padding: "6px 10px 8px",
+            }}
+          >
+            Récent
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {recentItems.map((item) => (
+              <Link
+                key={`${item.kind}-${item.id}`}
+                href={item.href}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors"
+                style={{ color: "#e5e7eb" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                title={item.label}
+              >
+                {item.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.thumbnail}
+                    alt=""
+                    width={28}
+                    height={28}
+                    style={{
+                      borderRadius: 6,
+                      objectFit: "cover",
+                      flexShrink: 0,
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 6,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.label}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 1 }}>
+                    {item.kind === "avatar" ? "Avatar" : "Image"} · {timeAgo(item.created_at)}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Mes apps : user-created mini apps (New App wizard).
+            Card-style rows so each app feels like a real shortcut
+            instead of a plain nav link. ── */}
       {!collapsed && (
         <div className="px-2 pb-2">
           <div className="flex items-center justify-between px-2 py-1.5">
@@ -1218,49 +1360,96 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
               <Plus size={13} />
             </button>
           </div>
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             {miniApps.map((app) => (
               <Link
                 key={app.id}
                 href={`/dashboard/apps/${app.slug}`}
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors"
-                style={{ color: "#e5e7eb", fontSize: 13 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                className="group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all"
+                style={{
+                  color: "#e5e7eb",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                  overflow: "hidden",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = `linear-gradient(135deg, ${app.accent}18, ${app.accent}06)`;
+                  e.currentTarget.style.borderColor = `${app.accent}60`;
+                  e.currentTarget.style.boxShadow = `0 0 16px ${app.accent}25`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
                 title={app.description ?? app.name}
               >
+                {/* Accent color stripe on the left */}
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 2,
+                    background: app.accent,
+                    opacity: 0.8,
+                  }}
+                />
                 {app.logo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={app.logo_url}
                     alt=""
-                    width={16}
-                    height={16}
-                    style={{ borderRadius: 4, flexShrink: 0 }}
+                    width={26}
+                    height={26}
+                    style={{
+                      borderRadius: 7,
+                      flexShrink: 0,
+                      objectFit: "cover",
+                      boxShadow: `0 2px 8px ${app.accent}50`,
+                    }}
                   />
                 ) : (
                   <span
                     style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: 4,
-                      background: `linear-gradient(135deg, ${app.accent}60, ${app.accent}20)`,
-                      border: `1px solid ${app.accent}80`,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 7,
+                      background: `linear-gradient(135deg, ${app.accent}, ${app.accent}55)`,
+                      border: `1px solid ${app.accent}aa`,
                       flexShrink: 0,
+                      boxShadow: `0 2px 8px ${app.accent}50`,
                     }}
                   />
                 )}
-                <span
-                  style={{
-                    flex: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {app.name}
-                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      color: "#ffffff",
+                    }}
+                  >
+                    {app.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      color: "#9ca3af",
+                      marginTop: 1,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {app.tool}
+                  </div>
+                </div>
               </Link>
             ))}
             <button
@@ -1268,26 +1457,28 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 e.stopPropagation();
                 setNewAppOpen(true);
               }}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors w-full"
+              className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg transition-colors w-full"
               style={{
                 color: "#6b7280",
-                fontSize: 13,
+                fontSize: 12.5,
+                fontWeight: 500,
                 background: "transparent",
-                border: "1px dashed rgba(255,255,255,0.1)",
+                border: "1px dashed rgba(255,255,255,0.12)",
                 cursor: "pointer",
-                textAlign: "left",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                e.currentTarget.style.color = "#9ca3af";
+                e.currentTarget.style.color = "#e5e7eb";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.color = "#6b7280";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
               }}
             >
               <Plus size={13} />
-              <span>New App</span>
+              <span>Créer une app</span>
             </button>
           </div>
         </div>
