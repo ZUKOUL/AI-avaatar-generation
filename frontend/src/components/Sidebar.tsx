@@ -201,12 +201,22 @@ function TabRow({ tab, onRemove }: { tab: SidebarTab; onRemove: () => void }) {
 
 /* ─── "+ New Tab" command palette modal ─────────────────────────── */
 
+/**
+ * NewTabModal — app picker + free-text URL input.
+ *
+ * Shows the 6 native Horpen apps and all of the user's mini-apps in a
+ * clickable grid, plus a search input at the top that filters both
+ * the grid AND serves as a fallback "open a URL / Google search" entry
+ * when the text doesn't match anything.
+ */
 function NewTabModal({
   onClose,
   onAdd,
+  miniApps,
 }: {
   onClose: () => void;
-  onAdd: (url: string, label: string) => void;
+  onAdd: (url: string, label: string, favicon?: string) => void;
+  miniApps: MiniApp[];
 }) {
   const [input, setInput] = useState("");
 
@@ -218,30 +228,75 @@ function NewTabModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const submit = () => {
-    if (!input.trim()) return;
-    const url = normalizeUrl(input);
-    if (!url) return;
-    const label = extractDomain(url) || input.trim().slice(0, 32);
-    onAdd(url, label);
+  // Flatten all pickable entries : native products + mini-apps.
+  type PickerEntry = {
+    key: string;
+    label: string;
+    url: string;
+    kind: "native" | "mini";
+    logoUrl?: string;
+    accent?: string;
+    product?: typeof PRODUCTS[number];
+  };
+  const entries: PickerEntry[] = [
+    ...PRODUCTS.map<PickerEntry>((p) => ({
+      key: `native-${p.slug}`,
+      label: p.name,
+      url: PRODUCT_APP_ROUTES[p.slug].href,
+      kind: "native",
+      product: p,
+      accent: p.color,
+    })),
+    ...miniApps.map<PickerEntry>((a) => ({
+      key: `mini-${a.id}`,
+      label: a.name,
+      url: `/dashboard/apps/${a.slug}`,
+      kind: "mini",
+      logoUrl: a.logo_url,
+      accent: a.accent,
+    })),
+  ];
+
+  const query = input.trim().toLowerCase();
+  const filtered = query
+    ? entries.filter((e) => e.label.toLowerCase().includes(query))
+    : entries;
+
+  // When the input looks like a URL or a search, we offer it as an
+  // extra "action" at the top of the list.
+  const trimmed = input.trim();
+  const hasFreeText = trimmed.length > 0;
+  const normalizedFreeText = hasFreeText ? normalizeUrl(trimmed) : "";
+
+  const addEntry = (entry: PickerEntry) => {
+    onAdd(
+      entry.url,
+      entry.label,
+      entry.logoUrl || (entry.kind === "native" ? undefined : undefined)
+    );
   };
 
-  const preview = input.trim() ? normalizeUrl(input) : "";
-  const previewDomain = preview ? extractDomain(preview) : "";
+  const submitFreeText = () => {
+    if (!trimmed) return;
+    const url = normalizeUrl(trimmed);
+    const label = extractDomain(url) || trimmed.slice(0, 32);
+    onAdd(url, label, faviconFor(url));
+  };
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center pt-[20vh] px-4"
-      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-0 z-[60] flex items-start justify-center pt-[14vh] px-4"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(10px)" }}
       onClick={onClose}
     >
       <div
-        className="rounded-2xl overflow-hidden"
+        className="rounded-2xl overflow-hidden flex flex-col"
         style={{
-          background: "rgba(15,15,25,0.97)",
+          background: "rgba(15,15,25,0.98)",
           border: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "0 40px 80px -20px rgba(0,0,0,0.7)",
-          width: "min(560px, 100%)",
+          boxShadow: "0 40px 80px -20px rgba(0,0,0,0.8)",
+          width: "min(620px, 100%)",
+          maxHeight: "70vh",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -252,7 +307,7 @@ function NewTabModal({
             letterSpacing: "0.22em",
             textTransform: "uppercase",
             color: "#9ca3af",
-            padding: "16px 20px 10px",
+            padding: "14px 20px 6px",
           }}
         >
           Nouvel onglet
@@ -263,79 +318,189 @@ function NewTabModal({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") submit();
+            if (e.key === "Enter") {
+              // Prefer the first filtered match, otherwise free text.
+              if (filtered.length > 0) {
+                addEntry(filtered[0]);
+              } else {
+                submitFreeText();
+              }
+            }
           }}
-          placeholder="URL, nom de site, ou recherche Google…"
+          placeholder="Filtre tes apps, ou colle une URL / tape une recherche…"
           style={{
             width: "100%",
-            padding: "14px 20px",
+            padding: "10px 20px 14px",
             background: "transparent",
             border: "none",
             color: "#ffffff",
-            fontSize: 18,
+            fontSize: 16,
             outline: "none",
             fontWeight: 500,
           }}
         />
-        {preview && (
-          <div
-            style={{
-              padding: "10px 20px",
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              color: "#9ca3af",
-              fontSize: 12.5,
-            }}
-          >
-            {previewDomain && (
+
+        {/* Body — scrollable app grid + free-text fallback */}
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          {/* Free-text action row (only when user typed something
+              that looks like a URL / search) */}
+          {hasFreeText && (
+            <button
+              onClick={submitFreeText}
+              className="w-full flex items-center gap-3 px-5 py-3 transition-colors"
+              style={{
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                color: "#e5e7eb",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
               <img
-                src={faviconFor(preview)}
+                src={faviconFor(normalizedFreeText)}
                 alt=""
-                width={14}
-                height={14}
-                style={{ borderRadius: 3, flexShrink: 0 }}
+                width={18}
+                height={18}
+                style={{ borderRadius: 4, flexShrink: 0 }}
+                onError={(e) => ((e.currentTarget as HTMLImageElement).style.visibility = "hidden")}
               />
-            )}
-            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {preview.startsWith("https://www.google.com/search") ? (
-                <>Recherche Google : <strong style={{ color: "#e5e7eb" }}>{input}</strong></>
-              ) : (
-                preview
-              )}
-            </span>
-          </div>
-        )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500 }}>
+                  {normalizedFreeText.startsWith("https://www.google.com/search")
+                    ? `Rechercher "${trimmed}" sur Google`
+                    : `Ouvrir ${extractDomain(normalizedFreeText)}`}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    marginTop: 2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {normalizedFreeText}
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "#6b7280",
+                  flexShrink: 0,
+                }}
+              >
+                URL
+              </span>
+            </button>
+          )}
+
+          {/* Apps section */}
+          {filtered.length > 0 && (
+            <div className="px-2 py-3">
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "#6b7280",
+                  padding: "4px 12px 10px",
+                }}
+              >
+                Tes apps Horpen
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {filtered.map((entry) => (
+                  <button
+                    key={entry.key}
+                    onClick={() => addEntry(entry)}
+                    className="flex items-center gap-3 p-2.5 rounded-lg transition-colors text-left"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      color: "#e5e7eb",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    {entry.kind === "native" && entry.product ? (
+                      <Product3DLogo product={entry.product} size={28} glow={false} />
+                    ) : entry.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={entry.logoUrl}
+                        alt=""
+                        width={28}
+                        height={28}
+                        style={{ borderRadius: 6, flexShrink: 0, objectFit: "cover" }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          background: `linear-gradient(135deg, ${entry.accent || "#3b82f6"}, ${entry.accent || "#3b82f6"}55)`,
+                          border: `1px solid ${entry.accent || "#3b82f6"}aa`,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 500,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {entry.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
+                        {entry.kind === "native" ? "App native" : "Mini-app"}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filtered.length === 0 && !hasFreeText && (
+            <div
+              style={{
+                padding: "28px 20px",
+                textAlign: "center",
+                color: "#6b7280",
+                fontSize: 13,
+              }}
+            >
+              Aucune app. Crée ta première mini-app avec le bouton “+” à côté de Search.
+            </div>
+          )}
+        </div>
+
         <div
           style={{
-            padding: "12px 20px",
+            padding: "10px 20px",
             borderTop: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 12,
+            fontSize: 11,
             color: "#6b7280",
           }}
         >
-          <span>Entrée pour ajouter · Échap pour annuler</span>
-          <button
-            onClick={submit}
-            disabled={!input.trim()}
-            style={{
-              padding: "7px 14px",
-              borderRadius: 8,
-              background: input.trim() ? "#ffffff" : "rgba(255,255,255,0.08)",
-              color: input.trim() ? "#0a0a0a" : "#6b7280",
-              fontSize: 12.5,
-              fontWeight: 600,
-              border: "none",
-              cursor: input.trim() ? "pointer" : "not-allowed",
-              transition: "all 0.15s",
-            }}
-          >
-            Ajouter
-          </button>
+          Entrée pour ajouter le premier résultat · Échap pour annuler
         </div>
       </div>
     </div>
@@ -456,52 +621,57 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     }
   }, [foldersByWorkspace]);
 
-  const activeFolders = activeSpaceId ? foldersByWorkspace[activeSpaceId] ?? [] : [];
+  const activeFolders = foldersByWorkspace[activeSpaceId || "local"] ?? [];
+
+  /** Key under which folders + tabs are persisted for the current
+   *  context. When a workspace is loaded we use its UUID ; otherwise
+   *  we fall back to "local" so folder creation still works for
+   *  anonymous / fresh-session users. */
+  const persistKey = activeSpaceId || "local";
 
   const createFolder = () => {
-    if (!activeSpaceId) return;
+    // Close the popover first so the prompt isn't visually fighting it.
+    setNavPlusOpen(false);
     const name = window.prompt("Nom du dossier :");
     if (!name || !name.trim()) return;
     const newFolder = { id: randomId(), name: name.trim() };
     setFoldersByWorkspace((prev) => ({
       ...prev,
-      [activeSpaceId]: [...(prev[activeSpaceId] ?? []), newFolder],
+      [persistKey]: [...(prev[persistKey] ?? []), newFolder],
     }));
-    setNavPlusOpen(false);
   };
 
   const deleteFolder = (folderId: string) => {
-    if (!activeSpaceId) return;
-    if (!window.confirm("Supprimer ce dossier ? Les onglets à l'intérieur passent en racine.")) return;
+    if (!window.confirm("Supprimer ce dossier ?")) return;
     setFoldersByWorkspace((prev) => ({
       ...prev,
-      [activeSpaceId]: (prev[activeSpaceId] ?? []).filter((f) => f.id !== folderId),
+      [persistKey]: (prev[persistKey] ?? []).filter((f) => f.id !== folderId),
     }));
   };
 
   const activeSpace = workspaces.find((w) => w.id === activeSpaceId);
-  const activeTabs = activeSpaceId ? tabsByWorkspace[activeSpaceId] ?? [] : [];
+  const activeTabs = tabsByWorkspace[activeSpaceId || "local"] ?? [];
 
-  const addTabToActiveSpace = (url: string, label: string) => {
-    if (!activeSpaceId) return;
+  const addTabToActiveSpace = (url: string, label: string, favicon?: string) => {
+    const key = activeSpaceId || "local";
     const newTab: SidebarTab = {
       id: randomId(),
       url,
       label,
-      favicon: faviconFor(url),
+      favicon: favicon ?? faviconFor(url),
     };
     setTabsByWorkspace((prev) => ({
       ...prev,
-      [activeSpaceId]: [...(prev[activeSpaceId] ?? []), newTab],
+      [key]: [...(prev[key] ?? []), newTab],
     }));
     setNewTabOpen(false);
   };
 
   const removeTab = (tabId: string) => {
-    if (!activeSpaceId) return;
+    const key = activeSpaceId || "local";
     setTabsByWorkspace((prev) => ({
       ...prev,
-      [activeSpaceId]: (prev[activeSpaceId] ?? []).filter((t) => t.id !== tabId),
+      [key]: (prev[key] ?? []).filter((t) => t.id !== tabId),
     }));
   };
 
@@ -529,6 +699,52 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         "Impossible de créer le workspace.";
+      window.alert(message);
+    }
+  };
+
+  const renameWorkspace = async (id: string) => {
+    const current = workspaces.find((w) => w.id === id);
+    if (!current) return;
+    const name = window.prompt("Renommer l'espace :", current.name);
+    if (!name || !name.trim() || name.trim() === current.name) return;
+    try {
+      const res = await workspacesAPI.update(id, { name: name.trim() });
+      setWorkspaces((prev) => prev.map((w) => (w.id === id ? res.data : w)));
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "Impossible de renommer le workspace.";
+      window.alert(message);
+    }
+  };
+
+  const deleteWorkspace = async (id: string) => {
+    const target = workspaces.find((w) => w.id === id);
+    if (!target) return;
+    if (target.is_primary) {
+      window.alert("Tu ne peux pas supprimer ton espace principal.");
+      return;
+    }
+    if (!window.confirm(`Supprimer l'espace "${target.name}" et toutes ses créations ?`)) {
+      return;
+    }
+    try {
+      await workspacesAPI.delete(id);
+      setWorkspaces((prev) => prev.filter((w) => w.id !== id));
+      // If the deleted workspace was active, fall back to primary +
+      // reload so the data refreshes.
+      if (id === activeSpaceId) {
+        const fallback = workspaces.find((w) => w.id !== id);
+        if (fallback) {
+          localStorage.setItem(WORKSPACE_STORAGE_KEY, fallback.id);
+          window.location.reload();
+        }
+      }
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "Impossible de supprimer le workspace.";
       window.alert(message);
     }
   };
@@ -1072,39 +1288,11 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </div>
       )}
 
-      {/* ── Pinned tabs for the active workspace ── */}
-      {!collapsed && activeSpace && (
+      {/* ── Pinned tabs + folders (no workspace-related label here —
+            workspace management lives exclusively in the bottom
+            profile menu). ── */}
+      {!collapsed && (activeTabs.length > 0 || activeFolders.length > 0) && (
         <div className="px-2 pb-2">
-          <div className="flex items-center justify-between px-2 py-1.5">
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                color: "#6b7280",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={activeSpace.name}
-            >
-              {activeSpace.name}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setNewTabOpen(true);
-              }}
-              className="p-1 rounded-md transition-colors"
-              style={{ color: "#9ca3af", background: "transparent", border: "none", cursor: "pointer" }}
-              title="Nouvel onglet"
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#e5e7eb")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
-            >
-              <Plus size={13} />
-            </button>
-          </div>
           <div className="flex flex-col gap-0.5">
             {activeTabs.map((tab) => (
               <TabRow key={tab.id} tab={tab} onRemove={() => removeTab(tab.id)} />
@@ -1139,53 +1327,14 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                       color: "#4b5563",
                       border: "none",
                       cursor: "pointer",
-                      opacity: 0,
-                      transition: "opacity 0.15s",
                     }}
-                    className="group-hover:!opacity-100"
                     title="Supprimer le dossier"
                   >
                     <XIcon size={10} />
                   </button>
                 </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#4b5563",
-                    padding: "4px 12px",
-                    fontStyle: "italic",
-                  }}
-                >
-                  Vide — ajoute des onglets ici
-                </div>
               </div>
             ))}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setNewTabOpen(true);
-              }}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors w-full"
-              style={{
-                color: "#6b7280",
-                fontSize: 13,
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                e.currentTarget.style.color = "#9ca3af";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#6b7280";
-              }}
-            >
-              <Plus size={13} />
-              <span>New Tab</span>
-            </button>
           </div>
         </div>
       )}
@@ -1326,12 +1475,21 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           setUserMenuOpen(false);
           createSpace();
         }}
+        onRenameWorkspace={(id) => {
+          setUserMenuOpen(false);
+          renameWorkspace(id);
+        }}
+        onDeleteWorkspace={(id) => {
+          setUserMenuOpen(false);
+          deleteWorkspace(id);
+        }}
       />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {newTabOpen && (
         <NewTabModal
           onClose={() => setNewTabOpen(false)}
-          onAdd={(url, label) => addTabToActiveSpace(url, label)}
+          onAdd={(url, label, favicon) => addTabToActiveSpace(url, label, favicon)}
+          miniApps={miniApps}
         />
       )}
       {newAppOpen && (

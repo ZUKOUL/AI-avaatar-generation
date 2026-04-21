@@ -870,6 +870,8 @@ export function UserMenuPopover({
   activeWorkspaceId,
   onSwitchWorkspace,
   onCreateWorkspace,
+  onRenameWorkspace,
+  onDeleteWorkspace,
 }: {
   open: boolean;
   onClose: () => void;
@@ -879,6 +881,8 @@ export function UserMenuPopover({
   activeWorkspaceId?: string;
   onSwitchWorkspace?: (id: string) => void;
   onCreateWorkspace?: () => void;
+  onRenameWorkspace?: (id: string) => void;
+  onDeleteWorkspace?: (id: string) => void;
 }) {
   const user = typeof window !== "undefined" ? getStoredUser() : null;
   const displayName = user?.email?.split("@")[0] || "Utilisateur";
@@ -988,17 +992,11 @@ export function UserMenuPopover({
             {workspaces.map((w) => {
               const active = w.id === activeWorkspaceId;
               return (
-                <button
+                <div
                   key={w.id}
-                  onClick={() => {
-                    onSwitchWorkspace(w.id);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 transition-colors"
+                  className="group w-full flex items-center gap-2.5 px-4 py-2 transition-colors"
                   style={{
                     background: active ? "var(--bg-secondary, #f5f5f5)" : "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    textAlign: "left",
                   }}
                   onMouseEnter={(e) => {
                     if (!active)
@@ -1008,31 +1006,94 @@ export function UserMenuPopover({
                     if (!active) e.currentTarget.style.background = "transparent";
                   }}
                 >
-                  <span
+                  <button
+                    onClick={() => onSwitchWorkspace(w.id)}
+                    className="flex items-center gap-2.5 flex-1 min-w-0"
                     style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 99,
-                      background: w.color,
-                      boxShadow: active ? `0 0 8px ${w.color}` : "none",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 13.5,
-                      color: active ? "var(--text-primary, #0a0a0a)" : "var(--text-secondary, #6b7280)",
-                      fontWeight: active ? 600 : 500,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      padding: 0,
                     }}
                   >
-                    {w.name}
-                  </span>
-                  {active && <Check size={13} style={{ color: "var(--text-primary, #0a0a0a)" }} />}
-                </button>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 99,
+                        background: w.color,
+                        boxShadow: active ? `0 0 8px ${w.color}` : "none",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: 13.5,
+                        color: active ? "var(--text-primary, #0a0a0a)" : "var(--text-secondary, #6b7280)",
+                        fontWeight: active ? 600 : 500,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {w.name}
+                    </span>
+                    {active && <Check size={13} style={{ color: "var(--text-primary, #0a0a0a)" }} />}
+                  </button>
+                  {/* Inline rename + delete — shown on row hover.
+                      Delete is omitted for the primary (user still
+                      has at least one workspace). */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onRenameWorkspace && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRenameWorkspace(w.id);
+                        }}
+                        title="Renommer"
+                        style={{
+                          padding: 4,
+                          borderRadius: 5,
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--text-tertiary, #9ca3af)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        </svg>
+                      </button>
+                    )}
+                    {onDeleteWorkspace && !active && workspaces.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteWorkspace(w.id);
+                        }}
+                        title="Supprimer"
+                        style={{
+                          padding: 4,
+                          borderRadius: 5,
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--text-tertiary, #9ca3af)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <XIcon size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
               );
             })}
             {onCreateWorkspace && (
