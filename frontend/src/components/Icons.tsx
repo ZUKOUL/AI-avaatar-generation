@@ -76,6 +76,7 @@ export { Package as Package } from "@untitledui/icons/Package";
 export { ShoppingBag01 as ShoppingBag } from "@untitledui/icons/ShoppingBag01";
 export { Briefcase02 as Briefcase } from "@untitledui/icons/Briefcase02";
 export { Users01 as Users } from "@untitledui/icons/Users01";
+export { Bell01 as Bell } from "@untitledui/icons/Bell01";
 export { GraduationHat01 as GraduationHat } from "@untitledui/icons/GraduationHat01";
 export { CodeBrowser } from "@untitledui/icons/CodeBrowser";
 

@@ -28,6 +28,9 @@ import {
   SparkleIcon,
   Globe,
   Package,
+  Users,
+  Bell,
+  Plus,
 } from "@/components/Icons";
 import { clearAuth, getStoredUser } from "@/lib/auth";
 import { creditsAPI } from "@/lib/api";
@@ -837,18 +840,48 @@ function IntegrationsSection() {
    USER MENU POPOVER (appelé depuis Sidebar)
    ═════════════════════════════════════════════════════════════════ */
 
+/**
+ * UserMenuPopover — settings & workspace switcher.
+ *
+ * Layout (Trendtrack-inspired, compact) :
+ *   ┌─ avatar + display name (no email)
+ *   ├─ Notifications / Settings / Members / Plans & Billing
+ *   ├─ "Switch Workspace" label
+ *   ├─ <workspace rows…>
+ *   ├─ + Create Workspace
+ *   └─ Log out
+ *
+ * Workspaces = the same "spaces" used by the sidebar's pinned-tabs
+ * section. Parent passes them in so both surfaces stay in sync
+ * without a shared global store.
+ */
+
+export interface UserMenuWorkspace {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export function UserMenuPopover({
   open,
   onClose,
   onOpenSettings,
+  workspaces,
+  activeWorkspaceId,
+  onSwitchWorkspace,
+  onCreateWorkspace,
 }: {
   open: boolean;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** Optional workspace list — only rendered when provided. */
+  workspaces?: UserMenuWorkspace[];
+  activeWorkspaceId?: string;
+  onSwitchWorkspace?: (id: string) => void;
+  onCreateWorkspace?: () => void;
 }) {
   const user = typeof window !== "undefined" ? getStoredUser() : null;
-  const link = `https://horpen.ai/?via=${encodeURIComponent(user?.email?.split("@")[0] ?? "ref")}`;
-  const [copied, setCopied] = useState(false);
+  const displayName = user?.email?.split("@")[0] || "Utilisateur";
 
   useEffect(() => {
     if (!open) return;
@@ -866,16 +899,6 @@ export function UserMenuPopover({
     window.location.href = "/login";
   };
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* silent */
-    }
-  };
-
   return (
     <>
       {/* backdrop click-to-close */}
@@ -886,7 +909,7 @@ export function UserMenuPopover({
         style={{
           bottom: 72,
           left: 12,
-          width: 260,
+          width: 280,
           background: "var(--bg-primary, #ffffff)",
           border: "1px solid var(--border-color, #ececec)",
           borderRadius: 14,
@@ -894,69 +917,47 @@ export function UserMenuPopover({
           overflow: "hidden",
         }}
       >
-        {/* User header */}
-        <div className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}>
+        {/* User header — avatar + name only, no email */}
+        <div
+          className="flex items-center gap-3 p-4"
+          style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}
+        >
           <div
             style={{
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               borderRadius: "50%",
               background: "linear-gradient(135deg, #3b82f6, #1e40af)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#ffffff",
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: 600,
               textTransform: "uppercase",
               flexShrink: 0,
             }}
           >
-            {user?.email?.charAt(0) || "?"}
+            {displayName.charAt(0)}
           </div>
-          <div className="min-w-0">
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary, #0a0a0a)" }}>
-              {user?.email?.split("@")[0] || "Utilisateur"}
-            </div>
-            <div
-              style={{
-                fontSize: 11.5,
-                color: "var(--text-secondary, #6b7280)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {user?.email || ""}
-            </div>
-          </div>
-        </div>
-
-        {/* Affiliate link */}
-        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-tertiary, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-            Affiliate Link
-          </div>
-          <button
-            onClick={copyLink}
-            className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md transition"
+          <div
             style={{
-              background: "var(--bg-secondary, #fafafa)",
-              border: "1px solid var(--border-color, #ececec)",
-              fontSize: 12,
-              color: "var(--text-secondary, #6b7280)",
-              fontFamily: "ui-monospace, monospace",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--text-primary, #0a0a0a)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
+            title={displayName}
           >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>
-              horpen.ai/?via={user?.email?.split("@")[0] ?? "…"}
-            </span>
-            {copied ? <Check size={12} style={{ color: "#10b981" }} /> : <Copy size={12} />}
-          </button>
+            {displayName}
+          </div>
         </div>
 
-        {/* Menu items */}
-        <div className="py-1">
+        {/* Primary menu */}
+        <div className="py-1.5" style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}>
+          <MenuItem icon={Bell} label="Notifications" onClick={() => {}} />
           <MenuItem
             icon={SettingsIcon}
             label="Settings"
@@ -965,13 +966,109 @@ export function UserMenuPopover({
               onClose();
             }}
           />
-          <MenuItem icon={SparkleIcon} label="Perks & Benefits" onClick={() => {}} />
-          <MenuItem icon={Mail} label="Customer Support" href="mailto:support@horpen.ai" />
+          <MenuItem icon={Users} label="Members" onClick={() => {}} />
+          <MenuItem icon={CreditCard} label="Plans & Billing" onClick={() => {}} />
         </div>
 
+        {/* Switch workspace */}
+        {workspaces && workspaces.length > 0 && onSwitchWorkspace && (
+          <div className="py-1.5" style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--text-tertiary, #9ca3af)",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                padding: "8px 16px 6px",
+              }}
+            >
+              Switch Workspace
+            </div>
+            {workspaces.map((w) => {
+              const active = w.id === activeWorkspaceId;
+              return (
+                <button
+                  key={w.id}
+                  onClick={() => {
+                    onSwitchWorkspace(w.id);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 transition-colors"
+                  style={{
+                    background: active ? "var(--bg-secondary, #f5f5f5)" : "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active)
+                      e.currentTarget.style.background = "var(--bg-secondary, #fafafa)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 99,
+                      background: w.color,
+                      boxShadow: active ? `0 0 8px ${w.color}` : "none",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: 13.5,
+                      color: active ? "var(--text-primary, #0a0a0a)" : "var(--text-secondary, #6b7280)",
+                      fontWeight: active ? 600 : 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {w.name}
+                  </span>
+                  {active && <Check size={13} style={{ color: "var(--text-primary, #0a0a0a)" }} />}
+                </button>
+              );
+            })}
+            {onCreateWorkspace && (
+              <button
+                onClick={() => {
+                  onCreateWorkspace();
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 transition-colors"
+                style={{
+                  background: "var(--bg-secondary, #fafafa)",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  marginTop: 4,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-tertiary, #f0f0f0)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-secondary, #fafafa)")}
+              >
+                <Plus size={14} style={{ color: "var(--text-primary, #0a0a0a)", flexShrink: 0 }} />
+                <span
+                  style={{
+                    fontSize: 13.5,
+                    color: "var(--text-primary, #0a0a0a)",
+                    fontWeight: 600,
+                  }}
+                >
+                  Create Workspace
+                </span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Logout */}
-        <div style={{ borderTop: "1px solid var(--border-color, #ececec)" }}>
-          <MenuItem icon={SignOut} label="Log out" onClick={handleLogout} danger />
+        <div>
+          <MenuItem icon={SignOut} label="Log Out" onClick={handleLogout} />
         </div>
       </div>
     </>

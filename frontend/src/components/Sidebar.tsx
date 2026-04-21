@@ -31,7 +31,7 @@ import {
   ProductSlug,
   PRODUCT_APP_ROUTES,
 } from "@/components/landing/shared";
-import { House, Search, Star, XIcon } from "@/components/Icons";
+import { House, Search, Star, XIcon, Plus } from "@/components/Icons";
 
 /* Collapse toggle glyph. */
 function PanelToggleIcon() {
@@ -40,6 +40,458 @@ function PanelToggleIcon() {
       <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
       <line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" strokeWidth="1.4" />
     </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Arc-style Spaces + Pinned Tabs.
+   Data persists in localStorage so the user's workspace survives
+   reloads and logins. Each space has its own colored dot in the
+   bottom switcher and its own tab list.
+   ═══════════════════════════════════════════════════════════════════ */
+
+interface SidebarTab {
+  id: string;
+  url: string;
+  label: string;
+  favicon: string;
+}
+
+interface SidebarSpace {
+  id: string;
+  name: string;
+  color: string;
+  tabs: SidebarTab[];
+}
+
+const SPACES_STORAGE_KEY = "horpen-sidebar-spaces-v1";
+const ACTIVE_SPACE_KEY = "horpen-sidebar-active-space-v1";
+
+const SPACE_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
+
+const DEFAULT_SPACES: SidebarSpace[] = [
+  { id: "main", name: "Workspace", color: "#3b82f6", tabs: [] },
+];
+
+function randomId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function faviconFor(url: string): string {
+  const domain = extractDomain(url);
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+}
+
+/** Turn whatever the user typed into a usable URL:
+ *   - "horpen.ai"     → https://horpen.ai
+ *   - "/dashboard/x"  → internal link
+ *   - "hello world"   → Google search
+ *   - full URL        → passthrough
+ */
+function normalizeUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  if (trimmed.startsWith("/")) return trimmed;
+  if (trimmed.includes(".") && !trimmed.includes(" ")) return `https://${trimmed}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
+}
+
+/* ─── Single tab row ────────────────────────────────────────────── */
+
+function TabRow({ tab, onRemove }: { tab: SidebarTab; onRemove: () => void }) {
+  const [hover, setHover] = useState(false);
+  const internal = tab.url.startsWith("/");
+
+  const content = (
+    <>
+      <img
+        src={tab.favicon}
+        alt=""
+        width={16}
+        height={16}
+        style={{ borderRadius: 4, flexShrink: 0 }}
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
+        }}
+      />
+      <span
+        style={{
+          flex: 1,
+          fontSize: 13,
+          color: "#e5e7eb",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {tab.label}
+      </span>
+      {hover && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove();
+          }}
+          title="Retirer cet onglet"
+          style={{
+            color: "#6b7280",
+            padding: 2,
+            borderRadius: 4,
+            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.color = "#f87171";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "#6b7280";
+          }}
+        >
+          <XIcon size={11} />
+        </button>
+      )}
+    </>
+  );
+
+  const className = "flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors";
+
+  const onEnter = (e: React.MouseEvent<HTMLElement>) => {
+    setHover(true);
+    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+  };
+  const onLeave = (e: React.MouseEvent<HTMLElement>) => {
+    setHover(false);
+    e.currentTarget.style.background = "transparent";
+  };
+
+  if (internal) {
+    return (
+      <Link
+        href={tab.url}
+        className={className}
+        onClick={(e) => e.stopPropagation()}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+      >
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={tab.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      onClick={(e) => e.stopPropagation()}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+    >
+      {content}
+    </a>
+  );
+}
+
+/* ─── "+ New Tab" command palette modal ─────────────────────────── */
+
+function NewTabModal({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (url: string, label: string) => void;
+}) {
+  const [input, setInput] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submit = () => {
+    if (!input.trim()) return;
+    const url = normalizeUrl(input);
+    if (!url) return;
+    const label = extractDomain(url) || input.trim().slice(0, 32);
+    onAdd(url, label);
+  };
+
+  const preview = input.trim() ? normalizeUrl(input) : "";
+  const previewDomain = preview ? extractDomain(preview) : "";
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-start justify-center pt-[20vh] px-4"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: "rgba(15,15,25,0.97)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "0 40px 80px -20px rgba(0,0,0,0.7)",
+          width: "min(560px, 100%)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#9ca3af",
+            padding: "16px 20px 10px",
+          }}
+        >
+          Nouvel onglet
+        </div>
+        <input
+          autoFocus
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder="URL, nom de site, ou recherche Google…"
+          style={{
+            width: "100%",
+            padding: "14px 20px",
+            background: "transparent",
+            border: "none",
+            color: "#ffffff",
+            fontSize: 18,
+            outline: "none",
+            fontWeight: 500,
+          }}
+        />
+        {preview && (
+          <div
+            style={{
+              padding: "10px 20px",
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: "#9ca3af",
+              fontSize: 12.5,
+            }}
+          >
+            {previewDomain && (
+              <img
+                src={faviconFor(preview)}
+                alt=""
+                width={14}
+                height={14}
+                style={{ borderRadius: 3, flexShrink: 0 }}
+              />
+            )}
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {preview.startsWith("https://www.google.com/search") ? (
+                <>Recherche Google : <strong style={{ color: "#e5e7eb" }}>{input}</strong></>
+              ) : (
+                preview
+              )}
+            </span>
+          </div>
+        )}
+        <div
+          style={{
+            padding: "12px 20px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: 12,
+            color: "#6b7280",
+          }}
+        >
+          <span>Entrée pour ajouter · Échap pour annuler</span>
+          <button
+            onClick={submit}
+            disabled={!input.trim()}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 8,
+              background: input.trim() ? "#ffffff" : "rgba(255,255,255,0.08)",
+              color: input.trim() ? "#0a0a0a" : "#6b7280",
+              fontSize: 12.5,
+              fontWeight: 600,
+              border: "none",
+              cursor: input.trim() ? "pointer" : "not-allowed",
+              transition: "all 0.15s",
+            }}
+          >
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Spaces switcher (bottom dots + new-space button) ──────────── */
+
+function SpacesSwitcher({
+  spaces,
+  activeId,
+  onSwitch,
+  onCreate,
+  onRename,
+  onDelete,
+}: {
+  spaces: SidebarSpace[];
+  activeId: string;
+  onSwitch: (id: string) => void;
+  onCreate: () => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  return (
+    <div
+      className="flex items-center justify-center gap-2.5 py-3 px-3 relative"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+    >
+      {spaces.map((s) => {
+        const active = s.id === activeId;
+        return (
+          <button
+            key={s.id}
+            onClick={() => onSwitch(s.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenuFor(menuFor === s.id ? null : s.id);
+            }}
+            title={`${s.name} — clic droit pour renommer/supprimer`}
+            style={{
+              width: active ? 20 : 9,
+              height: 9,
+              borderRadius: 99,
+              background: active ? s.color : "rgba(255,255,255,0.18)",
+              boxShadow: active ? `0 0 10px ${s.color}aa` : "none",
+              transition: "all 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        );
+      })}
+      <button
+        onClick={onCreate}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 6,
+          marginLeft: 2,
+          color: "#9ca3af",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          cursor: "pointer",
+        }}
+        title="Créer un nouvel espace"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+          e.currentTarget.style.color = "#e5e7eb";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+          e.currentTarget.style.color = "#9ca3af";
+        }}
+      >
+        <Plus size={11} />
+      </button>
+      {menuFor && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "100%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            marginBottom: 8,
+            background: "rgba(15,15,25,0.97)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 10,
+            padding: 4,
+            minWidth: 140,
+            boxShadow: "0 10px 30px -5px rgba(0,0,0,0.6)",
+            zIndex: 10,
+          }}
+          onMouseLeave={() => setMenuFor(null)}
+        >
+          <button
+            onClick={() => {
+              onRename(menuFor);
+              setMenuFor(null);
+            }}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "7px 12px",
+              borderRadius: 6,
+              background: "transparent",
+              color: "#e5e7eb",
+              fontSize: 13,
+              textAlign: "left",
+              border: "none",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Renommer
+          </button>
+          {spaces.length > 1 && (
+            <button
+              onClick={() => {
+                onDelete(menuFor);
+                setMenuFor(null);
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "7px 12px",
+                borderRadius: 6,
+                background: "transparent",
+                color: "#f87171",
+                fontSize: 13,
+                textAlign: "left",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(248,113,113,0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              Supprimer l&apos;espace
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -60,6 +512,97 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   /** When collapsed, hovering the top-left Horpen logo swaps it for a
    *  clickable "expand sidebar" toggle icon. Reverts on mouse leave. */
   const [logoHover, setLogoHover] = useState(false);
+
+  /** Spaces system : each space has its own pinned tab list. */
+  const [spaces, setSpaces] = useState<SidebarSpace[]>(DEFAULT_SPACES);
+  const [activeSpaceId, setActiveSpaceId] = useState<string>("main");
+  const [newTabOpen, setNewTabOpen] = useState(false);
+
+  /* Hydrate spaces from localStorage on mount. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SPACES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as SidebarSpace[];
+        if (Array.isArray(parsed) && parsed.length > 0) setSpaces(parsed);
+      }
+      const active = localStorage.getItem(ACTIVE_SPACE_KEY);
+      if (active) setActiveSpaceId(active);
+    } catch {
+      /* ignore corrupt localStorage */
+    }
+  }, []);
+
+  /* Persist spaces on every change. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPACES_STORAGE_KEY, JSON.stringify(spaces));
+    } catch {
+      /* quota / private-mode — ignore */
+    }
+  }, [spaces]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACTIVE_SPACE_KEY, activeSpaceId);
+    } catch {
+      /* ignore */
+    }
+  }, [activeSpaceId]);
+
+  const activeSpace = spaces.find((s) => s.id === activeSpaceId) ?? spaces[0];
+
+  const addTabToActiveSpace = (url: string, label: string) => {
+    const newTab: SidebarTab = {
+      id: randomId(),
+      url,
+      label,
+      favicon: faviconFor(url),
+    };
+    setSpaces((prev) =>
+      prev.map((s) => (s.id === activeSpace.id ? { ...s, tabs: [...s.tabs, newTab] } : s))
+    );
+    setNewTabOpen(false);
+  };
+
+  const removeTab = (tabId: string) => {
+    setSpaces((prev) =>
+      prev.map((s) =>
+        s.id === activeSpace.id ? { ...s, tabs: s.tabs.filter((t) => t.id !== tabId) } : s
+      )
+    );
+  };
+
+  const createSpace = () => {
+    const name = window.prompt("Nom du nouvel espace :");
+    if (!name || !name.trim()) return;
+    const newSpace: SidebarSpace = {
+      id: randomId(),
+      name: name.trim(),
+      color: SPACE_COLORS[spaces.length % SPACE_COLORS.length],
+      tabs: [],
+    };
+    setSpaces((prev) => [...prev, newSpace]);
+    setActiveSpaceId(newSpace.id);
+  };
+
+  const renameSpace = (id: string) => {
+    const target = spaces.find((s) => s.id === id);
+    if (!target) return;
+    const name = window.prompt("Renommer l'espace :", target.name);
+    if (!name || !name.trim()) return;
+    setSpaces((prev) => prev.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)));
+  };
+
+  const deleteSpace = (id: string) => {
+    if (spaces.length <= 1) return;
+    if (!window.confirm("Supprimer cet espace et tous ses onglets ?")) return;
+    setSpaces((prev) => prev.filter((s) => s.id !== id));
+    if (activeSpaceId === id) {
+      const next = spaces.find((s) => s.id !== id);
+      if (next) setActiveSpaceId(next.id);
+    }
+  };
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -344,6 +887,73 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </div>
       </nav>
 
+      {/* ── Spaces : pinned tabs for the active space ── */}
+      {!collapsed && activeSpace && (
+        <div className="px-2 pb-2">
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "#6b7280",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={activeSpace.name}
+            >
+              {activeSpace.name}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setNewTabOpen(true);
+              }}
+              className="p-1 rounded-md transition-colors"
+              style={{ color: "#9ca3af", background: "transparent", border: "none", cursor: "pointer" }}
+              title="Nouvel onglet"
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#e5e7eb")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {activeSpace.tabs.map((tab) => (
+              <TabRow key={tab.id} tab={tab} onRemove={() => removeTab(tab.id)} />
+            ))}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setNewTabOpen(true);
+              }}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors w-full"
+              style={{
+                color: "#6b7280",
+                fontSize: 13,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                e.currentTarget.style.color = "#9ca3af";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#6b7280";
+              }}
+            >
+              <Plus size={13} />
+              <span>New Tab</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Upgrade card ── */}
       {!collapsed && (
         <div className="px-3 pb-3">
@@ -470,6 +1080,16 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         open={userMenuOpen}
         onClose={() => setUserMenuOpen(false)}
         onOpenSettings={() => setSettingsOpen(true)}
+        workspaces={spaces.map((s) => ({ id: s.id, name: s.name, color: s.color }))}
+        activeWorkspaceId={activeSpaceId}
+        onSwitchWorkspace={(id) => {
+          setActiveSpaceId(id);
+          setUserMenuOpen(false);
+        }}
+        onCreateWorkspace={() => {
+          createSpace();
+          setUserMenuOpen(false);
+        }}
       />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
