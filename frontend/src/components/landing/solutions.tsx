@@ -1005,9 +1005,12 @@ function FinalCTA({ config }: { config: SolutionConfig }) {
   );
 }
 
-/* ─── Solutions dropdown — used in the main landing nav ───────────── */
+/* ─── Solutions dropdown — used in the main landing nav.
+       Uses the same minimal style as SubLandingNav's version in shared.tsx
+       (simple dots, no emoji). No onClick handler so Next.js Link
+       navigation is never blocked.  */
 
-export function SolutionsDropdown({ onClose }: { onClose?: () => void }) {
+export function SolutionsDropdown() {
   return (
     <div
       className="absolute top-full left-1/2 -translate-x-1/2 pt-3"
@@ -1021,59 +1024,52 @@ export function SolutionsDropdown({ onClose }: { onClose?: () => void }) {
           WebkitBackdropFilter: "blur(20px)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 30px 60px -20px rgba(0,0,0,0.6)",
-          width: "min(720px, 90vw)",
-          padding: 16,
+          width: "min(640px, 90vw)",
+          padding: 14,
         }}
       >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "#9ca3af",
-          padding: "8px 8px 14px",
-        }}
-      >
-        Horpen est pour
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {Object.values(SOLUTIONS).map((s) => (
-          <Link
-            key={s.slug}
-            href={`/solutions/${s.slug}`}
-            onClick={() => onClose?.()}
-            className="flex items-center gap-3 p-3 rounded-xl transition"
-            style={{ color: "#ffffff" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 9,
-                background: `linear-gradient(135deg, ${s.accent}40, ${s.accent}15)`,
-                border: `1px solid ${s.accent}40`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: s.accent,
-                flexShrink: 0,
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#9ca3af",
+            padding: "6px 8px 12px",
+          }}
+        >
+          Horpen est pour
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {Object.values(SOLUTIONS).map((s) => (
+            <Link
+              key={s.slug}
+              href={`/solutions/${s.slug}`}
+              className="flex items-center gap-3 p-3 rounded-xl transition"
+              style={{ color: "#ffffff" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
               }}
             >
-              <s.Icon className="w-4 h-4" />
-            </div>
-            <div className="text-left">
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#ffffff" }}>{s.name}</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{s.dropdownDesc}</div>
-            </div>
-          </Link>
-        ))}
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 99,
+                  background: s.accent,
+                  boxShadow: `0 0 10px ${s.accent}`,
+                  flexShrink: 0,
+                }}
+              />
+              <div className="text-left">
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#ffffff" }}>{s.name}</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{s.dropdownDesc}</div>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
