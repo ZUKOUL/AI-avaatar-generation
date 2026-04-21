@@ -14,6 +14,8 @@ from app.api.ads import router as ads_router
 from app.api.clips import router as clips_router
 from app.api.ai_videos import router as ai_videos_router
 from app.api.showcase import router as showcase_router
+from app.api.spyder import router as spyder_router
+from app.api.team import router as team_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -83,6 +85,18 @@ app.include_router(
     ai_videos_router,
     prefix="/ai-videos",
     tags=["AI Video Generator (phrase → short)"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    spyder_router,
+    prefix="/spyder",
+    tags=["Spyder (competitor tracking)"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    team_router,
+    prefix="/team",
+    tags=["Team (collaboration + tasks)"],
     dependencies=[Depends(get_current_user)],
 )
 

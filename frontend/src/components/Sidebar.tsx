@@ -7,20 +7,14 @@ import { clearAuth, getStoredUser } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import Logo from "@/components/Logo";
 import { SettingsModal, UserMenuPopover } from "@/components/settings";
+import { productIcon } from "@/components/landing/shared";
 import {
   House,
-  UserCircle,
-  ImageSquare,
   CreditCard,
   Settings,
   Sun,
   Moon,
   XIcon,
-  PlaySquare,
-  Megaphone,
-  Scissors,
-  SparkleIcon,
-  Shield,
 } from "@/components/Icons";
 
 type NavDef = {
@@ -33,16 +27,32 @@ const NAV_MAIN: NavDef[] = [
   { href: "/dashboard", label: "Home", icon: House },
 ];
 
-// Produits Horpen — chacun regroupe plusieurs outils via sous-onglets
-// dans sa propre page /dashboard/<slug>. Ordre suit le workflow :
-// observer → créer → performer → automatiser.
+// Produits Horpen — 4 clusters qui suivent le workflow :
+// observer → créer → performer → automatiser. Chaque produit affiche
+// son vrai Product3DLogo via la factory productIcon(slug).
+const NAV_INTELLIGENCE: NavDef[] = [
+  { href: "/dashboard/spyder", label: "Spyder", icon: productIcon("spyder") },
+];
+
+const NAV_CREATE: NavDef[] = [
+  { href: "/dashboard/canvas", label: "Canvas", icon: productIcon("canvas") },
+  { href: "/dashboard/avatar", label: "Avatar", icon: productIcon("avatar") },
+];
+
+const NAV_PERFORM: NavDef[] = [
+  { href: "/dashboard/adlab", label: "Adlab", icon: productIcon("adlab") },
+  { href: "/dashboard/thumbs", label: "Thumbs", icon: productIcon("thumbs") },
+];
+
+const NAV_AUTOMATE: NavDef[] = [
+  { href: "/dashboard/autoclip", label: "Autoclip", icon: productIcon("autoclip") },
+];
+
 const NAV_TOOLS: NavDef[] = [
-  { href: "/dashboard/spyder", label: "Spyder", icon: Shield },
-  { href: "/dashboard/canvas", label: "Canvas", icon: ImageSquare },
-  { href: "/dashboard/avatar", label: "Avatar", icon: UserCircle },
-  { href: "/dashboard/adlab", label: "Adlab", icon: Megaphone },
-  { href: "/dashboard/thumbs", label: "Thumbs", icon: PlaySquare },
-  { href: "/dashboard/autoclip", label: "Autoclip", icon: Scissors },
+  ...NAV_INTELLIGENCE,
+  ...NAV_CREATE,
+  ...NAV_PERFORM,
+  ...NAV_AUTOMATE,
 ];
 
 const NAV_ACCOUNT: NavDef[] = [
@@ -388,23 +398,34 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           collapsed={collapsed}
         />
 
-        {!collapsed && (
-          <div className="mt-5 mb-1.5 px-3">
-            <span
-              className="text-[11px] font-medium uppercase tracking-wider"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Tools
-            </span>
+        {/* Products — splittés en 4 clusters (Intelligence / Create /
+            Performer / Automate) avec label au-dessus en mode expanded. */}
+        {[
+          { label: "Intelligence", items: NAV_INTELLIGENCE },
+          { label: "Créer", items: NAV_CREATE },
+          { label: "Performer", items: NAV_PERFORM },
+          { label: "Automatiser", items: NAV_AUTOMATE },
+        ].map((cluster) => (
+          <div key={cluster.label}>
+            {!collapsed && (
+              <div className="mt-4 mb-1 px-3">
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  {cluster.label}
+                </span>
+              </div>
+            )}
+            {collapsed && <div className="mt-3" />}
+            <NavSection
+              items={cluster.items}
+              activeHref={activeHref}
+              pathname={pathname}
+              collapsed={collapsed}
+            />
           </div>
-        )}
-        {collapsed && <div className="mt-4" />}
-        <NavSection
-          items={NAV_TOOLS}
-          activeHref={activeHref}
-          pathname={pathname}
-          collapsed={collapsed}
-        />
+        ))}
 
         {!collapsed && (
           <div className="mt-5 mb-1.5 px-3">

@@ -48,6 +48,10 @@ export interface Product {
   color: string;
   cluster: ClusterKey;
   shape: ProductShape;
+  /** Optional real-image override. Drop a file at /public/logos/<slug>.png
+   *  and set `logoSrc: "/logos/<slug>.png"` to replace the CSS 3D logo
+   *  with a rendered bespoke logo (Nano Banana / Blender / Spline etc). */
+  logoSrc?: string;
 }
 
 export const PRODUCTS: Product[] = [
@@ -149,6 +153,29 @@ export function Product3DLogo({
   glow?: boolean;
 }) {
   const radius = size * 0.24;
+
+  // Real-image override — if the product has a logoSrc, render that as
+  // an Image with the same size/radius so the rest of the UI doesn't
+  // need to special-case bespoke logos vs CSS fallbacks.
+  if (product.logoSrc) {
+    return (
+      <Image
+        src={product.logoSrc}
+        alt={product.name}
+        width={size}
+        height={size}
+        style={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          borderRadius: radius,
+          objectFit: "contain",
+          boxShadow: glow ? `0 8px 24px -4px ${product.color}55` : "none",
+        }}
+      />
+    );
+  }
+
   const dark = hexDarken(product.color, 0.3);
   const light = hexLighten(product.color, 0.35);
 
@@ -176,6 +203,22 @@ export function Product3DLogo({
       <Shape3D shape={product.shape} size={Math.round(size * 0.48)} />
     </div>
   );
+}
+
+/* Factory returning a NavDef-compatible icon component for a given
+   product — lets the Sidebar drop Product3DLogos into its nav without
+   rewriting NavSection. */
+export function productIcon(slug: ProductSlug, defaultSize = 20): React.FC<{ size?: number }> {
+  const product = PRODUCTS.find((p) => p.slug === slug);
+  if (!product) {
+    const Fallback: React.FC<{ size?: number }> = () => null;
+    return Fallback;
+  }
+  const Icon: React.FC<{ size?: number }> = ({ size }) => (
+    <Product3DLogo product={product} size={size ?? defaultSize} glow={false} />
+  );
+  Icon.displayName = `ProductIcon(${slug})`;
+  return Icon;
 }
 
 function Shape3D({ shape, size }: { shape: ProductShape; size: number }) {
