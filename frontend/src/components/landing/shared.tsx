@@ -93,6 +93,7 @@ export const PRODUCTS: Product[] = [
     color: "#f59e0b",
     cluster: "performer",
     shape: "bolt",
+    logoSrc: "/logos/adlab.png",
   },
   {
     slug: "thumbs",
@@ -178,6 +179,11 @@ export function Product3DLogo({
   // Real-image override — if the product has a logoSrc, render that as
   // an Image with the same size/radius so the rest of the UI doesn't
   // need to special-case bespoke logos vs CSS fallbacks.
+  //
+  // Bespoke logos get a NEUTRAL drop shadow (dark, colourless) instead
+  // of a product-color glow. Otherwise the halo fights whatever
+  // accent sits inside the logo art — a red glow under a grey radar
+  // or under an orange bolt reads as "mismatched".
   if (product.logoSrc) {
     return (
       <Image
@@ -191,7 +197,9 @@ export function Product3DLogo({
           flexShrink: 0,
           borderRadius: radius,
           objectFit: "contain",
-          boxShadow: glow ? `0 8px 24px -4px ${product.color}55` : "none",
+          boxShadow: glow
+            ? "0 10px 28px -6px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.18)"
+            : "none",
         }}
       />
     );
