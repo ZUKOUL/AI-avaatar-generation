@@ -2050,70 +2050,81 @@ def _compose_appstore_screen_prompt(
     has_brand_logo: bool,
     style_anchor_summary: Optional[str],
 ) -> str:
-    """Build the Gemini text prompt for one screenshot."""
+    """
+    Build the Gemini Image text prompt for one screenshot.
 
-    palette = ", ".join(screen.get("palette_hex", [])[:4]) or "(infer)"
+    Strategy: the strategist (Gemini 2.5 Pro) produces a `render_prompt`
+    field that's already 200-350 words organised by labelled sections
+    (OVERALL CANVAS / TOP HEADLINE BLOCK / MAIN VISUAL ELEMENT / etc.) —
+    that's the meat of what the image model sees. We just sandwich it
+    between the brand-context preamble and a hard-rules postamble that
+    ALWAYS apply (render headline exactly, no fake UI, no logos, etc.).
+
+    Falls back to the older synthesised prompt if the strategist didn't
+    return a render_prompt for backwards compatibility.
+    """
     headline = screen["headline"]
     sub = screen.get("subheadline") or ""
-    treatment = screen.get("mockup_treatment", "tilted-phone")
-    visual = screen.get("visual_direction", "")
+    render_body = (screen.get("render_prompt") or "").strip()
 
-    parts: list[str] = [
-        f"Design App Store screenshot {screen['screen']} of 5 for the app named \"{app_name}\".",
-        f"This screenshot's role in the conversion funnel: {screen['purpose'].upper()}.",
-        f"Aspect: vertical mobile (9:16). Output is a single still image, not a multi-image grid.",
+    preamble = [
+        f"App Store screenshot {screen['screen']} for the app \"{app_name}\".",
+        f"Funnel role: {screen['purpose'].upper().replace('_', ' ')}.",
+    ]
+    if color_primary:
+        preamble.append(f"Brand primary colour to anchor the palette: {color_primary}.")
+    if color_secondary:
+        preamble.append(f"Brand secondary colour: {color_secondary}.")
+    if style_anchor_summary:
+        preamble.append(
+            f"Style anchor (use as inspiration for typography rhythm + mockup vibe, NEVER copy headlines): {style_anchor_summary}"
+        )
+    if has_real_ui:
+        preamble.append(
+            "REAL UI REFERENCE: user uploaded actual screens of this app. Inside any device mockup, render content that reflects their real UI — never invent fake interface details."
+        )
+    else:
+        preamble.append(
+            "No real UI provided: keep any device mockup abstract (gradient, blur, single iconic illustration) — never render fake interface details."
+        )
+    if has_brand_logo:
+        preamble.append(
+            "BRAND ICON REFERENCE: user uploaded their app icon. If a composition uses an icon element, reproduce theirs faithfully — do NOT redesign it."
+        )
+
+    if render_body:
+        body = render_body
+    else:
+        # Backwards compat: synthesise from the older fields.
+        palette = ", ".join(screen.get("palette_hex", [])[:4]) or "(infer)"
+        treatment = screen.get("mockup_treatment", "tilted-phone")
+        visual = screen.get("visual_direction", "")
+        body = (
+            f"OVERALL CANVAS\nVertical 9:16 mobile, full bleed, no device frame.\n\n"
+            f"TOP HEADLINE BLOCK\nRender the EXACT text \"{headline}\" — large, bold, sharp, perfectly legible at App Store thumb size. Top 25-30% of canvas.\n"
+            + (f"\nSUBHEADLINE\nRender \"{sub}\" smaller, beneath the headline.\n" if sub else "")
+            + f"\nMAIN VISUAL ELEMENT\nMockup treatment: {treatment}. {visual}\n\n"
+            f"PALETTE\n{palette}.\n"
+        )
+
+    postamble = [
         "",
-        f"HEADLINE (render exactly, large, bold, sharp, perfectly legible at App Store scale): \"{headline}\"",
+        "HARD RULES (override any conflicting brief instruction):",
+        f"- Render the HEADLINE exactly as: \"{headline}\". Do not paraphrase, abbreviate, change capitalisation, or add punctuation. Keep accents and special characters as-is.",
     ]
     if sub:
-        parts.append(f"SUBHEADLINE (smaller, secondary weight, beneath the headline): \"{sub}\"")
-    parts += [
-        "",
-        f"PALETTE: {palette}.",
-        f"PRIMARY brand colour (use as dominant): {color_primary or '(use palette)'}.",
-        f"SECONDARY brand colour: {color_secondary or '(use palette)'}.",
-        "",
-        f"VISUAL DIRECTION: {visual}",
-        f"MOCKUP TREATMENT: {treatment}.",
+        postamble.append(f"- Render the SUBHEADLINE exactly as: \"{sub}\".")
+    postamble += [
+        "- The headline is the dominant typographic element. Highest contrast. Sharp, kerned tightly, premium typography quality.",
+        "- Do not include any visual reference or description of the App Store / Play Store badge, the Apple or Google logo, or app rating stars unless the brief explicitly asked for social proof.",
+        "- No mock OS-level clock / battery / wifi indicators OUTSIDE an actual rendered phone status bar.",
+        "- The output is a SINGLE flat composition — never a grid, multi-panel layout, or storyboard of mini-screenshots.",
+        "- Hold the colour palette tight. Off-palette colours dilute the brand.",
+        "- Photographic / 3D elements: top-tier rendering quality. No flat clip-art, no early-2010s vector style, no AI-tell mush.",
+        "- Output a single 9:16 vertical image, full bleed, ready for App Store / Play Store screenshot upload. No device-mockup frame around the canvas itself.",
     ]
-    if style_anchor_summary:
-        parts += ["", f"STYLE ANCHOR (use as inspiration for typography rhythm, mockup vibe, callout shapes): {style_anchor_summary}"]
 
-    if has_real_ui:
-        parts += [
-            "",
-            "REAL UI REFERENCE: the user provided actual screenshots of their app. "
-            "When you render any device mockup, the screen content MUST reflect their real UI "
-            "(layout, colours, components shown). Do NOT invent fake UI screens.",
-        ]
-    else:
-        parts += [
-            "",
-            "NO REAL UI PROVIDED: do not render specific app interface details inside any "
-            "device mockup — keep mockup screens abstract (gradient, blur, brand-coloured fill, "
-            "or a single iconic illustration). Treatments like text-only, illustration-led, "
-            "or mascot-led are preferred over fake UI.",
-        ]
-
-    if has_brand_logo:
-        parts += [
-            "",
-            "BRAND ICON REFERENCE: the user provided their app icon. If your composition uses an "
-            "app-icon element, reproduce theirs faithfully. Do not redesign it.",
-        ]
-
-    parts += [
-        "",
-        "HARD RULES:",
-        "- Render the headline EXACTLY as written above. No paraphrasing, no abbreviating, no extra punctuation.",
-        "- The headline must be the dominant typographic element. Highest contrast. Legible at thumb size.",
-        "- No mock device clock, no fake battery/signal indicators outside an actual phone status bar.",
-        "- No watermarks, no Apple/Google logos, no App Store badges.",
-        "- The output is a SINGLE flat composition — never a grid of mini-screenshots.",
-        "- Match the colour palette tightly. Do not introduce off-palette colours.",
-        f"- Tone consistency check: this screen must read as part of the same series as the other 4. The shared mood is set by the brief's `tone_used` field.",
-    ]
-    return "\n".join(parts)
+    return "\n".join(preamble) + "\n\n" + body + "\n" + "\n".join(postamble)
 
 
 @router.post("/generate-appstore")

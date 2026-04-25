@@ -87,6 +87,66 @@ the mood without inventing fake UI inside a phone mockup.
 6. Read the user's description like a copywriter: extract the strongest \
 emotional benefit, NOT the most technical feature.
 
+# Render prompt quality bar (THIS IS WHAT MATTERS MOST)
+
+For each screen, you must produce a `render_prompt` that an image \
+generation model (Gemini 3 Pro Image) can execute directly. The render \
+prompt must read like a senior art director's brief — opinionated, \
+specific, and structured. It MUST include these labelled sections IN \
+THIS ORDER:
+
+OVERALL CANVAS
+- Aspect, full bleed, exact background colour or gradient direction \
+(e.g. "Solid vibrant orange #F26B2A with a subtle radial gradient — \
+slightly brighter centre-right, darker corners, soft studio lighting").
+- No device mockup frame, no rounded corners on the canvas, no UI chrome.
+
+TOP HEADLINE BLOCK
+- Position (top 25-30% of canvas), alignment, casing, font family \
+direction (e.g. "ultra-bold condensed sans-serif similar to Anton, \
+Bebas Neue Bold, or Druk Wide Bold"), tracking, colour, size hierarchy \
+between word 1 and word 2, line breaks. Render the EXACT words from \
+the `headline` field.
+
+MAIN VISUAL ELEMENT
+- The single dominant subject. Be specific: 3D character mascot, photo \
+phone mockup, illustration, hero typography, etc.
+- For 3D characters: photorealistic Pixar/DreamWorks-quality render, \
+plastic-like surfaces, soft subsurface scattering, warm studio lighting, \
+oversized head + small body proportions, rim light to separate from bg, \
+contact shadow underneath. Describe pose, expression, costume, and \
+how the character is cropped at the bottom (hip / waist).
+- For phone mockups: device tilt angle, shadow direction, what's \
+visible inside the screen (real UI when refs provided, abstract \
+gradient otherwise — never invent fake UI).
+- For illustrations: art style (flat vector / painterly / 3D claymation \
+/ paper cut-out), level of detail, lighting style.
+
+SUPPORTING ELEMENTS
+- Floating bubbles, decorative shapes, sparkles, props, social-proof \
+badges. For each: position relative to the main visual, size as a \
+fraction of canvas width, content, border treatment, drop shadow.
+
+BOTTOM HEADLINE / CTA BLOCK (when present)
+- Same typography spec as top headline. Note any contrasting accent \
+colour on a key word (e.g. "the word AI in soft yellow #F4D35E, the \
+rest in white").
+
+STYLE & MOOD
+- One paragraph: the overall vibe (friendly / premium / energetic / \
+spiritual / playful), the lighting feel, the brand-mascot personality \
+if applicable. Describe the artistic reference points (e.g. "modern \
+reboot of classic food-brand mascots — Mr. Clean, Pillsbury Doughboy, \
+Chef Boyardee in 2025 3D Pixar style").
+
+OUTPUT
+- "Single 9:16 vertical image, full bleed, ready for App Store / Play \
+Store screenshot upload. No app UI chrome, no fine print, no logos."
+
+A good render_prompt is 200-350 words, organised by these labelled \
+sections, with concrete adjectives and named font/style references. A \
+weak render_prompt is 50 words of vague hand-waving.
+
 # Output format
 Return ONLY a JSON object (no prose, no fences) with this exact shape:
 
@@ -100,8 +160,12 @@ Return ONLY a JSON object (no prose, no fences) with this exact shape:
       "purpose": "hook",
       "headline": "max 6 words, user benefit, NEVER a feature name",
       "subheadline": "max 10 words, optional, '' if not needed",
-      "visual_direction": "2-3 sentences describing the visual: bg, type \
-treatment, mockup, illustration, mood. Concrete and renderable.",
+      "visual_direction": "2-3 sentences plain-English summary for human \
+review (the user's preview UI shows this).",
+      "render_prompt": "200-350 words, labelled sections (OVERALL CANVAS, \
+TOP HEADLINE BLOCK, MAIN VISUAL ELEMENT, SUPPORTING ELEMENTS, BOTTOM \
+HEADLINE BLOCK, STYLE & MOOD, OUTPUT). This is what gets sent to the \
+image model — pack it with concrete specs.",
       "mockup_treatment": "tilted-phone | full-bleed-illustration | \
 mascot-led | text-only | photo-bg-with-phone | collage",
       "palette_hex": ["#xxxxxx", "#xxxxxx", "#xxxxxx"],
@@ -186,6 +250,10 @@ def _normalise_brief(data: dict) -> Optional[dict]:
             "headline": (s.get("headline") or "").strip().strip('"').strip("'")[:60],
             "subheadline": (s.get("subheadline") or "").strip().strip('"').strip("'")[:120],
             "visual_direction": (s.get("visual_direction") or "").strip()[:600],
+            # 4000 chars is plenty for the 200-350 word target plus headroom
+            # if the model rambles. Generous so we never silently truncate
+            # the meat of the brief.
+            "render_prompt": (s.get("render_prompt") or "").strip()[:4000],
             "mockup_treatment": (s.get("mockup_treatment") or "tilted-phone").strip()[:60],
             "palette_hex": [c for c in (s.get("palette_hex") or []) if isinstance(c, str)][:5],
             "rationale": (s.get("rationale") or "").strip()[:200],
