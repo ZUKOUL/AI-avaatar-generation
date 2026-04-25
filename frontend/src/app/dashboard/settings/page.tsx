@@ -271,6 +271,43 @@ export default function SettingsPage() {
                   <h2 className="text-[18px] font-semibold mb-1" style={{ color: "var(--text-primary)" }}>General</h2>
                   <p className="text-[13px] mb-6" style={{ color: "var(--text-muted)" }}>Manage your account information</p>
 
+                  {/* Theme — kept above the loading state so the toggle is
+                      always reachable, even while the profile is fetching.
+                      Stand-alone card so it can't be mistaken for one of
+                      the smaller form fields below. */}
+                  <div
+                    className="rounded-xl p-4 mb-5 flex items-center justify-between gap-4"
+                    style={{
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <div className="min-w-0">
+                      <div
+                        className="text-[13px] font-semibold"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        Apparence
+                      </div>
+                      <div
+                        className="text-[12px] mt-0.5"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        Choisis le thème de l&apos;interface
+                      </div>
+                    </div>
+                    <SegmentToggle
+                      selected={theme}
+                      onSelect={(k) => {
+                        if (k !== theme) toggleTheme();
+                      }}
+                      items={[
+                        { key: "light", label: "Clair", icon: <Sun size={14} /> },
+                        { key: "dark", label: "Sombre", icon: <Moon size={14} /> },
+                      ]}
+                    />
+                  </div>
+
                   {loadingProfile ? (
                     <div className="flex items-center justify-center py-12"><Spinner size={20} /></div>
                   ) : (
@@ -324,19 +361,6 @@ export default function SettingsPage() {
                           }}
                         />
                         <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>Contact support to change your email</p>
-                      </div>
-
-                      {/* Theme */}
-                      <div>
-                        <label className="text-[12px] font-medium block mb-1.5" style={{ color: "var(--text-secondary)" }}>Apparence</label>
-                        <SegmentToggle
-                          selected={theme}
-                          onSelect={(k) => { if (k !== theme) toggleTheme(); }}
-                          items={[
-                            { key: "light", label: "Clair", icon: <Sun size={14} /> },
-                            { key: "dark",  label: "Sombre", icon: <Moon size={14} /> },
-                          ]}
-                        />
                       </div>
 
                       {/* Language */}
