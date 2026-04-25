@@ -1,0 +1,37 @@
+{
+  "name": "Faith Assistant",
+  "slug": "faith_assistant",
+  "vertical": "lifestyle",
+  "icon": "icon.jpg",
+  "screens": [
+    "screen_01.jpg",
+    "screen_02.jpg",
+    "screen_03.jpg",
+    "screen_04.jpg",
+    "screen_05.jpg",
+    "screen_06.jpg"
+  ],
+  "screen_count": 6,
+  "palette": [
+    "#F0EEE2",
+    "#CC8A4F",
+    "#4A1E20",
+    "#EAEAE3",
+    "#F0EEE6",
+    "#76322B"
+  ],
+  "style_profile": {
+    "background": "warm cream / off-white with grainy paper texture",
+    "accent_role": "deep burgundy-brown for headlines, ochre/orange for illustrations",
+    "typography": "bold transitional sans (almost slab) for headlines, clean sans for body",
+    "layout": "text top-left, large illustrative element bottom-right (church, cross, scripture)",
+    "mockup_treatment": "phone partially overlapped by 3D/painterly biblical imagery",
+    "callouts": "small dark pill labels (e.g. 'Faith Assistant', 'Daily Sermon Reflection')",
+    "mood": "reverent, warm, contemplative, hand-crafted, spiritual"
+  },
+  "headlines_observed": [
+    "Daily Verses That Speak To You.",
+    "Ask Faith Questions Anytime",
+    "Daily Sermon Reflection"
+  ]
+}

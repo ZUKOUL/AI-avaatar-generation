@@ -1,0 +1,36 @@
+{
+  "name": "Chef AI",
+  "slug": "chef_ai",
+  "vertical": "utility",
+  "icon": "icon.jpg",
+  "screens": [
+    "screen_01.jpg",
+    "screen_02.jpg",
+    "screen_03.jpg",
+    "screen_04.jpg",
+    "screen_05.jpg"
+  ],
+  "screen_count": 5,
+  "palette": [
+    "#F57842",
+    "#E8D9CE",
+    "#FF6929",
+    "#ED8456",
+    "#F0682D",
+    "#090A0B"
+  ],
+  "style_profile": {
+    "background": "saturated orange flat",
+    "accent_role": "white headline, occasional yellow accent on key word",
+    "typography": "ultra-bold condensed sans, all caps, large stacked lines",
+    "layout": "either 3D mascot front-and-center OR phone mockup with floating recipe stickers",
+    "mockup_treatment": "device tilted, food sticker bubbles with red heart attached",
+    "callouts": "circular food photos in white frames with red heart pin",
+    "mood": "playful, appetizing, friendly mascot, bold"
+  },
+  "headlines_observed": [
+    "YOUR PERSONAL AI MEAL PLANNER",
+    "SAVE THE RECIPES YOU LOVE",
+    "Discover Recipes"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "name": "Clip to Pay",
+  "slug": "clip_to_pay",
+  "vertical": "social",
+  "icon": "icon.jpg",
+  "screens": [
+    "screen_01.jpg",
+    "screen_02.jpg",
+    "screen_03.jpg",
+    "screen_04.jpg",
+    "screen_05.jpg"
+  ],
+  "screen_count": 5,
+  "palette": [
+    "#F1FC65",
+    "#99A79F",
+    "#A48360",
+    "#95B6BF",
+    "#FBFCEE",
+    "#B9AB91"
+  ],
+  "style_profile": {
+    "background": "neon highlighter yellow flat or radial",
+    "accent_role": "black for type, white for CTA bubbles, brand logos as colored accents",
+    "typography": "ultra-bold mixed-case sans, mixed roman+script highlight on key word ('Paid')",
+    "layout": "collage / multi-element, money + platform-logo bubbles around phone mockup",
+    "mockup_treatment": "phone with TikTok/IG-style feed visible, 3D dollar / heart props",
+    "callouts": "white pill bubbles with platform logo + dollar amount (e.g. '+$439')",
+    "mood": "high-energy, viral, money-motivated, gen-z creator"
+  },
+  "headlines_observed": [
+    "Post Clips & Get Paid",
+    "Create Share Get Paid",
+    "+$439",
+    "+$894",
+    "+$510"
+  ]
+}

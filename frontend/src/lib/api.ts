@@ -167,6 +167,40 @@ export const thumbnailAPI = {
     api.post("/thumbnail/smart-prompt", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  /**
+   * App Store Screenshot Studio — stage 1: feed raw context to the
+   * strategist (Gemini 2.5 Pro) and get a 5-screen narrative brief
+   * back. The user can edit headlines before triggering generation.
+   * No credits are charged at this stage.
+   */
+  appstoreBrief: (formData: FormData) =>
+    api.post("/thumbnail/appstore-brief", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /**
+   * Stage 2: render the 5 App Store screenshots from the brief +
+   * brand assets. Charges CREDIT_COST_APPSTORE_PACK on success
+   * (or per-screen if some shots failed).
+   */
+  appstoreGenerate: (formData: FormData) =>
+    api.post("/thumbnail/generate-appstore", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /** Pre-fill app metadata from a public App Store URL (free, iTunes API). */
+  appstoreScrape: (url: string) =>
+    api.get("/thumbnail/appstore-scrape", { params: { url } }),
+  /** List the curated reference packs the AI can draw style from. */
+  appstoreNiches: () => api.get("/thumbnail/appstore-niches"),
+  /**
+   * Single-shot App Store screenshot generation. Light path used by the
+   * simple form: one image per call, 6 credits. The user clicks "Next"
+   * to render another variant — the strategist runs invisibly on the
+   * backend, no brief preview, no narrative-arc UI.
+   */
+  appstoreGenerateDirect: (formData: FormData) =>
+    api.post("/thumbnail/generate-appstore-direct", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 // ── Ads (product training + ad creative generation) ──

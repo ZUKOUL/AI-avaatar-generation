@@ -1,0 +1,37 @@
+{
+  "name": "Avatar Pro",
+  "slug": "avatar_pro",
+  "vertical": "ai",
+  "icon": "icon.jpg",
+  "screens": [
+    "screen_01.jpg",
+    "screen_02.jpg",
+    "screen_03.jpg",
+    "screen_04.jpg",
+    "screen_05.jpg",
+    "screen_06.jpg"
+  ],
+  "screen_count": 6,
+  "palette": [
+    "#1C8EF1",
+    "#E6E8E8",
+    "#0A8DFC",
+    "#585767",
+    "#FFFFFF",
+    "#2492ED"
+  ],
+  "style_profile": {
+    "background": "white / light gray with subtle radial guides",
+    "accent_role": "primary CTA + bold headline highlight",
+    "typography": "geometric sans-serif, oversized weight 800, mixed roman+italic in headlines",
+    "layout": "phone mockup top, oversized headline below, optional inline prompt card",
+    "mockup_treatment": "rounded phone frame, slight tilt, blue squiggle accent line",
+    "callouts": "white pill annotations with sparkle icon, attached by hairline circles",
+    "mood": "clean, premium, AI-forward, energetic"
+  },
+  "headlines_observed": [
+    "Create viral content in seconds",
+    "AI photos that actually look real",
+    "Choose Your Image"
+  ]
+}

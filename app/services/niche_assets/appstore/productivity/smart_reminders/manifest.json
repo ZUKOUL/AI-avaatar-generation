@@ -1,0 +1,37 @@
+{
+  "name": "Smart Reminders",
+  "slug": "smart_reminders",
+  "vertical": "productivity",
+  "icon": "icon.jpg",
+  "screens": [
+    "screen_01.jpg",
+    "screen_02.jpg",
+    "screen_03.jpg",
+    "screen_04.jpg",
+    "screen_05.jpg",
+    "screen_06.jpg"
+  ],
+  "screen_count": 6,
+  "palette": [
+    "#EECDCB",
+    "#73A4B6",
+    "#211A1A",
+    "#6B4B4B",
+    "#FFFFFF",
+    "#141414"
+  ],
+  "style_profile": {
+    "background": "soft sky-to-grass photographic gradient with depth-of-field decor",
+    "accent_role": "headline color, occasional pastel reminder cards (pink/peach)",
+    "typography": "bold humanist sans-serif, large headline + smaller subheadline",
+    "layout": "text top, photographic phone mockup floating with 3D props (books, flowers)",
+    "mockup_treatment": "device tilted, content visible, decorative emoji + 3D objects flanking",
+    "callouts": "none, content speaks via visible app UI",
+    "mood": "warm, calm, life-balance, premium-casual"
+  },
+  "headlines_observed": [
+    "Never forget what matters.",
+    "Create reminders in seconds",
+    "Smart reminders that keep your life on track."
+  ]
+}

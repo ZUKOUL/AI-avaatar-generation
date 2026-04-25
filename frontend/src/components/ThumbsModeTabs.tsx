@@ -49,15 +49,34 @@ const MODES: ThumbsMode[] = [
   },
 ];
 
+/**
+ * Pick the mode whose href is the LONGEST matching prefix of the pathname.
+ * Without this, the YouTube href "/dashboard/thumbnails" matches every
+ * App Store path "/dashboard/thumbnails/appstore" too — both tabs end up
+ * highlighted at the same time.
+ */
+function pickActiveHref(pathname: string | null): string | null {
+  if (!pathname) return null;
+  let best: ThumbsMode | null = null;
+  for (const m of MODES) {
+    const matches = pathname === m.href || pathname.startsWith(`${m.href}/`);
+    if (matches && (!best || m.href.length > best.href.length)) {
+      best = m;
+    }
+  }
+  return best?.href ?? null;
+}
+
 export default function ThumbsModeTabs() {
   const pathname = usePathname();
+  const activeHref = pickActiveHref(pathname);
   return (
     <div
       className="flex items-stretch gap-2 mb-6 flex-wrap"
       style={{ rowGap: 8 }}
     >
       {MODES.map((m) => {
-        const active = pathname === m.href || pathname?.startsWith(`${m.href}/`);
+        const active = m.href === activeHref;
         return (
           <Link
             key={m.href}

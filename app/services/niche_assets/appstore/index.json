@@ -1,0 +1,82 @@
+{
+  "ai": [
+    {
+      "slug": "avatar_pro",
+      "name": "Avatar Pro",
+      "path": "ai/avatar_pro/",
+      "screen_count": 6,
+      "palette": [
+        "#1C8EF1",
+        "#E6E8E8",
+        "#0A8DFC",
+        "#585767",
+        "#FFFFFF",
+        "#2492ED"
+      ]
+    }
+  ],
+  "productivity": [
+    {
+      "slug": "smart_reminders",
+      "name": "Smart Reminders",
+      "path": "productivity/smart_reminders/",
+      "screen_count": 6,
+      "palette": [
+        "#EECDCB",
+        "#73A4B6",
+        "#211A1A",
+        "#6B4B4B",
+        "#FFFFFF",
+        "#141414"
+      ]
+    }
+  ],
+  "lifestyle": [
+    {
+      "slug": "faith_assistant",
+      "name": "Faith Assistant",
+      "path": "lifestyle/faith_assistant/",
+      "screen_count": 6,
+      "palette": [
+        "#F0EEE2",
+        "#CC8A4F",
+        "#4A1E20",
+        "#EAEAE3",
+        "#F0EEE6",
+        "#76322B"
+      ]
+    }
+  ],
+  "social": [
+    {
+      "slug": "clip_to_pay",
+      "name": "Clip to Pay",
+      "path": "social/clip_to_pay/",
+      "screen_count": 5,
+      "palette": [
+        "#F1FC65",
+        "#99A79F",
+        "#A48360",
+        "#95B6BF",
+        "#FBFCEE",
+        "#B9AB91"
+      ]
+    }
+  ],
+  "utility": [
+    {
+      "slug": "chef_ai",
+      "name": "Chef AI",
+      "path": "utility/chef_ai/",
+      "screen_count": 5,
+      "palette": [
+        "#F57842",
+        "#E8D9CE",
+        "#FF6929",
+        "#ED8456",
+        "#F0682D",
+        "#090A0B"
+      ]
+    }
+  ]
+}

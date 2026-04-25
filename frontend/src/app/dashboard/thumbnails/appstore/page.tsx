@@ -1,28 +1,23 @@
 "use client";
 
 /**
- * App Store Screenshot Studio — Thumbs sub-mode for mobile-app
- * marketing visuals (iOS App Store + Play Store posters).
+ * App Store Screenshot Studio — Thumbs sub-mode.
  *
- * Same shell as the YouTube thumbnail page (header + ThumbsModeTabs)
- * so users feel they're inside a single feature with two flavors.
+ * Simple form on the left, live phone preview on the right. One click =
+ * one rendered screenshot (6 credits). After the first shot lands the
+ * preview becomes a navigable carousel — arrows browse prior shots,
+ * "Suivant" renders a fresh variant from a different visual angle.
  *
- * The form captures the inputs the AI prompt builder needs :
- *   • App name + tagline (the headline shown on the screenshot)
- *   • Vertical (utility / social / ai / fitness / productivity / game)
- *     — drives which curated reference set + style profile to inject
- *   • Brand color (accent / background)
- *   • Optional brand logo + screen mockups
- *
- * The actual AI pipeline (curated references, prompt template,
- * Gemini 3 Pro Image call at 1290×2796) lives in the backend at
- * POST /thumbnail/generate-appstore — wired in a follow-up commit.
+ * Everything strategy-side (vertical anchor pick, prompt composition,
+ * niche references) runs invisibly on the backend — the user only sees
+ * inputs and rendered images. No "brief", no "narrative arc" surfaced.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import { ArrowRight, MagicWand, Upload, XIcon } from "@/components/Icons";
+import { thumbnailAPI } from "@/lib/api";
 
 type Vertical =
   | "utility"
@@ -30,6 +25,7 @@ type Vertical =
   | "ai"
   | "fitness"
   | "productivity"
+  | "lifestyle"
   | "game"
   | "ecommerce"
   | "finance";
@@ -40,6 +36,7 @@ const VERTICALS: { key: Vertical; label: string; example: string }[] = [
   { key: "ai",           label: "AI / Assistant", example: "Claude, ChatGPT app" },
   { key: "fitness",      label: "Fitness",       example: "Strava, Apple Fitness" },
   { key: "productivity", label: "Productivity",  example: "Notion, Linear, Things" },
+  { key: "lifestyle",    label: "Lifestyle",     example: "Faith, journaling, wellness" },
   { key: "game",         label: "Game",          example: "Mobile games" },
   { key: "ecommerce",    label: "E-commerce",    example: "Shopify-style" },
   { key: "finance",      label: "Finance",       example: "Revolut, Cash App" },
@@ -51,19 +48,26 @@ const FORMAT_PRESETS = [
   { key: "android",  label: "Android Phone", w: 1242, h: 2208 },
 ];
 
+interface Generated {
+  url: string;
+  variantIndex: number;
+}
+
 export default function AppStoreScreenshotStudio() {
   const [appName, setAppName] = useState("");
+  const [appDescription, setAppDescription] = useState("");
   const [tagline, setTagline] = useState("");
+  const [headline, setHeadline] = useState("");
   const [vertical, setVertical] = useState<Vertical>("utility");
   const [accent, setAccent] = useState("#FF6B35");
-  const [headline, setHeadline] = useState("");
-  const [variantCount, setVariantCount] = useState(5);
   const [formatKey, setFormatKey] = useState<string>("iphone67");
   const [refs, setRefs] = useState<File[]>([]);
   const [refPreviews, setRefPreviews] = useState<string[]>([]);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generated, setGenerated] = useState<string[]>([]);
+  const [generated, setGenerated] = useState<Generated[]>([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
 
   const format = FORMAT_PRESETS.find((f) => f.key === formatKey)!;
 
@@ -80,6 +84,14 @@ export default function AppStoreScreenshotStudio() {
     setRefPreviews(next.map((f) => URL.createObjectURL(f)));
   };
 
+  // Cleanup preview URLs on unmount.
+  useEffect(() => {
+    return () => {
+      refPreviews.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleGenerate = async () => {
     if (!appName.trim() || !headline.trim()) {
       setError("Le nom de l'app et le headline sont requis.");
@@ -88,24 +100,44 @@ export default function AppStoreScreenshotStudio() {
     setSubmitting(true);
     setError(null);
     try {
-      // TODO : wire to backend /thumbnail/generate-appstore once the
-      // server-side prompt template + Gemini 3 Pro Image call are
-      // shipped. For now we just preview the resolved spec so the
-      // user can validate the form ergonomics.
-      await new Promise((r) => setTimeout(r, 600));
-      setGenerated([]);
-      setError(
-        "Le moteur de génération App Store est en cours de fine-tuning sur sa bibliothèque de références. Tes inputs sont sauvegardés — tu pourras lancer la génération dès que c'est en ligne."
-      );
+      const fd = new FormData();
+      fd.append("app_name", appName.trim());
+      fd.append("headline", headline.trim());
+      if (tagline.trim()) fd.append("subtitle", tagline.trim());
+      if (appDescription.trim()) fd.append("app_description", appDescription.trim());
+      fd.append("vertical", vertical);
+      fd.append("color_primary", accent);
+      fd.append("format", formatKey);
+      fd.append("variant_index", String(generated.length));
+      refs.forEach((f) => fd.append("files", f));
+
+      const { data } = await thumbnailAPI.appstoreGenerateDirect(fd);
+      const next: Generated = {
+        url: data.image_url,
+        variantIndex: data.variant_index ?? generated.length,
+      };
+      setGenerated((prev) => {
+        const out = [...prev, next];
+        setCurrentIdx(out.length - 1);
+        return out;
+      });
     } catch (err: unknown) {
+      const r = (err as { response?: { data?: { detail?: unknown } } })?.response;
+      const detail = r?.data?.detail;
       const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "La génération a échoué.";
+        typeof detail === "string"
+          ? detail
+          : detail && typeof detail === "object" && "message" in detail
+          ? (detail as { message: string }).message
+          : "La génération a échoué.";
       setError(message);
     } finally {
       setSubmitting(false);
     }
   };
+
+  const showingGenerated = generated.length > 0;
+  const current = showingGenerated ? generated[currentIdx] : null;
 
   return (
     <>
@@ -165,6 +197,16 @@ export default function AppStoreScreenshotStudio() {
                 />
               </Field>
 
+              <Field label="À quoi sert ton app ? (optionnel — aide l'IA à mieux comprendre)">
+                <textarea
+                  value={appDescription}
+                  onChange={(e) => setAppDescription(e.target.value)}
+                  placeholder="ex : Mon app est un coach IA qui t'apprend à percer sur les réseaux."
+                  style={{ ...inputStyle, minHeight: 70, resize: "vertical", lineHeight: 1.5 }}
+                  maxLength={500}
+                />
+              </Field>
+
               <Field label="Headline (gros texte sur le visuel)">
                 <input
                   type="text"
@@ -187,7 +229,7 @@ export default function AppStoreScreenshotStudio() {
                 />
               </Field>
 
-              <Field label="Catégorie (drive le style + références)">
+              <Field label="Catégorie">
                 <div className="grid grid-cols-2 gap-2">
                   {VERTICALS.map((v) => {
                     const active = vertical === v.key;
@@ -349,35 +391,6 @@ export default function AppStoreScreenshotStudio() {
                 )}
               </Field>
 
-              <Field label="Nombre de variantes">
-                <div className="flex gap-2">
-                  {[3, 5, 10].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setVariantCount(n)}
-                      className="rounded-lg px-4 py-2 text-center transition-colors"
-                      style={{
-                        background:
-                          variantCount === n
-                            ? "var(--bg-tertiary, #f3f4f6)"
-                            : "var(--bg-primary)",
-                        border:
-                          variantCount === n
-                            ? "1.5px solid var(--text-primary)"
-                            : "1px solid var(--border-color)",
-                        color: "var(--text-primary)",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        flex: 1,
-                      }}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-
               {error && (
                 <div
                   className="rounded-lg p-3"
@@ -407,7 +420,9 @@ export default function AppStoreScreenshotStudio() {
                       : "#ffffff",
                   border: "none",
                   cursor:
-                    submitting || !appName.trim() || !headline.trim() ? "not-allowed" : "pointer",
+                    submitting || !appName.trim() || !headline.trim()
+                      ? "not-allowed"
+                      : "pointer",
                   fontSize: 14,
                   boxShadow:
                     submitting || !appName.trim() || !headline.trim()
@@ -415,7 +430,11 @@ export default function AppStoreScreenshotStudio() {
                       : `0 4px 14px ${accent}55`,
                 }}
               >
-                {submitting ? "Génération…" : `Générer ${variantCount} visuels`}
+                {submitting
+                  ? "Génération…"
+                  : showingGenerated
+                  ? "Générer un autre — 6 crédits"
+                  : "Générer — 6 crédits"}
                 {!submitting && <ArrowRight className="w-4 h-4" />}
               </button>
             </div>
@@ -432,74 +451,91 @@ export default function AppStoreScreenshotStudio() {
                   overflow: "hidden",
                 }}
               >
-                {generated.length === 0 ? (
+                {!showingGenerated ? (
                   <PreviewMockup
                     appName={appName || "Mealy"}
                     headline={headline || "YOUR PERSONAL AI MEAL PLANNER"}
-                    tagline={tagline || "Scan your pantry, get the perfect recipe"}
+                    tagline={tagline || "Scan ton frigo, l'IA te propose le menu"}
                     accent={accent}
                     format={format}
                   />
                 ) : (
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    {generated.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
+                  <div className="w-full flex flex-col items-center gap-3">
+                    <div
+                      style={{
+                        aspectRatio: `${format.w} / ${format.h}`,
+                        maxHeight: 520,
+                        borderRadius: 18,
+                        overflow: "hidden",
+                        border: "1px solid var(--border-color)",
+                        background: "var(--bg-primary)",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        key={i}
-                        src={url}
-                        alt=""
-                        style={{
-                          width: "100%",
-                          borderRadius: 12,
-                          border: "1px solid var(--border-color)",
-                        }}
+                        src={current!.url}
+                        alt={`Variant ${currentIdx + 1}`}
+                        style={{ height: "100%", display: "block" }}
                       />
-                    ))}
+                    </div>
+
+                    {/* Carousel nav */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
+                        disabled={currentIdx === 0}
+                        className="rounded-full w-9 h-9 flex items-center justify-center"
+                        style={{
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-color)",
+                          color: "var(--text-primary)",
+                          cursor: currentIdx === 0 ? "not-allowed" : "pointer",
+                          opacity: currentIdx === 0 ? 0.4 : 1,
+                        }}
+                        aria-label="Previous"
+                      >
+                        ←
+                      </button>
+                      <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 64, textAlign: "center" }}>
+                        {currentIdx + 1} / {generated.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIdx((i) => Math.min(generated.length - 1, i + 1))}
+                        disabled={currentIdx >= generated.length - 1}
+                        className="rounded-full w-9 h-9 flex items-center justify-center"
+                        style={{
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-color)",
+                          color: "var(--text-primary)",
+                          cursor: currentIdx >= generated.length - 1 ? "not-allowed" : "pointer",
+                          opacity: currentIdx >= generated.length - 1 ? 0.4 : 1,
+                        }}
+                        aria-label="Next"
+                      >
+                        →
+                      </button>
+                      <a
+                        href={current!.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="text-xs font-semibold ml-2"
+                        style={{
+                          color: "var(--text-primary)",
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-color)",
+                          borderRadius: 999,
+                          padding: "6px 12px",
+                          textDecoration: "none",
+                        }}
+                      >
+                        Télécharger
+                      </a>
+                    </div>
                   </div>
                 )}
-              </div>
-
-              <div
-                className="rounded-2xl p-4"
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-color)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: "var(--text-tertiary, #9ca3af)",
-                    marginBottom: 8,
-                  }}
-                >
-                  Comment l'IA contextualise
-                </div>
-                <ul
-                  style={{
-                    fontSize: 12.5,
-                    lineHeight: 1.55,
-                    color: "var(--text-secondary)",
-                    paddingLeft: 16,
-                    margin: 0,
-                  }}
-                >
-                  <li>
-                    Détecte la <strong>catégorie</strong> ({VERTICALS.find((v) => v.key === vertical)?.label}) et charge 3-5 références gagnantes du même vertical.
-                  </li>
-                  <li>
-                    Compose un prompt Gemini 3 Pro Image avec le style profile du vertical (typographie, mockup, couleurs).
-                  </li>
-                  <li>
-                    Génère au format <strong>{format.w}×{format.h}</strong> (spec App Store officielle).
-                  </li>
-                  <li>
-                    Itère sur 3-5 variants avec différents angles (mascot / mockup centered / split-screen).
-                  </li>
-                </ul>
               </div>
             </div>
           </div>

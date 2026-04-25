@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import SegmentToggle from "@/components/SegmentToggle";
 import { userAPI, paymentsAPI, creditsAPI } from "@/lib/api";
+import { useTheme } from "@/lib/theme";
 import {
   Settings,
   Shield,
@@ -15,6 +16,8 @@ import {
   EyeSlash,
   Globe,
   Zap,
+  Sun,
+  Moon,
 } from "@/components/Icons";
 
 /* ─── Types ─── */
@@ -106,6 +109,9 @@ export default function SettingsPage() {
   const [userRole, setUserRole] = useState("");
   const [creditAmount, setCreditAmount] = useState(120);
   const [addingCredits, setAddingCredits] = useState(false);
+
+  // Theme
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     loadProfile();
@@ -318,6 +324,19 @@ export default function SettingsPage() {
                           }}
                         />
                         <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>Contact support to change your email</p>
+                      </div>
+
+                      {/* Theme */}
+                      <div>
+                        <label className="text-[12px] font-medium block mb-1.5" style={{ color: "var(--text-secondary)" }}>Apparence</label>
+                        <SegmentToggle
+                          selected={theme}
+                          onSelect={(k) => { if (k !== theme) toggleTheme(); }}
+                          items={[
+                            { key: "light", label: "Clair", icon: <Sun size={14} /> },
+                            { key: "dark",  label: "Sombre", icon: <Moon size={14} /> },
+                          ]}
+                        />
                       </div>
 
                       {/* Language */}

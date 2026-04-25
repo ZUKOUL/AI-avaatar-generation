@@ -144,6 +144,13 @@ CREDIT_COST_VEO_VIDEO = 20    # credits per Veo video              (~80 % margin
 CREDIT_COST_KLING_VIDEO = 10  # credits per Kling video (no audio) (~83 % margin on Creator)
 CREDIT_COST_KLING_AUDIO = 15  # credits per Kling video (w/ audio) (~77 % margin on Creator)
 
+# ─── App Store Screenshot Pack ───────────────────────────────────────────
+# 5 × Gemini 3 Pro Image @ ~$0.134 = ~$0.67 of API spend per pack.
+# Strategist (Gemini 2.5 Pro) is negligible (~$0.01).
+# Charge 30 credits → ~$3 user price → ~78 % margin on Creator tier.
+CREDIT_COST_APPSTORE_PER_SCREEN = 6   # if generating partial pack (rare)
+CREDIT_COST_APPSTORE_PACK = 30        # full 5-screen pack
+
 
 # ─── Multi-tier pricing plans (~75 % target margin) ───
 PRICING_TIERS = {
