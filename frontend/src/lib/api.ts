@@ -201,6 +201,20 @@ export const thumbnailAPI = {
     api.post("/thumbnail/generate-appstore-direct", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  /**
+   * Smart pack: hand over context, get N polished screenshots back. The
+   * strategist writes the headlines, the image model renders. All five
+   * frames in the conversion arc come back distinct — never N reskins
+   * of the same idea. num_variants ∈ {1, 3, 5}; charges 6 × successful.
+   */
+  appstoreGeneratePack: (formData: FormData) =>
+    api.post("/thumbnail/generate-appstore-pack", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      // Strategist + N parallel Gemini Image calls — typically ~30-60 s
+      // for 5 variants. Default axios timeout is 0 (no timeout) but we
+      // bump explicitly so a slower upstream doesn't 504 us at 30 s.
+      timeout: 180_000,
+    }),
 };
 
 // ── Ads (product training + ad creative generation) ──

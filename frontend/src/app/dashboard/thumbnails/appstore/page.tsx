@@ -50,17 +50,23 @@ const FORMAT_PRESETS = [
 
 interface Generated {
   url: string;
-  variantIndex: number;
+  headline: string;
+  subheadline: string;
+  purpose: string;
+  screen: number;
 }
+
+const VARIANT_COUNTS = [1, 3, 5] as const;
+type VariantCount = (typeof VARIANT_COUNTS)[number];
 
 export default function AppStoreScreenshotStudio() {
   const [appName, setAppName] = useState("");
   const [appDescription, setAppDescription] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [headline, setHeadline] = useState("");
+  const [headlineHint, setHeadlineHint] = useState("");
   const [vertical, setVertical] = useState<Vertical>("utility");
   const [accent, setAccent] = useState("#FF6B35");
   const [formatKey, setFormatKey] = useState<string>("iphone67");
+  const [numVariants, setNumVariants] = useState<VariantCount>(5);
   const [refs, setRefs] = useState<File[]>([]);
   const [refPreviews, setRefPreviews] = useState<string[]>([]);
 
@@ -93,8 +99,8 @@ export default function AppStoreScreenshotStudio() {
   }, []);
 
   const handleGenerate = async () => {
-    if (!appName.trim() || !headline.trim()) {
-      setError("Le nom de l'app et le headline sont requis.");
+    if (!appName.trim() || !appDescription.trim()) {
+      setError("Le nom de l'app et la description sont requis — ils nourrissent l'IA copywriter.");
       return;
     }
     setSubmitting(true);
@@ -102,23 +108,27 @@ export default function AppStoreScreenshotStudio() {
     try {
       const fd = new FormData();
       fd.append("app_name", appName.trim());
-      fd.append("headline", headline.trim());
-      if (tagline.trim()) fd.append("subtitle", tagline.trim());
-      if (appDescription.trim()) fd.append("app_description", appDescription.trim());
+      fd.append("app_description", appDescription.trim());
+      if (headlineHint.trim()) fd.append("headline_hint", headlineHint.trim());
       fd.append("vertical", vertical);
       fd.append("color_primary", accent);
       fd.append("format", formatKey);
-      fd.append("variant_index", String(generated.length));
+      fd.append("num_variants", String(numVariants));
       refs.forEach((f) => fd.append("files", f));
 
-      const { data } = await thumbnailAPI.appstoreGenerateDirect(fd);
-      const next: Generated = {
-        url: data.image_url,
-        variantIndex: data.variant_index ?? generated.length,
-      };
+      const { data } = await thumbnailAPI.appstoreGeneratePack(fd);
+      const newOnes: Generated[] = (data.generated || []).map(
+        (g: { image_url: string; headline: string; subheadline: string; purpose: string; screen: number }) => ({
+          url: g.image_url,
+          headline: g.headline,
+          subheadline: g.subheadline,
+          purpose: g.purpose,
+          screen: g.screen,
+        })
+      );
       setGenerated((prev) => {
-        const out = [...prev, next];
-        setCurrentIdx(out.length - 1);
+        const out = [...prev, ...newOnes];
+        setCurrentIdx(prev.length); // jump to first new variant
         return out;
       });
     } catch (err: unknown) {
@@ -197,33 +207,22 @@ export default function AppStoreScreenshotStudio() {
                 />
               </Field>
 
-              <Field label="À quoi sert ton app ? (optionnel — aide l'IA à mieux comprendre)">
+              <Field label="Décris ton app — ce qu'elle fait et pour qui (l'IA écrit les titres à partir de ça)">
                 <textarea
                   value={appDescription}
                   onChange={(e) => setAppDescription(e.target.value)}
-                  placeholder="ex : Mon app est un coach IA qui t'apprend à percer sur les réseaux."
-                  style={{ ...inputStyle, minHeight: 70, resize: "vertical", lineHeight: 1.5 }}
-                  maxLength={500}
+                  placeholder="ex : Coach IA de viralité pour les créateurs débutants. Analyse ta niche, te dit quoi poster cette semaine, et corrige tes hooks en temps réel."
+                  style={{ ...inputStyle, minHeight: 96, resize: "vertical", lineHeight: 1.5 }}
+                  maxLength={600}
                 />
               </Field>
 
-              <Field label="Headline (gros texte sur le visuel)">
+              <Field label="Une idée de headline ? (optionnel — l'IA va le polir, jamais le coller tel quel)">
                 <input
                   type="text"
-                  value={headline}
-                  onChange={(e) => setHeadline(e.target.value)}
-                  placeholder="ex : YOUR PERSONAL AI MEAL PLANNER"
-                  style={inputStyle}
-                  maxLength={60}
-                />
-              </Field>
-
-              <Field label="Sous-titre (optionnel)">
-                <input
-                  type="text"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  placeholder="ex : Scan ton frigo, l'IA te propose le menu"
+                  value={headlineHint}
+                  onChange={(e) => setHeadlineHint(e.target.value)}
+                  placeholder="ex : ton coach IA qui te fait percer sur les réseaux"
                   style={inputStyle}
                   maxLength={120}
                 />
@@ -326,6 +325,34 @@ export default function AppStoreScreenshotStudio() {
                 </div>
               </Field>
 
+              <Field label="Combien de variants ?">
+                <div className="flex gap-2">
+                  {VARIANT_COUNTS.map((n) => {
+                    const active = numVariants === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setNumVariants(n)}
+                        className="rounded-lg flex-1 py-2 text-center transition-colors"
+                        style={{
+                          background: active ? "var(--bg-tertiary, #f3f4f6)" : "var(--bg-primary)",
+                          border: active ? "1.5px solid var(--text-primary)" : "1px solid var(--border-color)",
+                          color: "var(--text-primary)",
+                          fontSize: 13,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {n} {n === 1 ? "visuel" : "visuels"}
+                        <div style={{ fontSize: 10.5, color: "var(--text-tertiary, #9ca3af)", fontWeight: 500, marginTop: 1 }}>
+                          {n * 6} crédits
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+
               <Field label="Captures de l'app (optionnel — jusqu'à 5)">
                 <div
                   className="rounded-lg p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors"
@@ -407,34 +434,34 @@ export default function AppStoreScreenshotStudio() {
 
               <button
                 onClick={handleGenerate}
-                disabled={submitting || !appName.trim() || !headline.trim()}
+                disabled={submitting || !appName.trim() || !appDescription.trim()}
                 className="rounded-full px-5 py-3 inline-flex items-center justify-center gap-2 font-semibold transition-all"
                 style={{
                   background:
-                    submitting || !appName.trim() || !headline.trim()
+                    submitting || !appName.trim() || !appDescription.trim()
                       ? "var(--bg-tertiary, #f3f4f6)"
                       : accent,
                   color:
-                    submitting || !appName.trim() || !headline.trim()
+                    submitting || !appName.trim() || !appDescription.trim()
                       ? "var(--text-tertiary, #9ca3af)"
                       : "#ffffff",
                   border: "none",
                   cursor:
-                    submitting || !appName.trim() || !headline.trim()
+                    submitting || !appName.trim() || !appDescription.trim()
                       ? "not-allowed"
                       : "pointer",
                   fontSize: 14,
                   boxShadow:
-                    submitting || !appName.trim() || !headline.trim()
+                    submitting || !appName.trim() || !appDescription.trim()
                       ? "none"
                       : `0 4px 14px ${accent}55`,
                 }}
               >
                 {submitting
-                  ? "Génération…"
+                  ? `L'IA travaille sur ${numVariants} ${numVariants === 1 ? "visuel" : "visuels"}…`
                   : showingGenerated
-                  ? "Générer un autre — 6 crédits"
-                  : "Générer — 6 crédits"}
+                  ? `Générer ${numVariants} de plus — ${numVariants * 6} crédits`
+                  : `Générer ${numVariants} ${numVariants === 1 ? "visuel" : "visuels"} — ${numVariants * 6} crédits`}
                 {!submitting && <ArrowRight className="w-4 h-4" />}
               </button>
             </div>
@@ -451,90 +478,199 @@ export default function AppStoreScreenshotStudio() {
                   overflow: "hidden",
                 }}
               >
-                {!showingGenerated ? (
-                  <PreviewMockup
-                    appName={appName || "Mealy"}
-                    headline={headline || "YOUR PERSONAL AI MEAL PLANNER"}
-                    tagline={tagline || "Scan ton frigo, l'IA te propose le menu"}
-                    accent={accent}
-                    format={format}
-                  />
-                ) : (
-                  <div className="w-full flex flex-col items-center gap-3">
+                {/* Visual layer — gets blurred during generation. Filter ramps
+                    up over ~1.4 s so the user sees the preview "dissolving"
+                    into the loading state, not a snap. */}
+                <div
+                  className="w-full flex flex-col items-center gap-3"
+                  style={{
+                    filter: submitting ? "blur(18px)" : "blur(0px)",
+                    transform: submitting ? "scale(1.03)" : "scale(1)",
+                    transition: "filter 1.4s cubic-bezier(0.4, 0, 0.2, 1), transform 1.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  {!showingGenerated ? (
+                    <PreviewMockup
+                      appName={appName || "Mealy"}
+                      headline={headlineHint || "L'IA va écrire ton headline ✨"}
+                      tagline={appDescription || "Scan ton frigo, l'IA te propose le menu"}
+                      accent={accent}
+                      format={format}
+                    />
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          aspectRatio: `${format.w} / ${format.h}`,
+                          maxHeight: 520,
+                          borderRadius: 18,
+                          overflow: "hidden",
+                          border: "1px solid var(--border-color)",
+                          background: "var(--bg-primary)",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={current!.url}
+                          alt={current!.headline}
+                          style={{ height: "100%", display: "block" }}
+                        />
+                      </div>
+
+                      {/* Headline + purpose label for the current variant */}
+                      <div
+                        className="text-center"
+                        style={{
+                          maxWidth: 360,
+                          opacity: submitting ? 0.35 : 1,
+                          transition: "opacity 0.3s ease-out",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            letterSpacing: "0.14em",
+                            textTransform: "uppercase",
+                            color: "var(--text-tertiary, #9ca3af)",
+                          }}
+                        >
+                          {current!.purpose ? current!.purpose.replace(/_/g, " ") : `Variant ${currentIdx + 1}`}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginTop: 2, lineHeight: 1.35 }}>
+                          {current!.headline}
+                        </div>
+                      </div>
+
+                      {/* Carousel nav — fades during gen but stays mounted to keep layout stable */}
+                      <div
+                        className="flex items-center gap-3"
+                        style={{
+                          opacity: submitting ? 0.35 : 1,
+                          transition: "opacity 0.3s ease-out",
+                          pointerEvents: submitting ? "none" : "auto",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
+                          disabled={currentIdx === 0}
+                          className="rounded-full w-9 h-9 flex items-center justify-center"
+                          style={{
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                            cursor: currentIdx === 0 ? "not-allowed" : "pointer",
+                            opacity: currentIdx === 0 ? 0.4 : 1,
+                          }}
+                          aria-label="Previous"
+                        >
+                          ←
+                        </button>
+                        <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 64, textAlign: "center" }}>
+                          {currentIdx + 1} / {generated.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentIdx((i) => Math.min(generated.length - 1, i + 1))}
+                          disabled={currentIdx >= generated.length - 1}
+                          className="rounded-full w-9 h-9 flex items-center justify-center"
+                          style={{
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                            cursor: currentIdx >= generated.length - 1 ? "not-allowed" : "pointer",
+                            opacity: currentIdx >= generated.length - 1 ? 0.4 : 1,
+                          }}
+                          aria-label="Next"
+                        >
+                          →
+                        </button>
+                        <a
+                          href={current!.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className="text-xs font-semibold ml-2"
+                          style={{
+                            color: "var(--text-primary)",
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: 999,
+                            padding: "6px 12px",
+                            textDecoration: "none",
+                          }}
+                        >
+                          Télécharger
+                        </a>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Shimmer overlay — only mounted while generating. The wave
+                    sweeps left → right via the shimmerSweep keyframe defined
+                    in globals.css, plus a subtle "Génération…" pill so the
+                    user knows we're alive. */}
+                {submitting && (
+                  <>
                     <div
                       style={{
-                        aspectRatio: `${format.w} / ${format.h}`,
-                        maxHeight: 520,
-                        borderRadius: 18,
+                        position: "absolute",
+                        inset: 0,
+                        pointerEvents: "none",
                         overflow: "hidden",
-                        border: "1px solid var(--border-color)",
-                        background: "var(--bg-primary)",
+                        borderRadius: 16,
                       }}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={current!.url}
-                        alt={`Variant ${currentIdx + 1}`}
-                        style={{ height: "100%", display: "block" }}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          bottom: 0,
+                          left: 0,
+                          width: "60%",
+                          background:
+                            "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%)",
+                          animation: "shimmerSweep 1.8s ease-in-out infinite",
+                        }}
                       />
                     </div>
-
-                    {/* Carousel nav */}
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
-                        disabled={currentIdx === 0}
-                        className="rounded-full w-9 h-9 flex items-center justify-center"
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 16,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        background: "rgba(0,0,0,0.55)",
+                        color: "#fff",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        borderRadius: 999,
+                        padding: "6px 14px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <span
                         style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-color)",
-                          color: "var(--text-primary)",
-                          cursor: currentIdx === 0 ? "not-allowed" : "pointer",
-                          opacity: currentIdx === 0 ? 0.4 : 1,
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          border: "2px solid rgba(255,255,255,0.3)",
+                          borderTopColor: "#fff",
+                          animation: "spin 0.8s linear infinite",
+                          display: "inline-block",
                         }}
-                        aria-label="Previous"
-                      >
-                        ←
-                      </button>
-                      <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 64, textAlign: "center" }}>
-                        {currentIdx + 1} / {generated.length}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentIdx((i) => Math.min(generated.length - 1, i + 1))}
-                        disabled={currentIdx >= generated.length - 1}
-                        className="rounded-full w-9 h-9 flex items-center justify-center"
-                        style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-color)",
-                          color: "var(--text-primary)",
-                          cursor: currentIdx >= generated.length - 1 ? "not-allowed" : "pointer",
-                          opacity: currentIdx >= generated.length - 1 ? 0.4 : 1,
-                        }}
-                        aria-label="Next"
-                      >
-                        →
-                      </button>
-                      <a
-                        href={current!.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                        className="text-xs font-semibold ml-2"
-                        style={{
-                          color: "var(--text-primary)",
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-color)",
-                          borderRadius: 999,
-                          padding: "6px 12px",
-                          textDecoration: "none",
-                        }}
-                      >
-                        Télécharger
-                      </a>
+                      />
+                      Génération…
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

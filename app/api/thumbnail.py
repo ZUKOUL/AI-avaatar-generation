@@ -17,6 +17,7 @@ the scraped YouTube thumbnail back to Supabase).
 Credit cost: CREDIT_COST_THUMBNAIL (falls back to CREDIT_COST_IMAGE * 2).
 """
 
+import asyncio
 import base64
 import io
 import json
@@ -2622,4 +2623,311 @@ async def generate_appstore_direct(
         "format_dimensions": fmt,
         "credits_charged": 0 if is_admin(current_user) else cost,
         "engine": "gemini-3-pro-image-preview",
+    }
+
+
+# ── Smart pack: AI does the copywriting ───────────────────────────────────────
+# This is the user-facing happy path. The user feeds raw context (app name,
+# what it does, who it's for) and the strategist writes polished headlines
+# for N distinct screenshots — the user never has to do copywriting. Each
+# variant takes a different position in the conversion narrative arc
+# (hook → proof → secondary → social → closer) so they actually look
+# different from each other instead of being 5 reskins of the same idea.
+
+# Which strategist screens to pick for each requested variant count, ordered
+# so screen 1 (the hook) is always first.
+_PACK_VARIANT_PICKS: dict[int, list[int]] = {
+    1: [1],
+    3: [1, 3, 5],
+    5: [1, 2, 3, 4, 5],
+}
+
+
+async def _render_pack_screen(
+    *,
+    client: "genai.Client",
+    screen: dict,
+    app_name: str,
+    color_primary: Optional[str],
+    color_secondary: Optional[str],
+    has_real_ui: bool,
+    has_brand_logo: bool,
+    style_anchor_summary: Optional[str],
+    anchor_ref_bytes: list[bytes],
+    icon_bytes: Optional[bytes],
+    icon_mime: str,
+    real_ui_bytes: list[tuple[bytes, str]],
+    user_id: str,
+    pack_id: str,
+) -> Optional[dict]:
+    """Render one screen in a thread pool. Returns {url, headline, purpose, screen_index} or None on error."""
+    try:
+        prompt = _compose_appstore_screen_prompt(
+            screen=screen,
+            app_name=app_name,
+            color_primary=color_primary,
+            color_secondary=color_secondary,
+            has_real_ui=has_real_ui,
+            has_brand_logo=has_brand_logo,
+            style_anchor_summary=style_anchor_summary,
+        )
+        contents: list = []
+        for ref in anchor_ref_bytes:
+            contents.append(types.Part.from_bytes(data=ref, mime_type="image/jpeg"))
+        if icon_bytes:
+            contents.append(types.Part.from_bytes(data=icon_bytes, mime_type=icon_mime))
+        for data, mime in real_ui_bytes[:3]:
+            contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+        contents.append(prompt)
+
+        def _call():
+            return client.models.generate_content(
+                model="gemini-3-pro-image-preview",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["TEXT", "IMAGE"],
+                    image_config=types.ImageConfig(
+                        aspect_ratio=APPSTORE_GEMINI_RATIO,
+                        image_size="2K",
+                    ),
+                ),
+            )
+
+        response = await asyncio.to_thread(_call)
+        if not response.candidates or not response.candidates[0].content:
+            return None
+        img_bytes: Optional[bytes] = None
+        for part in response.candidates[0].content.parts or []:
+            if part.inline_data:
+                img_bytes = part.inline_data.data
+                break
+        if not img_bytes:
+            return None
+
+        screen_id = f"{pack_id}-s{screen['screen']}"
+        storage_path = f"thumbnails/{user_id}/{screen_id}.png"
+
+        def _upload():
+            supabase.storage.from_("avatars").upload(
+                path=storage_path,
+                file=img_bytes,
+                file_options={"content-type": "image/png", "x-upsert": "true"},
+            )
+            return supabase.storage.from_("avatars").get_public_url(storage_path)
+
+        url = await asyncio.to_thread(_upload)
+
+        try:
+            prefix = encode_thumbnail_prefix(f"appstore-pack-{screen['screen']}", APPSTORE_GEMINI_RATIO)
+            await asyncio.to_thread(
+                lambda: supabase.table("generated_images").insert({
+                    "id": screen_id,
+                    "user_id": user_id,
+                    "avatar_id": None,
+                    "prompt": f"{prefix} [pack:{pack_id}] {screen['headline']}",
+                    "image_url": url,
+                    "storage_path": storage_path,
+                }).execute()
+            )
+        except Exception as db_err:
+            logger.error(f"history insert failed for {screen_id}: {db_err}")
+
+        return {
+            "screen": screen["screen"],
+            "image_url": url,
+            "headline": screen["headline"],
+            "subheadline": screen.get("subheadline", ""),
+            "purpose": screen["purpose"],
+        }
+    except APIError as api_err:
+        logger.error(f"Gemini API error rendering pack screen {screen.get('screen')}: {api_err}")
+        return None
+    except Exception as e:
+        logger.error(f"pack screen {screen.get('screen')} failed: {e}")
+        return None
+
+
+@router.post("/generate-appstore-pack")
+async def generate_appstore_pack_smart(
+    current_user: Annotated[User, Depends(get_current_user)],
+    app_name: str = Form(...),
+    app_description: str = Form(..., description="What the app does + who it's for. The strategist uses this to write polished headlines."),
+    headline_hint: Optional[str] = Form(None, description="Optional rough idea — the strategist may use it as inspiration but always polishes the wording"),
+    vertical: Optional[str] = Form(None),
+    color_primary: Optional[str] = Form(None),
+    color_secondary: Optional[str] = Form(None),
+    social_proof: Optional[str] = Form(None, description="Comma-separated, e.g. '★ 4.8, 100k users'"),
+    tone: Optional[str] = Form(None),
+    format: str = Form(APPSTORE_DEFAULT_FORMAT),
+    num_variants: int = Form(5, description="How many distinct screenshots to generate (1, 3 or 5)"),
+    files: List[UploadFile] = File(default=[]),
+):
+    """
+    The smart, user-facing pack endpoint.
+
+    Pipeline (all transparent to the user):
+      1. Strategist (Gemini 2.5 Pro) reads the context and writes polished
+         headlines for 5 distinct frames in a conversion narrative arc.
+      2. Pick `num_variants` frames from that brief (e.g. for 3 variants
+         we keep hook + secondary + closer to maximise distinctness).
+      3. Render the picked frames in parallel via Gemini 3 Pro Image.
+
+    The user never sees the brief — they hand over context, get back
+    `num_variants` polished screenshots.
+    """
+    fmt = APPSTORE_FORMATS.get(format)
+    if not fmt:
+        raise HTTPException(status_code=400, detail=f"Unknown format '{format}'.")
+    if num_variants not in _PACK_VARIANT_PICKS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"num_variants must be one of {sorted(_PACK_VARIANT_PICKS)}",
+        )
+    if not app_name.strip() or not app_description.strip():
+        raise HTTPException(status_code=400, detail="app_name and app_description are required.")
+
+    cost = CREDIT_COST_APPSTORE_PER_SCREEN * num_variants
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < cost:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "INSUFFICIENT_CREDITS",
+                    "message": f"You need {cost} credit(s). Current balance: {balance}",
+                },
+            )
+
+    pack_id = str(uuid.uuid4())
+    logger.info(f"App Store smart pack {pack_id} for user {current_user['id']} ({num_variants} variants)")
+
+    # Read user uploads once.
+    icon_bytes: Optional[bytes] = None
+    icon_mime: str = "image/png"
+    real_ui_bytes: list[tuple[bytes, str]] = []
+    for idx, f in enumerate(files[:6]):
+        data = await f.read()
+        if not data:
+            continue
+        mime = f.content_type or "image/png"
+        # Heuristic: square first upload = icon, the rest = screen refs.
+        if idx == 0 and icon_bytes is None and mime.startswith("image/"):
+            icon_bytes = data
+            icon_mime = mime
+        else:
+            real_ui_bytes.append((data, mime))
+
+    # Strategist pass — the heart of the copy quality.
+    proof_list = (
+        [s.strip() for s in social_proof.split(",") if s.strip()] if social_proof else None
+    )
+    style_anchor = niche_loader.pick_pack_for(
+        vertical=vertical,
+        description=f"{app_name} {app_description} {headline_hint or ''}",
+    )
+    # If the user gave a headline hint, append it as additional context for
+    # the strategist — it'll polish, never copy verbatim.
+    enriched_description = app_description.strip()
+    if headline_hint and headline_hint.strip():
+        enriched_description += (
+            f"\n\nThe user's rough headline idea (use as inspiration only — DO NOT "
+            f"render it verbatim, write a polished, conversion-focused version "
+            f"that's tighter and punchier): \"{headline_hint.strip()}\""
+        )
+
+    brief = await design_appstore_brief(
+        app_name=app_name.strip(),
+        what_it_does=enriched_description,
+        who_for="(infer from the description above)",
+        vertical_hint=vertical,
+        tone_pref=tone,
+        color_primary=color_primary,
+        color_secondary=color_secondary,
+        social_proof=proof_list,
+        real_screenshots=[d for d, _ in real_ui_bytes[:3]] or None,
+        style_anchor_pack=style_anchor,
+    )
+    if not brief:
+        raise HTTPException(
+            status_code=502,
+            detail="The strategist failed to produce headlines. Try again — usually a transient upstream issue.",
+        )
+
+    # Pick the screens to render.
+    picks = _PACK_VARIANT_PICKS[num_variants]
+    screens_to_render = [
+        next((s for s in brief["screens"] if s["screen"] == idx), None) for idx in picks
+    ]
+    screens_to_render = [s for s in screens_to_render if s]
+    if not screens_to_render:
+        raise HTTPException(status_code=502, detail="Strategist returned no usable screens.")
+
+    # Anchor refs for visual consistency — load once, reuse across calls.
+    anchor_summary = niche_loader.style_profile_summary(style_anchor) if style_anchor else None
+    anchor_ref_bytes: list[bytes] = []
+    if style_anchor:
+        for path in style_anchor["screen_paths"][:2]:
+            data = niche_loader.read_reference_bytes(path)
+            if data:
+                anchor_ref_bytes.append(data)
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+    # Fire all image generations in parallel — ~3-4× faster than sequential
+    # for 5 variants. asyncio.to_thread inside _render_pack_screen wraps
+    # the blocking SDK calls so they don't block the event loop.
+    tasks = [
+        _render_pack_screen(
+            client=client,
+            screen=s,
+            app_name=app_name.strip(),
+            color_primary=color_primary,
+            color_secondary=color_secondary,
+            has_real_ui=bool(real_ui_bytes),
+            has_brand_logo=icon_bytes is not None,
+            style_anchor_summary=anchor_summary,
+            anchor_ref_bytes=anchor_ref_bytes,
+            icon_bytes=icon_bytes,
+            icon_mime=icon_mime,
+            real_ui_bytes=real_ui_bytes,
+            user_id=current_user["id"],
+            pack_id=pack_id,
+        )
+        for s in screens_to_render
+    ]
+    results = await asyncio.gather(*tasks)
+    successful = [r for r in results if r]
+
+    if not successful:
+        raise HTTPException(status_code=502, detail="All image generations failed. No credits charged.")
+
+    # Charge proportionally on partial success so the user only pays for
+    # what shipped. Full pack only if every shot landed.
+    if not is_admin(current_user):
+        actual_cost = (
+            CREDIT_COST_APPSTORE_PER_SCREEN * len(successful)
+        )
+        deduct_credits(
+            current_user["id"],
+            actual_cost,
+            "appstore_pack_smart",
+            f"App Store smart pack ({len(successful)}/{num_variants}): {app_name[:40]}",
+        )
+
+    return {
+        "status": "ok",
+        "pack_id": pack_id,
+        "app_name": app_name,
+        "format": format,
+        "format_dimensions": fmt,
+        "num_requested": num_variants,
+        "successful_count": len(successful),
+        "tone_used": brief.get("tone_used"),
+        "narrative_arc": brief.get("narrative_arc"),
+        "generated": successful,
+        "credits_charged": (
+            0 if is_admin(current_user) else CREDIT_COST_APPSTORE_PER_SCREEN * len(successful)
+        ),
+        "engine": "gemini-3-pro-image-preview",
+        "strategist": "gemini-2.5-pro",
     }
