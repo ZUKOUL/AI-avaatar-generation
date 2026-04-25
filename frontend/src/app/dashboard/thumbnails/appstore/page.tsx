@@ -56,8 +56,41 @@ interface Generated {
   screen: number;
 }
 
+interface Project {
+  id: string;
+  appName: string;
+  appDescription: string;
+  headlineHint: string;
+  vertical: Vertical;
+  accent: string;
+  formatKey: string;
+  generated: Generated[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 const VARIANT_COUNTS = [1, 3, 5] as const;
 type VariantCount = (typeof VARIANT_COUNTS)[number];
+
+const PROJECTS_STORAGE_KEY = "horpen_appstore_projects_v1";
+const MAX_PROJECTS = 20;
+
+function genProjectId(): string {
+  // Browsers without crypto.randomUUID still need a unique-enough key —
+  // collision risk is negligible for a per-user localStorage list.
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function relativeTime(ts: number): string {
+  const diffSec = (Date.now() - ts) / 1000;
+  if (diffSec < 60) return "à l'instant";
+  if (diffSec < 3600) return `il y a ${Math.floor(diffSec / 60)} min`;
+  if (diffSec < 86400) return `il y a ${Math.floor(diffSec / 3600)} h`;
+  return `il y a ${Math.floor(diffSec / 86400)} j`;
+}
 
 export default function AppStoreScreenshotStudio() {
   const [appName, setAppName] = useState("");
@@ -74,6 +107,12 @@ export default function AppStoreScreenshotStudio() {
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<Generated[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
+
+  // Project archive — each app gets its own entry. Persists in localStorage
+  // so the user keeps every past pack across reloads. Images stay valid
+  // because the URLs point at Supabase storage (we don't blob-cache).
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   const format = FORMAT_PRESETS.find((f) => f.key === formatKey)!;
 
@@ -97,6 +136,106 @@ export default function AppStoreScreenshotStudio() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Project archive: load on mount ────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) setProjects(parsed.slice(0, MAX_PROJECTS));
+    } catch {
+      // Corrupt or stale entry — wipe rather than crash.
+      localStorage.removeItem(PROJECTS_STORAGE_KEY);
+    }
+  }, []);
+
+  // Auto-save the current project after each successful generation. We
+  // only persist once there's at least 1 image so empty drafts don't
+  // pollute the history.
+  useEffect(() => {
+    if (generated.length === 0) return;
+    if (typeof window === "undefined") return;
+
+    const id = currentProjectId || genProjectId();
+    const existingIdx = projects.findIndex((p) => p.id === id);
+    const existing = existingIdx >= 0 ? projects[existingIdx] : null;
+    const project: Project = {
+      id,
+      appName: appName.trim() || "Sans nom",
+      appDescription,
+      headlineHint,
+      vertical,
+      accent,
+      formatKey,
+      generated,
+      createdAt: existing?.createdAt ?? Date.now(),
+      updatedAt: Date.now(),
+    };
+    const others = projects.filter((p) => p.id !== id);
+    const next = [project, ...others].slice(0, MAX_PROJECTS);
+    setProjects(next);
+    try {
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Quota exceeded (rare — images are URL refs, not blobs). Drop oldest.
+      const trimmed = next.slice(0, Math.max(5, Math.floor(MAX_PROJECTS / 2)));
+      try {
+        localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(trimmed));
+      } catch {
+        /* give up silently */
+      }
+    }
+    if (!currentProjectId) setCurrentProjectId(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generated]);
+
+  const startNewProject = () => {
+    setCurrentProjectId(null);
+    setAppName("");
+    setAppDescription("");
+    setHeadlineHint("");
+    setVertical("utility");
+    setAccent("#FF6B35");
+    setFormatKey("iphone67");
+    setNumVariants(5);
+    setRefs([]);
+    refPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setRefPreviews([]);
+    setGenerated([]);
+    setCurrentIdx(0);
+    setError(null);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const loadProject = (p: Project) => {
+    setCurrentProjectId(p.id);
+    setAppName(p.appName);
+    setAppDescription(p.appDescription);
+    setHeadlineHint(p.headlineHint);
+    setVertical(p.vertical);
+    setAccent(p.accent);
+    setFormatKey(p.formatKey);
+    setRefs([]); // refs aren't serialisable; user re-uploads if they want
+    refPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setRefPreviews([]);
+    setGenerated(p.generated);
+    setCurrentIdx(0);
+    setError(null);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const deleteProject = (id: string) => {
+    const next = projects.filter((p) => p.id !== id);
+    setProjects(next);
+    try {
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+    if (currentProjectId === id) startNewProject();
+  };
 
   const handleGenerate = async () => {
     if (!appName.trim() || !appDescription.trim()) {
@@ -468,6 +607,60 @@ export default function AppStoreScreenshotStudio() {
 
             {/* ── Preview ── */}
             <div className="flex flex-col gap-4">
+              {/* Active project header — only when there's something to reset */}
+              {(showingGenerated || appName.trim() || appDescription.trim()) && (
+                <div
+                  className="flex items-center justify-between rounded-xl px-4 py-2.5"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <div className="min-w-0">
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        color: "var(--text-tertiary, #9ca3af)",
+                      }}
+                    >
+                      Projet en cours
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        marginTop: 1,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {appName.trim() || "Sans nom"}{showingGenerated && ` · ${generated.length} ${generated.length > 1 ? "visuels" : "visuel"}`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startNewProject}
+                    disabled={submitting}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-primary)",
+                      cursor: submitting ? "not-allowed" : "pointer",
+                      opacity: submitting ? 0.5 : 1,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    + Nouveau projet
+                  </button>
+                </div>
+              )}
+
               <div
                 className="rounded-2xl p-5 flex items-center justify-center"
                 style={{
@@ -675,6 +868,163 @@ export default function AppStoreScreenshotStudio() {
               </div>
             </div>
           </div>
+
+          {/* ── Project history ── */}
+          {projects.length > 0 && (
+            <div className="mt-12">
+              <div className="flex items-baseline justify-between mb-4">
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--text-tertiary, #9ca3af)",
+                    }}
+                  >
+                    Projets
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                      marginTop: 2,
+                    }}
+                  >
+                    Tes packs précédents ({projects.length})
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-tertiary, #9ca3af)" }}>
+                  Clique pour reprendre
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {projects.map((p) => {
+                  const isActive = p.id === currentProjectId;
+                  const cover = p.generated[0]?.url;
+                  return (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl overflow-hidden flex flex-col"
+                      style={{
+                        background: "var(--bg-secondary)",
+                        border: isActive
+                          ? `1.5px solid ${p.accent}`
+                          : "1px solid var(--border-color)",
+                        boxShadow: isActive ? `0 0 0 4px ${p.accent}22` : "none",
+                        transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => loadProject(p)}
+                        className="text-left flex"
+                        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, width: "100%" }}
+                      >
+                        <div
+                          style={{
+                            width: 88,
+                            aspectRatio: "9 / 19.5",
+                            flexShrink: 0,
+                            background: cover ? "transparent" : `linear-gradient(160deg, ${p.accent}, ${p.accent}99)`,
+                            borderRight: "1px solid var(--border-color)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {cover && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={cover}
+                              alt={p.appName}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 p-3 flex flex-col justify-between" style={{ minHeight: 110 }}>
+                          <div>
+                            <div
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                color: "var(--text-primary)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {p.appName || "Sans nom"}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 11.5,
+                                color: "var(--text-secondary)",
+                                marginTop: 4,
+                                lineHeight: 1.4,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {p.appDescription || "(pas de description)"}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <div style={{ fontSize: 10.5, color: "var(--text-tertiary, #9ca3af)" }}>
+                              {p.generated.length} {p.generated.length > 1 ? "visuels" : "visuel"} · {relativeTime(p.updatedAt)}
+                            </div>
+                            <div
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: 4,
+                                background: p.accent,
+                                border: "1px solid var(--border-color)",
+                              }}
+                              title={p.accent}
+                            />
+                          </div>
+                        </div>
+                      </button>
+                      <div
+                        className="flex items-center justify-end px-3 pb-2"
+                        style={{ background: "var(--bg-secondary)" }}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Supprimer "${p.appName || "ce projet"}" de l'historique ?`)) {
+                              deleteProject(p.id);
+                            }
+                          }}
+                          className="text-xs"
+                          style={{
+                            color: "var(--text-tertiary, #9ca3af)",
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "2px 6px",
+                          }}
+                          title="Supprimer ce projet"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
