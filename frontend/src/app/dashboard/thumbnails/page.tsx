@@ -737,19 +737,94 @@ export default function ThumbnailStudio() {
    * paste silently. */
   const YT_URL_RE =
     /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/)|youtu\.be\/)[A-Za-z0-9_\-]{11}(?:[^\s]*)?)/g;
+  // Generic URL matcher — used to catch Twitter / X / Instagram / TikTok /
+  // LinkedIn / blog links that the backend's og:image scraper can handle.
+  // Excludes URLs already caught by YT_URL_RE so we don't double-fire.
+  const ANY_URL_RE = /(https?:\/\/[^\s<>"']+)/g;
+
+  /**
+   * Send an arbitrary image File through the backend describe endpoint
+   * and replace the prompt with the returned paragraph. Reuses the same
+   * `describingYoutubeUrls` spinner state — the badge label says "URL"
+   * but the user only cares that something is loading.
+   */
+  const describePastedOrDroppedImage = (file: File) => {
+    const tag = `image:${file.name || "clipboard"}:${Date.now()}`;
+    setDescribingYoutubeUrls((prev) => new Set(prev).add(tag));
+    thumbnailAPI
+      .describeImage(file)
+      .then((res) => {
+        const desc = (res.data?.description || "").trim();
+        if (!desc) return;
+        setPrompt((p) => (p ? p + (p.endsWith(" ") || p.endsWith("\n") ? "" : " ") + desc : desc));
+      })
+      .catch((err) => {
+        console.warn("describeImage failed:", err);
+      })
+      .finally(() => {
+        setDescribingYoutubeUrls((prev) => {
+          const next = new Set(prev);
+          next.delete(tag);
+          return next;
+        });
+      });
+  };
+
+  /**
+   * Send a non-YouTube URL through the og:image describe endpoint and
+   * splice the description back into the prompt where the URL was.
+   */
+  const describeAnyUrl = (url: string) => {
+    if (describingYoutubeUrls.has(url)) return;
+    setDescribingYoutubeUrls((prev) => new Set(prev).add(url));
+    thumbnailAPI
+      .describeUrl(url)
+      .then((res) => {
+        const desc = (res.data?.description || "").trim();
+        if (!desc) return;
+        setPrompt((p) => {
+          const idx = p.indexOf(url);
+          if (idx === -1) return p;
+          return p.slice(0, idx) + desc + p.slice(idx + url.length);
+        });
+      })
+      .catch((err) => {
+        // 404 / scraper-blocked → leave the URL in place silently.
+        console.warn("describeUrl failed:", err);
+      })
+      .finally(() => {
+        setDescribingYoutubeUrls((prev) => {
+          const next = new Set(prev);
+          next.delete(url);
+          return next;
+        });
+      });
+  };
 
   const handlePromptPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // 1. Image paste — clipboard contains a copied image (e.g. screenshot
+    //    in macOS, "copy image" from a browser, etc.). The describe call
+    //    runs the same Gemini Flash prompt as URL paste and appends the
+    //    paragraph to the prompt textarea.
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItem = items.find((it) => it.kind === "file" && it.type.startsWith("image/"));
+    if (imageItem) {
+      const file = imageItem.getAsFile();
+      if (file) {
+        e.preventDefault(); // suppress the default "paste raw bytes as text" attempt
+        describePastedOrDroppedImage(file);
+        return;
+      }
+    }
+
     const pasted = e.clipboardData.getData("text");
     if (!pasted) return;
-    // Pull out every YouTube URL from the paste. Usually there's exactly
-    // one, but users sometimes paste a comment thread with multiple links.
-    const urls = Array.from(pasted.matchAll(YT_URL_RE), (m) => m[1]);
-    if (urls.length === 0) return;
 
-    // Let the default paste happen so the user sees the URL immediately.
-    // We dispatch the description fetches in the background.
-    for (const rawUrl of urls) {
-      // Strip trailing punctuation the regex may have swept up ("watch?…,").
+    // 2. YouTube URLs — use the existing rich CDN path (better quality
+    //    than scraping the watch page).
+    const ytUrls = Array.from(pasted.matchAll(YT_URL_RE), (m) => m[1]);
+    const ytSet = new Set(ytUrls.map((u) => u.replace(/[),.;]+$/, "")));
+    for (const rawUrl of ytUrls) {
       const url = rawUrl.replace(/[),.;]+$/, "");
       if (describingYoutubeUrls.has(url)) continue;
       setDescribingYoutubeUrls((prev) => new Set(prev).add(url));
@@ -758,10 +833,6 @@ export default function ThumbnailStudio() {
         .then((res) => {
           const desc = (res.data?.description || "").trim();
           if (!desc) return;
-          // Replace the URL (first occurrence) with the description in the
-          // current prompt state. Using the functional updater guarantees
-          // we operate on the latest state even if other edits happened
-          // while the request was in flight.
           setPrompt((p) => {
             const idx = p.indexOf(url);
             if (idx === -1) return p;
@@ -769,9 +840,6 @@ export default function ThumbnailStudio() {
           });
         })
         .catch((err) => {
-          // Surface the failure to the console but don't disrupt the user.
-          // Leaving the URL in place means they can still hit Generate —
-          // the recreate-mode URL field + our prompt both work.
           console.warn("describeYoutube failed:", err);
         })
         .finally(() => {
@@ -782,6 +850,29 @@ export default function ThumbnailStudio() {
           });
         });
     }
+
+    // 3. Any OTHER URL (Twitter, Instagram, TikTok, LinkedIn, blog, …) —
+    //    backend scrapes og:image / twitter:image and describes it.
+    const otherUrls = Array.from(pasted.matchAll(ANY_URL_RE), (m) => m[1])
+      .map((u) => u.replace(/[),.;]+$/, ""))
+      .filter((u) => !ytSet.has(u));
+    for (const url of otherUrls) {
+      describeAnyUrl(url);
+    }
+  };
+
+  /**
+   * Drop handler for the prompt textarea wrapper. Accepts image files
+   * dragged from Finder, browser, etc. Mirrors the paste flow.
+   */
+  const handlePromptDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const files = Array.from(e.dataTransfer?.files || []).filter((f) =>
+      (f.type || "").startsWith("image/")
+    );
+    if (files.length === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    files.forEach((f) => describePastedOrDroppedImage(f));
   };
 
   /* ─── Paste from clipboard button ─── */
@@ -3297,6 +3388,17 @@ export default function ThumbnailStudio() {
                   background: "var(--bg-primary)",
                   border: "1px solid var(--border-color)",
                 }}
+                // Drop a screenshot from Finder / browser onto the
+                // prompt area and the backend describes it for you.
+                onDragOver={(e) => {
+                  if (Array.from(e.dataTransfer?.items || []).some(
+                    (it) => it.kind === "file" && it.type.startsWith("image/")
+                  )) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }
+                }}
+                onDrop={handlePromptDrop}
               >
                 <textarea
                   ref={textareaRef}

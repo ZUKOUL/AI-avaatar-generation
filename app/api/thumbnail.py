@@ -2942,3 +2942,264 @@ async def generate_appstore_pack_smart(
         "engine": "gemini-3-pro-image-preview",
         "strategist": "gemini-2.5-pro",
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Describe ANY image — paste-link from any social platform OR drag/drop/paste
+# image into the prompt textarea on the YouTube Thumbnails page.
+#
+# Two endpoints, one shared describe core:
+#   POST /thumbnail/describe-url    — URL → og:image scrape → Gemini Flash
+#   POST /thumbnail/describe-image  — uploaded file → Gemini Flash
+#
+# Both run the same prompt as describe-youtube-thumbnail so the output slots
+# straight back into the prompt textarea as a paragraph that Nano Banana can
+# act on.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Pretend to be a real browser so platforms that gate scrapers behind a UA
+# check (Twitter/X, Instagram, LinkedIn) still serve us the og:image meta.
+_BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+_BROWSER_HEADERS = {
+    "User-Agent": _BROWSER_UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+# Match og:image and twitter:image variants in any order of property/name +
+# any quote style. We deliberately keep this regex tolerant — XML/HTML
+# parsers add overhead and most social cards expose the meta tags cleanly.
+_OG_IMAGE_RE = re.compile(
+    r"""<meta\s+[^>]*?(?:property|name)\s*=\s*["'](?P<prop>og:image(?::secure_url|:url)?|twitter:image(?::src)?)["'][^>]*?content\s*=\s*["'](?P<url>[^"']+)["']""",
+    re.IGNORECASE | re.DOTALL,
+)
+_OG_IMAGE_REVERSE_RE = re.compile(
+    r"""<meta\s+[^>]*?content\s*=\s*["'](?P<url>[^"']+)["'][^>]*?(?:property|name)\s*=\s*["'](?P<prop>og:image(?::secure_url|:url)?|twitter:image(?::src)?)["']""",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+async def _fetch_og_image(url: str) -> Optional[tuple[bytes, str]]:
+    """
+    Try hard to extract a thumbnail-like image from any URL:
+      1. If it's a YouTube link, use the existing CDN path (richer).
+      2. Otherwise fetch the HTML, look for og:image / twitter:image,
+         download that image, return (bytes, mime).
+
+    Returns None if no usable image was found.
+    """
+    if not url:
+        return None
+    yt_id = extract_youtube_id(url)
+    if yt_id:
+        data = await fetch_youtube_thumbnail(yt_id)
+        if data:
+            return (data, "image/jpeg")
+        # fall through — maybe og:image works on the watch page
+
+    try:
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            headers=_BROWSER_HEADERS,
+        ) as http:
+            page = await http.get(url)
+    except Exception as e:
+        logger.warning(f"og:image page fetch failed for {url}: {e}")
+        return None
+    if page.status_code >= 400:
+        logger.warning(f"og:image page {url} returned HTTP {page.status_code}")
+        return None
+
+    html = page.text or ""
+    if not html:
+        return None
+
+    # Prefer og:image:secure_url > og:image:url > og:image > twitter:image:src > twitter:image
+    candidates: list[tuple[int, str]] = []
+    priority = {
+        "og:image:secure_url": 0,
+        "og:image:url": 1,
+        "og:image": 2,
+        "twitter:image:src": 3,
+        "twitter:image": 4,
+    }
+    for regex in (_OG_IMAGE_RE, _OG_IMAGE_REVERSE_RE):
+        for m in regex.finditer(html):
+            prop = m.group("prop").lower()
+            img_url = m.group("url").strip()
+            if img_url:
+                candidates.append((priority.get(prop, 9), img_url))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda t: t[0])
+    img_url = candidates[0][1]
+
+    # Resolve protocol-relative or root-relative URLs against the page URL.
+    if img_url.startswith("//"):
+        img_url = "https:" + img_url
+    elif img_url.startswith("/"):
+        from urllib.parse import urlparse
+        u = urlparse(str(page.url))
+        img_url = f"{u.scheme}://{u.netloc}{img_url}"
+
+    try:
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            headers=_BROWSER_HEADERS,
+        ) as http:
+            img = await http.get(img_url)
+    except Exception as e:
+        logger.warning(f"og:image download failed for {img_url}: {e}")
+        return None
+    if img.status_code != 200 or len(img.content) < 500:
+        return None
+    mime = img.headers.get("content-type", "image/jpeg").split(";")[0].strip().lower()
+    if not mime.startswith("image/"):
+        # Some CDNs return application/octet-stream; sniff the magic bytes.
+        head = img.content[:12]
+        if head.startswith(b"\x89PNG"):
+            mime = "image/png"
+        elif head.startswith(b"\xff\xd8"):
+            mime = "image/jpeg"
+        elif head[:6] in (b"GIF87a", b"GIF89a"):
+            mime = "image/gif"
+        elif head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+            mime = "image/webp"
+        else:
+            mime = "image/jpeg"
+    return (img.content, mime)
+
+
+_DESCRIBE_THUMBNAIL_PROMPT = (
+    "Describe this thumbnail in precise detail so that an AI image "
+    "generator could recreate the SCENE (not the specific people). "
+    "Format: one paragraph, 3-5 sentences, no bullet points. Cover: "
+    "(1) composition and framing, "
+    "(2) any people present — but ONLY their role/archetype, pose, gesture, "
+    "facial expression and rough placement in the frame. Use generic "
+    "references like 'a man', 'a woman', 'a person', 'two people'. "
+    "DO NOT describe physical features (no beard, no hair colour or style, "
+    "no eye colour, no skin tone, no age, no ethnicity). "
+    "DO NOT describe their specific clothing (no brand, no colour of shirt, "
+    "no outfit details) — just mention clothing type only if it's essential "
+    "to the scene (e.g. 'in sports gear', 'in formal attire'). "
+    "(3) non-human subjects and props — these CAN be described in full "
+    "detail (cars, food, logos, screens, etc.), "
+    "(4) colour palette and lighting style of the overall image "
+    "(saturated/moody/high-contrast/etc.), "
+    "(5) any text overlay including exact wording, font style and colour, "
+    "(6) overall mood and visual style (cinematic, cartoonish, "
+    "MrBeast-style, photorealistic, etc.). "
+    "Be specific and vivid about the scene, composition, objects and "
+    "atmosphere — but keep people deliberately vague so the user can "
+    "substitute their own character. Do not add any preamble like "
+    "'Here is the description'; just write the description directly."
+)
+
+_DESCRIPTION_BOILERPLATE_RE = re.compile(
+    r"^(?:here(?:'s| is)?(?: a| the)?\s+description[:.]?\s*|"
+    r"this (?:youtube |image |thumbnail |photo )?(?:thumbnail |image |photo )?(?:shows|depicts|features)\s+)",
+    re.IGNORECASE,
+)
+
+
+async def _describe_image_bytes(img_bytes: bytes, mime: str) -> str:
+    """Run the shared describe-thumbnail prompt against image bytes."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="AI service not configured.")
+    if len(img_bytes) < 500:
+        raise HTTPException(status_code=400, detail="Image too small / empty.")
+    if not mime.startswith("image/"):
+        mime = "image/jpeg"
+    client = genai.Client(api_key=api_key)
+    try:
+        def _call():
+            return client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Part.from_bytes(data=img_bytes, mime_type=mime),
+                    _DESCRIBE_THUMBNAIL_PROMPT,
+                ],
+            )
+        response = await asyncio.to_thread(_call)
+        description = (response.text or "").strip() if response else ""
+        if not description:
+            raise HTTPException(status_code=502, detail="Gemini returned an empty description.")
+        return _DESCRIPTION_BOILERPLATE_RE.sub("", description).strip()
+    except APIError as e:
+        logger.error(f"describe Gemini error: {e}")
+        raise HTTPException(status_code=502, detail=f"AI description failed: {e}")
+
+
+@router.post("/describe-url")
+async def describe_url(
+    current_user: Annotated[User, Depends(get_current_user)],
+    url: str = Form(..., description="Any URL — YouTube, Twitter/X, Instagram, TikTok, LinkedIn, blog post, etc."),
+):
+    """
+    Universal URL → thumbnail description.
+
+    Tries YouTube CDN first when the URL is recognised, otherwise falls
+    back to scraping og:image / twitter:image meta tags from the page
+    HTML and downloading that image. Image then runs through the same
+    Gemini Flash describe prompt as the YouTube path.
+    """
+    url = (url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required.")
+
+    fetched = await _fetch_og_image(url)
+    if not fetched:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No thumbnail found at that URL. The site might block scrapers, "
+                "require login, or simply not publish an og:image / twitter:image "
+                "meta tag. Try a different link or paste the image directly."
+            ),
+        )
+    img_bytes, mime = fetched
+    description = await _describe_image_bytes(img_bytes, mime)
+
+    yt_id = extract_youtube_id(url)
+    return {
+        "description": description,
+        "source": "youtube" if yt_id else "og_image",
+        "video_id": yt_id,
+        "image_size_bytes": len(img_bytes),
+        "image_mime": mime,
+    }
+
+
+@router.post("/describe-image")
+async def describe_image_upload(
+    current_user: Annotated[User, Depends(get_current_user)],
+    file: UploadFile = File(..., description="An image pasted, dropped or uploaded into the prompt textarea."),
+):
+    """
+    Direct image → thumbnail description. Used when the user pastes or
+    drops an image into the prompt textarea on the YouTube Thumbnails
+    page. Same Gemini Flash describe prompt as describe-url, just no
+    fetch hop.
+    """
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided.")
+    img_bytes = await file.read()
+    if not img_bytes:
+        raise HTTPException(status_code=400, detail="Empty file.")
+    mime = file.content_type or "image/png"
+    description = await _describe_image_bytes(img_bytes, mime)
+    return {
+        "description": description,
+        "source": "upload",
+        "filename": file.filename,
+        "image_size_bytes": len(img_bytes),
+        "image_mime": mime,
+    }

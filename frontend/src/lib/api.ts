@@ -215,6 +215,32 @@ export const thumbnailAPI = {
       // bump explicitly so a slower upstream doesn't 504 us at 30 s.
       timeout: 180_000,
     }),
+  /**
+   * Universal URL → thumbnail description. Works for YouTube (uses the
+   * existing CDN path) AND any other social URL — Twitter/X, Instagram,
+   * TikTok, LinkedIn, blogs — by scraping the og:image / twitter:image
+   * meta tag from the page HTML and running the resulting image through
+   * Gemini Flash. Returns `{ description, source, video_id?, ... }`.
+   */
+  describeUrl: (url: string) => {
+    const formData = new FormData();
+    formData.append("url", url);
+    return api.post("/thumbnail/describe-url", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  /**
+   * Direct image → description. Called when the user pastes or drops
+   * an image into the prompt textarea. Same Gemini Flash describe
+   * prompt as describeUrl, just no scrape hop.
+   */
+  describeImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post("/thumbnail/describe-image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 };
 
 // ── Ads (product training + ad creative generation) ──
