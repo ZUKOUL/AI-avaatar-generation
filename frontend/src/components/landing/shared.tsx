@@ -140,7 +140,7 @@ export const PRODUCT_APP_ROUTES: Record<ProductSlug, { href: string; paths: stri
   canvas:   { href: "/dashboard/videos",     paths: ["/dashboard/videos", "/dashboard/images", "/dashboard/canvas"] },
   avatar:   { href: "/dashboard/avatars",    paths: ["/dashboard/avatars", "/dashboard/characters", "/dashboard/avatar"] },
   adlab:    { href: "/dashboard/ads",        paths: ["/dashboard/ads", "/dashboard/adlab"] },
-  thumbs:   { href: "/dashboard/thumbnails", paths: ["/dashboard/thumbnails", "/dashboard/thumbs"] },
+  thumbs:   { href: "/dashboard/thumbnails", paths: ["/dashboard/thumbnails", "/dashboard/thumbs", "/dashboard/thumbnails/appstore"] },
   clipsy:   { href: "/dashboard/ai-videos",  paths: ["/dashboard/ai-videos", "/dashboard/clips", "/dashboard/clipsy", "/dashboard/autoclip"] },
 };
 
@@ -168,7 +168,8 @@ export const APP_SUB_ROUTES: Record<ProductSlug, AppSubRoute[]> = {
     { label: "Competitor Tracker",   href: "/dashboard/trackify", description: "Scan des ads des concurrents" },
   ],
   thumbs: [
-    { label: "Thumbnail Generator",  href: "/dashboard/thumbnails", description: "Miniatures YTB qui font cliquer" },
+    { label: "YouTube Thumbnail",    href: "/dashboard/thumbnails", description: "Miniatures YTB qui font cliquer" },
+    { label: "App Store Screenshot", href: "/dashboard/thumbnails/appstore", description: "Visuels d'app pour iOS / Play Store" },
   ],
   adlab: [
     { label: "Ad Generator",         href: "/dashboard/ads",      description: "Variantes d'ads + A/B batch" },

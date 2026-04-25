@@ -20,6 +20,7 @@ import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
+import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import SegmentToggle from "@/components/SegmentToggle";
 import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
 import { avatarAPI, thumbnailAPI } from "@/lib/api";
@@ -2923,9 +2924,10 @@ export default function ThumbnailStudio() {
 
   return (
     <>
-      <Header title="Thumbnails" subtitle="Generate viral YouTube thumbnails with Nano Banana Pro" />
+      <Header title="Thumbs" subtitle="Visuels qui font cliquer — YouTube + App Store" />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-10">
+          <ThumbsModeTabs />
           {/* Title */}
           <div className="flex items-center gap-3 mb-6">
             <div
