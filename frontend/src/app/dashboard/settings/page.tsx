@@ -630,37 +630,21 @@ export default function SettingsPage() {
                             <button
                               onClick={() => handleSubCheckout(plan.tier)}
                               disabled={plan.current || checkoutLoading === plan.tier}
-                              className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 disabled:cursor-not-allowed mb-4"
-                              style={{
-                                background: plan.current
-                                  ? "var(--bg-tertiary)"
-                                  : plan.highlighted
-                                    ? "var(--btn-raised-bg)"
-                                    : "var(--text-primary)",
-                                color: plan.current
-                                  ? "var(--text-muted)"
-                                  : plan.highlighted
-                                    ? "var(--text-primary)"
-                                    : "var(--bg-primary)",
-                                border: plan.highlighted ? "1px solid var(--btn-raised-border)" : "none",
-                                boxShadow: plan.current
-                                  ? "none"
-                                  : plan.highlighted
-                                    ? "var(--shadow-btn-raised)"
-                                    : "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)",
-                                opacity: plan.current ? 0.6 : 1,
-                                transition: "box-shadow 0.25s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                if (plan.current || checkoutLoading === plan.tier) return;
-                                if (plan.highlighted) e.currentTarget.style.boxShadow = "var(--shadow-btn-raised-hover)";
-                                else e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)";
-                              }}
-                              onMouseLeave={(e) => {
-                                if (plan.current) return;
-                                if (plan.highlighted) e.currentTarget.style.boxShadow = "var(--shadow-btn-raised)";
-                                else e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)";
-                              }}
+                              className={
+                                plan.current
+                                  ? "w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 cursor-not-allowed mb-4"
+                                  : "btn-premium-dark w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 mb-4"
+                              }
+                              style={
+                                plan.current
+                                  ? {
+                                      background: "var(--bg-tertiary)",
+                                      color: "var(--text-muted)",
+                                      border: "none",
+                                      opacity: 0.6,
+                                    }
+                                  : { /* btn-premium-dark handles bg/color/shadow/border */ }
+                              }
                             >
                               {checkoutLoading === plan.tier ? <Spinner size={14} /> : plan.current ? "Current Plan" : plan.cta}
                             </button>

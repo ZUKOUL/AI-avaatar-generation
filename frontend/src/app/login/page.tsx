@@ -263,23 +263,8 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 font-semibold text-[14px] flex items-center justify-center gap-2 transition-all"
-                style={{
-                  background: "#1a1024",
-                  color: "#fff",
-                  borderRadius: 999,
-                  opacity: loading ? 0.55 : 1,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  boxShadow:
-                    "0 1px 1px rgba(255,255,255,0.1) inset, 0 8px 20px rgba(26,16,36,0.25)",
-                  minHeight: 52,
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) e.currentTarget.style.background = "#27173a";
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading) e.currentTarget.style.background = "#1a1024";
-                }}
+                className="btn-premium-dark w-full py-3.5 font-semibold text-[14px] flex items-center justify-center gap-2"
+                style={{ borderRadius: 999, minHeight: 52 }}
               >
                 {loading ? <Spinner size={16} /> : "Sign in"}
               </button>
