@@ -24,18 +24,21 @@
   --scrollbar-thumb: #333;
   --scrollbar-hover: #555;
   --focus-border: #555;
-  --segment-bg: #111111;
+  /* Flat segment + chip system. The earlier "Brainwave 3D" embossed
+     look conflicted with the BrandSearch-inspired clean main panel —
+     all controls are now flat with a thin border and a single subtle
+     hairline shadow on active states. Easier to read at a glance. */
+  --segment-bg: #1a1a1a;
   --segment-active-bg: #262626;
-  --shadow-segment-inset: inset 0 2px 6px rgba(0,0,0,0.7), inset 0 1px 2px rgba(0,0,0,0.5);
-  --shadow-segment-active: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.09);
-  /* Brainwave-style 3D raised button */
+  --shadow-segment-inset: none;
+  --shadow-segment-active: 0 0 0 1px rgba(255,255,255,0.08);
   --nav-active-bg: #262626;
   --nav-active-border: rgba(255, 255, 255, 0.08);
-  --shadow-nav-active: 0 1px 3px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+  --shadow-nav-active: 0 0 0 1px rgba(255,255,255,0.06);
   --btn-raised-bg: #262626;
   --btn-raised-border: rgba(255, 255, 255, 0.08);
-  --shadow-btn-raised: 0 1px 2px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
-  --shadow-btn-raised-hover: 0 2px 4px rgba(0,0,0,0.4), 0 3px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  --shadow-btn-raised: 0 0 0 1px rgba(255,255,255,0.06);
+  --shadow-btn-raised-hover: 0 0 0 1px rgba(255,255,255,0.14);
   --skeleton-shimmer: rgba(255, 255, 255, 0.04);
   --skeleton-fill-start: rgba(59, 130, 246, 0.18);
   --skeleton-fill-mid: rgba(59, 130, 246, 0.08);
@@ -67,18 +70,20 @@
   --scrollbar-thumb: #ccc;
   --scrollbar-hover: #aaa;
   --focus-border: #999;
-  --segment-bg: #e2e2e4;
+  /* Flat segment + chip system — see DARK theme block above. We keep
+     a hairline outline + a slightly lifted bg on active so the affordance
+     reads, but no embossed inset / multi-layer drop shadow. */
+  --segment-bg: #f1f1f3;
   --segment-active-bg: #ffffff;
-  --shadow-segment-inset: inset 0 2px 5px rgba(0,0,0,0.12), inset 0 1px 2px rgba(0,0,0,0.08);
-  --shadow-segment-active: 0 1px 3px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08);
-  /* Brainwave-style 3D raised button */
-  --nav-active-bg: #e4e4e7;
+  --shadow-segment-inset: none;
+  --shadow-segment-active: 0 0 0 1px rgba(0,0,0,0.08);
+  --nav-active-bg: #ececef;
   --nav-active-border: rgba(0, 0, 0, 0.08);
-  --shadow-nav-active: 0 1px 2px rgba(0,0,0,0.06), 0 2px 5px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03);
-  --btn-raised-bg: #e4e4e7;
-  --btn-raised-border: rgba(0, 0, 0, 0.1);
-  --shadow-btn-raised: 0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-btn-raised-hover: 0 2px 4px rgba(0,0,0,0.1), 0 3px 8px rgba(0,0,0,0.12);
+  --shadow-nav-active: 0 0 0 1px rgba(0,0,0,0.05);
+  --btn-raised-bg: #ececef;
+  --btn-raised-border: rgba(0, 0, 0, 0.08);
+  --shadow-btn-raised: 0 0 0 1px rgba(0,0,0,0.05);
+  --shadow-btn-raised-hover: 0 0 0 1px rgba(0,0,0,0.12);
   --skeleton-shimmer: rgba(0, 0, 0, 0.04);
   --skeleton-fill-start: rgba(59, 130, 246, 0.15);
   --skeleton-fill-mid: rgba(59, 130, 246, 0.06);

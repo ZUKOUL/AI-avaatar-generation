@@ -95,9 +95,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </svg>
       </button>
 
+      {/*
+        Two-tone shell: the sidebar inherits the global theme (so a user
+        on dark mode keeps a dark rail), but the main panel is locked to
+        light. data-theme="light" rebinds all the CSS variables read by
+        children, so cards, segment toggles, inputs etc. all flip without
+        per-component changes.
+      */}
       <main
+        data-theme="light"
         className="flex-1 flex flex-col overflow-hidden md:ml-[var(--sidebar-width)]"
-        style={{ transition: "margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)" }}
+        style={{
+          background: "var(--bg-primary)",
+          color: "var(--text-primary)",
+          transition: "margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
       >
         {children}
       </main>
