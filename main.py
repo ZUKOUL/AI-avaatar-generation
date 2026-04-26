@@ -18,6 +18,7 @@ from app.api.spyder import router as spyder_router
 from app.api.team import router as team_router
 from app.api.workspaces import router as workspaces_router
 from app.api.mini_apps import router as mini_apps_router
+from app.api.extension import router as extension_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -28,7 +29,19 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://saa-s-frontend-six.vercel.app", "https://horpen.ai", "https://www.horpen.ai"],
+    # The chrome-extension://* origin is added via allow_origin_regex so
+    # the extension's content script + service worker can call the API
+    # directly from any tab. We can't enumerate IDs because Chrome
+    # generates a per-profile ID in dev; only the published Web Store ID
+    # is stable. Same trick used by Notion / Loom / 1Password extensions.
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://saa-s-frontend-six.vercel.app",
+        "https://horpen.ai",
+        "https://www.horpen.ai",
+    ],
+    allow_origin_regex=r"chrome-extension://[a-z]+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,6 +122,13 @@ app.include_router(
 app.include_router(
     mini_apps_router,
     tags=["Mini Apps (user-created recipes)"],
+    dependencies=[Depends(get_current_user)],
+)
+# Chrome extension endpoints — JWT-gated like everything else.
+app.include_router(
+    extension_router,
+    prefix="/extension",
+    tags=["Browser Extension"],
     dependencies=[Depends(get_current_user)],
 )
 

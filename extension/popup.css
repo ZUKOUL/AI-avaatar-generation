@@ -1,0 +1,162 @@
+/* Horpen extension popup — kargul light theme so it matches the
+   white main panel of the SaaS, not the dark sidebar. */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+.hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #efefef;
+}
+.hd .logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.hd .logo img {
+  border-radius: 6px;
+}
+
+main {
+  padding: 16px;
+  min-height: 140px;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.muted {
+  color: #6b6b6b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: linear-gradient(180deg, #18171C 0%, #312F37 100%);
+  color: #fff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.15),
+    0 2px 4px rgba(1, 1, 1, 0.15),
+    0 4px 4px -3px rgba(180, 178, 189, 1);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, opacity 0.15s ease;
+}
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.22),
+    0 4px 10px rgba(1, 1, 1, 0.2),
+    0 6px 8px -3px rgba(180, 178, 189, 1);
+}
+.btn:active { transform: translateY(0); }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  color: #6b6b6b;
+  border: 1px solid #e0e0e0;
+  box-shadow: none;
+}
+.btn-ghost:hover { background: #f7f7f8; transform: none; box-shadow: none; }
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #f7f7f8;
+  border: 1px solid #ececec;
+  border-radius: 12px;
+}
+.user .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.user .meta { flex: 1; min-width: 0; overflow: hidden; }
+.user .meta .email { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user .meta .label { font-size: 10.5px; color: #6b6b6b; margin-top: 1px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.tip {
+  font-size: 11.5px;
+  color: #6b6b6b;
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: #f7f7f8;
+  border: 1px dashed #e0e0e0;
+  border-radius: 8px;
+}
+.tip kbd {
+  background: #fff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+}
+
+.error {
+  font-size: 12px;
+  color: #b91c1c;
+  background: rgba(248,113,113,0.1);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.spin {
+  width: 18px; height: 18px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #1a1a1a;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 30px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ft {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid #efefef;
+  font-size: 11px;
+  color: #6b6b6b;
+}
+.ft a { color: inherit; text-decoration: none; }
+.ft a:hover { color: #1a1a1a; }
