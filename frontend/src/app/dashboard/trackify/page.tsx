@@ -141,24 +141,22 @@ export default function TrackifyPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setAddOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full"
+              className="btn-premium inline-flex items-center gap-1.5 px-4 py-2 rounded-full"
               style={{
                 background: TRACKIFY.color,
                 color: "#ffffff",
                 fontSize: 13,
                 fontWeight: 500,
-                boxShadow: `0 4px 12px ${TRACKIFY.color}40`,
               }}
             >
               + Ajouter une brand
             </button>
             <Link
               href="/dashboard/credits"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full"
+              className="btn-premium inline-flex items-center gap-1.5 px-3 py-2 rounded-full"
               style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
-                color: "var(--text-secondary)",
+                background: "var(--text-primary)",
+                color: "var(--bg-primary)",
                 fontSize: 12.5,
                 fontWeight: 500,
               }}
@@ -335,13 +333,12 @@ function EmptyBrands({ onAddClick }: { onAddClick: () => void }) {
       </div>
       <button
         onClick={onAddClick}
-        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full"
+        className="btn-premium inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full"
         style={{
           background: TRACKIFY.color,
           color: "#ffffff",
           fontSize: 13.5,
           fontWeight: 500,
-          boxShadow: `0 4px 12px ${TRACKIFY.color}40`,
         }}
       >
         + Ajouter ma première brand
