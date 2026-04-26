@@ -574,7 +574,10 @@ export default function AppStoreScreenshotStudio() {
               <button
                 onClick={handleGenerate}
                 disabled={submitting || !appName.trim() || !appDescription.trim()}
-                className="rounded-full px-5 py-3 inline-flex items-center justify-center gap-2 font-semibold transition-all"
+                className={
+                  (submitting || !appName.trim() || !appDescription.trim() ? "" : "btn-premium ") +
+                  "rounded-full px-5 py-3 inline-flex items-center justify-center gap-2 font-semibold"
+                }
                 style={{
                   background:
                     submitting || !appName.trim() || !appDescription.trim()
@@ -584,16 +587,7 @@ export default function AppStoreScreenshotStudio() {
                     submitting || !appName.trim() || !appDescription.trim()
                       ? "var(--text-tertiary, #9ca3af)"
                       : "#ffffff",
-                  border: "none",
-                  cursor:
-                    submitting || !appName.trim() || !appDescription.trim()
-                      ? "not-allowed"
-                      : "pointer",
                   fontSize: 14,
-                  boxShadow:
-                    submitting || !appName.trim() || !appDescription.trim()
-                      ? "none"
-                      : `0 4px 14px ${accent}55`,
                 }}
               >
                 {submitting

@@ -331,15 +331,8 @@ export default function SettingsPage() {
                           <button
                             onClick={handleSaveProfile}
                             disabled={savingProfile}
-                            className="px-4 py-2.5 rounded-lg text-[13px] font-medium disabled:opacity-50"
-                            style={{
-                              background: "#3b82f6",
-                              color: "#fff",
-                              boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
-                              transition: "box-shadow 0.25s ease",
-                            }}
-                            onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
+                            className="btn-premium px-4 py-2.5 rounded-lg text-[13px] font-medium disabled:opacity-50"
+                            style={{ background: "#3b82f6", color: "#fff" }}
                           >
                             {savingProfile ? <Spinner size={14} /> : "Save"}
                           </button>
@@ -386,15 +379,8 @@ export default function SettingsPage() {
                           </div>
                           <button
                             onClick={handleSaveLanguage}
-                            className="px-4 py-2.5 rounded-lg text-[13px] font-medium"
-                            style={{
-                              background: "#3b82f6",
-                              color: "#fff",
-                              boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
-                              transition: "box-shadow 0.25s ease",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
+                            className="btn-premium px-4 py-2.5 rounded-lg text-[13px] font-medium"
+                            style={{ background: "#3b82f6", color: "#fff" }}
                           >
                             Save
                           </button>
@@ -443,15 +429,8 @@ export default function SettingsPage() {
                                 setAddingCredits(false);
                               }}
                               disabled={addingCredits}
-                              className="px-4 py-2.5 rounded-lg text-[13px] font-medium disabled:opacity-50"
-                              style={{
-                                background: "#22c55e",
-                                color: "#fff",
-                                boxShadow: "0 1px 2px rgba(34,197,94,0.35), 0 2px 6px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
-                                transition: "box-shadow 0.25s ease",
-                              }}
-                              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(34,197,94,0.5), 0 4px 12px rgba(34,197,94,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(34,197,94,0.35), 0 2px 6px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
+                              className="btn-premium px-4 py-2.5 rounded-lg text-[13px] font-medium disabled:opacity-50"
+                              style={{ background: "#22c55e", color: "#fff" }}
                             >
                               {addingCredits ? <Spinner size={14} /> : `+ ${creditAmount} credits`}
                             </button>
@@ -561,15 +540,8 @@ export default function SettingsPage() {
                       <button
                         onClick={handleChangePassword}
                         disabled={changingPw || !currentPassword || !newPassword || !confirmPassword}
-                        className="w-full py-2.5 rounded-lg font-medium text-[13px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{
-                          background: "#3b82f6",
-                          color: "#fff",
-                          boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
-                          transition: "box-shadow 0.25s ease",
-                        }}
-                        onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
+                        className="btn-premium w-full py-2.5 rounded-lg font-medium text-[13px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ background: "#3b82f6", color: "#fff" }}
                       >
                         {changingPw ? <><Spinner size={14} /> Changing...</> : "Change password"}
                       </button>

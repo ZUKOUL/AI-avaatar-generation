@@ -4171,15 +4171,14 @@ export default function ThumbnailStudio() {
             <button
               onClick={handleGenerate}
               disabled={!canSubmit()}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-semibold disabled:cursor-not-allowed"
+              className={
+                (canSubmit() ? "btn-premium " : "") +
+                "flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-semibold disabled:cursor-not-allowed"
+              }
               style={{
                 background: canSubmit() ? "var(--text-primary)" : "var(--bg-tertiary)",
                 color: canSubmit() ? "var(--bg-primary)" : "var(--text-muted)",
-                boxShadow: canSubmit()
-                  ? "0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.12)"
-                  : "none",
                 opacity: canSubmit() ? 1 : 0.6,
-                transition: "box-shadow 0.2s ease, opacity 0.2s ease",
                 minWidth: 200,
                 justifyContent: "center",
               }}

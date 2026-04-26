@@ -787,15 +787,11 @@ export default function VideoGenerator() {
                 <button
                   onClick={handleGenerate}
                   disabled={loading || !motionPrompt.trim()}
-                  className="w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-premium w-full py-2.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
                     background: "#3b82f6",
                     color: "#fff",
-                    boxShadow: "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)",
-                    transition: "box-shadow 0.25s ease",
                   }}
-                  onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = "0 2px 6px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.22)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 2px rgba(59,130,246,0.35), 0 2px 6px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.18)"; }}
                 >
                   {loading ? <><Spinner size={16} /> Generating...</> : `Generate · ${creditCost} credits`}
                 </button>
