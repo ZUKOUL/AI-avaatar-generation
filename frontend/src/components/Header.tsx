@@ -56,14 +56,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/credits"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors"
+          className="btn-premium flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium"
           style={{
-            background: "var(--bg-tertiary)",
-            color: "var(--text-secondary)",
-            border: "1px solid var(--border-color)",
+            background: "var(--text-primary)",
+            color: "var(--bg-primary)",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#555")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
         >
           <Zap size={14} />
           <span className="hidden sm:inline">Credits</span>
