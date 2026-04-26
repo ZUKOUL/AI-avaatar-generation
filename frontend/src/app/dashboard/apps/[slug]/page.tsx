@@ -98,7 +98,7 @@ export default function MiniAppRunnerPage() {
         </p>
         <button
           onClick={() => router.push("/dashboard")}
-          className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full"
+          className="btn-premium mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full"
           style={{ background: "var(--text-primary)", color: "var(--bg-primary)", fontSize: 13 }}
         >
           Retour au dashboard

@@ -385,14 +385,11 @@ export default function AdsPage() {
               <button
                 type="button"
                 onClick={() => setShowCreator(true)}
-                className="mt-7 px-6 py-3 rounded-xl text-[14px] font-semibold flex items-center gap-2 transition-transform"
+                className="btn-premium mt-7 px-6 py-3 rounded-xl text-[14px] font-semibold flex items-center gap-2"
                 style={{
                   background: "var(--text-primary)",
                   color: "var(--bg-primary)",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
               >
                 Add your first product
                 <Plus size={16} />

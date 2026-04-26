@@ -794,16 +794,11 @@ function Canvas({
           <button
             onClick={onGenerate}
             disabled={generateDisabled}
-            className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl text-[14px] font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-premium flex-1 h-11 flex items-center justify-center gap-2 rounded-xl text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: "var(--text-primary)",
               color: "var(--bg-primary)",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
             }}
-            onMouseEnter={(e) => {
-              if (!generateDisabled) e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
           >
             Generate Avatar
             <SparkleIcon size={14} />

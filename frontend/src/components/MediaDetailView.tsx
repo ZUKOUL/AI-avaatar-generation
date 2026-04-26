@@ -638,13 +638,11 @@ function PrimaryBtn({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+      className="btn-premium w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-[13px] font-semibold"
       style={{
         background: "var(--text-primary)",
         color: "var(--bg-primary)",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
     >
       {children}
     </button>
