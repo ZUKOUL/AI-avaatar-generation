@@ -3082,21 +3082,42 @@ export default function ThumbnailStudio() {
               navigation needed). The standalone /inspiration route
               still exists for back-compat. */}
 
-          {/* Mode tabs */}
+          {/* Mode tabs — same kargul-spec pill capsule as the top
+              YouTube/AppStore/Bento switch. Active tab uses the
+              page's coral kargul (btn-premium-yt) so the active
+              colour matches the rest of the studio. */}
           <div className="flex justify-center mb-6">
-            <SegmentToggle
-              selected={mode}
-              onSelect={(k) => {
-                setMode(k as Mode);
-                setPrompt("");
-                setError(null);
-              }}
-              items={MODE_ITEMS.map((m) => ({
-                key: m.key,
-                label: m.label,
-                icon: <m.Icon size={14} />,
-              }))}
-            />
+            <div className="tab-group-pill">
+              {MODE_ITEMS.map((m) => {
+                const active = m.key === mode;
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => {
+                      setMode(m.key);
+                      setPrompt("");
+                      setError(null);
+                    }}
+                    aria-pressed={active}
+                    className={
+                      "flex items-center gap-2 rounded-full " +
+                      (active ? "btn-premium-yt" : "tab-pill-rest")
+                    }
+                    style={{
+                      padding: "7px 16px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      border: active ? undefined : "1px solid transparent",
+                    }}
+                  >
+                    <m.Icon size={14} />
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Input card — wrapped in the Pikzels-style composer panel
