@@ -3642,6 +3642,102 @@ async def generate_bento_direct(
 # the user produce a series of bentos that look like the same designer
 # made them for the same landing page, just highlighting different benefits.
 
+# Mood (strategist's choice) → ordered list of bento bucket names to
+# sample from. The order matters: first bucket that has items wins.
+# "Mood" is the strategist's macro vibe; we map it to the visual bucket
+# the curated templates were sorted into by scripts/bento_curate.py.
+_MOOD_TO_BENTO_BUCKETS: dict[str, list[str]] = {
+    "minimal-light": ["minimal_light", "editorial_text", "split"],
+    "dark-tech": ["dark_tech", "dashboard_mockup"],
+    "editorial-soft": ["editorial_text", "minimal_light", "colorful_playful"],
+    "vibrant-saturated": ["colorful_playful", "illustration", "collage"],
+    "mono-statement": ["editorial_text", "minimal_light"],
+}
+
+# Layout (strategist's pick) → preferred buckets too. We blend mood +
+# layout candidates, mood first because it dictates palette which is
+# visually dominant.
+_LAYOUT_TO_BENTO_BUCKETS: dict[str, list[str]] = {
+    "icon-led": ["illustration", "minimal_light"],
+    "text-led": ["editorial_text", "minimal_light"],
+    "split": ["split", "dashboard_mockup"],
+    "ui-mockup": ["dashboard_mockup"],
+    "illustration": ["illustration", "collage"],
+    "stat-led": ["dashboard_mockup", "editorial_text"],
+}
+
+
+def _auto_pick_bento_template_bytes(
+    *,
+    mood: Optional[str],
+    layout: Optional[str],
+    n: int = 2,
+) -> list[bytes]:
+    """
+    When the user didn't pin a template manually, sample N templates
+    from the bucket that matches the strategist's mood + layout. This
+    guarantees the renderer ALWAYS sees concrete visual references —
+    not just a textual brief — so the output stops looking like a
+    flat AI default and inherits the richness of the curated library
+    (we have ~477 templates on disk and they were going unused).
+
+    Falls through to richest buckets (`collage`, `dashboard_mockup`)
+    when the mood/layout maps don't match anything.
+    """
+    index_path = _BENTO_TEMPLATES_DIR / "index.json"
+    if not index_path.exists():
+        return []
+    try:
+        data = json.loads(index_path.read_text())
+    except Exception as e:
+        logger.warning(f"bento auto-pick: index parse failed: {e}")
+        return []
+    buckets = data.get("buckets") or {}
+    if not buckets:
+        return []
+
+    # Build the candidate bucket order: mood first, then layout, then
+    # global fallbacks (richest buckets that almost always have items).
+    candidates: list[str] = []
+    if mood:
+        candidates.extend(_MOOD_TO_BENTO_BUCKETS.get(mood, []))
+    if layout:
+        candidates.extend(_LAYOUT_TO_BENTO_BUCKETS.get(layout, []))
+    candidates.extend(["collage", "dashboard_mockup", "illustration", "minimal_light"])
+    # De-duplicate while preserving order.
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for c in candidates:
+        if c not in seen and c in buckets:
+            seen.add(c)
+            ordered.append(c)
+
+    chosen_items: list[dict] = []
+    for bucket in ordered:
+        items = buckets.get(bucket) or []
+        if items:
+            chosen_items = items
+            break
+    if not chosen_items:
+        return []
+
+    import random
+    sampled = random.sample(chosen_items, min(n, len(chosen_items)))
+    out: list[bytes] = []
+    for item in sampled:
+        rel = item.get("path")
+        if not rel:
+            continue
+        try:
+            local = _BENTO_TEMPLATES_DIR / rel
+            if local.exists():
+                out.append(local.read_bytes())
+        except Exception as e:
+            logger.warning(f"bento auto-pick: read failed for {rel}: {e}")
+            continue
+    return out
+
+
 async def _fetch_image_url(url: str, *, label: str) -> Optional[bytes]:
     """
     Fetch image bytes from a public URL. Used by the smart bento endpoint
@@ -3709,6 +3805,7 @@ def _compose_bento_render_prompt(
     has_template: bool,
     has_locked: bool,
     has_user_refs: bool,
+    n_auto_templates: int = 0,
 ) -> str:
     """
     Assemble the final render prompt sent to Gemini 3 Pro Image.
@@ -3751,19 +3848,42 @@ def _compose_bento_render_prompt(
         "- Modern SaaS landing-page aesthetic. Apple, Linear, Vercel, Stripe, Notion, Loom are the references.",
         "- Premium feel. No clipart, no generic stock icons, no early-2010s gradients.",
         "- If a UI mockup is part of the composition, it must look like a real product interface — never lorem ipsum.",
+        "",
+        "VISUAL RICHNESS — DO NOT PRODUCE A FLAT MINIMAL DEFAULT",
+        "- This card MUST have multiple visible design elements. Possible secondary elements: ",
+        "  background grain or subtle gradient, glow / soft shadow under the hero element, ",
+        "  decorative micro-illustrations in the corners, a hint of grid or rule lines, ",
+        "  small inline UI fragments (a fake toolbar, badge, ribbon, or chart slice), ",
+        "  paired typographic accents (e.g. monospace label next to the headline).",
+        "- Composition layers: pick at least 3 visual layers (background → mid → foreground).",
+        "- The card should look like a senior designer spent 30 min on it — not 30 seconds.",
     ]
 
     image_refs_intro: list[str] = []
     if has_template:
         image_refs_intro.append(
             "STYLE TEMPLATE — the first reference image is a curated bento card the user "
-            "picked from the gallery. Inherit its palette, typography rhythm and layout "
-            "vibe. Do NOT copy its text content."
+            "picked from the gallery. Inherit its palette, typography rhythm, ICON STYLE "
+            "and layout vibe. Notice the visual richness — match it. Do NOT copy its text content."
+        )
+    elif n_auto_templates > 0:
+        # When the user didn't pin anything, the backend silently injected
+        # 1-3 reference cards from the curated library matching the
+        # strategist's mood. The model needs to know these are STYLE
+        # references — not screenshots to redraw verbatim.
+        image_refs_intro.append(
+            f"STYLE REFERENCES — the first {n_auto_templates} reference image(s) are curated "
+            "bento cards from a library of ~500 templates. They were auto-selected to match "
+            "the mood + layout you'll use. STUDY THEM CLOSELY for: palette (every hex), "
+            "typography family, icon style, decorative density, shadow and gradient quality, "
+            "layout rhythm. Your output must match THAT level of visual richness. "
+            "Do NOT copy the text or product references — those are placeholders. "
+            "Inherit the DESIGN, replace the CONTENT."
         )
     if has_locked:
         image_refs_intro.append(
-            "LOCKED STYLE ANCHOR — the next reference image is a previously-generated bento "
-            "the user accepted. This new card MUST look like a SISTER cell on the same "
+            "LOCKED STYLE ANCHOR — this reference image is a previously-generated bento "
+            "the user accepted. The new card MUST look like a SISTER cell on the same "
             "landing page: identical palette (every hex), identical icon style, identical "
             "typography family, identical layout grain. Adapt the message — not the design."
         )
@@ -3876,6 +3996,23 @@ async def generate_bento_smart(
             detail="The bento strategist failed to produce a brief. Try again — usually a transient upstream issue.",
         )
 
+    # When the user didn't pin a template, auto-select 2 references from
+    # the curated bento library matching the strategist's mood + layout.
+    # This is the fix for the "AI default looks flat" problem: the
+    # renderer ALWAYS gets concrete visual anchors now, never just text.
+    auto_template_bytes: list[bytes] = []
+    if not template_bytes:
+        auto_template_bytes = _auto_pick_bento_template_bytes(
+            mood=brief.get("mood"),
+            layout=brief.get("layout"),
+            n=2,
+        )
+        if auto_template_bytes:
+            logger.info(
+                f"Bento smart {card_id}: auto-injected {len(auto_template_bytes)} "
+                f"template references (mood={brief.get('mood')}, layout={brief.get('layout')})"
+            )
+
     # ── Hop 2: image render ──────────────────────────────────────────────
     prompt = _compose_bento_render_prompt(
         brief=brief,
@@ -3884,11 +4021,17 @@ async def generate_bento_smart(
         has_template=template_bytes is not None,
         has_locked=locked_bytes is not None,
         has_user_refs=bool(user_refs),
+        n_auto_templates=len(auto_template_bytes),
     )
 
     contents: list = []
     if template_bytes:
         contents.append(types.Part.from_bytes(data=template_bytes, mime_type="image/jpeg"))
+    else:
+        # Auto-injected references take the same primary slot when the
+        # user hasn't pinned anything — they're the de-facto style anchor.
+        for ref in auto_template_bytes:
+            contents.append(types.Part.from_bytes(data=ref, mime_type="image/jpeg"))
     if locked_bytes:
         contents.append(types.Part.from_bytes(data=locked_bytes, mime_type="image/png"))
     for data, mime in user_refs:

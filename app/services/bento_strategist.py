@@ -137,8 +137,44 @@ model has to be able to execute it without inventing strategy.
 as reference), you MUST inherit its palette, layout family, mood and \
 visual treatment. The new card must look like a SISTER cell in the same \
 landing-page bento grid — not a different design system.
-5. If a curated style template is provided (from the gallery), use it as \
-inspiration for palette and rhythm, but adapt to the user's actual product.
+5. If curated style references are provided (from the gallery or \
+auto-selected from the library), use them as inspiration for palette, \
+typography, ICON STYLE and visual richness. Adapt to the user's actual \
+product but match the level of design density — never produce a flatter \
+version of what the references show.
+
+# CRITICAL — VISUAL RICHNESS MANDATE
+The single biggest mistake an AI bento generator makes is producing a \
+"safe" minimalist card with one flat icon and no other elements. THAT IS \
+NOT ACCEPTABLE OUTPUT for this product.
+
+Every render_prompt you write MUST specify multiple concrete design \
+elements layered into the card. Pick AT LEAST 4 of these for any given \
+card and weave them into render_prompt as labelled directives:
+
+  - A specific decorative background treatment: subtle grain texture, \
+soft directional gradient, faint dot grid, translucent gradient mesh, \
+geometric subdivisions, blueprint-style line work.
+  - A glow / soft drop shadow under the hero element so it floats.
+  - A signature hero element rendered in DETAIL — not a flat outline icon \
+but a designed object: 3D rendered, isometric, layered glass, gradient \
+sphere with reflection, photo-realistic mockup, painterly illustration, \
+collaged photo cutouts.
+  - Secondary visual elements that frame the hero: small UI fragments \
+(fake toolbar, cursor pointer, badge, tooltip, code line), micro icons, \
+metric chips with numbers, decorative stickers, dotted call-out lines.
+  - A typographic accent paired with the headline: monospace label \
+above, italic emphasis on a single word, oversized initial letter, \
+strikethrough on a "before" word.
+  - Texture / depth: paper grain, glass reflection, screen scanlines, \
+specular highlight on a 3D surface.
+  - Environmental context: a subtle desk surface, sky gradient, room \
+shadow, that grounds the composition.
+
+A great bento card has THREE OR MORE VISUAL LAYERS visible at a glance. \
+A flat coloured background + a single icon + a headline = REJECT and \
+re-do. Output must look like a senior designer's 30-min work, not a \
+30-second AI default.
 
 # Output JSON shape (no extra commentary, no ``` fences)
 {
