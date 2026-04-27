@@ -153,6 +153,14 @@ export default function AppStoreScreenshotStudio() {
   const [activeVerticalTab, setActiveVerticalTab] = useState<string | null>(null);
   const [selectedPack, setSelectedPack] = useState<TemplatePack | null>(null);
 
+  // Sub-tabs that switch the bottom section between the user's project
+  // archive ("Galerie") and the curated reference packs ("Templates").
+  // Mirrors the same pattern on the YouTube page so the three studios
+  // share a unified design.
+  const [bottomSubTab, setBottomSubTab] = useState<"gallery" | "templates">(
+    "gallery",
+  );
+
   const format = FORMAT_PRESETS.find((f) => f.key === formatKey)!;
 
   const onPickRefs = (files: FileList | null) => {
@@ -1025,9 +1033,113 @@ export default function AppStoreScreenshotStudio() {
             </div>
           </div>
 
-          {/* ── Project history ── */}
-          {projects.length > 0 && (
-            <div className="mt-12">
+          {/* Sub-tabs — same segmented capsule pattern as the YouTube
+              page. Switches the section below between the user's
+              project archive and the curated reference packs. */}
+          <div className="flex justify-center mt-12 mb-4">
+            <div className="tab-group-pill">
+              <button
+                type="button"
+                onClick={() => setBottomSubTab("gallery")}
+                aria-pressed={bottomSubTab === "gallery"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (bottomSubTab === "gallery" ? "btn-premium-as" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border: bottomSubTab === "gallery" ? undefined : "1px solid transparent",
+                }}
+              >
+                Galerie
+              </button>
+              <button
+                type="button"
+                onClick={() => setBottomSubTab("templates")}
+                aria-pressed={bottomSubTab === "templates"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (bottomSubTab === "templates" ? "btn-premium-as" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border: bottomSubTab === "templates" ? undefined : "1px solid transparent",
+                }}
+              >
+                Packs
+              </button>
+            </div>
+          </div>
+
+          {/* TEMPLATES VIEW — opens the gallery picker inline so the
+              user can browse the 5 curated reference packs (avatar_pro,
+              smart_reminders, faith_assistant, clip_to_pay, chef_ai)
+              without going through the modal. Click → pin as anchor. */}
+          {bottomSubTab === "templates" && (
+            <div className="mb-8">
+              <button
+                type="button"
+                onClick={openGallery}
+                className="rounded-xl px-6 py-10 w-full text-center flex flex-col items-center gap-3 transition-all"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px dashed var(--border-color)",
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--text-primary)";
+                  e.currentTarget.style.background = "var(--bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-color)";
+                  e.currentTarget.style.background = "var(--bg-secondary)";
+                }}
+              >
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  <MagicWand size={20} />
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {selectedPack
+                    ? `Style ancré — ${selectedPack.name}`
+                    : "Parcourir les packs de référence"}
+                </div>
+                <div style={{ fontSize: 12.5, maxWidth: 480, lineHeight: 1.5 }}>
+                  5 packs curés (avatar_pro, smart_reminders, faith_assistant,
+                  clip_to_pay, chef_ai) groupés par niche. L&apos;IA reproduit
+                  la cohérence visuelle du pack pinné.
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* ── Project history (Gallery sub-tab) ── */}
+          {bottomSubTab === "gallery" && projects.length > 0 && (
+            <div>
               <div className="flex items-baseline justify-between mb-4">
                 <div>
                   <div
