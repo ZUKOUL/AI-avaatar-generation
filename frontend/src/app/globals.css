@@ -455,24 +455,33 @@ aside, header, main, div, button, a, input, textarea {
 }
 
 /* Variants — apply alongside `studio-mint-glow` to override the tint.
-   Each variant ALSO sets the composer's focus colour so the focused
-   border + halo match the page's bottom-glow tint. Cascade: these
-   classes live on the page wrapper, the .composer-panel below
-   inherits via CSS variable. */
+   Each variant ALSO sets the composer's focus + active tool colours
+   so EVERYTHING on the page (bottom glow, focus halo, active icon
+   tool, …) inherits a single accent. Cascade: these classes live on
+   the page wrapper, descendants pick the values up via CSS vars. */
 .studio-mint-glow.glow-thumb {
   --studio-glow-color: var(--glow-thumb);
   --composer-border-focus: rgba(255, 90, 80, 0.55);
   --composer-glow: rgba(255, 90, 80, 0.18);
+  --composer-active-bg: linear-gradient(180deg, #FF7A6B 0%, #E04030 100%);
+  --composer-active-color: #FFFFFF;
+  --composer-active-border: #B42514;
 }
 .studio-mint-glow.glow-appstore {
   --studio-glow-color: var(--glow-appstore);
   --composer-border-focus: rgba(56, 138, 255, 0.55);
   --composer-glow: rgba(56, 138, 255, 0.16);
+  --composer-active-bg: linear-gradient(180deg, #6BA8FF 0%, #2774E0 100%);
+  --composer-active-color: #FFFFFF;
+  --composer-active-border: #135BC2;
 }
 .studio-mint-glow.glow-bento {
   --studio-glow-color: var(--glow-bento);
   --composer-border-focus: rgba(57, 220, 180, 0.55);
   --composer-glow: rgba(57, 220, 180, 0.14);
+  --composer-active-bg: linear-gradient(180deg, #5DE5BD 0%, #1FBE92 100%);
+  --composer-active-color: #052B22;
+  --composer-active-border: #0E8868;
 }
 
 .studio-content {
@@ -579,9 +588,9 @@ aside, header, main, div, button, a, input, textarea {
   transform: translateY(-1px);
 }
 .composer-tool.is-active {
-  background: linear-gradient(180deg, #5DE5BD 0%, #1FBE92 100%);
-  color: #052B22;
-  border-color: #0E8868;
+  background: var(--composer-active-bg, linear-gradient(180deg, #5DE5BD 0%, #1FBE92 100%));
+  color: var(--composer-active-color, #052B22);
+  border-color: var(--composer-active-border, #0E8868);
   box-shadow:
     inset 0 2px 3px rgba(255, 255, 255, 0.30),
     0 2px 4px rgba(0, 0, 0, 0.18);
