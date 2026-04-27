@@ -83,7 +83,14 @@ export const avatarAPI = {
     api.get("/avatar/avatars", {
       params: opts.allWorkspaces ? { all_workspaces: true } : undefined,
     }),
-  getImages: (avatarId?: string, limit = 50, opts: { allWorkspaces?: boolean } = {}) =>
+  /**
+   * List the user's generated images (also covers thumbnails since
+   * everything lives in the shared `generated_images` table). The
+   * default limit was 50 — that capped the gallery counter at "50
+   * images" for any user with more than 50 generations. Bumped to
+   * 500 so the displayed count matches reality.
+   */
+  getImages: (avatarId?: string, limit = 500, opts: { allWorkspaces?: boolean } = {}) =>
     api.get("/avatar/images", {
       params: {
         avatar_id: avatarId,

@@ -752,9 +752,12 @@ async def get_images(
 
     - avatar_id (optional): filter by avatar. Thumbnails are auto-excluded
       when this is set (they're never bound to a character).
-    - limit: max results (default 50, max 100).
+    - limit: max results (default 50, max 1000). Bumped from 100
+      because users with 100+ generations were seeing a stuck "100
+      images" counter — Supabase doesn't paginate by default and we
+      already filter heavy fields out.
     """
-    limit = min(max(limit, 1), 100)
+    limit = min(max(limit, 1), 1000)
 
     try:
         query = (
