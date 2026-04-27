@@ -211,6 +211,15 @@ export const thumbnailAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   /**
+   * Curated bento templates gallery — a couple hundred reference cards
+   * grouped by visual style (minimal_light / dark_tech / illustration /
+   * dashboard_mockup / split / colorful_playful / editorial_text /
+   * collage). Each item has a `url` pointing at the static-served
+   * preview JPEG. Public, no auth needed (these are reference visuals
+   * we want users to browse before signing up too).
+   */
+  bentoTemplates: () => api.get("/thumbnail/bento-templates"),
+  /**
    * Smart pack: hand over context, get N polished screenshots back. The
    * strategist writes the headlines, the image model renders. All five
    * frames in the conversion arc come back distinct — never N reskins

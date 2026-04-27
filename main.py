@@ -4,6 +4,8 @@ load_dotenv()
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.api.avatar import router as avatar_router
 from app.api.video import router as video_router
 from app.api.auth import router as auth_router
@@ -131,6 +133,20 @@ app.include_router(
     tags=["Browser Extension"],
     dependencies=[Depends(get_current_user)],
 )
+
+# ── Static: niche-asset reference images ──
+# The bento + appstore template gallery thumbnails live on disk in
+# `app/services/niche_assets/`. Serve them as static files so the
+# frontend can <img src="https://api.horpen.ai/niche-assets/bento/...jpg" />.
+# Public on purpose — these are reference templates we WANT users to
+# browse before logging in (think landing-page demo gallery).
+_NICHE_ASSETS_DIR = Path(__file__).parent / "app" / "services" / "niche_assets"
+if _NICHE_ASSETS_DIR.exists():
+    app.mount(
+        "/niche-assets",
+        StaticFiles(directory=str(_NICHE_ASSETS_DIR)),
+        name="niche-assets",
+    )
 
 # ── Startup: schema migrations (auto) + admin bootstrap ──
 @app.on_event("startup")

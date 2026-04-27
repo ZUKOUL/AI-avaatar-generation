@@ -46,6 +46,34 @@ interface Generated {
   variantIndex: number;
 }
 
+interface TemplateItem {
+  slug: string;
+  path: string;
+  url: string;
+  bytes?: number;
+}
+
+interface TemplatesResponse {
+  version: number;
+  styles: Record<string, string>;
+  counts: Record<string, number>;
+  total: number;
+  buckets: Record<string, TemplateItem[]>;
+}
+
+// Friendly labels for the template gallery tabs.
+const STYLE_LABELS: Record<string, string> = {
+  minimal_light: "Minimal light",
+  dark_tech: "Dark tech",
+  illustration: "Illustration",
+  dashboard_mockup: "Dashboard mockup",
+  split: "Split",
+  colorful_playful: "Colorful playful",
+  editorial_text: "Editorial text",
+  collage: "Collage",
+  uncategorised: "Other",
+};
+
 const VARIANT_COUNTS = [1, 3, 5] as const;
 type VariantCount = (typeof VARIANT_COUNTS)[number];
 
@@ -66,7 +94,37 @@ export default function BentoCardStudio() {
   const [generated, setGenerated] = useState<Generated[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
 
+  // Templates gallery state — fetched lazily the first time the user
+  // opens the modal. selectedTemplate is the user's pinned style anchor
+  // (the AI uses this image as the primary visual reference).
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [templates, setTemplates] = useState<TemplatesResponse | null>(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [activeStyleTab, setActiveStyleTab] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
+
   const aspect = ASPECT_PRESETS.find((a) => a.key === aspectKey)!;
+
+  const openGallery = async () => {
+    setGalleryOpen(true);
+    if (templates || loadingTemplates) return;
+    setLoadingTemplates(true);
+    try {
+      const { data } = await thumbnailAPI.bentoTemplates();
+      setTemplates(data as TemplatesResponse);
+      // Default tab: the bucket with the most items — keeps the modal
+      // feeling rich on first open.
+      const buckets = (data as TemplatesResponse).buckets || {};
+      const richest = Object.entries(buckets).sort(
+        ([, a], [, b]) => b.length - a.length
+      )[0]?.[0];
+      if (richest) setActiveStyleTab(richest);
+    } catch (err) {
+      console.warn("bentoTemplates failed", err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
 
   const onPickRefs = (files: FileList | null) => {
     if (!files) return;
@@ -111,6 +169,14 @@ export default function BentoCardStudio() {
         fd.append("bg_tone", bgTone);
         fd.append("aspect_ratio", aspect.ratio);
         fd.append("variant_index", String(startIdx + i));
+        if (selectedTemplate) {
+          // The picked template's static URL is sent so the backend
+          // can fetch it as the primary style anchor for the render
+          // call. Beats hand-coded vertical hints — users see what
+          // they're picking instead of guessing from a taxonomy.
+          fd.append("template_url", selectedTemplate.url);
+          fd.append("template_slug", selectedTemplate.slug);
+        }
         refs.forEach((f) => fd.append("files", f));
         return thumbnailAPI.bentoGenerateDirect(fd);
       });
@@ -197,6 +263,89 @@ export default function BentoCardStudio() {
                 border: "1px solid var(--border-color)",
               }}
             >
+              {/* Template anchor — either pinned or "browse the gallery". */}
+              <Field label="Style anchor (optionnel)">
+                {selectedTemplate ? (
+                  <div
+                    className="flex items-center gap-3 rounded-lg p-2"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1.5px solid var(--text-primary)",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedTemplate.url}
+                      alt={selectedTemplate.slug}
+                      style={{
+                        width: 64,
+                        height: 48,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                        Pinné comme référence visuelle
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "var(--text-tertiary, #9ca3af)", marginTop: 1 }}>
+                        L&apos;IA s&apos;en sert pour ancrer palette + typo + layout
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTemplate(null)}
+                      className="text-xs"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--text-secondary)",
+                        cursor: "pointer",
+                        padding: "4px 8px",
+                      }}
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openGallery}
+                    className="rounded-lg px-3 py-2.5 text-left transition-colors flex items-center gap-3"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px dashed var(--border-color)",
+                      color: "var(--text-primary)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        background: "var(--bg-tertiary, #f3f4f6)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      ⊞
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span style={{ fontSize: 13, fontWeight: 600, display: "block" }}>
+                        Browse templates
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--text-tertiary, #9ca3af)" }}>
+                        Pick a style anchor → l&apos;IA reproduit son vibe pour ton produit
+                      </span>
+                    </span>
+                  </button>
+                )}
+              </Field>
+
               <Field label="Nom du produit / feature">
                 <input
                   type="text"
@@ -657,7 +806,230 @@ export default function BentoCardStudio() {
           </div>
         </div>
       </div>
+
+      {galleryOpen && (
+        <TemplatesModal
+          templates={templates}
+          loading={loadingTemplates}
+          activeStyleTab={activeStyleTab}
+          onTabChange={setActiveStyleTab}
+          onPick={(t) => {
+            setSelectedTemplate(t);
+            setGalleryOpen(false);
+          }}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
     </>
+  );
+}
+
+/* ─── Templates gallery modal ─────────────────────────────────────── */
+
+function TemplatesModal({
+  templates,
+  loading,
+  activeStyleTab,
+  onTabChange,
+  onPick,
+  onClose,
+}: {
+  templates: TemplatesResponse | null;
+  loading: boolean;
+  activeStyleTab: string;
+  onTabChange: (s: string) => void;
+  onPick: (t: TemplateItem) => void;
+  onClose: () => void;
+}) {
+  const buckets = templates?.buckets || {};
+  const styles = Object.keys(buckets);
+  const items = activeStyleTab ? buckets[activeStyleTab] || [] : [];
+  const apiBase =
+    typeof window !== "undefined"
+      ? process.env.NEXT_PUBLIC_API_URL || "https://api.horpen.ai"
+      : "https://api.horpen.ai";
+
+  // Esc closes; click outside the panel closes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(10,10,12,0.55)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        zIndex: 50,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="rounded-2xl"
+        style={{
+          background: "var(--bg-primary)",
+          border: "1px solid var(--border-color)",
+          width: "min(1100px, 100%)",
+          maxHeight: "calc(100vh - 48px)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.4)",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid var(--border-color)",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
+              Templates
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
+              Click any reference to pin its style as the AI&apos;s anchor.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full w-8 h-8 flex items-center justify-center"
+            style={{
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Tabs */}
+        {styles.length > 0 && (
+          <div
+            className="flex gap-1 overflow-x-auto"
+            style={{
+              padding: "10px 20px",
+              borderBottom: "1px solid var(--border-color)",
+            }}
+          >
+            {styles.map((s) => {
+              const active = s === activeStyleTab;
+              const count = buckets[s].length;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => onTabChange(s)}
+                  className="rounded-full px-3 py-1.5 transition-colors"
+                  style={{
+                    background: active ? "var(--text-primary)" : "var(--bg-secondary)",
+                    color: active ? "var(--bg-primary)" : "var(--text-primary)",
+                    border: "1px solid var(--border-color)",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
+                >
+                  {STYLE_LABELS[s] || s}
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      fontSize: 11,
+                      opacity: 0.7,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Body */}
+        <div style={{ overflowY: "auto", flex: 1, padding: 20 }}>
+          {loading && (
+            <div className="flex items-center justify-center" style={{ padding: 60 }}>
+              <div className="spinner" />
+            </div>
+          )}
+
+          {!loading && styles.length === 0 && (
+            <div
+              className="text-center"
+              style={{ padding: 40, color: "var(--text-secondary)", fontSize: 13.5 }}
+            >
+              No templates yet. Run <code>scripts/bento_curate.py</code> to populate the gallery.
+            </div>
+          )}
+
+          {!loading && items.length > 0 && (
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              }}
+            >
+              {items.map((it) => (
+                <button
+                  key={it.slug}
+                  type="button"
+                  onClick={() => onPick(it)}
+                  className="rounded-xl overflow-hidden transition-all"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
+                    padding: 0,
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.borderColor = "var(--text-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.borderColor = "var(--border-color)";
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${apiBase}${it.url}`}
+                    alt={it.slug}
+                    style={{
+                      width: "100%",
+                      aspectRatio: "4/3",
+                      objectFit: "cover",
+                      display: "block",
+                      background: "var(--bg-primary)",
+                    }}
+                    loading="lazy"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

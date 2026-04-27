@@ -2426,6 +2426,47 @@ async def appstore_niches():
     }
 
 
+# ── Bento templates gallery ─────────────────────────────────────────────────
+# Reads the curated `index.json` produced by scripts/bento_curate.py and
+# returns it with full image URLs the frontend can drop straight into
+# <img src=...>. The static mount (main.py) serves
+# `app/services/niche_assets/bento/<style>/<slug>.jpg` at
+# `/niche-assets/bento/<style>/<slug>.jpg`.
+_BENTO_TEMPLATES_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "services"
+    / "niche_assets"
+    / "bento"
+)
+
+
+@router.get("/bento-templates")
+async def bento_templates():
+    """Return the curated bento templates grouped by style."""
+    index_path = _BENTO_TEMPLATES_DIR / "index.json"
+    if not index_path.exists():
+        return {"version": 0, "styles": {}, "counts": {}, "total": 0, "buckets": {}}
+    try:
+        data = json.loads(index_path.read_text())
+    except Exception as e:
+        logger.warning(f"bento index parse failed: {e}")
+        return {"version": 0, "styles": {}, "counts": {}, "total": 0, "buckets": {}}
+
+    # Build absolute URLs the frontend can drop in <img src>.
+    def _abs(rel: str) -> str:
+        return f"/niche-assets/bento/{rel}"
+
+    out_buckets = {}
+    for style, items in (data.get("buckets") or {}).items():
+        out_buckets[style] = [
+            {**it, "url": _abs(it["path"])} for it in items
+        ]
+    return {
+        **data,
+        "buckets": out_buckets,
+    }
+
+
 # ── Direct single-screen generation ───────────────────────────────────────────
 # Lightweight path used by the "old design" form: one Gemini 3 Pro Image call
 # from raw form fields, no strategist hop. Same niche anchor + brand assets
@@ -3282,6 +3323,8 @@ async def generate_bento_direct(
     bg_tone: str = Form("light", description="light | dark"),
     aspect_ratio: str = Form("4:3"),
     variant_index: int = Form(0, description="0..N — explores a different composition angle each call"),
+    template_url: Optional[str] = Form(None, description="Curated template image to anchor the AI on (passed through gallery picker)"),
+    template_slug: Optional[str] = Form(None, description="Slug of the picked template — diagnostic only, the AI uses template_url"),
     files: List[UploadFile] = File(default=[], description="Optional refs: product UI screenshot, brand assets, illustration"),
 ):
     """
@@ -3321,6 +3364,29 @@ async def generate_bento_direct(
         data = await f.read()
         if data:
             user_refs.append((data, f.content_type or "image/png"))
+
+    # If the user picked a template from the gallery, fetch it. Loaded
+    # straight from disk via _BENTO_TEMPLATES_DIR when the URL is one
+    # of our static-served paths — avoids a self-call to the API and
+    # works even when the route is JWT-gated. External URLs go through
+    # httpx as a fallback.
+    template_bytes: Optional[bytes] = None
+    if template_url:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(template_url)
+            if parsed.path.startswith("/niche-assets/bento/"):
+                rel = parsed.path[len("/niche-assets/bento/"):]
+                local_path = _BENTO_TEMPLATES_DIR / rel
+                if local_path.exists():
+                    template_bytes = local_path.read_bytes()
+            if template_bytes is None:
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as http:
+                    r = await http.get(template_url)
+                    if r.status_code == 200 and len(r.content) > 500:
+                        template_bytes = r.content
+        except Exception as e:
+            logger.warning(f"template fetch failed for {template_url}: {e}")
 
     angle = _BENTO_VARIANT_ANGLES[variant_index % len(_BENTO_VARIANT_ANGLES)]
     layout_block = _BENTO_LAYOUT_DIRECTIVES[layout]
@@ -3384,6 +3450,21 @@ async def generate_bento_direct(
     prompt = "\n".join(parts)
 
     contents: list = []
+    # Order matters: the gallery template (when provided) goes FIRST so
+    # the model treats it as the primary style reference. User-uploaded
+    # assets (UI mockups / icons) come after as secondary content refs.
+    if template_bytes:
+        contents.append(types.Part.from_bytes(data=template_bytes, mime_type="image/jpeg"))
+        # Append a note to the prompt so the model knows to anchor on
+        # the template's palette / typography / layout — not copy its
+        # text content.
+        prompt += (
+            "\n\nSTYLE TEMPLATE — Image 1 above is a curated bento card "
+            "the user picked from the gallery as a style anchor. Reproduce "
+            "its overall palette, typography rhythm, and layout vibe. Do "
+            "NOT copy its specific text content or product references — "
+            "swap those for the user's product as briefed above."
+        )
     for data, mime in user_refs:
         contents.append(types.Part.from_bytes(data=data, mime_type=mime))
     contents.append(prompt)

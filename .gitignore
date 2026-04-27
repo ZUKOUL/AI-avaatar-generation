@@ -9,3 +9,5 @@ __pycache__/
 # packs (with manifest.json) belong in the repo. _unsorted holds the raw
 # pre-conversion imports.
 app/services/niche_assets/**/_unsorted/
+.cache/
+.DS_Store
