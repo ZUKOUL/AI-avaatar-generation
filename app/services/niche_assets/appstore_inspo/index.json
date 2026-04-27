@@ -5,121 +5,27 @@
     "phone_mockup": "Phone device mockup is the dominant subject (tilted / angled / floating). Real UI visible inside.",
     "lifestyle_photo": "Real-world photo background (person, hand, scene) with the app screen overlaid as a phone mockup.",
     "illustration_led": "Custom 3D illustration, mascot, or painterly artwork is the hero. Phone mockup is small or absent.",
-    "feature_callout": "Annotated screenshot — arrows, circles, badges pointing to UI features. Tutorial energy.",
-    "social_proof": "Reviews, ratings, testimonials, awards, user count as the centerpiece. Quote-led layout.",
-    "before_after": "Split-screen comparison, before/after, with-without, two-column visual. Transformation framing."
+    "feature_callout": "Annotated screenshot — arrows, circles, badges pointing to UI features. Tutorial energy."
   },
   "counts": {
-    "headline_first": 34,
-    "phone_mockup": 203,
-    "lifestyle_photo": 11,
-    "illustration_led": 28,
-    "feature_callout": 1,
-    "social_proof": 1,
-    "before_after": 2
+    "headline_first": 8,
+    "phone_mockup": 205,
+    "lifestyle_photo": 4,
+    "illustration_led": 12,
+    "feature_callout": 1
   },
-  "total": 280,
+  "total": 230,
   "buckets": {
     "headline_first": [
-      {
-        "slug": "038_original-d9e2207902e9112ae253b54c83474104",
-        "path": "headline_first/038_original-d9e2207902e9112ae253b54c83474104.jpg",
-        "bytes": 137993
-      },
-      {
-        "slug": "074_original-9a7018479e5957ded65c7e6bc8214c86",
-        "path": "headline_first/074_original-9a7018479e5957ded65c7e6bc8214c86.jpg",
-        "bytes": 129294
-      },
-      {
-        "slug": "115_d8c21061856a977c227282584c0471e1",
-        "path": "headline_first/115_d8c21061856a977c227282584c0471e1.jpg",
-        "bytes": 125738
-      },
-      {
-        "slug": "234_4dfcde374da6c6d5e6e0ff680ac1ec06",
-        "path": "headline_first/234_4dfcde374da6c6d5e6e0ff680ac1ec06.jpg",
-        "bytes": 118441
-      },
-      {
-        "slug": "175_b189056ad5520ba4c81dbcc2b94495cf",
-        "path": "headline_first/175_b189056ad5520ba4c81dbcc2b94495cf.jpg",
-        "bytes": 116102
-      },
-      {
-        "slug": "186_original-71ec1c1f6a2a2d4a991a10f36233e742",
-        "path": "headline_first/186_original-71ec1c1f6a2a2d4a991a10f36233e742.jpg",
-        "bytes": 111585
-      },
-      {
-        "slug": "110_original-e5158b61082fbe0c346ea7ea62f26ee2",
-        "path": "headline_first/110_original-e5158b61082fbe0c346ea7ea62f26ee2.jpg",
-        "bytes": 111246
-      },
-      {
-        "slug": "010_afd1823b632e277025ae016326457ba3",
-        "path": "headline_first/010_afd1823b632e277025ae016326457ba3.jpg",
-        "bytes": 110179
-      },
-      {
-        "slug": "019_8f4a6ecc3b234613045a24ebe20811f9",
-        "path": "headline_first/019_8f4a6ecc3b234613045a24ebe20811f9.jpg",
-        "bytes": 105057
-      },
-      {
-        "slug": "050_dbf62cb1105ed0562f2c1144dd3e18a8",
-        "path": "headline_first/050_dbf62cb1105ed0562f2c1144dd3e18a8.jpg",
-        "bytes": 103703
-      },
       {
         "slug": "046_3af5f651f97666e27462b625eae563dd",
         "path": "headline_first/046_3af5f651f97666e27462b625eae563dd.jpg",
         "bytes": 99864
       },
       {
-        "slug": "158_e06864f5cf96ce2b3916afcc1c87ced9",
-        "path": "headline_first/158_e06864f5cf96ce2b3916afcc1c87ced9.jpg",
-        "bytes": 97405
-      },
-      {
-        "slug": "019_f373b59def1866bfcec81dc291e9306f",
-        "path": "headline_first/019_f373b59def1866bfcec81dc291e9306f.jpg",
-        "bytes": 97275
-      },
-      {
-        "slug": "063_36cd5b42570eb2f5ae6a5f208275a0d0",
-        "path": "headline_first/063_36cd5b42570eb2f5ae6a5f208275a0d0.jpg",
-        "bytes": 92112
-      },
-      {
-        "slug": "029_9c9025762269bd738fb4f6319817092b",
-        "path": "headline_first/029_9c9025762269bd738fb4f6319817092b.jpg",
-        "bytes": 91246
-      },
-      {
-        "slug": "007_original-82ba0994421eb5a14bf95e3be7dd8e76",
-        "path": "headline_first/007_original-82ba0994421eb5a14bf95e3be7dd8e76.jpg",
-        "bytes": 90496
-      },
-      {
-        "slug": "023_cfb172131d5d9f468f8d569eb71e5783",
-        "path": "headline_first/023_cfb172131d5d9f468f8d569eb71e5783.jpg",
-        "bytes": 90133
-      },
-      {
-        "slug": "167_b381fbf45251ec070e9dbc97c85fe5ba",
-        "path": "headline_first/167_b381fbf45251ec070e9dbc97c85fe5ba.jpg",
-        "bytes": 86646
-      },
-      {
-        "slug": "055_e2dea24b84812147bea7f13e0ac5ee65",
-        "path": "headline_first/055_e2dea24b84812147bea7f13e0ac5ee65.jpg",
-        "bytes": 83066
-      },
-      {
-        "slug": "071_d9db2757ee3594e690cc5859cbf5aee1",
-        "path": "headline_first/071_d9db2757ee3594e690cc5859cbf5aee1.jpg",
-        "bytes": 82565
+        "slug": "070_1a21da0f207e6c1bfb29e367e2d0c674",
+        "path": "headline_first/070_1a21da0f207e6c1bfb29e367e2d0c674.jpg",
+        "bytes": 95456
       },
       {
         "slug": "203_43b4087af1be67d4ca5bdc7e3f44a5ef",
@@ -127,9 +33,9 @@
         "bytes": 81140
       },
       {
-        "slug": "163_original-67fe07b906c16303e4c3e400662dc88a",
-        "path": "headline_first/163_original-67fe07b906c16303e4c3e400662dc88a.jpg",
-        "bytes": 75366
+        "slug": "171_a757b5df3d9b877c746e54312b944b5c",
+        "path": "headline_first/171_a757b5df3d9b877c746e54312b944b5c.jpg",
+        "bytes": 76647
       },
       {
         "slug": "048_d1261765163e929c8854275573581bbc",
@@ -137,49 +43,9 @@
         "bytes": 75324
       },
       {
-        "slug": "025_096c96594896e1dffb38fac3653e05b4",
-        "path": "headline_first/025_096c96594896e1dffb38fac3653e05b4.jpg",
-        "bytes": 75101
-      },
-      {
-        "slug": "193_c4bb24e389bc1f4e51c9f30058803892",
-        "path": "headline_first/193_c4bb24e389bc1f4e51c9f30058803892.jpg",
-        "bytes": 73272
-      },
-      {
-        "slug": "228_08babb0f414866e65c08abf545bcffb6",
-        "path": "headline_first/228_08babb0f414866e65c08abf545bcffb6.jpg",
-        "bytes": 72817
-      },
-      {
-        "slug": "072_original-1f737e1b7508274af844d0fb26510279",
-        "path": "headline_first/072_original-1f737e1b7508274af844d0fb26510279.jpg",
-        "bytes": 71988
-      },
-      {
-        "slug": "145_faf52901033097e7aeb93932d96a90be",
-        "path": "headline_first/145_faf52901033097e7aeb93932d96a90be.jpg",
-        "bytes": 70778
-      },
-      {
         "slug": "126_e34509df942f1d4f1c190527b7e8a4b0",
         "path": "headline_first/126_e34509df942f1d4f1c190527b7e8a4b0.jpg",
         "bytes": 69658
-      },
-      {
-        "slug": "080_33187eabb26826c0bc7484b084dfcb53",
-        "path": "headline_first/080_33187eabb26826c0bc7484b084dfcb53.jpg",
-        "bytes": 68743
-      },
-      {
-        "slug": "027_5fae1a182d0c1a452771004f789491ea",
-        "path": "headline_first/027_5fae1a182d0c1a452771004f789491ea.jpg",
-        "bytes": 64801
-      },
-      {
-        "slug": "025_84803bf74f69fd32c5f77c6c4078ca8c",
-        "path": "headline_first/025_84803bf74f69fd32c5f77c6c4078ca8c.jpg",
-        "bytes": 58548
       },
       {
         "slug": "189_still-b364e00b925f23c826bd2851548a5e7e",
@@ -199,9 +65,9 @@
         "bytes": 376225
       },
       {
-        "slug": "191_still-e7c7c3d289c575d7ae8ae95537d51f92",
-        "path": "phone_mockup/191_still-e7c7c3d289c575d7ae8ae95537d51f92.jpg",
-        "bytes": 311868
+        "slug": "038_original-d9e2207902e9112ae253b54c83474104",
+        "path": "phone_mockup/038_original-d9e2207902e9112ae253b54c83474104.jpg",
+        "bytes": 137993
       },
       {
         "slug": "035_0005ac0b4888ebcf95f53b594a88824c",
@@ -219,6 +85,11 @@
         "bytes": 131064
       },
       {
+        "slug": "074_original-9a7018479e5957ded65c7e6bc8214c86",
+        "path": "phone_mockup/074_original-9a7018479e5957ded65c7e6bc8214c86.jpg",
+        "bytes": 129294
+      },
+      {
         "slug": "156_e0519192fe0988b14ed82053aa931e9f",
         "path": "phone_mockup/156_e0519192fe0988b14ed82053aa931e9f.jpg",
         "bytes": 127749
@@ -227,6 +98,11 @@
         "slug": "049_fe3b862ad9ad14224b8e733f5f931c28",
         "path": "phone_mockup/049_fe3b862ad9ad14224b8e733f5f931c28.jpg",
         "bytes": 126399
+      },
+      {
+        "slug": "115_d8c21061856a977c227282584c0471e1",
+        "path": "phone_mockup/115_d8c21061856a977c227282584c0471e1.jpg",
+        "bytes": 125738
       },
       {
         "slug": "067_09cb070e61fd809f379417834e737acc",
@@ -239,9 +115,29 @@
         "bytes": 122417
       },
       {
+        "slug": "075_27d41701e7d99a8e77d84ac56c585323",
+        "path": "phone_mockup/075_27d41701e7d99a8e77d84ac56c585323.jpg",
+        "bytes": 122155
+      },
+      {
+        "slug": "072_14ab0ee4cdd720165902e32486a96949",
+        "path": "phone_mockup/072_14ab0ee4cdd720165902e32486a96949.jpg",
+        "bytes": 122058
+      },
+      {
         "slug": "084_b1c5660720fade60bf80422adead4ce2",
         "path": "phone_mockup/084_b1c5660720fade60bf80422adead4ce2.jpg",
         "bytes": 118752
+      },
+      {
+        "slug": "096_57f6d3d7eab224588fe66db920e0935e",
+        "path": "phone_mockup/096_57f6d3d7eab224588fe66db920e0935e.jpg",
+        "bytes": 118607
+      },
+      {
+        "slug": "234_4dfcde374da6c6d5e6e0ff680ac1ec06",
+        "path": "phone_mockup/234_4dfcde374da6c6d5e6e0ff680ac1ec06.jpg",
+        "bytes": 118441
       },
       {
         "slug": "265_d18929013097b1bd2cf290157d252836",
@@ -252,11 +148,6 @@
         "slug": "157_e03884eec153a32137b4bf7e4121b675",
         "path": "phone_mockup/157_e03884eec153a32137b4bf7e4121b675.jpg",
         "bytes": 117109
-      },
-      {
-        "slug": "249_original-d8b47c8a9b51dbe378a6bdd43006722c",
-        "path": "phone_mockup/249_original-d8b47c8a9b51dbe378a6bdd43006722c.jpg",
-        "bytes": 115878
       },
       {
         "slug": "034_63a6d0bb1b51ac30088fe02cc4a871b9",
@@ -289,14 +180,34 @@
         "bytes": 112600
       },
       {
+        "slug": "186_original-71ec1c1f6a2a2d4a991a10f36233e742",
+        "path": "phone_mockup/186_original-71ec1c1f6a2a2d4a991a10f36233e742.jpg",
+        "bytes": 111585
+      },
+      {
         "slug": "092_56978528f806a030358dca04ac711b57",
         "path": "phone_mockup/092_56978528f806a030358dca04ac711b57.jpg",
         "bytes": 111315
       },
       {
+        "slug": "110_original-e5158b61082fbe0c346ea7ea62f26ee2",
+        "path": "phone_mockup/110_original-e5158b61082fbe0c346ea7ea62f26ee2.jpg",
+        "bytes": 111246
+      },
+      {
         "slug": "098_c7ad775972aec36b3b279bbce0abb0df",
         "path": "phone_mockup/098_c7ad775972aec36b3b279bbce0abb0df.jpg",
         "bytes": 111132
+      },
+      {
+        "slug": "082_588805fcfbb32e34b9eef38eefcee671",
+        "path": "phone_mockup/082_588805fcfbb32e34b9eef38eefcee671.jpg",
+        "bytes": 110626
+      },
+      {
+        "slug": "010_afd1823b632e277025ae016326457ba3",
+        "path": "phone_mockup/010_afd1823b632e277025ae016326457ba3.jpg",
+        "bytes": 110179
       },
       {
         "slug": "187_still-e537acc7714cfffc251fcb00cbb17c39",
@@ -307,6 +218,11 @@
         "slug": "189_original-c000300ad6e3d396666834b98376ada5",
         "path": "phone_mockup/189_original-c000300ad6e3d396666834b98376ada5.jpg",
         "bytes": 109816
+      },
+      {
+        "slug": "013_a29304db75449d6ad38f3d039feb107d",
+        "path": "phone_mockup/013_a29304db75449d6ad38f3d039feb107d.jpg",
+        "bytes": 109036
       },
       {
         "slug": "062_5098e9846a902e67b47187ba2b05b4e3",
@@ -324,19 +240,9 @@
         "bytes": 107949
       },
       {
-        "slug": "235_original-74dbfcb222fb03d19d25b6e646ab7812",
-        "path": "phone_mockup/235_original-74dbfcb222fb03d19d25b6e646ab7812.jpg",
-        "bytes": 107763
-      },
-      {
         "slug": "185_ad700105687f8d09e10e307cd3c9a4d9",
         "path": "phone_mockup/185_ad700105687f8d09e10e307cd3c9a4d9.jpg",
         "bytes": 107746
-      },
-      {
-        "slug": "207_50a006f8f84d9f471821b4000f135656",
-        "path": "phone_mockup/207_50a006f8f84d9f471821b4000f135656.jpg",
-        "bytes": 105444
       },
       {
         "slug": "106_original-a0f492fd8f6a3dc60ece5b39922ca622",
@@ -347,6 +253,11 @@
         "slug": "153_c78db66705ae358084c3f9d88c2494a3",
         "path": "phone_mockup/153_c78db66705ae358084c3f9d88c2494a3.jpg",
         "bytes": 105297
+      },
+      {
+        "slug": "019_8f4a6ecc3b234613045a24ebe20811f9",
+        "path": "phone_mockup/019_8f4a6ecc3b234613045a24ebe20811f9.jpg",
+        "bytes": 105057
       },
       {
         "slug": "166_original-ed56e59c72a6578da29beb0c47899ec7",
@@ -364,14 +275,14 @@
         "bytes": 104136
       },
       {
+        "slug": "050_dbf62cb1105ed0562f2c1144dd3e18a8",
+        "path": "phone_mockup/050_dbf62cb1105ed0562f2c1144dd3e18a8.jpg",
+        "bytes": 103703
+      },
+      {
         "slug": "109_cef9732cc2cfb3e3501ea8e06ee10493",
         "path": "phone_mockup/109_cef9732cc2cfb3e3501ea8e06ee10493.jpg",
         "bytes": 103606
-      },
-      {
-        "slug": "162_34c668d2b83a9bb624265ef051992cc5",
-        "path": "phone_mockup/162_34c668d2b83a9bb624265ef051992cc5.jpg",
-        "bytes": 103070
       },
       {
         "slug": "107_original-02bc634378b6ea12411686050aef150e",
@@ -389,9 +300,14 @@
         "bytes": 102855
       },
       {
-        "slug": "198_47e605d31539b71fe592bd4456730ff5",
-        "path": "phone_mockup/198_47e605d31539b71fe592bd4456730ff5.jpg",
-        "bytes": 102801
+        "slug": "076_9d269a1572fb578eb13c7285dbae9044",
+        "path": "phone_mockup/076_9d269a1572fb578eb13c7285dbae9044.jpg",
+        "bytes": 102815
+      },
+      {
+        "slug": "036_fcf66a0e204dbae753aee5172ed0fe1e",
+        "path": "phone_mockup/036_fcf66a0e204dbae753aee5172ed0fe1e.jpg",
+        "bytes": 102383
       },
       {
         "slug": "088_fcf1fefd88ef54f39a1d7785e987a4be",
@@ -429,9 +345,9 @@
         "bytes": 99104
       },
       {
-        "slug": "222_8c3d6b20cdc89b17d80d2272ea11b145",
-        "path": "phone_mockup/222_8c3d6b20cdc89b17d80d2272ea11b145.jpg",
-        "bytes": 98457
+        "slug": "153_806d52c222b714d2ea42235fc111a069",
+        "path": "phone_mockup/153_806d52c222b714d2ea42235fc111a069.jpg",
+        "bytes": 98843
       },
       {
         "slug": "186_ad8f2af3d408930437f9b04fc57d4075",
@@ -449,19 +365,19 @@
         "bytes": 98230
       },
       {
-        "slug": "012_63f5438dc64814bf831a84f3faedf9d8",
-        "path": "phone_mockup/012_63f5438dc64814bf831a84f3faedf9d8.jpg",
-        "bytes": 97893
+        "slug": "158_e06864f5cf96ce2b3916afcc1c87ced9",
+        "path": "phone_mockup/158_e06864f5cf96ce2b3916afcc1c87ced9.jpg",
+        "bytes": 97405
+      },
+      {
+        "slug": "019_f373b59def1866bfcec81dc291e9306f",
+        "path": "phone_mockup/019_f373b59def1866bfcec81dc291e9306f.jpg",
+        "bytes": 97275
       },
       {
         "slug": "065_1b03a7c3f677a8adceac1a86401e03c1",
         "path": "phone_mockup/065_1b03a7c3f677a8adceac1a86401e03c1.jpg",
         "bytes": 97214
-      },
-      {
-        "slug": "016_83048fed5c54eb7e4760ffa32ff448e8",
-        "path": "phone_mockup/016_83048fed5c54eb7e4760ffa32ff448e8.jpg",
-        "bytes": 97074
       },
       {
         "slug": "022_d205d5a600a4977681ee69a282b2a357",
@@ -482,11 +398,6 @@
         "slug": "192_original-b3dc2f68052dae679748a4abd09ba61c",
         "path": "phone_mockup/192_original-b3dc2f68052dae679748a4abd09ba61c.jpg",
         "bytes": 96153
-      },
-      {
-        "slug": "208_original-6adf75e772f89aad96a29823d6b86ac2",
-        "path": "phone_mockup/208_original-6adf75e772f89aad96a29823d6b86ac2.jpg",
-        "bytes": 95671
       },
       {
         "slug": "159_bf3fe0e81ed9f1bec058c0ca03859f26",
@@ -524,16 +435,6 @@
         "bytes": 94726
       },
       {
-        "slug": "146_975d6e31bc1c3cc99197f95d301327a6",
-        "path": "phone_mockup/146_975d6e31bc1c3cc99197f95d301327a6.jpg",
-        "bytes": 93496
-      },
-      {
-        "slug": "069_6d2b0e982a27d05cd6e305288301371f",
-        "path": "phone_mockup/069_6d2b0e982a27d05cd6e305288301371f.jpg",
-        "bytes": 92917
-      },
-      {
         "slug": "013_still-a269fdf9cab3209051ef94f34dcbbc5d",
         "path": "phone_mockup/013_still-a269fdf9cab3209051ef94f34dcbbc5d.jpg",
         "bytes": 92898
@@ -547,6 +448,11 @@
         "slug": "154_2d7d266196150f1df2c0b937306aae13",
         "path": "phone_mockup/154_2d7d266196150f1df2c0b937306aae13.jpg",
         "bytes": 92327
+      },
+      {
+        "slug": "063_36cd5b42570eb2f5ae6a5f208275a0d0",
+        "path": "phone_mockup/063_36cd5b42570eb2f5ae6a5f208275a0d0.jpg",
+        "bytes": 92112
       },
       {
         "slug": "158_5cc217e94515e2bccd9f724615688606",
@@ -584,9 +490,9 @@
         "bytes": 90718
       },
       {
-        "slug": "270_original-dc787495990bebfae3916295c7108369",
-        "path": "phone_mockup/270_original-dc787495990bebfae3916295c7108369.jpg",
-        "bytes": 90559
+        "slug": "007_original-82ba0994421eb5a14bf95e3be7dd8e76",
+        "path": "phone_mockup/007_original-82ba0994421eb5a14bf95e3be7dd8e76.jpg",
+        "bytes": 90496
       },
       {
         "slug": "009_2e5e8e1edb6756634580b95c55cfc9ea",
@@ -594,9 +500,9 @@
         "bytes": 90286
       },
       {
-        "slug": "014_87065aee37dd6c1a2b01ba9b62c78a52",
-        "path": "phone_mockup/014_87065aee37dd6c1a2b01ba9b62c78a52.jpg",
-        "bytes": 90265
+        "slug": "023_cfb172131d5d9f468f8d569eb71e5783",
+        "path": "phone_mockup/023_cfb172131d5d9f468f8d569eb71e5783.jpg",
+        "bytes": 90133
       },
       {
         "slug": "111_still-b1764e3ce13c9dc0b7a2512cc60466e4",
@@ -607,11 +513,6 @@
         "slug": "060_76d174b1462b2405d6980790493a1902",
         "path": "phone_mockup/060_76d174b1462b2405d6980790493a1902.jpg",
         "bytes": 89543
-      },
-      {
-        "slug": "015_f427189f7c8041b14e5ed48747f9f201",
-        "path": "phone_mockup/015_f427189f7c8041b14e5ed48747f9f201.jpg",
-        "bytes": 89214
       },
       {
         "slug": "010_7b1bea095076cd82ab054c17a25cbc2c",
@@ -639,21 +540,6 @@
         "bytes": 88206
       },
       {
-        "slug": "053_original-19c67f7d88721c7f724b8cca6b315cd6",
-        "path": "phone_mockup/053_original-19c67f7d88721c7f724b8cca6b315cd6.jpg",
-        "bytes": 87926
-      },
-      {
-        "slug": "169_97bae93b5a29dfe6322c9241e59f1ad0",
-        "path": "phone_mockup/169_97bae93b5a29dfe6322c9241e59f1ad0.jpg",
-        "bytes": 87859
-      },
-      {
-        "slug": "051_original-9b2f4aceacd0be27db38717fc8924013",
-        "path": "phone_mockup/051_original-9b2f4aceacd0be27db38717fc8924013.jpg",
-        "bytes": 87483
-      },
-      {
         "slug": "166_d72659378b5bc5ac8600d9be34880fb7",
         "path": "phone_mockup/166_d72659378b5bc5ac8600d9be34880fb7.jpg",
         "bytes": 87386
@@ -674,6 +560,11 @@
         "bytes": 86745
       },
       {
+        "slug": "167_b381fbf45251ec070e9dbc97c85fe5ba",
+        "path": "phone_mockup/167_b381fbf45251ec070e9dbc97c85fe5ba.jpg",
+        "bytes": 86646
+      },
+      {
         "slug": "129_f8c0cedd4a2692aed21ec67976d033d0",
         "path": "phone_mockup/129_f8c0cedd4a2692aed21ec67976d033d0.jpg",
         "bytes": 86153
@@ -692,6 +583,11 @@
         "slug": "163_ee04fc5172aae350899eb2cabc4c1a32",
         "path": "phone_mockup/163_ee04fc5172aae350899eb2cabc4c1a32.jpg",
         "bytes": 85773
+      },
+      {
+        "slug": "041_2edec1d63514ba95af7cf89d550ceea1",
+        "path": "phone_mockup/041_2edec1d63514ba95af7cf89d550ceea1.jpg",
+        "bytes": 85470
       },
       {
         "slug": "016_d333f97cce772615d75546e3c21eadbd",
@@ -729,11 +625,6 @@
         "bytes": 84362
       },
       {
-        "slug": "014_9286ff3a340e39f8eea73aadd75ef1fc",
-        "path": "phone_mockup/014_9286ff3a340e39f8eea73aadd75ef1fc.jpg",
-        "bytes": 84080
-      },
-      {
         "slug": "152_1d6ca3e2bcb40aba41a7c1a2ebb4c64d",
         "path": "phone_mockup/152_1d6ca3e2bcb40aba41a7c1a2ebb4c64d.jpg",
         "bytes": 83919
@@ -742,11 +633,6 @@
         "slug": "114_1a55b9dee05c9afdc12e7e875f578fea",
         "path": "phone_mockup/114_1a55b9dee05c9afdc12e7e875f578fea.jpg",
         "bytes": 83612
-      },
-      {
-        "slug": "161_53eeac8b768a6c08ccfe1f5576ff661e",
-        "path": "phone_mockup/161_53eeac8b768a6c08ccfe1f5576ff661e.jpg",
-        "bytes": 82931
       },
       {
         "slug": "252_original-b962f733475f7d871a1180d476f6a9df",
@@ -759,6 +645,11 @@
         "bytes": 82867
       },
       {
+        "slug": "071_d9db2757ee3594e690cc5859cbf5aee1",
+        "path": "phone_mockup/071_d9db2757ee3594e690cc5859cbf5aee1.jpg",
+        "bytes": 82565
+      },
+      {
         "slug": "115_original-d55696efcd24798f83a34e972e7b0387",
         "path": "phone_mockup/115_original-d55696efcd24798f83a34e972e7b0387.jpg",
         "bytes": 82464
@@ -767,11 +658,6 @@
         "slug": "195_original-0236542c4375f546c50070d39f51c116",
         "path": "phone_mockup/195_original-0236542c4375f546c50070d39f51c116.jpg",
         "bytes": 82219
-      },
-      {
-        "slug": "155_3ba14870012f1704e139e57ffe4dff35",
-        "path": "phone_mockup/155_3ba14870012f1704e139e57ffe4dff35.jpg",
-        "bytes": 81715
       },
       {
         "slug": "253_original-ccf54c2a7ef3b54373e9186aeb99e3de",
@@ -789,19 +675,9 @@
         "bytes": 81046
       },
       {
-        "slug": "165_50f71772139e25f5c534d43ea4a2754a",
-        "path": "phone_mockup/165_50f71772139e25f5c534d43ea4a2754a.jpg",
-        "bytes": 80855
-      },
-      {
         "slug": "162_1cfcd0b9f7be93908af333b41bbe24e6",
         "path": "phone_mockup/162_1cfcd0b9f7be93908af333b41bbe24e6.jpg",
         "bytes": 80442
-      },
-      {
-        "slug": "075_843e3831695bb6ac3b3af6b8bb3aae10",
-        "path": "phone_mockup/075_843e3831695bb6ac3b3af6b8bb3aae10.jpg",
-        "bytes": 80382
       },
       {
         "slug": "184_96bdb5c2b833ff6ed866857d6aff109e",
@@ -824,11 +700,6 @@
         "bytes": 79523
       },
       {
-        "slug": "148_510d37df7d4cd40661f9114ed224a5ff",
-        "path": "phone_mockup/148_510d37df7d4cd40661f9114ed224a5ff.jpg",
-        "bytes": 79239
-      },
-      {
         "slug": "071_c0e988cadddc49cf1e60983c4857cb6a",
         "path": "phone_mockup/071_c0e988cadddc49cf1e60983c4857cb6a.jpg",
         "bytes": 78526
@@ -837,6 +708,11 @@
         "slug": "134_3b3f042e27f9f95f3c5223d3f5f4a409",
         "path": "phone_mockup/134_3b3f042e27f9f95f3c5223d3f5f4a409.jpg",
         "bytes": 78250
+      },
+      {
+        "slug": "068_1018dbb2a46982e78d642601a03ba882",
+        "path": "phone_mockup/068_1018dbb2a46982e78d642601a03ba882.jpg",
+        "bytes": 78063
       },
       {
         "slug": "202_a38257d61459b8ed7f4a81c345313a53",
@@ -869,19 +745,14 @@
         "bytes": 76947
       },
       {
-        "slug": "171_a757b5df3d9b877c746e54312b944b5c",
-        "path": "phone_mockup/171_a757b5df3d9b877c746e54312b944b5c.jpg",
-        "bytes": 76647
-      },
-      {
-        "slug": "105_original-ace4c16cc5fa84e87cb9402bc4e9ed82",
-        "path": "phone_mockup/105_original-ace4c16cc5fa84e87cb9402bc4e9ed82.jpg",
-        "bytes": 76118
-      },
-      {
         "slug": "230_original-4d065eae81ea346947bd072d2869662c",
         "path": "phone_mockup/230_original-4d065eae81ea346947bd072d2869662c.jpg",
         "bytes": 76000
+      },
+      {
+        "slug": "163_original-67fe07b906c16303e4c3e400662dc88a",
+        "path": "phone_mockup/163_original-67fe07b906c16303e4c3e400662dc88a.jpg",
+        "bytes": 75366
       },
       {
         "slug": "188_56cebec23533432db3a4d26b1bbf7b5e",
@@ -899,6 +770,11 @@
         "bytes": 73411
       },
       {
+        "slug": "193_c4bb24e389bc1f4e51c9f30058803892",
+        "path": "phone_mockup/193_c4bb24e389bc1f4e51c9f30058803892.jpg",
+        "bytes": 73272
+      },
+      {
         "slug": "255_original-73f2d8f5c2d795c3842e427b25097bb3",
         "path": "phone_mockup/255_original-73f2d8f5c2d795c3842e427b25097bb3.jpg",
         "bytes": 72886
@@ -907,6 +783,11 @@
         "slug": "193_baf0e216f511b388ef4bbdadc350a1dd",
         "path": "phone_mockup/193_baf0e216f511b388ef4bbdadc350a1dd.jpg",
         "bytes": 72262
+      },
+      {
+        "slug": "072_original-1f737e1b7508274af844d0fb26510279",
+        "path": "phone_mockup/072_original-1f737e1b7508274af844d0fb26510279.jpg",
+        "bytes": 71988
       },
       {
         "slug": "180_cc26d3e55d5a9e4b70d10603a68a639a",
@@ -924,14 +805,9 @@
         "bytes": 71588
       },
       {
-        "slug": "042_still-8cf5e3445a8ae0478cafa308cd364fdd",
-        "path": "phone_mockup/042_still-8cf5e3445a8ae0478cafa308cd364fdd.jpg",
-        "bytes": 71227
-      },
-      {
-        "slug": "182_original-b94d28bfbe473847b02caf366f6a8eab",
-        "path": "phone_mockup/182_original-b94d28bfbe473847b02caf366f6a8eab.jpg",
-        "bytes": 71217
+        "slug": "119_still-f266db3a85c028521746e624e7623c06",
+        "path": "phone_mockup/119_still-f266db3a85c028521746e624e7623c06.jpg",
+        "bytes": 71222
       },
       {
         "slug": "199_d345a981160e14dfbecf77d8336d4657",
@@ -942,6 +818,11 @@
         "slug": "196_still-d95836ab7cfdf1358b7f2023143108a3",
         "path": "phone_mockup/196_still-d95836ab7cfdf1358b7f2023143108a3.jpg",
         "bytes": 70891
+      },
+      {
+        "slug": "145_faf52901033097e7aeb93932d96a90be",
+        "path": "phone_mockup/145_faf52901033097e7aeb93932d96a90be.jpg",
+        "bytes": 70778
       },
       {
         "slug": "212_e5c86f573e76beb1375948b23507dde1",
@@ -957,6 +838,11 @@
         "slug": "111_original-228c57d9ddc6d7609fe5c390265437f0",
         "path": "phone_mockup/111_original-228c57d9ddc6d7609fe5c390265437f0.jpg",
         "bytes": 68961
+      },
+      {
+        "slug": "080_33187eabb26826c0bc7484b084dfcb53",
+        "path": "phone_mockup/080_33187eabb26826c0bc7484b084dfcb53.jpg",
+        "bytes": 68743
       },
       {
         "slug": "176_original-676e007fa23701a8d053d5bb6f8ce588",
@@ -982,6 +868,11 @@
         "slug": "224_original-eb218d3113a63ebbeab5f8d8ba4ea75f",
         "path": "phone_mockup/224_original-eb218d3113a63ebbeab5f8d8ba4ea75f.jpg",
         "bytes": 67998
+      },
+      {
+        "slug": "181_original-56562bcfa392e0072aa9d67c87f5bea4",
+        "path": "phone_mockup/181_original-56562bcfa392e0072aa9d67c87f5bea4.jpg",
+        "bytes": 67889
       },
       {
         "slug": "008_0a9d7609ce8ac4a98a18e7648270b917",
@@ -1039,14 +930,14 @@
         "bytes": 65166
       },
       {
+        "slug": "027_5fae1a182d0c1a452771004f789491ea",
+        "path": "phone_mockup/027_5fae1a182d0c1a452771004f789491ea.jpg",
+        "bytes": 64801
+      },
+      {
         "slug": "194_294df4f4fd4d44fc279e4463efb1cef4",
         "path": "phone_mockup/194_294df4f4fd4d44fc279e4463efb1cef4.jpg",
         "bytes": 64281
-      },
-      {
-        "slug": "112_still-eb0b27b92e286dcfbca88ad7e224fa13",
-        "path": "phone_mockup/112_still-eb0b27b92e286dcfbca88ad7e224fa13.jpg",
-        "bytes": 64026
       },
       {
         "slug": "188_46efc3533c89fef98f1ddb30eb7e6fce",
@@ -1057,11 +948,6 @@
         "slug": "197_still-2d9777575ed51ddc0145f1b492d39d2e",
         "path": "phone_mockup/197_still-2d9777575ed51ddc0145f1b492d39d2e.jpg",
         "bytes": 63852
-      },
-      {
-        "slug": "121_55d7908cf794a681a90fad434c4299f6",
-        "path": "phone_mockup/121_55d7908cf794a681a90fad434c4299f6.jpg",
-        "bytes": 63595
       },
       {
         "slug": "137_original-b9b2b590c51d143c813354403d7e3551",
@@ -1084,16 +970,6 @@
         "bytes": 62142
       },
       {
-        "slug": "194_original-dbe242a3e5f5136cf66463d824886118",
-        "path": "phone_mockup/194_original-dbe242a3e5f5136cf66463d824886118.jpg",
-        "bytes": 61924
-      },
-      {
-        "slug": "200_original-c82116c92ad1a94941d83fce1ae955e1",
-        "path": "phone_mockup/200_original-c82116c92ad1a94941d83fce1ae955e1.jpg",
-        "bytes": 61799
-      },
-      {
         "slug": "248_9971ffe59f5199548991c4fbdfd95f4c",
         "path": "phone_mockup/248_9971ffe59f5199548991c4fbdfd95f4c.jpg",
         "bytes": 61734
@@ -1104,19 +980,9 @@
         "bytes": 59934
       },
       {
-        "slug": "211_original-8be07288d6de830be0b8da5ad4f0baab",
-        "path": "phone_mockup/211_original-8be07288d6de830be0b8da5ad4f0baab.jpg",
-        "bytes": 59801
-      },
-      {
         "slug": "024_bd67cd83676e8565de89aebe2bac00e7",
         "path": "phone_mockup/024_bd67cd83676e8565de89aebe2bac00e7.jpg",
         "bytes": 59776
-      },
-      {
-        "slug": "205_still-142cd2b0bed0d34c0e7395989c8d6862",
-        "path": "phone_mockup/205_still-142cd2b0bed0d34c0e7395989c8d6862.jpg",
-        "bytes": 59161
       },
       {
         "slug": "141_effd174e642b2e0e0bb7c933a0215ba3",
@@ -1127,6 +993,11 @@
         "slug": "157_04195f1e04848492dc5b45710ed43edd",
         "path": "phone_mockup/157_04195f1e04848492dc5b45710ed43edd.jpg",
         "bytes": 58636
+      },
+      {
+        "slug": "025_84803bf74f69fd32c5f77c6c4078ca8c",
+        "path": "phone_mockup/025_84803bf74f69fd32c5f77c6c4078ca8c.jpg",
+        "bytes": 58548
       },
       {
         "slug": "172_4dcce6051b7de6b60326681b9a4860d5",
@@ -1189,6 +1060,11 @@
         "bytes": 36866
       },
       {
+        "slug": "215_02558597e8113b59bacb983619cad426",
+        "path": "phone_mockup/215_02558597e8113b59bacb983619cad426.jpg",
+        "bytes": 36621
+      },
+      {
         "slug": "178_original-e766754524795da8c6ec8a1cf3017582",
         "path": "phone_mockup/178_original-e766754524795da8c6ec8a1cf3017582.jpg",
         "bytes": 35710
@@ -1216,11 +1092,6 @@
         "bytes": 120270
       },
       {
-        "slug": "096_57f6d3d7eab224588fe66db920e0935e",
-        "path": "lifestyle_photo/096_57f6d3d7eab224588fe66db920e0935e.jpg",
-        "bytes": 118607
-      },
-      {
         "slug": "051_557d240b5d331967dd1d8508b0f32e6e",
         "path": "lifestyle_photo/051_557d240b5d331967dd1d8508b0f32e6e.jpg",
         "bytes": 112617
@@ -1234,36 +1105,6 @@
         "slug": "078_de43076734b28ec833de8159e146588b",
         "path": "lifestyle_photo/078_de43076734b28ec833de8159e146588b.jpg",
         "bytes": 103651
-      },
-      {
-        "slug": "036_fcf66a0e204dbae753aee5172ed0fe1e",
-        "path": "lifestyle_photo/036_fcf66a0e204dbae753aee5172ed0fe1e.jpg",
-        "bytes": 102383
-      },
-      {
-        "slug": "153_806d52c222b714d2ea42235fc111a069",
-        "path": "lifestyle_photo/153_806d52c222b714d2ea42235fc111a069.jpg",
-        "bytes": 98843
-      },
-      {
-        "slug": "099_d9886c4b6dcd44f9a42d084682fb5acc",
-        "path": "lifestyle_photo/099_d9886c4b6dcd44f9a42d084682fb5acc.jpg",
-        "bytes": 89512
-      },
-      {
-        "slug": "041_2edec1d63514ba95af7cf89d550ceea1",
-        "path": "lifestyle_photo/041_2edec1d63514ba95af7cf89d550ceea1.jpg",
-        "bytes": 85470
-      },
-      {
-        "slug": "119_still-f266db3a85c028521746e624e7623c06",
-        "path": "lifestyle_photo/119_still-f266db3a85c028521746e624e7623c06.jpg",
-        "bytes": 71222
-      },
-      {
-        "slug": "215_02558597e8113b59bacb983619cad426",
-        "path": "lifestyle_photo/215_02558597e8113b59bacb983619cad426.jpg",
-        "bytes": 36621
       }
     ],
     "illustration_led": [
@@ -1271,16 +1112,6 @@
         "slug": "099_7c8b434d4242ed2980ced393b13ab2f4",
         "path": "illustration_led/099_7c8b434d4242ed2980ced393b13ab2f4.jpg",
         "bytes": 141480
-      },
-      {
-        "slug": "075_27d41701e7d99a8e77d84ac56c585323",
-        "path": "illustration_led/075_27d41701e7d99a8e77d84ac56c585323.jpg",
-        "bytes": 122155
-      },
-      {
-        "slug": "072_14ab0ee4cdd720165902e32486a96949",
-        "path": "illustration_led/072_14ab0ee4cdd720165902e32486a96949.jpg",
-        "bytes": 122058
       },
       {
         "slug": "083_0f370c9f7d094e5cfdbdb4764b23493b",
@@ -1293,24 +1124,9 @@
         "bytes": 113229
       },
       {
-        "slug": "221_original-d78f91617a4713ce508663953ff92e57",
-        "path": "illustration_led/221_original-d78f91617a4713ce508663953ff92e57.jpg",
-        "bytes": 113188
-      },
-      {
-        "slug": "082_588805fcfbb32e34b9eef38eefcee671",
-        "path": "illustration_led/082_588805fcfbb32e34b9eef38eefcee671.jpg",
-        "bytes": 110626
-      },
-      {
         "slug": "021_9c3271eb9b2b0d3e6f2ed0b49b15e1d9",
         "path": "illustration_led/021_9c3271eb9b2b0d3e6f2ed0b49b15e1d9.jpg",
         "bytes": 109311
-      },
-      {
-        "slug": "013_a29304db75449d6ad38f3d039feb107d",
-        "path": "illustration_led/013_a29304db75449d6ad38f3d039feb107d.jpg",
-        "bytes": 109036
       },
       {
         "slug": "078_original-8b70eccebe070f0e09a2858e0503d1ad",
@@ -1318,49 +1134,14 @@
         "bytes": 103512
       },
       {
-        "slug": "076_9d269a1572fb578eb13c7285dbae9044",
-        "path": "illustration_led/076_9d269a1572fb578eb13c7285dbae9044.jpg",
-        "bytes": 102815
-      },
-      {
-        "slug": "101_0a69898840ae9acd1d987cb2710c688d",
-        "path": "illustration_led/101_0a69898840ae9acd1d987cb2710c688d.jpg",
-        "bytes": 102074
-      },
-      {
         "slug": "165_2241b4848caffa219e61fe4603dae8e9",
         "path": "illustration_led/165_2241b4848caffa219e61fe4603dae8e9.jpg",
         "bytes": 97692
       },
       {
-        "slug": "214_still-9d65905d725f3219d400dc8e438d359e",
-        "path": "illustration_led/214_still-9d65905d725f3219d400dc8e438d359e.jpg",
-        "bytes": 95646
-      },
-      {
-        "slug": "052_90d5f5730a413d341514991265e618a5",
-        "path": "illustration_led/052_90d5f5730a413d341514991265e618a5.jpg",
-        "bytes": 95606
-      },
-      {
-        "slug": "070_1a21da0f207e6c1bfb29e367e2d0c674",
-        "path": "illustration_led/070_1a21da0f207e6c1bfb29e367e2d0c674.jpg",
-        "bytes": 95456
-      },
-      {
         "slug": "058_825f73a2462fba9f4d42c127bf9bf813",
         "path": "illustration_led/058_825f73a2462fba9f4d42c127bf9bf813.jpg",
         "bytes": 94597
-      },
-      {
-        "slug": "159_original-e29c9b1f234e7ed67a28bb694c8c4d27",
-        "path": "illustration_led/159_original-e29c9b1f234e7ed67a28bb694c8c4d27.jpg",
-        "bytes": 86604
-      },
-      {
-        "slug": "068_1018dbb2a46982e78d642601a03ba882",
-        "path": "illustration_led/068_1018dbb2a46982e78d642601a03ba882.jpg",
-        "bytes": 78063
       },
       {
         "slug": "024_af5e737145866d854de336286eea6b62",
@@ -1378,29 +1159,9 @@
         "bytes": 69612
       },
       {
-        "slug": "181_original-56562bcfa392e0072aa9d67c87f5bea4",
-        "path": "illustration_led/181_original-56562bcfa392e0072aa9d67c87f5bea4.jpg",
-        "bytes": 67889
-      },
-      {
-        "slug": "103_original-86b9545714a23a53feb69e75365e5d6f",
-        "path": "illustration_led/103_original-86b9545714a23a53feb69e75365e5d6f.jpg",
-        "bytes": 60674
-      },
-      {
-        "slug": "027_3e448da6d5610eaa0c1a53b131f06342",
-        "path": "illustration_led/027_3e448da6d5610eaa0c1a53b131f06342.jpg",
-        "bytes": 60490
-      },
-      {
         "slug": "179_original-3f3f0fa6f4d53f7e0a487d288d0e58ea",
         "path": "illustration_led/179_original-3f3f0fa6f4d53f7e0a487d288d0e58ea.jpg",
         "bytes": 52998
-      },
-      {
-        "slug": "113_original-f70551fba8d3f8acb5d71322e790ace7",
-        "path": "illustration_led/113_original-f70551fba8d3f8acb5d71322e790ace7.jpg",
-        "bytes": 44759
       },
       {
         "slug": "177_original-b065361697ec82dc69cf4c03424a708d",
@@ -1413,25 +1174,6 @@
         "slug": "095_b2f9a341bf5ff9ad3a2ed7cdefac8de0",
         "path": "feature_callout/095_b2f9a341bf5ff9ad3a2ed7cdefac8de0.jpg",
         "bytes": 102259
-      }
-    ],
-    "social_proof": [
-      {
-        "slug": "094_8f639d502cfa3a8c849849cc87ac2a4d",
-        "path": "social_proof/094_8f639d502cfa3a8c849849cc87ac2a4d.jpg",
-        "bytes": 67565
-      }
-    ],
-    "before_after": [
-      {
-        "slug": "196_original-0b576e389b075cbd9421f695ab4dd1a1",
-        "path": "before_after/196_original-0b576e389b075cbd9421f695ab4dd1a1.jpg",
-        "bytes": 110785
-      },
-      {
-        "slug": "065_08305dffb0635bde15b45414923bcaa9",
-        "path": "before_after/065_08305dffb0635bde15b45414923bcaa9.jpg",
-        "bytes": 98304
       }
     ]
   }
