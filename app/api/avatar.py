@@ -765,7 +765,17 @@ async def get_images(
             .limit(limit)
         )
         if not all_workspaces:
-            query = query.eq("workspace_id", workspace_id)
+            # Include rows whose workspace_id is NULL (legacy + endpoints
+            # that didn't tag the workspace before the fix). They still
+            # belong to the user via the user_id filter above, so we're
+            # not leaking anything across users — only stitching back the
+            # orphaned rows into whichever workspace the user is viewing.
+            if workspace_id:
+                query = query.or_(
+                    f"workspace_id.eq.{workspace_id},workspace_id.is.null"
+                )
+            else:
+                query = query.is_("workspace_id", "null")
         if avatar_id:
             query = query.eq("avatar_id", avatar_id)
         rows = (query.execute().data) or []

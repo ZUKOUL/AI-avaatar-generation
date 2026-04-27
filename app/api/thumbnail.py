@@ -46,6 +46,7 @@ from app.core.pricing import (
 )
 from app.core.supabase import supabase
 from app.models.user import User
+from app.api.workspaces import resolve_workspace_id as _resolve_ws
 from app.services.appstore_strategist import design_appstore_brief
 from app.services.credit_service import deduct_credits, get_balance, is_admin
 from app.services import niche_loader
@@ -406,6 +407,11 @@ async def generate_thumbnail(
     target_box_w: Optional[float] = Form(None, description="Box width as fraction of image width (0-1)"),
     target_box_h: Optional[float] = Form(None, description="Box height as fraction of image height (0-1)"),
     files: List[UploadFile] = File(default=[], description="Reference images (character, style, source thumbnail for edit)"),
+    # Tag the row with the active workspace so the gallery on the matching
+    # workspace shows it. Without this every thumbnail was being filtered
+    # out of the main image-history view (workspace_id IS NULL ≠ "" or
+    # the user's actual workspace UUID).
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """Generate a thumbnail. Mode-aware prompt engineering + optional refs."""
 
@@ -885,6 +891,7 @@ async def generate_thumbnail(
             {
                 "id": thumb_id,
                 "user_id": current_user["id"],
+                "workspace_id": workspace_id or None,
                 "avatar_id": None,  # thumbnails aren't bound to a character
                 "prompt": f"{prefix} {prompt}",
                 "image_url": image_url,
@@ -2140,6 +2147,7 @@ async def generate_appstore_pack(
     style_anchor_slug: Optional[str] = Form(None, description="Specific niche pack slug (else auto)"),
     icon: Optional[UploadFile] = File(None, description="App icon (square)"),
     real_screenshots: List[UploadFile] = File(default=[], description="Real screens of the app"),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     Stage 2: render the 5 screenshots from a brief.
@@ -2291,6 +2299,7 @@ async def generate_appstore_pack(
                 supabase.table("generated_images").insert({
                     "id": screen_id,
                     "user_id": current_user["id"],
+                    "workspace_id": workspace_id or None,
                     "avatar_id": None,
                     "prompt": f"{prefix} [pack:{pack_id}] {screen['headline']}",
                     "image_url": url,
@@ -2563,6 +2572,7 @@ async def generate_appstore_direct(
     format: str = Form(APPSTORE_DEFAULT_FORMAT),
     variant_index: int = Form(0, description="0..N — picks a different visual angle so 'next' looks different"),
     files: List[UploadFile] = File(default=[], description="Optional brand refs (icon, real screens)"),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     Render ONE App Store screenshot from raw form inputs.
@@ -2717,6 +2727,7 @@ async def generate_appstore_direct(
         supabase.table("generated_images").insert({
             "id": screen_id,
             "user_id": current_user["id"],
+            "workspace_id": workspace_id or None,
             "avatar_id": None,
             "prompt": f"{prefix} [v{variant_index}] {headline.strip()}",
             "image_url": image_url,
@@ -2778,6 +2789,7 @@ async def _render_pack_screen(
     real_ui_bytes: list[tuple[bytes, str]],
     user_id: str,
     pack_id: str,
+    workspace_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Render one screen in a thread pool. Returns {url, headline, purpose, screen_index} or None on error."""
     try:
@@ -2842,6 +2854,7 @@ async def _render_pack_screen(
                 lambda: supabase.table("generated_images").insert({
                     "id": screen_id,
                     "user_id": user_id,
+                    "workspace_id": workspace_id or None,
                     "avatar_id": None,
                     "prompt": f"{prefix} [pack:{pack_id}] {screen['headline']}",
                     "image_url": url,
@@ -2881,6 +2894,7 @@ async def generate_appstore_pack_smart(
     format: str = Form(APPSTORE_DEFAULT_FORMAT),
     num_variants: int = Form(5, description="How many distinct screenshots to generate (1, 3 or 5)"),
     files: List[UploadFile] = File(default=[]),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     The smart, user-facing pack endpoint.
@@ -3014,6 +3028,7 @@ async def generate_appstore_pack_smart(
             real_ui_bytes=real_ui_bytes,
             user_id=current_user["id"],
             pack_id=pack_id,
+            workspace_id=workspace_id,
         )
         for s in screens_to_render
     ]
@@ -3396,6 +3411,7 @@ async def generate_bento_direct(
     template_url: Optional[str] = Form(None, description="Curated template image to anchor the AI on (passed through gallery picker)"),
     template_slug: Optional[str] = Form(None, description="Slug of the picked template — diagnostic only, the AI uses template_url"),
     files: List[UploadFile] = File(default=[], description="Optional refs: product UI screenshot, brand assets, illustration"),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
 ):
     """
     Render ONE bento landing-page card (Linear / Vercel / Apple style).
@@ -3579,6 +3595,7 @@ async def generate_bento_direct(
         supabase.table("generated_images").insert({
             "id": card_id,
             "user_id": current_user["id"],
+            "workspace_id": workspace_id or None,
             "avatar_id": None,
             "prompt": f"{prefix} [v{variant_index}] {headline.strip()[:80]}",
             "image_url": image_url,
