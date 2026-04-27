@@ -148,14 +148,32 @@ jobs:
             echo "🧹 Cleaning up old images..."
             docker image prune -f
 
-            echo "⏳ Waiting for container to start..."
-            sleep 10
+            # Healthcheck with retry loop. Old version did `sleep 10` + a
+            # single curl, which broke on t3.micro because cold-start +
+            # auto-migrations regularly take > 10s when the box is RAM-
+            # constrained. Now we poll for up to 90s and dump container
+            # logs on failure so the real cause (OOM / Python exception /
+            # migration error) lands in the GitHub Actions output instead
+            # of forcing an SSH session to debug.
+            echo "⏳ Waiting for container to become healthy (up to 90s)..."
+            HEALTHY=0
+            for i in $(seq 1 45); do
+              if curl -fsS http://localhost:8000/ 2>/dev/null | grep -q "Ready"; then
+                echo "✅ API is online after ~$((i*2))s"
+                HEALTHY=1
+                break
+              fi
+              sleep 2
+            done
 
-            echo "✅ Verifying deployment..."
-            if curl -s http://localhost:8000/ | grep -q "Ready"; then
-              echo "✅ Deployment successful! API is online."
-            else
-              echo "❌ Deployment may have failed. Check logs with: docker compose logs"
+            if [ "$HEALTHY" = "0" ]; then
+              echo "❌ Container did not become healthy within 90s."
+              echo "─── docker compose ps ───"
+              docker compose ps || true
+              echo "─── last 80 log lines (api) ───"
+              docker compose logs --tail=80 api || true
+              echo "─── system memory ───"
+              free -h || true
               exit 1
             fi
 
