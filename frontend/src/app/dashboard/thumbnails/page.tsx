@@ -3617,35 +3617,17 @@ export default function ThumbnailStudio() {
                 <div
                   style={{
                     position: "absolute",
-                    bottom: 8,
-                    left: 8,
-                    right: 8,
+                    bottom: 10,
+                    left: 12,
+                    right: 12,
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: 8,
                     zIndex: 4,
                   }}
                 >
-                  {/* Tools cluster — wraps the three icon buttons in a
-                      single rounded capsule (Pikzels reference). The
-                      slightly darker bg + soft border groups them as
-                      one segmented control instead of three loose
-                      buttons floating over the textarea. */}
-                  <div
-                    className="composer-tool-cluster"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: 3,
-                      borderRadius: 999,
-                      background:
-                        "color-mix(in srgb, var(--text-primary) 6%, transparent)",
-                      border: "1px solid var(--composer-border, var(--border-color))",
-                    }}
-                  >
-                  {/* Add character — bottom-LEFT. Wrapper is inline-flex
-                      so its bounding box matches the 34px button height. */}
+                  {/* Add character — bottom-LEFT. Each icon sits in
+                      its own visible pill (Pikzels pattern). */}
                   <div
                     className="relative"
                     ref={pickerRef}
@@ -3662,8 +3644,247 @@ export default function ThumbnailStudio() {
                         (mentionedAvatarIds.length > 0 ? "is-active" : "")
                       }
                     >
-                      <UserCircle size={16} />
+                      <UserCircle size={18} />
                     </button>
+                    {charPickerOpen && (
+                      <div
+                        className="absolute left-0 bottom-full mb-2 w-[340px] rounded-xl overflow-hidden"
+                        style={{
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-color)",
+                          boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+                          zIndex: 50,
+                        }}
+                      >
+                        {/* Picker tabs */}
+                        <div
+                          className="flex p-1 gap-1"
+                          style={{ borderBottom: "1px solid var(--border-color)" }}
+                        >
+                          <SegmentToggle
+                            size="sm"
+                            className="w-full"
+                            selected={pickerTab}
+                            onSelect={(k) => setPickerTab(k as "library" | "upload")}
+                            items={[
+                              { key: "library", label: "My library" },
+                              { key: "upload", label: "Upload new" },
+                            ]}
+                          />
+                        </div>
+
+                        {pickerTab === "library" && (
+                          <div className="p-3">
+                            <div
+                              className="flex items-center gap-2 rounded-lg px-2.5 mb-2.5"
+                              style={{
+                                background: "var(--bg-secondary)",
+                                border: "1px solid var(--border-color)",
+                              }}
+                            >
+                              <Search size={13} />
+                              <input
+                                type="text"
+                                placeholder="Search characters…"
+                                value={librarySearch}
+                                onChange={(e) => setLibrarySearch(e.target.value)}
+                                className="flex-1 bg-transparent outline-none py-2 text-[12.5px]"
+                                style={{ color: "var(--text-primary)" }}
+                              />
+                            </div>
+                            <div className="max-h-[260px] overflow-y-auto">
+                              {filteredLibrary.length === 0 ? (
+                                <p
+                                  className="text-[12px] text-center py-6"
+                                  style={{ color: "var(--text-muted)" }}
+                                >
+                                  {avatars.length === 0
+                                    ? "No characters yet — upload one on the right."
+                                    : "No matches."}
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-3 gap-2">
+                                  {filteredLibrary.map((a) => {
+                                    const selected = mentionedAvatarIds.includes(a.avatar_id);
+                                    return (
+                                      <button
+                                        key={a.avatar_id}
+                                        type="button"
+                                        onClick={() => pickFromLibrary(a)}
+                                        className="group relative rounded-lg overflow-hidden"
+                                        style={{
+                                          border: selected
+                                            ? "2px solid #3b82f6"
+                                            : "1px solid var(--border-color)",
+                                          aspectRatio: "1 / 1",
+                                          background: "var(--bg-secondary)",
+                                        }}
+                                      >
+                                        {a.thumbnail ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img
+                                            src={a.thumbnail}
+                                            alt={a.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <div
+                                            className="w-full h-full flex items-center justify-center text-[16px] font-semibold"
+                                            style={{
+                                              background: "var(--bg-tertiary)",
+                                              color: "var(--text-muted)",
+                                            }}
+                                          >
+                                            {a.name.charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
+                                        <div
+                                          className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10.5px] font-medium truncate"
+                                          style={{
+                                            background:
+                                              "linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0))",
+                                            color: "#fff",
+                                          }}
+                                        >
+                                          {a.name}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {pickerTab === "upload" && (
+                          <div className="p-3">
+                            <label
+                              className="text-[11px] font-medium mb-1.5 block"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              Name
+                            </label>
+                            <input
+                              type="text"
+                              value={newCharName}
+                              onChange={(e) => setNewCharName(e.target.value)}
+                              placeholder="e.g. Nathan"
+                              maxLength={40}
+                              className="w-full rounded-lg px-3 py-2 text-[12.5px] outline-none mb-3"
+                              style={{
+                                background: "var(--bg-secondary)",
+                                border: "1px solid var(--border-color)",
+                                color: "var(--text-primary)",
+                              }}
+                            />
+
+                            <label
+                              className="text-[11px] font-medium mb-1.5 block"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              Photos <span style={{ color: "var(--text-muted)" }}>(1–4)</span>
+                            </label>
+                            <div className="grid grid-cols-4 gap-1.5 mb-3">
+                              {newCharPreviews.map((src, i) => (
+                                <div
+                                  key={i}
+                                  className="relative rounded-md overflow-hidden"
+                                  style={{
+                                    aspectRatio: "1 / 1",
+                                    border: "1px solid var(--border-color)",
+                                  }}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={src} alt="" className="w-full h-full object-cover" />
+                                  <button
+                                    onClick={() => {
+                                      const url = newCharPreviews[i];
+                                      if (url) URL.revokeObjectURL(url);
+                                      setNewCharFiles((fs) => fs.filter((_, idx) => idx !== i));
+                                      setNewCharPreviews((ps) => ps.filter((_, idx) => idx !== i));
+                                    }}
+                                    className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                                    style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                                    aria-label="Remove"
+                                  >
+                                    <XIcon size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                              {newCharFiles.length < 4 && (
+                                <button
+                                  type="button"
+                                  onClick={() => newCharInputRef.current?.click()}
+                                  className="rounded-md flex items-center justify-center"
+                                  style={{
+                                    aspectRatio: "1 / 1",
+                                    background: "var(--bg-secondary)",
+                                    border: "1px dashed var(--border-color)",
+                                    color: "var(--text-muted)",
+                                  }}
+                                  aria-label="Add photo"
+                                >
+                                  <Upload size={13} />
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              ref={newCharInputRef}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              hidden
+                              onChange={(e) => {
+                                handleNewCharFiles(e.target.files);
+                                e.target.value = "";
+                              }}
+                            />
+
+                            <button
+                              type="button"
+                              disabled={
+                                !newCharName.trim() || newCharFiles.length === 0 || creatingChar
+                              }
+                              onClick={createCharacter}
+                              className="w-full py-2 rounded-lg text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:cursor-not-allowed"
+                              style={{
+                                background:
+                                  newCharName.trim() && newCharFiles.length > 0 && !creatingChar
+                                    ? "var(--text-primary)"
+                                    : "var(--bg-tertiary)",
+                                color:
+                                  newCharName.trim() && newCharFiles.length > 0 && !creatingChar
+                                    ? "var(--bg-primary)"
+                                    : "var(--text-muted)",
+                                opacity:
+                                  newCharName.trim() && newCharFiles.length > 0 && !creatingChar
+                                    ? 1
+                                    : 0.6,
+                              }}
+                            >
+                              {creatingChar ? (
+                                <>
+                                  <Spinner size={13} />
+                                  Creating…
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={13} />
+                                  Create & add
+                                </>
+                              )}
+                            </button>
+                            <p
+                              className="text-[10.5px] mt-2 leading-snug"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              New character will be saved to your library and inserted into the prompt.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Refs upload — image icon (NOT generic upload). */}
@@ -3682,7 +3903,7 @@ export default function ThumbnailStudio() {
                       "composer-tool " + (refs.length > 0 ? "is-active" : "")
                     }
                   >
-                    <ImageSquare size={16} />
+                    <ImageSquare size={18} />
                   </button>
 
                   {/* Aspect ratio — opens a popover above the icon. */}
@@ -3701,7 +3922,7 @@ export default function ThumbnailStudio() {
                         "composer-tool " + (aspectMenuOpen ? "is-active" : "")
                       }
                     >
-                      <Maximize size={16} />
+                      <Maximize size={18} />
                     </button>
                     {aspectMenuOpen && (
                       <div
@@ -3753,7 +3974,6 @@ export default function ThumbnailStudio() {
                       </div>
                     )}
                   </div>
-                  </div>{/* end .composer-tool-cluster */}
 
                   {/* Inline ref previews */}
                   {refPreviews.length > 0 && (

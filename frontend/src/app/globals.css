@@ -539,26 +539,27 @@ aside, header, main, div, button, a, input, textarea {
   gap: 4px;
 }
 
-/* Icon-only tool button — minimal at rest, depth on hover, mint
-   accent when active (Lock-style, Pinned, etc.). Native tooltip
-   shows the label / hint on hover via the `title` attribute. */
+/* Icon-only tool button — Pikzels reference: each icon sits in its
+   own visible circular pill, slightly lifted from the surrounding
+   surface. Tooltip via the native `title` attribute. */
 .composer-tool {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
-  background: transparent;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   color: var(--text-secondary);
-  border: 1px solid transparent;
+  border: 1px solid var(--composer-border, var(--border-color));
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease,
     border-color 0.15s ease, transform 0.12s ease;
 }
 .composer-tool:hover {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
   color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--text-primary) 35%, transparent);
   transform: translateY(-1px);
 }
 .composer-tool.is-active {
