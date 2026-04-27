@@ -796,6 +796,39 @@ async def generate_thumbnail(
             )
         )
 
+    # Auto-inject 1-2 references from the curated miniature library so
+    # Gemini 3 Pro Image sees the user's "house style" on every text-
+    # to-thumbnail generation. Skip in modes that already carry their
+    # own ground-truth references (recreate uses the YouTube frame,
+    # edit uses the uploaded source); injecting curated thumbs there
+    # would muddle the model's signal. The library lives at
+    # `app/services/niche_assets/miniatures/` and is populated by
+    # `scripts/miniature_curate.py` — when missing, this is a no-op.
+    if mode in {"prompt", "title"}:
+        miniature_refs = _auto_pick_miniature_template_bytes(n=2)
+        if miniature_refs:
+            logger.info(
+                f"thumbnail {thumb_id}: auto-injected {len(miniature_refs)} "
+                f"miniature references (house-style anchors)"
+            )
+            # Prepend so the model treats them as primary STYLE context
+            # rather than content references. The user-supplied refs (if
+            # any) are kept after — they're the dominant subject.
+            style_anchors = [
+                types.Part.from_bytes(data=ref, mime_type="image/jpeg")
+                for ref in miniature_refs
+            ]
+            gemini_contents = style_anchors + gemini_contents
+            full_prompt = (
+                "STYLE REFERENCE (the first 2 images above): these are "
+                "curated thumbnails from the user's house library. Match "
+                "their FORMAT — composition density, palette saturation, "
+                "typography weight, contrast level, expressive character "
+                "energy — but ignore their specific subjects (write the "
+                "user's prompt below into a fresh thumbnail). Do NOT copy "
+                "their text content.\n\n"
+            ) + full_prompt
+
     gemini_contents.append(full_prompt)
 
     # ── Call Gemini ─────────────────────────────────────────────────────────
@@ -2530,6 +2563,100 @@ async def bento_templates():
     # Build absolute URLs the frontend can drop in <img src>.
     def _abs(rel: str) -> str:
         return f"/niche-assets/bento/{rel}"
+
+    out_buckets = {}
+    for style, items in (data.get("buckets") or {}).items():
+        out_buckets[style] = [
+            {**it, "url": _abs(it["path"])} for it in items
+        ]
+    return {
+        **data,
+        "buckets": out_buckets,
+    }
+
+
+# ── YouTube miniature templates gallery ──────────────────────────────────────
+# Sister of /bento-templates and /appstore-templates. Reads the curated
+# `index.json` produced by `scripts/miniature_curate.py` and decorates
+# every entry with the static-mount URL the frontend uses in <img src>.
+# Path mirror: `app/services/niche_assets/miniatures/<style>/<slug>.jpg`
+# served at `/niche-assets/miniatures/<style>/<slug>.jpg` via the
+# main.py StaticFiles mount.
+_MINIATURE_TEMPLATES_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "services"
+    / "niche_assets"
+    / "miniatures"
+)
+
+
+def _auto_pick_miniature_template_bytes(n: int = 2) -> list[bytes]:
+    """
+    Sample N random thumbnails from the curated miniature library
+    (`niche_assets/miniatures/`). Used by `/thumbnail/generate` to give
+    Gemini 3 Pro Image concrete style anchors on every text-to-thumbnail
+    call — the user uploaded ~580 faceless-character thumbnails as the
+    "house style" and asked we use them to teach the model the format
+    (composition, palette, typography) without retraining.
+
+    Returns 0 bytes if the library hasn't been curated yet (e.g. the
+    `miniature_curate.py` pipeline never ran or the index.json was
+    deleted). Caller treats absence as "skip the auto-anchor step",
+    so the regular generation flow still works without the library.
+    """
+    index_path = _MINIATURE_TEMPLATES_DIR / "index.json"
+    if not index_path.exists():
+        return []
+    try:
+        data = json.loads(index_path.read_text())
+    except Exception as e:
+        logger.warning(f"miniature auto-pick: index parse failed: {e}")
+        return []
+    buckets = data.get("buckets") or {}
+    if not buckets:
+        return []
+
+    # Flatten every bucket into a single pool — we don't try to match the
+    # user's prompt to a specific style here, the goal is just to expose
+    # Gemini to the curated "format" (1280×714, expressive thumbnail
+    # aesthetic) so generations land closer to the user's house look.
+    pool: list[dict] = []
+    for items in buckets.values():
+        pool.extend(items)
+    if not pool:
+        return []
+
+    import random
+    sampled = random.sample(pool, min(n, len(pool)))
+    out: list[bytes] = []
+    for item in sampled:
+        rel = item.get("path")
+        if not rel:
+            continue
+        try:
+            local = _MINIATURE_TEMPLATES_DIR / rel
+            if local.exists():
+                out.append(local.read_bytes())
+        except Exception as e:
+            logger.warning(f"miniature auto-pick: read failed for {rel}: {e}")
+            continue
+    return out
+
+
+@router.get("/youtube-templates")
+async def youtube_templates():
+    """Return the curated YouTube-thumbnail templates grouped by style."""
+    index_path = _MINIATURE_TEMPLATES_DIR / "index.json"
+    if not index_path.exists():
+        return {"version": 0, "styles": {}, "counts": {}, "total": 0, "buckets": {}}
+    try:
+        data = json.loads(index_path.read_text())
+    except Exception as e:
+        logger.warning(f"miniature index parse failed: {e}")
+        return {"version": 0, "styles": {}, "counts": {}, "total": 0, "buckets": {}}
+
+    def _abs(rel: str) -> str:
+        return f"/niche-assets/miniatures/{rel}"
 
     out_buckets = {}
     for style, items in (data.get("buckets") or {}).items():

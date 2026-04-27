@@ -23,7 +23,7 @@ import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import SegmentToggle from "@/components/SegmentToggle";
 import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
-import InspirationGallery from "@/components/studio/InspirationGallery";
+import MiniatureTemplatesGallery from "@/components/studio/MiniatureTemplatesGallery";
 import { avatarAPI, thumbnailAPI } from "@/lib/api";
 import {
   Download,
@@ -4357,7 +4357,7 @@ export default function ThumbnailStudio() {
               redirect back to the composer with the source pre-loaded.
               Replaces the standalone /dashboard/thumbnails/inspiration
               page so users no longer have to leave Thumbsy. */}
-          {gallerySubTab === "templates" && <InspirationGallery />}
+          {gallerySubTab === "templates" && <MiniatureTemplatesGallery />}
 
           {/* History — also visible during generation so the skeleton has a
               home to land in. The skeleton occupies the top-left slot (where

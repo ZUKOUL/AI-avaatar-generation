@@ -242,6 +242,15 @@ export const thumbnailAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   /**
+   * Curated YouTube thumbnail templates — ~500 AI-generated faceless-
+   * character thumbnails grouped by style (face_reaction, dual_split,
+   * text_dominant, mockup_focus, dark_dramatic, bright_colorful,
+   * tutorial_callout, mascot_3d). Used by the "Templates" sub-tab on
+   * the YouTube thumbnail page so the user can pin a specific style
+   * anchor instead of scrolling YouTube's top-100 inspiration feed.
+   */
+  youtubeTemplates: () => api.get("/thumbnail/youtube-templates"),
+  /**
    * Curated bento templates gallery — a couple hundred reference cards
    * grouped by visual style (minimal_light / dark_tech / illustration /
    * dashboard_mockup / split / colorful_playful / editorial_text /
