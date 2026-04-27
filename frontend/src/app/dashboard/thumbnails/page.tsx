@@ -3624,10 +3624,18 @@ export default function ThumbnailStudio() {
                     alignItems: "center",
                     gap: 6,
                     zIndex: 4,
+                    height: 34, // lock the row height to the button size
+                                // so wrapped + bare buttons share the
+                                // same baseline (no vertical drift).
                   }}
                 >
-                  {/* Add character — bottom-LEFT */}
-                  <div className="relative" ref={pickerRef}>
+                  {/* Add character — bottom-LEFT. Wrapper is inline-flex
+                      so its bounding box matches the 34px button height. */}
+                  <div
+                    className="relative"
+                    ref={pickerRef}
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
                     <button
                       type="button"
                       onClick={() => setCharPickerOpen((v) => !v)}
@@ -3663,7 +3671,11 @@ export default function ThumbnailStudio() {
                   </button>
 
                   {/* Aspect ratio — opens a popover above the icon. */}
-                  <div className="relative" ref={aspectMenuRef}>
+                  <div
+                    className="relative"
+                    ref={aspectMenuRef}
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
                     <button
                       type="button"
                       onClick={() => setAspectMenuOpen((v) => !v)}
