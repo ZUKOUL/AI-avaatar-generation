@@ -82,6 +82,18 @@ JPEG_Q = 88
 MIN_LONG_EDGE = 600
 MIN_BYTES = 8_000
 
+# Aspect-ratio filter — broad bounds. The user's source dataset
+# turned out to be ~466 images all in 4:3 (1.33), apparently because
+# they're MOSAICS of multiple App Store screenshots stitched into a
+# landscape row, not single portrait screens. We can't reject those
+# without losing the whole dataset, so the bounds stay generous:
+# anything wildly skinny (banners, narrow strips) or wildly wide
+# (panoramas) is still dropped, but normal portrait / landscape /
+# square inputs all pass through to the Flash classifier, which is
+# now strict enough to drop the actual junk.
+MIN_W_OVER_H = 0.30
+MAX_W_OVER_H = 1.80
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Step 1: convert + filter
@@ -96,6 +108,18 @@ def convert_and_filter(src: Path, work: Path) -> list[Path]:
             continue
         out = work / (f.stem + ".jpg")
         if out.exists():
+            # Re-check the aspect even on pre-converted files so a
+            # tightening of the bounds takes effect on re-runs.
+            try:
+                with Image.open(out) as im:
+                    w, h = im.size
+                    ratio = w / h if h else 0
+                if ratio < MIN_W_OVER_H or ratio > MAX_W_OVER_H:
+                    out.unlink()
+                    rejected["bad_aspect"] += 1
+                    continue
+            except Exception:
+                pass
             accepted.append(out)
             continue
         try:
@@ -107,6 +131,14 @@ def convert_and_filter(src: Path, work: Path) -> list[Path]:
                 long_edge = max(w, h)
                 if long_edge < MIN_LONG_EDGE:
                     rejected["too_small"] += 1
+                    continue
+                # Strict portrait-mobile aspect window. Anything wider
+                # than ~0.7 (square / landscape) is almost certainly a
+                # website mockup / dashboard / marketing card, not an
+                # App Store screenshot.
+                ratio = w / h if h else 0
+                if ratio < MIN_W_OVER_H or ratio > MAX_W_OVER_H:
+                    rejected["bad_aspect"] += 1
                     continue
                 if long_edge > MAX_LONG_EDGE:
                     scale = MAX_LONG_EDGE / long_edge
@@ -176,21 +208,51 @@ def categorise(paths: list[Path], cap: int) -> dict[Path, str]:
     style_block = "\n".join(f"  - {k}: {v}" for k, v in STYLES.items())
 
     valid_labels = list(STYLES.keys()) + ["not_appstore_screenshot"]
+    # Strict prompt — the first run let through too many landscape /
+    # square / non-mobile graphics that Gemini Flash bucketed into
+    # `phone_mockup` or `illustration_led`. The new rules are:
+    #
+    #   1. The image MUST look like a single vertical iPhone / Android
+    #      screen as it would appear in the App Store listing carousel.
+    #   2. STRICT REJECT if the image is a website mockup, a desktop
+    #      dashboard screenshot, a landscape browser frame, a square
+    #      marketing card, an Instagram post, a quote graphic, a logo
+    #      composition, a print ad, or a brand identity moodboard —
+    #      even if it has tasteful typography. We're seeding house
+    #      style anchors for App Store output specifically.
+    #   3. When in doubt → `not_appstore_screenshot`. False positives
+    #      poison the AI's reference set; false negatives just shrink
+    #      the pool.
     prompt = (
-        "You classify App Store / Play Store screenshot templates. The "
-        "user is curating a library of high-quality screenshot designs "
-        "to use as STYLE ANCHORS when their AI generates new app "
-        "screenshots.\n\n"
-        "An App Store screenshot is a vertical (portrait, ~9:19.5) "
-        "marketing image that shows a phone mockup, a headline, "
-        "illustration, or some combination of these — it's what users "
-        "see in the App Store / Play Store listing carousel.\n\n"
-        "If this image is NOT an App Store-style screenshot — meaning "
-        "it's a logo on its own, a brand mark, a stock photo with no "
-        "UI, a full landscape app dashboard, a website screenshot, an "
-        "avatar, a meme, anything that wouldn't fit as a vertical "
-        "portrait mobile-store screen — label it `not_appstore_screenshot`.\n\n"
-        "Otherwise pick exactly ONE style bucket:\n\n"
+        "You are a strict gatekeeper for an App Store screenshot template "
+        "library. The user is curating screen designs to use as STYLE "
+        "ANCHORS for an AI that GENERATES NEW App Store / Play Store "
+        "screenshots. Every reference the user keeps will train the AI "
+        "on what 'good house style' looks like, so false positives are "
+        "EXPENSIVE — when in doubt, REJECT.\n\n"
+        "An App Store screenshot is a vertical PORTRAIT image (~9:19.5) "
+        "that you would find in the App Store / Play Store listing "
+        "carousel. It usually shows ONE of:\n"
+        "  - A phone mockup with the app's UI inside, plus a headline;\n"
+        "  - An oversized headline + a small visual or illustration;\n"
+        "  - A lifestyle photo (hand, person, scene) with a phone overlaid;\n"
+        "  - An illustration / mascot taking the hero slot, headline as caption;\n"
+        "  - A before-after split, a feature callout with arrows, or a\n"
+        "    social-proof quote treatment — all in a portrait mobile shape.\n\n"
+        "REJECT (label `not_appstore_screenshot`) when ANY of these are true:\n"
+        "  - The image is landscape or square (not clearly portrait mobile);\n"
+        "  - It's a website / desktop dashboard / browser frame mockup;\n"
+        "  - It's a brand logo, a full-page typographic poster, a magazine spread;\n"
+        "  - It's a stock photo with no app/UI element, an avatar, a meme;\n"
+        "  - It's an Instagram square post, a quote graphic, a sticker pack;\n"
+        "  - It's an infographic, a slide deck slide, a presentation cover;\n"
+        "  - It's a moodboard, brand identity collage, or palette swatch grid;\n"
+        "  - You can't confidently picture this slotting into an App Store\n"
+        "    listing screenshot carousel.\n\n"
+        "When in doubt, REJECT. We'd rather have 150 clean references than "
+        "300 mixed ones.\n\n"
+        "If (and only if) the image clearly belongs in an App Store listing, "
+        "pick exactly ONE style bucket:\n\n"
         + style_block
         + "\n\nReturn JSON: {\"label\": \"<one of: "
         + ", ".join(valid_labels)
