@@ -498,7 +498,9 @@ aside, header, main, div, button, a, input, textarea {
 
 :root,
 [data-theme="dark"] {
-  --composer-bg: #0E1110;
+  /* Pure neutral grey — the previous #0E1110 had R=14 G=17 B=16
+     which read as a faint green tint on dark backgrounds. */
+  --composer-bg: #111111;
   --composer-border: rgba(255, 255, 255, 0.10);
   --composer-border-focus: rgba(57, 220, 180, 0.55);
   --composer-glow: rgba(57, 220, 180, 0.10);
