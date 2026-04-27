@@ -2427,6 +2427,70 @@ async def appstore_niches():
     }
 
 
+# ── App Store templates gallery ───────────────────────────────────────────────
+# Sister of `/bento-templates`. Same idea: surface the curated reference
+# library to the frontend so the user can pin a *specific* pack as the
+# style anchor instead of relying on the heuristic vertical match.
+#
+# Each pack already lives on disk at
+# `app/services/niche_assets/appstore/<vertical>/<slug>/` with `icon.jpg`
+# + `screen_01.jpg ... screen_NN.jpg` + `manifest.json`. The static
+# mount in main.py serves them at `/niche-assets/appstore/...`, so we
+# just need to attach the URLs to the existing index entries — the
+# frontend drops them straight into <img src=...>.
+@router.get("/appstore-templates")
+async def appstore_templates():
+    """
+    Return the curated App Store packs grouped by vertical, with
+    public URLs for thumbnail (screen_01) and icon. The frontend uses
+    this to render the "Browse templates" gallery picker.
+    """
+    verticals = niche_loader.list_verticals()
+    packs_by_vertical: dict[str, list[dict]] = {}
+    total = 0
+    for vertical in verticals:
+        enriched: list[dict] = []
+        for pack in niche_loader.list_packs(vertical):
+            slug = pack.get("slug")
+            if not slug:
+                continue
+            base = f"/niche-assets/appstore/{vertical}/{slug}"
+            enriched.append({
+                **pack,
+                "vertical": vertical,
+                "thumbnail_url": f"{base}/screen_01.jpg",
+                "icon_url": f"{base}/icon.jpg",
+            })
+            total += 1
+        if enriched:
+            packs_by_vertical[vertical] = enriched
+    return {
+        "version": 1,
+        "verticals": list(packs_by_vertical.keys()),
+        "packs_by_vertical": packs_by_vertical,
+        "total": total,
+    }
+
+
+def _resolve_template_pack(slug: Optional[str]) -> Optional[dict]:
+    """
+    Given a pack slug from the frontend's template picker, find the
+    matching pack across all verticals and load its full manifest. Used
+    by both `generate-appstore-direct` and `generate-appstore-pack` so
+    a user-pinned anchor overrides the heuristic vertical match.
+    Returns None when slug is empty or no match — callers fall back to
+    the regular `pick_pack_for(...)` heuristic.
+    """
+    if not slug or not slug.strip():
+        return None
+    target = slug.strip()
+    for vertical in niche_loader.list_verticals():
+        pack = niche_loader.load_pack(vertical, target)
+        if pack:
+            return pack
+    return None
+
+
 # ── Bento templates gallery ─────────────────────────────────────────────────
 # Reads the curated `index.json` produced by scripts/bento_curate.py and
 # returns it with full image URLs the frontend can drop straight into
@@ -2493,7 +2557,8 @@ async def generate_appstore_direct(
     headline: str = Form(..., description="Big text rendered on the visual"),
     subtitle: Optional[str] = Form(None, description="Optional smaller text under the headline"),
     app_description: Optional[str] = Form(None, description="One-line description of what the app does — gives the AI context to pick the right visual mood and props"),
-    vertical: Optional[str] = Form(None, description="Drives style anchor pack"),
+    vertical: Optional[str] = Form(None, description="Drives style anchor pack (heuristic match when no template_pack_slug given)"),
+    template_pack_slug: Optional[str] = Form(None, description="When set, pins this exact reference pack as the style anchor instead of the heuristic vertical match"),
     color_primary: Optional[str] = Form(None),
     format: str = Form(APPSTORE_DEFAULT_FORMAT),
     variant_index: int = Form(0, description="0..N — picks a different visual angle so 'next' looks different"),
@@ -2528,10 +2593,11 @@ async def generate_appstore_direct(
     screen_id = str(uuid.uuid4())
     logger.info(f"App Store direct shot {screen_id} for user {current_user['id']}")
 
-    # Pick the niche anchor for style references. Include the user's
-    # description in the matching keywords so heuristic vertical inference
-    # picks the closest pack ("coach IA réseaux" → social/ai).
-    anchor = niche_loader.pick_pack_for(
+    # Pick the niche anchor for style references. When the user pinned a
+    # specific pack via the template gallery, honour it verbatim — that
+    # always wins over the heuristic. Otherwise we fall back to the
+    # vertical+description match ("coach IA réseaux" → social/ai).
+    anchor = _resolve_template_pack(template_pack_slug) or niche_loader.pick_pack_for(
         vertical=vertical,
         description=f"{app_name} {headline} {subtitle or ''} {app_description or ''}",
     )
@@ -2807,6 +2873,7 @@ async def generate_appstore_pack_smart(
     app_description: str = Form(..., description="What the app does + who it's for. The strategist uses this to write polished headlines."),
     headline_hint: Optional[str] = Form(None, description="Optional rough idea — the strategist may use it as inspiration but always polishes the wording"),
     vertical: Optional[str] = Form(None),
+    template_pack_slug: Optional[str] = Form(None, description="When set, pins this exact reference pack as the style anchor instead of the heuristic vertical match"),
     color_primary: Optional[str] = Form(None),
     color_secondary: Optional[str] = Form(None),
     social_proof: Optional[str] = Form(None, description="Comma-separated, e.g. '★ 4.8, 100k users'"),
@@ -2874,7 +2941,9 @@ async def generate_appstore_pack_smart(
     proof_list = (
         [s.strip() for s in social_proof.split(",") if s.strip()] if social_proof else None
     )
-    style_anchor = niche_loader.pick_pack_for(
+    # User-pinned template pack always wins over the heuristic match,
+    # so the picker UX is reliable: pick a style → get that style.
+    style_anchor = _resolve_template_pack(template_pack_slug) or niche_loader.pick_pack_for(
         vertical=vertical,
         description=f"{app_name} {app_description} {headline_hint or ''}",
     )

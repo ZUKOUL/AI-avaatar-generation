@@ -192,6 +192,12 @@ export const thumbnailAPI = {
   /** List the curated reference packs the AI can draw style from. */
   appstoreNiches: () => api.get("/thumbnail/appstore-niches"),
   /**
+   * Curated App Store reference packs grouped by vertical, with public
+   * thumbnail + icon URLs ready to drop into <img src=...>. Used by
+   * the "Browse templates" picker on the App Store screenshot page.
+   */
+  appstoreTemplates: () => api.get("/thumbnail/appstore-templates"),
+  /**
    * Single-shot App Store screenshot generation. Light path used by the
    * simple form: one image per call, 6 credits. The user clicks "Next"
    * to render another variant — the strategist runs invisibly on the
