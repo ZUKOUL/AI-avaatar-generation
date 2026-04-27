@@ -183,16 +183,46 @@ def categorise(paths: list[Path], cap: int) -> dict[Path, str]:
     # "This is a minimal_light style." instead of "minimal_light"), which
     # blew up our parser and dumped 80% of the dataset into "uncategorised"
     # on the first run. JSON mode + strict schema fixes it cleanly.
+    #
+    # Strict reject prompt v2 — the v1 was too permissive: full landing
+    # pages, scrapbook-Pinterest mosaics, posters, memes and stock photos
+    # all leaked into `dashboard_mockup` and `collage`. Same "REJECT
+    # when in doubt" pattern that fixed the appstore_inspo curation.
     valid_labels = list(STYLES.keys()) + ["not_bento"]
     prompt = (
-        "You classify bento landing-page cards. Bento cards are the rounded, "
-        "self-contained feature cells you see on modern SaaS landing pages — "
-        "usually a card with typography + an icon, mockup, illustration or "
-        "chart inside.\n\n"
-        "If this image is NOT a bento card (logo on its own, brand mark, "
-        "stock photo, full app dashboard screenshot, avatar, single-element "
-        "image), label it `not_bento`.\n\n"
-        "Otherwise pick exactly ONE style bucket:\n\n"
+        "You filter and classify bento landing-page cards for a curated "
+        "design reference library. A bento card is ONE rounded, self-"
+        "contained card cell from a modern SaaS landing page: a single "
+        "feature cell with typography + a visual element (icon, mockup, "
+        "illustration, chart or numerical stat) inside a single bordered "
+        "/ filled rectangle. Think Apple, Linear, Vercel, Loom, Notion, "
+        "Stripe feature grids — ONE card from such a grid, not the grid "
+        "itself.\n\n"
+        "REJECT (label `not_bento`) when the image is ANY of:\n"
+        "- A full landing page or hero section (nav bar visible, multiple "
+        "  feature blocks, footer)\n"
+        "- A grid / mosaic / scrapbook of multiple cards stitched together "
+        "  (Pinterest-style moodboard) — we want ONE card, not a collection\n"
+        "- A logo, wordmark, app icon, favicon or pure brand identity asset\n"
+        "- A photo of a person, product, or physical object with no card "
+        "  framing (lifestyle photo, product shot, headshot)\n"
+        "- A meme, tweet screenshot, Instagram square post, social media "
+        "  card, or any platform-native UI capture\n"
+        "- A full app or admin dashboard screenshot taken outside a card "
+        "  (the `dashboard_mockup` bucket only fits dashboards EMBEDDED "
+        "  in a clearly framed bento card on a marketing page)\n"
+        "- A poster, flyer, slide deck slide, magazine page, book cover, "
+        "  or print-design layout\n"
+        "- A pure quote / testimonial graphic with no surrounding card\n"
+        "- A stock photo, abstract gradient, wallpaper, texture or pattern\n"
+        "- An avatar, profile picture, or character portrait\n"
+        "- A 3D character / mascot rendered against a plain background "
+        "  with no card structure (illustrations get the `illustration` "
+        "  bucket only when wrapped in a clear card frame)\n"
+        "- Any visual that wouldn't make sense as ONE feature cell on a "
+        "  SaaS landing page's bento grid\n\n"
+        "When in doubt — REJECT. We optimise for purity, not coverage.\n\n"
+        "If it IS a single bento card, pick exactly ONE style bucket:\n\n"
         + style_block
         + "\n\nReturn JSON: {\"label\": \"<one of: "
         + ", ".join(valid_labels)
@@ -259,6 +289,17 @@ def categorise(paths: list[Path], cap: int) -> dict[Path, str]:
 # ──────────────────────────────────────────────────────────────────────────────
 def organise(buckets: dict[Path, str]) -> dict:
     DEST.mkdir(parents=True, exist_ok=True)
+
+    # Idempotent re-runs: wipe every bucket subdir before re-populating,
+    # so images that flipped to `not_bento` on a stricter prompt get
+    # purged from the library instead of lingering. We keep DEST itself
+    # (and any non-bucket sibling files like a future README) — only
+    # remove subdirs that match a known style key plus `uncategorised`.
+    purge_keys = set(STYLES.keys()) | {"uncategorised"}
+    for child in DEST.iterdir():
+        if child.is_dir() and child.name in purge_keys:
+            shutil.rmtree(child)
+
     index: dict[str, list[dict]] = {style: [] for style in STYLES}
     index["uncategorised"] = []
     dropped = 0
@@ -317,7 +358,7 @@ def main():
     ap.add_argument(
         "--max-categorise",
         type=int,
-        default=250,
+        default=1500,
         help="Cap on Gemini Flash calls (cost guard). Survivors past the cap are skipped.",
     )
     ap.add_argument(

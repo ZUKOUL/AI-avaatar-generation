@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
-import { ArrowRight, MagicWand, Upload, XIcon } from "@/components/Icons";
+import { ArrowRight, ImageSquare, XIcon } from "@/components/Icons";
 import { thumbnailAPI } from "@/lib/api";
 import AppstoreInspoGallery from "@/components/studio/AppstoreInspoGallery";
 
@@ -126,6 +126,16 @@ export default function AppStoreScreenshotStudio() {
   // random auto-injection. Hidden form chip when null — the gallery's
   // own click-to-pin hint banner does the framing.
   const [selectedInspoUrl, setSelectedInspoUrl] = useState<string | null>(null);
+
+  // Drag-overlay flag for the screenshot upload hero block. Toggled by
+  // the dropzone's onDragEnter/Leave so we can paint the "drop to add"
+  // glow without re-running the file pickers.
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Headline-hint is a power-user field — collapsed by default so the
+  // form reads as 4 visual blocks (screenshots, app, style, variants)
+  // instead of a wall of inputs. The toggle lives below the description.
+  const [showHeadline, setShowHeadline] = useState(false);
 
   // Sub-tabs that switch the bottom section between the user's project
   // archive ("Galerie") and the curated reference packs ("Packs"). The
@@ -324,39 +334,11 @@ export default function AppStoreScreenshotStudio() {
         <div className="studio-content max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-10">
           <ThumbsModeTabs />
 
-          {/* Hero */}
-          <div className="flex items-center gap-3 mb-2">
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
-              }}
-            >
-              <MagicWand size={18} />
-            </div>
-            <div>
-              <div
-                className="text-[20px] font-semibold leading-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                App Store Screenshots
-              </div>
-              <div
-                className="text-[13px]"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                Génère des visuels portrait (iOS + Play Store) qui transforment les
-                visiteurs en installs.
-              </div>
-            </div>
-          </div>
-
-          {/* Two-column layout : form left, preview right. Form panel
-              uses the Pikzels-style `composer-panel` shell — same dark
-              surface + soft mint focus halo as the Bento composer, so
-              the three studios feel like the same app. */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          {/* Two-column layout : form left, preview right. The page
+              hero ("App Store Screenshots / portrait visuals…") was
+              dropped — the tab pill above already labels the mode and
+              the hero just bulked up the form's vertical footprint. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
             {/* ── Form ── */}
             <div className="composer-panel flex flex-col gap-5" style={{ padding: 22 }}>
               {/* Pinned-inspiration chip — only renders when the user
@@ -422,99 +404,316 @@ export default function AppStoreScreenshotStudio() {
                 </Field>
               )}
 
-              <Field label="Nom de l'app">
+              {/* ─── 1. APP SCREENSHOTS UPLOAD — hero block ─────────
+                  Promoted to the top because the user's actual app
+                  screens ARE the input. The dropzone is wide, dashed,
+                  with a phone-mosaic illustration so the affordance is
+                  visual not textual. Drag-and-drop wired so users can
+                  drop straight from Finder. */}
+              <div
+                className="rounded-xl flex flex-col cursor-pointer transition-all"
+                style={{
+                  background: isDragging
+                    ? "color-mix(in srgb, var(--text-primary) 5%, var(--bg-primary))"
+                    : "var(--bg-primary)",
+                  border: `1.5px dashed ${
+                    isDragging ? "var(--text-primary)" : "var(--border-color)"
+                  }`,
+                  padding: refPreviews.length > 0 ? 14 : 22,
+                }}
+                onClick={() => document.getElementById("appstore-refs")?.click()}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDragLeave={(e) => {
+                  // Only drop the highlight when the cursor leaves the
+                  // outer container — child enter events fire onDragLeave
+                  // on the parent otherwise and the glow flickers.
+                  if (e.currentTarget === e.target) setIsDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  onPickRefs(e.dataTransfer.files);
+                }}
+              >
+                {refPreviews.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-2">
+                    {/* Phone-trio illustration — 3 abstract rectangles
+                        suggesting the App Store screenshot triptych
+                        without rendering literal phones (text-free). */}
+                    <div className="flex items-end gap-1.5" aria-hidden>
+                      {[36, 44, 36].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: 22,
+                            height: h,
+                            borderRadius: 5,
+                            background: i === 1
+                              ? "color-mix(in srgb, var(--text-primary) 18%, transparent)"
+                              : "color-mix(in srgb, var(--text-primary) 9%, transparent)",
+                            border: "1px solid color-mix(in srgb, var(--text-primary) 14%, transparent)",
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                        Glisse les écrans de ton app
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        Onglets, settings, écran principal — jusqu&apos;à 5
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <div
+                        className="flex items-center gap-2"
+                        style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}
+                      >
+                        <ImageSquare size={14} />
+                        {refPreviews.length} écran{refPreviews.length > 1 ? "s" : ""}
+                      </div>
+                      <span style={{ fontSize: 11.5, color: "var(--text-tertiary, #9ca3af)" }}>
+                        + ajouter
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      {refPreviews.map((src, i) => (
+                        <div
+                          key={i}
+                          className="relative rounded-md overflow-hidden"
+                          style={{
+                            border: "1px solid var(--border-color)",
+                            aspectRatio: "9/19.5",
+                            background: "var(--bg-secondary)",
+                          }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={src}
+                            alt=""
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              display: "block",
+                            }}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeRef(i);
+                            }}
+                            aria-label="Retirer cette capture"
+                            style={{
+                              position: "absolute",
+                              top: 3,
+                              right: 3,
+                              background: "rgba(0,0,0,0.65)",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 999,
+                              width: 18,
+                              height: 18,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          >
+                            <XIcon size={11} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <input
+                  id="appstore-refs"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => onPickRefs(e.target.files)}
+                />
+              </div>
+
+              {/* ─── 2. APP IDENTITY — name + description stacked ───
+                  No more parentheticals or example sentences in the
+                  labels. The placeholder carries the tone, the label
+                  carries the meaning. */}
+              <div className="flex flex-col gap-3">
                 <input
                   type="text"
                   value={appName}
                   onChange={(e) => setAppName(e.target.value)}
-                  placeholder="ex : Mealy"
-                  style={inputStyle}
+                  placeholder="Nom de l'app"
+                  style={{ ...inputStyle, fontSize: 15, fontWeight: 600 }}
                 />
-              </Field>
-
-              <Field label="Décris ton app — ce qu'elle fait et pour qui (l'IA écrit les titres à partir de ça)">
                 <textarea
                   value={appDescription}
                   onChange={(e) => setAppDescription(e.target.value)}
-                  placeholder="ex : Coach IA de viralité pour les créateurs débutants. Analyse ta niche, te dit quoi poster cette semaine, et corrige tes hooks en temps réel."
-                  style={{ ...inputStyle, minHeight: 96, resize: "vertical", lineHeight: 1.5 }}
+                  placeholder="Que fait ton app, et pour qui ? (1-2 phrases — l'IA écrit les titres à partir de ça)"
+                  style={{ ...inputStyle, minHeight: 84, resize: "vertical", lineHeight: 1.5 }}
                   maxLength={600}
                 />
-              </Field>
 
-              <Field label="Une idée de headline ? (optionnel — l'IA va le polir, jamais le coller tel quel)">
-                <input
-                  type="text"
-                  value={headlineHint}
-                  onChange={(e) => setHeadlineHint(e.target.value)}
-                  placeholder="ex : ton coach IA qui te fait percer sur les réseaux"
-                  style={inputStyle}
-                  maxLength={120}
-                />
-              </Field>
+                {/* Headline-hint toggle — collapsed by default. The form
+                    reads cleaner without a third input dangling at the
+                    bottom of this block; users who want to steer the
+                    headline can pop it open in one click. */}
+                {!showHeadline ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowHeadline(true)}
+                    className="self-start"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: "var(--text-secondary)",
+                      background: "transparent",
+                      border: "none",
+                      padding: "2px 0",
+                      cursor: "pointer",
+                    }}
+                  >
+                    + Suggère un headline (optionnel)
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={headlineHint}
+                      onChange={(e) => setHeadlineHint(e.target.value)}
+                      placeholder="Idée de headline — l'IA va le polir"
+                      style={{ ...inputStyle, flex: 1 }}
+                      maxLength={120}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeadlineHint("");
+                        setShowHeadline(false);
+                      }}
+                      aria-label="Retirer le headline"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid var(--border-color)",
+                        cursor: "pointer",
+                        color: "var(--text-secondary)",
+                        padding: 8,
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <XIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
 
-              <Field label="Catégorie">
-                <div className="grid grid-cols-2 gap-2">
-                  {VERTICALS.map((v) => {
-                    const active = vertical === v.key;
-                    return (
-                      <button
-                        key={v.key}
-                        type="button"
-                        onClick={() => setVertical(v.key)}
-                        className="rounded-lg px-3 py-2 text-left transition-colors"
-                        style={{
-                          background: active
-                            ? "var(--bg-tertiary, #f3f4f6)"
-                            : "var(--bg-primary)",
-                          border: active
-                            ? "1.5px solid var(--text-primary)"
-                            : "1px solid var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{v.label}</div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-tertiary, #9ca3af)",
-                            marginTop: 1,
-                          }}
-                        >
-                          {v.example}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
+              {/* ─── 3. CATEGORY — single-line chips, wrap to 2 rows ─
+                  Examples ("Mealy, Calculator, Translate") moved into
+                  a `title` attribute so they surface on hover, not
+                  inline. Drops the field's vertical footprint by ~60%. */}
+              <div className="flex flex-wrap gap-1.5">
+                {VERTICALS.map((v) => {
+                  const active = vertical === v.key;
+                  return (
+                    <button
+                      key={v.key}
+                      type="button"
+                      onClick={() => setVertical(v.key)}
+                      title={v.example}
+                      className="rounded-full transition-colors"
+                      style={{
+                        background: active
+                          ? "var(--text-primary)"
+                          : "var(--bg-primary)",
+                        color: active
+                          ? "var(--bg-primary)"
+                          : "var(--text-primary)",
+                        border: active
+                          ? "1px solid var(--text-primary)"
+                          : "1px solid var(--border-color)",
+                        padding: "6px 12px",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {v.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-              <Field label="Couleur d'accent">
-                <div className="flex items-center gap-3">
+              {/* ─── 4. STYLE & FORMAT — accent + format on one row ──
+                  Accent shrunk to a single swatch + 4-char hex strip
+                  (full input was 80% empty space). Format compressed
+                  to label-only chips, dimensions hidden behind hover. */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Color chip — wrapping <label> forwards clicks to the
+                    nested color input natively, so the entire pill is
+                    a hit target. The actual <input type="color"> is
+                    visually hidden (size 0 + opacity 0) but still
+                    reachable via the label association. */}
+                <label
+                  className="flex items-center gap-2 rounded-full"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    padding: "4px 10px 4px 4px",
+                    cursor: "pointer",
+                  }}
+                  title="Couleur d'accent"
+                >
                   <input
                     type="color"
                     value={accent}
                     onChange={(e) => setAccent(e.target.value)}
                     style={{
-                      width: 44,
-                      height: 36,
-                      borderRadius: 8,
-                      border: "1px solid var(--border-color)",
-                      background: "transparent",
-                      cursor: "pointer",
+                      position: "absolute",
+                      width: 0,
+                      height: 0,
+                      opacity: 0,
                     }}
                   />
-                  <input
-                    type="text"
-                    value={accent}
-                    onChange={(e) => setAccent(e.target.value)}
-                    style={{ ...inputStyle, fontFamily: "ui-monospace, monospace", flex: 1 }}
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 999,
+                      background: accent,
+                      border: "1px solid color-mix(in srgb, var(--text-primary) 12%, transparent)",
+                      flexShrink: 0,
+                    }}
                   />
-                </div>
-              </Field>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                      fontFamily: "ui-monospace, monospace",
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    {accent.toUpperCase()}
+                  </span>
+                </label>
 
-              <Field label="Format de sortie">
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-1.5 flex-wrap">
                   {FORMAT_PRESETS.map((f) => {
                     const active = formatKey === f.key;
                     return (
@@ -522,36 +721,39 @@ export default function AppStoreScreenshotStudio() {
                         key={f.key}
                         type="button"
                         onClick={() => setFormatKey(f.key)}
-                        className="rounded-lg px-3 py-2 text-left transition-colors"
+                        title={`${f.w}×${f.h}`}
+                        className="rounded-full transition-colors"
                         style={{
-                          background: active
-                            ? "var(--bg-tertiary, #f3f4f6)"
-                            : "var(--bg-primary)",
+                          background: active ? "var(--text-primary)" : "var(--bg-primary)",
+                          color: active ? "var(--bg-primary)" : "var(--text-primary)",
                           border: active
-                            ? "1.5px solid var(--text-primary)"
+                            ? "1px solid var(--text-primary)"
                             : "1px solid var(--border-color)",
-                          color: "var(--text-primary)",
+                          padding: "6px 12px",
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{f.label}</div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-tertiary, #9ca3af)",
-                            marginTop: 1,
-                            fontFamily: "ui-monospace, monospace",
-                          }}
-                        >
-                          {f.w}×{f.h}
-                        </div>
+                        {f.label}
                       </button>
                     );
                   })}
                 </div>
-              </Field>
+              </div>
 
-              <Field label="Combien de variants ?">
-                <div className="flex gap-2">
+              {/* ─── 5. VARIANTS — segmented 3-button with credits ───
+                  Compact segmented control. Credits shown only on the
+                  selected option's caption to reduce visual noise. */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex p-0.5 rounded-full"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
                   {VARIANT_COUNTS.map((n) => {
                     const active = numVariants === n;
                     return (
@@ -559,89 +761,27 @@ export default function AppStoreScreenshotStudio() {
                         key={n}
                         type="button"
                         onClick={() => setNumVariants(n)}
-                        className="rounded-lg flex-1 py-2 text-center transition-colors"
+                        className="rounded-full transition-colors"
                         style={{
-                          background: active ? "var(--bg-tertiary, #f3f4f6)" : "var(--bg-primary)",
-                          border: active ? "1.5px solid var(--text-primary)" : "1px solid var(--border-color)",
-                          color: "var(--text-primary)",
+                          background: active ? "var(--text-primary)" : "transparent",
+                          color: active ? "var(--bg-primary)" : "var(--text-primary)",
+                          border: "none",
+                          padding: "6px 18px",
                           fontSize: 13,
-                          fontWeight: 600,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          minWidth: 40,
                         }}
                       >
-                        {n} {n === 1 ? "visuel" : "visuels"}
-                        <div style={{ fontSize: 10.5, color: "var(--text-tertiary, #9ca3af)", fontWeight: 500, marginTop: 1 }}>
-                          {n * 6} crédits
-                        </div>
+                        {n}
                       </button>
                     );
                   })}
                 </div>
-              </Field>
-
-              <Field label="Captures de l'app (optionnel — jusqu'à 5)">
-                <div
-                  className="rounded-lg p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px dashed var(--border-color)",
-                  }}
-                  onClick={() => document.getElementById("appstore-refs")?.click()}
-                >
-                  <Upload size={18} style={{ color: "var(--text-tertiary, #9ca3af)" }} />
-                  <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                    Glisse des screenshots pour les intégrer dans le visuel
-                  </span>
-                  <input
-                    id="appstore-refs"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={(e) => onPickRefs(e.target.files)}
-                  />
-                </div>
-                {refPreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    {refPreviews.map((src, i) => (
-                      <div
-                        key={i}
-                        className="relative rounded-lg overflow-hidden"
-                        style={{
-                          border: "1px solid var(--border-color)",
-                          aspectRatio: "9/16",
-                        }}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={src}
-                          alt=""
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                        <button
-                          onClick={() => removeRef(i)}
-                          style={{
-                            position: "absolute",
-                            top: 4,
-                            right: 4,
-                            background: "rgba(0,0,0,0.6)",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 4,
-                            padding: 3,
-                            cursor: "pointer",
-                          }}
-                        >
-                          <XIcon size={11} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Field>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {numVariants === 1 ? "visuel" : "visuels"} · {numVariants * 6} crédits
+                </span>
+              </div>
 
               {error && (
                 <div
