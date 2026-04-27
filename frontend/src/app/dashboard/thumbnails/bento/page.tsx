@@ -78,6 +78,10 @@ const VARIANT_COUNTS = [1, 3, 5] as const;
 type VariantCount = (typeof VARIANT_COUNTS)[number];
 
 export default function BentoCardStudio() {
+  // Smart-mode primary input: the user describes the product, the AI
+  // strategist (Gemini 2.5 Pro) writes the headline + sub + layout + mood.
+  const [productDescription, setProductDescription] = useState("");
+  // Optional hints — the strategist polishes when given, ignores when blank.
   const [productName, setProductName] = useState("");
   const [headline, setHeadline] = useState("");
   const [supporting, setSupporting] = useState("");
@@ -88,6 +92,17 @@ export default function BentoCardStudio() {
   const [numVariants, setNumVariants] = useState<VariantCount>(3);
   const [refs, setRefs] = useState<File[]>([]);
   const [refPreviews, setRefPreviews] = useState<string[]>([]);
+  // Lock-in style: the URL of a previously-generated bento the user
+  // accepted. When set, the strategist + renderer treat it as a sister
+  // card on the same landing page and inherit its DNA (palette, icons,
+  // typography, layout). Lets the user produce a coherent series of
+  // bentos for different benefits without having to re-pick a template
+  // each time.
+  const [lockedStyleUrl, setLockedStyleUrl] = useState<string | null>(null);
+  // Collapsible "advanced options" so the form stays light by default.
+  // The IA stratège takes care of choices; the panel is for users who
+  // want to override a specific decision (mood, layout, etc.).
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,45 +162,64 @@ export default function BentoCardStudio() {
   }, []);
 
   const handleGenerate = async () => {
-    if (!productName.trim() || !headline.trim()) {
-      setError("Le nom du produit et le headline sont requis.");
+    if (!productDescription.trim()) {
+      setError("Décris ton produit pour que l'IA puisse réfléchir à la bonne accroche.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      // Fire N parallel single-shot calls so each variant gets a different
-      // angle from the backend's variant_index cycle. Cheaper than a
-      // strategist hop for this MVP — bento cards are simpler than
-      // App Store narrative arcs and don't need polished copy.
       const startIdx = generated.length;
-      const tasks = Array.from({ length: numVariants }, (_, i) => {
+      const tasks = Array.from({ length: numVariants }, () => {
         const fd = new FormData();
-        fd.append("product_name", productName.trim());
-        fd.append("headline", headline.trim());
-        if (supporting.trim()) fd.append("supporting", supporting.trim());
-        fd.append("layout", layout);
-        fd.append("accent", accent);
-        fd.append("bg_tone", bgTone);
+
+        // Compose the description seen by the strategist. We append the
+        // optional manual hints as labelled blocks so the model treats
+        // them as a copywriter brief, not as the product description
+        // itself. Empty fields are skipped — the strategist fills the
+        // gaps.
+        let enriched = productDescription.trim();
+        if (headline.trim()) {
+          enriched += `\n\nHeadline angle préféré (à polir, pas à copier-coller verbatim): "${headline.trim()}"`;
+        }
+        if (supporting.trim()) {
+          enriched += `\n\nSous-message à intégrer si possible: "${supporting.trim()}"`;
+        }
+        fd.append("product_description", enriched);
+
+        if (productName.trim()) fd.append("product_name", productName.trim());
+
+        // Map the legacy layout/bg_tone hints into a single tone_pref
+        // string the strategist understands. The strategist may override
+        // when the chosen layout doesn't fit the actual product.
+        const toneHints: string[] = [];
+        if (layout) toneHints.push(`layout favorisé: ${layout}`);
+        if (bgTone) toneHints.push(`fond ${bgTone}`);
+        if (toneHints.length) fd.append("tone_pref", toneHints.join(", "));
+
+        if (accent) fd.append("color_primary", accent);
         fd.append("aspect_ratio", aspect.ratio);
-        fd.append("variant_index", String(startIdx + i));
+
         if (selectedTemplate) {
-          // The picked template's static URL is sent so the backend
-          // can fetch it as the primary style anchor for the render
-          // call. Beats hand-coded vertical hints — users see what
-          // they're picking instead of guessing from a taxonomy.
           fd.append("template_url", selectedTemplate.url);
           fd.append("template_slug", selectedTemplate.slug);
         }
+        // Lock-in: the strategist treats this as a sister-card anchor,
+        // the renderer inherits palette/icons/typography. Empty when
+        // the user hasn't locked anything yet.
+        if (lockedStyleUrl) {
+          fd.append("locked_style_url", lockedStyleUrl);
+        }
+
         refs.forEach((f) => fd.append("files", f));
-        return thumbnailAPI.bentoGenerateDirect(fd);
+        return thumbnailAPI.bentoGenerateSmart(fd);
       });
       const results = await Promise.allSettled(tasks);
       const newOnes: Generated[] = [];
       results.forEach((r, i) => {
         if (r.status === "fulfilled") {
           const d = r.value.data;
-          newOnes.push({ url: d.image_url, variantIndex: d.variant_index ?? startIdx + i });
+          newOnes.push({ url: d.image_url, variantIndex: startIdx + i });
         }
       });
       if (newOnes.length === 0) {
@@ -216,9 +250,10 @@ export default function BentoCardStudio() {
   const showingGenerated = generated.length > 0;
   const current = showingGenerated ? generated[currentIdx] : null;
   const canSubmit = useMemo(
-    () => Boolean(productName.trim() && headline.trim()),
-    [productName, headline]
+    () => Boolean(productDescription.trim()),
+    [productDescription]
   );
+  const isCurrentLocked = current ? lockedStyleUrl === current.url : false;
 
   return (
     <>
@@ -346,7 +381,115 @@ export default function BentoCardStudio() {
                 )}
               </Field>
 
-              <Field label="Nom du produit / feature">
+              {/* Locked-style indicator — visible whenever the user has
+                  pinned a previous generation as the DNA anchor for the
+                  next ones. Persists across carousel navigation so the
+                  user always knows the lock is active even when looking
+                  at unrelated variants. */}
+              {lockedStyleUrl && (
+                <div
+                  className="flex items-center gap-3 rounded-lg p-2"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1.5px solid var(--text-primary)",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lockedStyleUrl}
+                    alt="Style verrouillé"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      objectFit: "cover",
+                      borderRadius: 6,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <span aria-hidden>🔒</span> Style verrouillé
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.35 }}>
+                      Les prochaines cards reproduiront cette palette, ces icônes et cette typo.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLockedStyleUrl(null)}
+                    aria-label="Libérer le style"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-secondary)",
+                      cursor: "pointer",
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Libérer
+                  </button>
+                </div>
+              )}
+
+              <Field label="Décris ton produit — l'IA réfléchit pour toi (le seul champ obligatoire)">
+                <textarea
+                  value={productDescription}
+                  onChange={(e) => setProductDescription(e.target.value)}
+                  placeholder="ex : Outil de scheduling pour devs solo qui en ont marre de jongler entre Linear, Calendar et Slack. Une seule timeline, drag-and-drop, focus mode auto le matin."
+                  style={{ ...inputStyle, minHeight: 110, resize: "vertical", lineHeight: 1.5 }}
+                  maxLength={800}
+                />
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-secondary)",
+                    marginTop: 6,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  L&apos;IA stratège (Gemini 2.5 Pro) lit cette description, identifie le bénéfice
+                  qui convertit, écrit la headline et compose la card. Tout le reste de ce form
+                  est optionnel — utile uniquement si tu veux forcer un détail.
+                </div>
+              </Field>
+
+              {/* "Plus d'options" collapsible — keeps the form light by
+                  default while letting power users override the
+                  strategist's choices when they really care. */}
+              <button
+                type="button"
+                onClick={() => setAdvancedOpen((v) => !v)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-secondary)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  padding: "4px 0",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
+                }}
+              >
+                {advancedOpen ? "Cacher les options avancées" : "Plus d'options (nom, headline, layout, couleur…)"}
+              </button>
+
+              {advancedOpen && (
+                <>
+              <Field label="Nom du produit / feature (optionnel — devient l'overline)">
                 <input
                   type="text"
                   value={productName}
@@ -356,12 +499,12 @@ export default function BentoCardStudio() {
                 />
               </Field>
 
-              <Field label="Headline (gros texte sur la card)">
+              <Field label="Headline souhaité (optionnel — l'IA va le polir)">
                 <input
                   type="text"
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
-                  placeholder="ex : Tout ton monde, partout, instantanément."
+                  placeholder="laisse vide pour que l'IA invente la meilleure accroche"
                   style={inputStyle}
                   maxLength={80}
                 />
@@ -372,7 +515,7 @@ export default function BentoCardStudio() {
                   type="text"
                   value={supporting}
                   onChange={(e) => setSupporting(e.target.value)}
-                  placeholder="ex : Tes fichiers sur tous tes appareils, sans config."
+                  placeholder="laisse vide pour que l'IA décide si une sub-line est utile"
                   style={inputStyle}
                   maxLength={140}
                 />
@@ -467,6 +610,8 @@ export default function BentoCardStudio() {
                   </div>
                 </Field>
               </div>
+                </>
+              )}
 
               <Field label="Format de la card">
                 <div className="flex gap-2 flex-wrap">
@@ -719,12 +864,49 @@ export default function BentoCardStudio() {
                         >
                           →
                         </button>
+                        {/* Lock-style toggle. When locked, the next
+                            generations inherit this card's palette,
+                            icons, typography and layout — sister-card
+                            mode for building a coherent landing-page
+                            bento grid. */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isCurrentLocked) {
+                              setLockedStyleUrl(null);
+                            } else {
+                              setLockedStyleUrl(current!.url);
+                            }
+                          }}
+                          className="text-xs font-semibold ml-2"
+                          aria-pressed={isCurrentLocked}
+                          title={
+                            isCurrentLocked
+                              ? "Ce style sert d'ancrage aux prochaines générations. Click pour libérer."
+                              : "Verrouille ce style — les prochaines cards hériteront de la palette, des icônes et de la typo."
+                          }
+                          style={{
+                            color: isCurrentLocked ? "var(--bg-primary)" : "var(--text-primary)",
+                            background: isCurrentLocked ? "var(--text-primary)" : "var(--bg-primary)",
+                            border: "1px solid " + (isCurrentLocked ? "var(--text-primary)" : "var(--border-color)"),
+                            borderRadius: 999,
+                            padding: "6px 12px",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            transition: "background 120ms, color 120ms",
+                          }}
+                        >
+                          <span aria-hidden>{isCurrentLocked ? "🔒" : "🔓"}</span>
+                          {isCurrentLocked ? "Style verrouillé" : "Verrouiller ce style"}
+                        </button>
                         <a
                           href={current!.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           download
-                          className="text-xs font-semibold ml-2"
+                          className="text-xs font-semibold"
                           style={{
                             color: "var(--text-primary)",
                             background: "var(--bg-primary)",

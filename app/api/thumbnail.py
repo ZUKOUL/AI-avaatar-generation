@@ -48,6 +48,7 @@ from app.core.supabase import supabase
 from app.models.user import User
 from app.api.workspaces import resolve_workspace_id as _resolve_ws
 from app.services.appstore_strategist import design_appstore_brief
+from app.services.bento_strategist import design_bento_brief
 from app.services.credit_service import deduct_credits, get_balance, is_admin
 from app.services import niche_loader
 
@@ -3619,6 +3620,348 @@ async def generate_bento_direct(
         "variant_index": variant_index,
         "layout": layout,
         "aspect_ratio": aspect_ratio,
+        "credits_charged": 0 if is_admin(current_user) else cost,
+        "engine": "gemini-3-pro-image-preview",
+    }
+
+
+# ── Smart bento: AI strategist + image renderer ───────────────────────────────
+# Sister of /generate-appstore-pack on the bento side. The user hands over a
+# raw product description and the strategist (Gemini 2.5 Pro) writes the
+# headline, sub-line, layout, mood and a render prompt. Then Gemini 3 Pro
+# Image renders the card faithful to that brief.
+#
+# The big UX upgrade: the user only fills 1 required field (description).
+# Everything else (name, audience, tone, colour, layout, mood) is optional —
+# the strategist fills the blanks with senior-designer judgement.
+#
+# The killer feature is the "lock style" mode: when the user passes a
+# `locked_style_url` (the URL of a previously-generated bento they accepted),
+# the strategist treats it as a sister-card anchor and the render prompt
+# enforces palette + icon style + typography + layout inheritance. This lets
+# the user produce a series of bentos that look like the same designer
+# made them for the same landing page, just highlighting different benefits.
+
+async def _fetch_image_url(url: str, *, label: str) -> Optional[bytes]:
+    """
+    Fetch image bytes from a public URL. Used by the smart bento endpoint
+    for both gallery templates and locked-style references.
+
+    Templates that live under our static mount (`/niche-assets/...`) are
+    read straight from disk to avoid a self-call to the API. Everything
+    else (Supabase storage URLs, third-party CDN URLs) goes via httpx.
+    Returns None on any failure — caller treats absence as "no anchor".
+    """
+    if not url:
+        return None
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        # Local static mount shortcut.
+        if parsed.path.startswith("/niche-assets/bento/"):
+            rel = parsed.path[len("/niche-assets/bento/"):]
+            local_path = _BENTO_TEMPLATES_DIR / rel
+            if local_path.exists():
+                return local_path.read_bytes()
+        # External fallback. Generous timeout because Supabase signed URLs
+        # can be slow on cold reads, but capped so a stuck CDN doesn't
+        # hold the whole strategist call hostage.
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as http:
+            r = await http.get(url)
+            if r.status_code == 200 and len(r.content) > 500:
+                return r.content
+    except Exception as e:
+        logger.warning(f"{label} fetch failed for {url}: {e}")
+    return None
+
+
+_BENTO_MOOD_DIRECTIVES: dict[str, str] = {
+    "minimal-light": (
+        "Background pure white #FFFFFF or off-white #F4F4F6. Text in deep neutral "
+        "(#0A0A0C / #1A1A1A). Lots of whitespace. Apple / Linear / Vercel feel."
+    ),
+    "dark-tech": (
+        "Background deep near-black #0A0A0C or #16161A — never pure #000. Text in "
+        "pure white, supporting copy at 55-65% white. One cold accent (electric "
+        "blue, magenta or lime). Stripe Press / Modal / Sentry feel."
+    ),
+    "editorial-soft": (
+        "Off-white background with one warm pastel accent (peach, sage, butter "
+        "yellow or terracotta). Long-form-magazine feel. Notion / Substack hero."
+    ),
+    "vibrant-saturated": (
+        "Bold solid colour or directional gradient as background — chosen with "
+        "confidence so the card looks branded, not generic. Single dominant accent. "
+        "Loom / Linear hero / Webflow feel."
+    ),
+    "mono-statement": (
+        "Black on white or white on black. No colour at all (or a single tiny "
+        "accent dot). Best for category-defining claims."
+    ),
+}
+
+
+def _compose_bento_render_prompt(
+    *,
+    brief: dict,
+    product_name: str,
+    aspect_ratio: str,
+    has_template: bool,
+    has_locked: bool,
+    has_user_refs: bool,
+) -> str:
+    """
+    Assemble the final render prompt sent to Gemini 3 Pro Image.
+
+    The strategist already produced a `render_prompt` packed with concrete
+    specs — we wrap it with the hard rules + image-anchor instructions so
+    the renderer knows how to use the template / locked / user reference
+    images that come BEFORE this prompt in the contents list.
+    """
+    mood = brief.get("mood") or "minimal-light"
+    mood_directive = _BENTO_MOOD_DIRECTIVES.get(mood, _BENTO_MOOD_DIRECTIVES["minimal-light"])
+
+    parts: list[str] = [
+        "Design ONE single bento landing-page card (a single cell of a bento grid — NEVER a full grid).",
+        f"Aspect ratio: {aspect_ratio}. Output is one self-contained image.",
+        "",
+        f"OVERLINE TEXT (small caps, top of the card, render exactly as written): \"{(brief.get('overline') or product_name).strip()}\"" if (brief.get("overline") or product_name).strip() else "",
+        f"HEADLINE (the dominant typographic element, render exactly): \"{brief['headline']}\"",
+    ]
+    sub = brief.get("subheadline") or ""
+    if sub:
+        parts.append(f"SUPPORTING TEXT (smaller, muted weight, beneath the headline): \"{sub}\"")
+    parts += [
+        "",
+        f"MOOD — {mood_directive}",
+        f"LAYOUT FAMILY — {brief.get('layout')}.",
+        f"ACCENT COLOUR — {brief.get('accent_hex') or '(infer from mood)'}.",
+        f"PALETTE TARGETS — {', '.join(brief.get('palette_hex') or []) or '(infer from mood + accent)'}.",
+        "",
+        "STRATEGIST RENDER BRIEF (follow this verbatim — it already contains the concrete specs):",
+        brief.get("render_prompt") or "(no detailed brief — fall back to mood + layout family above)",
+        "",
+        "TYPOGRAPHY RULES",
+        "- Generous letter spacing on the OVERLINE (~0.18em).",
+        "- Tight tracking on the HEADLINE (-0.02em). Sentence case unless brand voice demands caps.",
+        "- Strong vertical rhythm — pad the card with ~28-40px of breathing room from the edges.",
+        "- Rounded corners on the card itself: ~24-32px radius (part of the composition).",
+        "",
+        "MOOD & QUALITY BAR",
+        "- Modern SaaS landing-page aesthetic. Apple, Linear, Vercel, Stripe, Notion, Loom are the references.",
+        "- Premium feel. No clipart, no generic stock icons, no early-2010s gradients.",
+        "- If a UI mockup is part of the composition, it must look like a real product interface — never lorem ipsum.",
+    ]
+
+    image_refs_intro: list[str] = []
+    if has_template:
+        image_refs_intro.append(
+            "STYLE TEMPLATE — the first reference image is a curated bento card the user "
+            "picked from the gallery. Inherit its palette, typography rhythm and layout "
+            "vibe. Do NOT copy its text content."
+        )
+    if has_locked:
+        image_refs_intro.append(
+            "LOCKED STYLE ANCHOR — the next reference image is a previously-generated bento "
+            "the user accepted. This new card MUST look like a SISTER cell on the same "
+            "landing page: identical palette (every hex), identical icon style, identical "
+            "typography family, identical layout grain. Adapt the message — not the design."
+        )
+    if has_user_refs:
+        image_refs_intro.append(
+            "USER REFERENCES — the remaining images are product UI / brand assets. When the "
+            "composition includes a UI mockup, reflect what's visible in these refs — never "
+            "invent unrelated UI."
+        )
+
+    if image_refs_intro:
+        parts += ["", "IMAGE INPUTS:"] + [f"- {line}" for line in image_refs_intro]
+
+    parts += [
+        "",
+        "HARD RULES",
+        f"- Render the OVERLINE exactly as: \"{(brief.get('overline') or product_name).strip()}\"." if (brief.get("overline") or product_name).strip() else "",
+        f"- Render the HEADLINE exactly as: \"{brief['headline']}\". No paraphrasing, no abbreviation, accents preserved.",
+    ]
+    if sub:
+        parts.append(f"- Render the SUPPORTING TEXT exactly as: \"{sub}\".")
+    parts += [
+        "- Output is a SINGLE bento card. Never a multi-card grid, never a storyboard.",
+        "- No watermarks, no brand logos that aren't in the references, no decorative noise.",
+        f"- Final image at {aspect_ratio}, ready to be dropped into a landing page bento grid.",
+    ]
+    # Drop the empty strings the conditional branches leave behind.
+    return "\n".join(p for p in parts if p)
+
+
+@router.post("/generate-bento-smart")
+async def generate_bento_smart(
+    current_user: Annotated[User, Depends(get_current_user)],
+    product_description: str = Form(..., description="What the product does + who it's for. The only required field — the strategist polishes everything else."),
+    product_name: Optional[str] = Form(None, description="Brand / product name. When omitted, the strategist may invent or omit the overline."),
+    audience: Optional[str] = Form(None, description="Audience hint, e.g. 'solo founders', 'finance teams'"),
+    tone_pref: Optional[str] = Form(None, description="Tone preference, e.g. 'premium-calm', 'bold-confident'"),
+    color_primary: Optional[str] = Form(None, description="Hex hint for primary brand colour. The strategist may override if it doesn't fit the mood."),
+    aspect_ratio: str = Form("4:3"),
+    template_url: Optional[str] = Form(None, description="Curated template image URL (gallery picker)"),
+    template_slug: Optional[str] = Form(None, description="Slug of the picked template — diagnostic only"),
+    locked_style_url: Optional[str] = Form(None, description="URL of a previously-generated bento. When set, this new card inherits its palette, icons, typography and layout — sister-card mode."),
+    files: List[UploadFile] = File(default=[], description="Optional refs: product UI screenshot, brand assets"),
+    workspace_id: Annotated[str, Depends(_resolve_ws)] = "",
+):
+    """
+    Render ONE bento card from a raw product description.
+
+    Pipeline:
+      1. Strategist (Gemini 2.5 Pro) reads the description + optional
+         template + optional locked-style anchor and writes a brief
+         (headline, sub, overline, layout, mood, palette, render_prompt).
+      2. Gemini 3 Pro Image renders the card faithful to the brief, with
+         the template + locked anchors passed through as visual references.
+
+    Costs CREDIT_COST_APPSTORE_PER_SCREEN credits (same as bento-direct).
+    """
+    if not product_description or not product_description.strip():
+        raise HTTPException(status_code=400, detail="product_description is required.")
+    if aspect_ratio not in _BENTO_GEMINI_RATIOS:
+        aspect_ratio = "4:3"
+
+    cost = CREDIT_COST_APPSTORE_PER_SCREEN
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < cost:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "INSUFFICIENT_CREDITS",
+                    "message": f"You need {cost} credit(s). Current balance: {balance}",
+                },
+            )
+
+    card_id = str(uuid.uuid4())
+    logger.info(
+        f"Bento SMART card {card_id} for user {current_user['id']} "
+        f"(template={template_slug}, locked={'yes' if locked_style_url else 'no'})"
+    )
+
+    # Fetch anchors in parallel — the strategist sees both before deciding
+    # the brief, so we want them available before the model call.
+    template_bytes, locked_bytes = await asyncio.gather(
+        _fetch_image_url(template_url or "", label="bento template"),
+        _fetch_image_url(locked_style_url or "", label="locked style"),
+    )
+
+    # User refs (UI mockups, brand assets) come last in the contents
+    # ordering so the model treats them as content references, not style.
+    user_refs: list[tuple[bytes, str]] = []
+    for f in files[:5]:
+        data = await f.read()
+        if data:
+            user_refs.append((data, f.content_type or "image/png"))
+
+    # ── Hop 1: strategist ────────────────────────────────────────────────
+    brief = await design_bento_brief(
+        product_description=product_description,
+        product_name=product_name,
+        audience=audience,
+        tone_pref=tone_pref,
+        color_primary=color_primary,
+        template_bytes=template_bytes,
+        template_slug=template_slug,
+        locked_style_bytes=locked_bytes,
+    )
+    if not brief:
+        raise HTTPException(
+            status_code=502,
+            detail="The bento strategist failed to produce a brief. Try again — usually a transient upstream issue.",
+        )
+
+    # ── Hop 2: image render ──────────────────────────────────────────────
+    prompt = _compose_bento_render_prompt(
+        brief=brief,
+        product_name=(product_name or "").strip(),
+        aspect_ratio=aspect_ratio,
+        has_template=template_bytes is not None,
+        has_locked=locked_bytes is not None,
+        has_user_refs=bool(user_refs),
+    )
+
+    contents: list = []
+    if template_bytes:
+        contents.append(types.Part.from_bytes(data=template_bytes, mime_type="image/jpeg"))
+    if locked_bytes:
+        contents.append(types.Part.from_bytes(data=locked_bytes, mime_type="image/png"))
+    for data, mime in user_refs:
+        contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+    contents.append(prompt)
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    try:
+        response = client.models.generate_content(
+            model="gemini-3-pro-image-preview",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
+                image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size="2K"),
+            ),
+        )
+    except APIError as api_err:
+        logger.error(f"Gemini API error on bento smart {card_id}: {api_err}")
+        raise HTTPException(status_code=400, detail=f"AI provider error: {api_err}")
+    except Exception as e:
+        logger.error(f"Gemini call failed on bento smart {card_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"AI provider error: {e}")
+
+    if not response.candidates or not response.candidates[0].content:
+        raise HTTPException(status_code=502, detail="Gemini returned no candidates.")
+    img_bytes: Optional[bytes] = None
+    for part in response.candidates[0].content.parts or []:
+        if part.inline_data:
+            img_bytes = part.inline_data.data
+            break
+    if not img_bytes:
+        raise HTTPException(status_code=502, detail="Gemini returned no image.")
+
+    storage_path = f"thumbnails/{current_user['id']}/{card_id}.png"
+    supabase.storage.from_("avatars").upload(
+        path=storage_path,
+        file=img_bytes,
+        file_options={"content-type": "image/png", "x-upsert": "true"},
+    )
+    image_url = supabase.storage.from_("avatars").get_public_url(storage_path)
+
+    try:
+        prefix = encode_thumbnail_prefix(f"bento-smart-{brief.get('layout')}", aspect_ratio)
+        supabase.table("generated_images").insert({
+            "id": card_id,
+            "user_id": current_user["id"],
+            "workspace_id": workspace_id or None,
+            "avatar_id": None,
+            "prompt": f"{prefix} {brief['headline'][:80]}",
+            "image_url": image_url,
+            "storage_path": storage_path,
+        }).execute()
+    except Exception as db_err:
+        logger.error(f"history insert failed for bento smart {card_id}: {db_err}")
+
+    if not is_admin(current_user):
+        deduct_credits(
+            current_user["id"],
+            cost,
+            "bento_smart",
+            f"Bento smart: {brief['headline'][:40]}",
+        )
+
+    return {
+        "status": "ok",
+        "card_id": card_id,
+        "image_url": image_url,
+        "aspect_ratio": aspect_ratio,
+        # Surfacing the brief lets the frontend show the user WHAT the
+        # strategist decided — useful for debug, useful as a "why this
+        # design" tooltip, and useful when the user wants to tweak
+        # tone/mood and re-roll without re-typing the description.
+        "brief": brief,
         "credits_charged": 0 if is_admin(current_user) else cost,
         "engine": "gemini-3-pro-image-preview",
     }

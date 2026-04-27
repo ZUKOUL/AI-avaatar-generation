@@ -208,9 +208,27 @@ export const thumbnailAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   /**
-   * Single-shot Bento card generation — the third Thumbsy mode. Picks
-   * a different visual angle per `variant_index` so calling N times
-   * gives N distinct cards.
+   * Smart bento card generation — strategist (Gemini 2.5 Pro) writes
+   * the headline / sub / layout / mood from the user's product
+   * description, then Gemini 3 Pro Image renders it. Supports an
+   * optional `locked_style_url` so a series of bentos can inherit the
+   * same DNA (palette, icons, typography) and look like sister cells
+   * on the same landing page.
+   *
+   * Required form field: product_description.
+   * Optional: product_name, audience, tone_pref, color_primary,
+   * aspect_ratio, template_url, template_slug, locked_style_url, files.
+   */
+  bentoGenerateSmart: (formData: FormData) =>
+    api.post("/thumbnail/generate-bento-smart", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /**
+   * Single-shot Bento card generation — the legacy direct path that
+   * requires the user to fill the headline themselves. Kept for
+   * back-compat with any flows that need full manual control. New code
+   * should prefer `bentoGenerateSmart` which lets the strategist
+   * write the copy.
    */
   bentoGenerateDirect: (formData: FormData) =>
     api.post("/thumbnail/generate-bento-direct", formData, {
