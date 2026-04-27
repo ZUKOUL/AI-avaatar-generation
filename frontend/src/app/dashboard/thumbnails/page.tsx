@@ -272,6 +272,13 @@ export default function ThumbnailStudio() {
     () => new Set(),
   );
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Gallery sub-tabs — switches the section below the composer between
+  // the user's own thumbnails (history) and the curated templates
+  // strip. Defaults to "Galerie" so returning users see their own
+  // creations first.
+  const [gallerySubTab, setGallerySubTab] = useState<"gallery" | "templates">(
+    "gallery",
+  );
 
   /* ─── Avatars library + @mentions ─── */
   const [avatars, setAvatars] = useState<Avatar[]>([]);
@@ -4201,12 +4208,101 @@ export default function ThumbnailStudio() {
             </button>
           </div>
 
+          {/* Gallery sub-tabs — segmented capsule that swaps the section
+              below between the user's own thumbnails (history) and a
+              curated Templates view. Centred on the page, same pill
+              treatment as the top mode tabs (kargul-spec depth on the
+              active state, transparent on the inactive one). */}
+          <div className="flex justify-center mt-10 mb-4">
+            <div className="tab-group-pill">
+              <button
+                type="button"
+                onClick={() => setGallerySubTab("gallery")}
+                aria-pressed={gallerySubTab === "gallery"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (gallerySubTab === "gallery" ? "btn-premium-yt" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border: gallerySubTab === "gallery" ? undefined : "1px solid transparent",
+                }}
+              >
+                <SparkleIcon size={14} />
+                Galerie
+              </button>
+              <button
+                type="button"
+                onClick={() => setGallerySubTab("templates")}
+                aria-pressed={gallerySubTab === "templates"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (gallerySubTab === "templates" ? "btn-premium-yt" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border: gallerySubTab === "templates" ? undefined : "1px solid transparent",
+                }}
+              >
+                <PlaySquare size={14} />
+                Templates
+              </button>
+            </div>
+          </div>
+
+          {/* TEMPLATES VIEW — placeholder while we curate a real
+              YouTube-thumbnail library. For now we show an empty state
+              with a clear "coming soon" message so the affordance
+              works end-to-end and the user understands what's there. */}
+          {gallerySubTab === "templates" && (
+            <div
+              className="rounded-2xl px-6 py-14 text-center flex flex-col items-center gap-3"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px dashed var(--border-color)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <PlaySquare size={20} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                Bibliothèque de templates miniatures
+              </div>
+              <div style={{ fontSize: 12.5, maxWidth: 480, lineHeight: 1.5 }}>
+                Bientôt — une centaine de miniatures curées de top créateurs
+                que tu pourras pinner comme style anchor en un clic, comme
+                pour les bento cards. En attendant tu peux remixer une
+                miniature existante via le mode <strong>Recreate</strong> en
+                collant une URL YouTube.
+              </div>
+            </div>
+          )}
+
           {/* History — also visible during generation so the skeleton has a
               home to land in. The skeleton occupies the top-left slot (where
               the new thumbnail will appear once it arrives) so the user gets
               a clear "your thumbnail is on its way" signal instead of a
               spinner floating in blank space. */}
-          {(history.length > 0 || loading) && (
+          {gallerySubTab === "gallery" && (history.length > 0 || loading) && (
             <>
               {/* Header flips into a bulk-actions bar as soon as the user
                   picks any tile. Mirrors /dashboard/images so the two
@@ -4571,7 +4667,7 @@ export default function ThumbnailStudio() {
             </>
           )}
 
-          {history.length === 0 && !loading && !historyLoading && (
+          {gallerySubTab === "gallery" && history.length === 0 && !loading && !historyLoading && (
             <div
               className="rounded-2xl px-6 py-10 text-center"
               style={{
@@ -4594,7 +4690,7 @@ export default function ThumbnailStudio() {
             </div>
           )}
 
-          {history.length === 0 && historyLoading && (
+          {gallerySubTab === "gallery" && history.length === 0 && historyLoading && (
             <div
               className="rounded-2xl px-6 py-10 text-center flex flex-col items-center gap-2"
               style={{
