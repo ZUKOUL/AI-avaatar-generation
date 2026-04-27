@@ -369,6 +369,11 @@ async def run_ai_video_job(job_id: str) -> None:
         clip_paths: dict[int, str] = {}
         total_scenes = max(1, len(storyboard.scenes))
         consecutive_failures = 0
+        # Capture the first concrete error so the user sees the actual
+        # cause ("REPLICATE_API_TOKEN missing", "quota exceeded",
+        # "model deprecated") instead of the generic "All scenes
+        # failed to animate" — the previous message hid the real problem.
+        first_scene_error: Optional[str] = None
         MAX_CONSECUTIVE_FAILURES = 2
         SCENE_TIMEOUT_MOTION_S = 360     # 6 min (incl. all sub-steps)
         SCENE_TIMEOUT_SLIDESHOW_S = 120   # 2 min, ffmpeg-only
@@ -419,6 +424,8 @@ async def run_ai_video_job(job_id: str) -> None:
                 logger.warning(f"[ai_video {job_id}] scene {scene.index}: {msg}")
                 if sid:
                     _mark_scene(sid, status="failed", error_message=msg[:500])
+                if first_scene_error is None:
+                    first_scene_error = msg
                 scene_failed = True
             except Exception as e:
                 elapsed = time.time() - scene_start_ts
@@ -428,6 +435,8 @@ async def run_ai_video_job(job_id: str) -> None:
                 )
                 if sid:
                     _mark_scene(sid, status="failed", error_message=str(e)[:500])
+                if first_scene_error is None:
+                    first_scene_error = str(e)
                 scene_failed = True
 
             if scene_failed:
@@ -485,7 +494,15 @@ async def run_ai_video_job(job_id: str) -> None:
             _mark_job(job_id, progress=min(85, scene_progress))
 
         if not clip_paths:
-            _fail_job(job_id, "All scenes failed to animate.")
+            # Surface the actual error from the first failed scene so
+            # the user sees the real cause (missing API token, quota
+            # exceeded, model deprecated, …) instead of the previous
+            # "All scenes failed" mystery banner.
+            detail = first_scene_error or "Unknown error in motion provider."
+            _fail_job(
+                job_id,
+                f"All scenes failed to animate. First error: {detail[:400]}",
+            )
             return
 
         # Order clips by scene_index so the concat is in sequence.
