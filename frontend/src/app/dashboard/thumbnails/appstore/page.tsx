@@ -73,35 +73,10 @@ interface Project {
 const VARIANT_COUNTS = [1, 3, 5] as const;
 type VariantCount = (typeof VARIANT_COUNTS)[number];
 
-// Template gallery — surfaces the curated reference packs from
-// /thumbnail/appstore-templates so the user can pin a specific style
-// anchor instead of relying on the heuristic vertical match.
-interface TemplatePack {
-  slug: string;
-  name: string;
-  vertical: string;
-  screen_count: number;
-  palette?: string[];
-  thumbnail_url: string;
-  icon_url: string;
-}
-
-interface AppstoreTemplatesResponse {
-  version: number;
-  verticals: string[];
-  packs_by_vertical: Record<string, TemplatePack[]>;
-  total: number;
-}
-
-const VERTICAL_LABEL_BY_KEY: Record<string, string> = Object.fromEntries(
-  VERTICALS.map((v) => [v.key, v.label])
-);
-
-// API base URL for absolute <img src> on template thumbnails. The
-// backend serves them via a static mount that returns relative paths
-// like `/niche-assets/appstore/...`. Mirror the same env var used by
-// `lib/api.ts` so we resolve identically in dev / preview / prod.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// API base URL — kept for any future absolute-URL needs but currently
+// unused since the inspo gallery handles its own URL composition. We
+// leave it here so adding new server-served thumbnails stays a one-line
+// change.
 
 const PROJECTS_STORAGE_KEY = "horpen_appstore_projects_v1";
 const MAX_PROJECTS = 20;
@@ -145,21 +120,11 @@ export default function AppStoreScreenshotStudio() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
-  // Template picker — a user-pinned anchor pack overrides the heuristic
-  // vertical match. We lazy-load templates the first time the modal opens
-  // so the page boot stays light when the user doesn't care about styles.
-  const [galleryOpen, setGalleryOpen] = useState(false);
-  const [templates, setTemplates] = useState<AppstoreTemplatesResponse | null>(null);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [activeVerticalTab, setActiveVerticalTab] = useState<string | null>(null);
-  const [selectedPack, setSelectedPack] = useState<TemplatePack | null>(null);
-
   // User-pinned inspiration screenshot — a single image from the curated
-  // ~230-screenshot library. Acts as a stronger anchor than the heuristic
-  // vertical match: when set, the backend uses this exact image as the
-  // primary visual reference and skips the random auto-injection. Only
-  // one anchor source is active at a time — picking an inspo clears
-  // `selectedPack` and vice-versa so the chip in the form is unambiguous.
+  // ~230-screenshot library inside the Packs tab. When set, the backend
+  // uses this exact image as the primary visual reference and skips the
+  // random auto-injection. Hidden form chip when null — the gallery's
+  // own click-to-pin hint banner does the framing.
   const [selectedInspoUrl, setSelectedInspoUrl] = useState<string | null>(null);
 
   // Sub-tabs that switch the bottom section between the user's project
@@ -181,22 +146,6 @@ export default function AppStoreScreenshotStudio() {
     const next = refs.filter((_, i) => i !== idx);
     setRefs(next);
     setRefPreviews(next.map((f) => URL.createObjectURL(f)));
-  };
-
-  const openGallery = async () => {
-    setGalleryOpen(true);
-    if (templates) return; // already loaded — no refetch
-    setLoadingTemplates(true);
-    try {
-      const { data } = await thumbnailAPI.appstoreTemplates();
-      setTemplates(data as AppstoreTemplatesResponse);
-      const firstTab = (data as AppstoreTemplatesResponse).verticals?.[0] || null;
-      setActiveVerticalTab(firstTab);
-    } catch (err) {
-      console.error("appstore templates fetch failed", err);
-    } finally {
-      setLoadingTemplates(false);
-    }
   };
 
   // Cleanup preview URLs on unmount.
@@ -276,7 +225,6 @@ export default function AppStoreScreenshotStudio() {
     setGenerated([]);
     setCurrentIdx(0);
     setError(null);
-    setSelectedPack(null);
     setSelectedInspoUrl(null);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -322,14 +270,11 @@ export default function AppStoreScreenshotStudio() {
       fd.append("app_description", appDescription.trim());
       if (headlineHint.trim()) fd.append("headline_hint", headlineHint.trim());
       fd.append("vertical", vertical);
-      // User-pinned style anchor pack always wins over the heuristic
-      // vertical match on the backend. No-op when nothing is selected.
-      if (selectedPack) fd.append("template_pack_slug", selectedPack.slug);
       // User-pinned inspiration screenshot — single absolute URL. The
       // backend resolves it to local bytes and uses it as the primary
-      // anchor (overrides both the heuristic vertical match and the
-      // random auto-inject). Mutually exclusive with `template_pack_slug`
-      // in the UI, so at most one of these is sent on any given call.
+      // anchor (overrides the heuristic vertical match and the random
+      // auto-inject). When null the backend falls back to its niche
+      // heuristic on its own — no extra field needed.
       if (selectedInspoUrl) fd.append("inspo_template_url", selectedInspoUrl);
       fd.append("color_primary", accent);
       fd.append("format", formatKey);
@@ -414,8 +359,11 @@ export default function AppStoreScreenshotStudio() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
             {/* ── Form ── */}
             <div className="composer-panel flex flex-col gap-5" style={{ padding: 22 }}>
-              <Field label="Style anchor (optionnel — l'IA reproduit la cohérence visuelle de cet app)">
-                {selectedPack ? (
+              {/* Pinned-inspiration chip — only renders when the user
+                  picked an image in the Packs tab below. No empty
+                  state, no CTA: the gallery is self-explanatory. */}
+              {selectedInspoUrl && (
+                <Field label="Inspiration épinglée — l'IA reproduit son format">
                   <div
                     className="flex items-center gap-3 p-2 pr-3 rounded-lg"
                     style={{
@@ -423,85 +371,7 @@ export default function AppStoreScreenshotStudio() {
                       border: "1px solid var(--border-color)",
                     }}
                   >
-                    <img
-                      src={`${API_BASE}${selectedPack.thumbnail_url}`}
-                      alt={selectedPack.name}
-                      style={{
-                        width: 48,
-                        height: 48,
-                        objectFit: "cover",
-                        borderRadius: 6,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "var(--text-primary)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {selectedPack.name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-secondary)",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {VERTICAL_LABEL_BY_KEY[selectedPack.vertical] || selectedPack.vertical} · {selectedPack.screen_count} écrans
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={openGallery}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: "var(--text-secondary)",
-                        background: "transparent",
-                        border: "1px solid var(--border-color)",
-                        padding: "4px 10px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Changer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPack(null)}
-                      aria-label="Retirer le template"
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--text-secondary)",
-                        padding: 4,
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <XIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : selectedInspoUrl ? (
-                  // Inspo chip — same shape as the pack chip but for a
-                  // single-image anchor picked from the curated library
-                  // inside the Packs tab. We use a wider 64×48 thumb
-                  // (4:3) since these are landscape mosaics, not phones.
-                  <div
-                    className="flex items-center gap-3 p-2 pr-3 rounded-lg"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={selectedInspoUrl}
                       alt="Inspiration épinglée"
@@ -521,7 +391,7 @@ export default function AppStoreScreenshotStudio() {
                           color: "var(--text-primary)",
                         }}
                       >
-                        Inspiration épinglée
+                        Template ancré
                       </div>
                       <div
                         style={{
@@ -549,32 +419,8 @@ export default function AppStoreScreenshotStudio() {
                       <XIcon className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={openGallery}
-                    className="btn-premium"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: 8,
-                      background: "var(--bg-primary)",
-                      border: "1px dashed var(--border-color)",
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <MagicWand className="w-4 h-4" />
-                    Parcourir les templates
-                  </button>
-                )}
-              </Field>
+                </Field>
+              )}
 
               <Field label="Nom de l'app">
                 <input
@@ -1154,101 +1000,17 @@ export default function AppStoreScreenshotStudio() {
             </div>
           </div>
 
-          {/* PACKS VIEW — two anchor sources stacked in one tab:
-              (1) the 5 curated reference packs (avatar_pro,
-              smart_reminders, faith_assistant, clip_to_pay, chef_ai)
-              opened via a modal picker, and
-              (2) the curated ~230-screenshot inspirations library
-              served grid-style at native 4:3 aspect.
-              Click any tile in either source → pin as the style anchor
-              for the next generation. The two sources are mutually
-              exclusive — picking one clears the other. */}
+          {/* PACKS VIEW — the curated ~230-screenshot inspirations
+              library, served grid-style at native 4:3 aspect. Click
+              any tile to pin it as the style anchor for the next
+              generation. The gallery's own internal style-bucket tabs
+              and "click to pin" hint banner cover the framing — no
+              extra CTA needed. */}
           {bottomSubTab === "templates" && (
-            <div className="mb-8 flex flex-col gap-8">
-              <button
-                type="button"
-                onClick={openGallery}
-                className="rounded-xl px-6 py-10 w-full text-center flex flex-col items-center gap-3 transition-all"
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px dashed var(--border-color)",
-                  color: "var(--text-secondary)",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--text-primary)";
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border-color)";
-                  e.currentTarget.style.background = "var(--bg-secondary)";
-                }}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <MagicWand size={20} />
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {selectedPack
-                    ? `Style ancré — ${selectedPack.name}`
-                    : "Parcourir les packs de référence"}
-                </div>
-                <div style={{ fontSize: 12.5, maxWidth: 480, lineHeight: 1.5 }}>
-                  5 packs curés (avatar_pro, smart_reminders, faith_assistant,
-                  clip_to_pay, chef_ai) groupés par niche. L&apos;IA reproduit
-                  la cohérence visuelle du pack pinné.
-                </div>
-              </button>
-
-              {/* Section header — visually separates the two sources. */}
-              <div className="flex flex-col gap-1.5">
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: "var(--text-tertiary, #9ca3af)",
-                  }}
-                >
-                  Bibliothèque d&apos;inspirations
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  ~230 screenshots curés et catégorisés par style — clique sur
-                  un visuel pour l&apos;épingler comme template anchor.
-                </div>
-              </div>
-
+            <div className="mb-8">
               <AppstoreInspoGallery
                 onPickAnchor={(url) => {
-                  // Picking an inspo replaces any previously-pinned pack
-                  // — the form chip + backend can only honour one anchor
-                  // source at a time.
                   setSelectedInspoUrl(url);
-                  setSelectedPack(null);
                   if (typeof window !== "undefined") {
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }
@@ -1417,22 +1179,6 @@ export default function AppStoreScreenshotStudio() {
         </div>
       </div>
 
-      {galleryOpen && (
-        <AppstoreTemplatesModal
-          templates={templates}
-          loading={loadingTemplates}
-          activeTab={activeVerticalTab}
-          onTabChange={setActiveVerticalTab}
-          onPick={(pack) => {
-            // Picking a pack clears any pinned inspo — same rule as the
-            // inverse direction above (only one anchor source at a time).
-            setSelectedPack(pack);
-            setSelectedInspoUrl(null);
-            setGalleryOpen(false);
-          }}
-          onClose={() => setGalleryOpen(false)}
-        />
-      )}
     </>
   );
 }
@@ -1574,297 +1320,6 @@ function PreviewMockup({
         }}
       >
         Aperçu — {format.w} × {format.h}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Templates gallery modal ─────────────────────────────────────
- * Lazy-rendered (only mounted when `galleryOpen`). Backdrop blur,
- * tabs per vertical (ai / productivity / lifestyle / social /
- * utility), responsive grid of pack cards. Click a card → pin it as
- * the style anchor and close.
- *
- * Dismissal: Esc key (Mac users press Escape with one hand) or
- * clicking the dimmed backdrop. Clicks inside the panel don't bubble.
- */
-function AppstoreTemplatesModal({
-  templates,
-  loading,
-  activeTab,
-  onTabChange,
-  onPick,
-  onClose,
-}: {
-  templates: AppstoreTemplatesResponse | null;
-  loading: boolean;
-  activeTab: string | null;
-  onTabChange: (tab: string) => void;
-  onPick: (pack: TemplatePack) => void;
-  onClose: () => void;
-}) {
-  // Esc-to-close
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const verticals = templates?.verticals || [];
-  const packs = (activeTab && templates?.packs_by_vertical[activeTab]) || [];
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
-        zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border-color)",
-          borderRadius: 16,
-          width: "min(1100px, 100%)",
-          maxHeight: "min(90vh, 800px)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid var(--border-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
-              Choisis un style anchor
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
-              L'IA reproduit la palette, la typographie et le rythme de l'app pickée — pas son contenu.
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            style={{
-              background: "transparent",
-              border: "1px solid var(--border-color)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              padding: 8,
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <XIcon className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Tabs — centred, wrap to multiple rows when needed so all
-            verticals stay visible. Uses the same tab-group-pill +
-            btn-premium-as pattern as the studio's main tabs. */}
-        {verticals.length > 0 && (
-          <div
-            className="flex justify-center"
-            style={{
-              padding: "12px 20px",
-              borderBottom: "1px solid var(--border-color)",
-            }}
-          >
-            <div
-              className="tab-group-pill"
-              style={{ flexWrap: "wrap", justifyContent: "center" }}
-            >
-              {verticals.map((v) => {
-                const isActive = v === activeTab;
-                const count = templates?.packs_by_vertical[v]?.length || 0;
-                return (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => onTabChange(v)}
-                    aria-pressed={isActive}
-                    className={
-                      "flex items-center gap-2 rounded-full " +
-                      (isActive ? "btn-premium-as" : "tab-pill-rest")
-                    }
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      border: isActive ? undefined : "1px solid transparent",
-                    }}
-                  >
-                    {VERTICAL_LABEL_BY_KEY[v] || v}
-                    <span style={{ fontSize: 10.5, opacity: 0.7, fontWeight: 500 }}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Body */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: 20,
-          }}
-        >
-          {loading && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                height: 200,
-                color: "var(--text-secondary)",
-                fontSize: 13,
-              }}
-            >
-              Chargement des templates…
-            </div>
-          )}
-
-          {!loading && verticals.length === 0 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                height: 200,
-                color: "var(--text-secondary)",
-                fontSize: 13,
-              }}
-            >
-              Aucun template disponible pour l'instant.
-            </div>
-          )}
-
-          {!loading && packs.length > 0 && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: 14,
-              }}
-            >
-              {packs.map((pack) => (
-                <button
-                  key={`${pack.vertical}-${pack.slug}`}
-                  type="button"
-                  onClick={() => onPick(pack)}
-                  style={{
-                    textAlign: "left",
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: 12,
-                    padding: 0,
-                    overflow: "hidden",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    transition: "transform 120ms, border-color 120ms",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.borderColor = "var(--text-primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.borderColor = "var(--border-color)";
-                  }}
-                >
-                  <div
-                    style={{
-                      aspectRatio: "9 / 16",
-                      background: "var(--bg-secondary)",
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    <img
-                      src={`${API_BASE}${pack.thumbnail_url}`}
-                      alt={pack.name}
-                      loading="lazy"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                  </div>
-                  <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {pack.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      {pack.screen_count} écrans
-                    </div>
-                    {pack.palette && pack.palette.length > 0 && (
-                      <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
-                        {pack.palette.slice(0, 5).map((c, i) => (
-                          <span
-                            key={i}
-                            style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: 3,
-                              background: c,
-                              border: "1px solid rgba(0,0,0,0.08)",
-                              flexShrink: 0,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
