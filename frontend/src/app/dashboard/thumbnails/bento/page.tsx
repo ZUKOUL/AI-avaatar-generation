@@ -1043,48 +1043,58 @@ function TemplatesModal({
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — centred, wrap to multiple rows when needed so all
+            8 style buckets stay visible (the previous overflow-x scroll
+            hid most of them on average viewport widths). Uses the same
+            tab-group-pill capsule + pill-rest pattern as the studio's
+            top + sub tabs for consistency. */}
         {styles.length > 0 && (
           <div
-            className="flex gap-1 overflow-x-auto"
+            className="flex justify-center"
             style={{
-              padding: "10px 20px",
+              padding: "12px 20px",
               borderBottom: "1px solid var(--border-color)",
             }}
           >
-            {styles.map((s) => {
-              const active = s === activeStyleTab;
-              const count = buckets[s].length;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => onTabChange(s)}
-                  className="rounded-full px-3 py-1.5 transition-colors"
-                  style={{
-                    background: active ? "var(--text-primary)" : "var(--bg-secondary)",
-                    color: active ? "var(--bg-primary)" : "var(--text-primary)",
-                    border: "1px solid var(--border-color)",
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                    cursor: "pointer",
-                  }}
-                >
-                  {STYLE_LABELS[s] || s}
-                  <span
+            <div
+              className="tab-group-pill"
+              style={{ flexWrap: "wrap", justifyContent: "center" }}
+            >
+              {styles.map((s) => {
+                const active = s === activeStyleTab;
+                const count = buckets[s].length;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => onTabChange(s)}
+                    aria-pressed={active}
+                    className={
+                      "flex items-center gap-2 rounded-full " +
+                      (active ? "btn-premium-bento" : "tab-pill-rest")
+                    }
                     style={{
-                      marginLeft: 6,
-                      fontSize: 11,
-                      opacity: 0.7,
-                      fontWeight: 500,
+                      padding: "6px 12px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      border: active ? undefined : "1px solid transparent",
                     }}
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                    {STYLE_LABELS[s] || s}
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        opacity: 0.7,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

@@ -1562,43 +1562,50 @@ function AppstoreTemplatesModal({
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — centred, wrap to multiple rows when needed so all
+            verticals stay visible. Uses the same tab-group-pill +
+            btn-premium-as pattern as the studio's main tabs. */}
         {verticals.length > 0 && (
           <div
+            className="flex justify-center"
             style={{
-              padding: "10px 20px",
+              padding: "12px 20px",
               borderBottom: "1px solid var(--border-color)",
-              display: "flex",
-              gap: 6,
-              overflowX: "auto",
-              flexWrap: "nowrap",
             }}
           >
-            {verticals.map((v) => {
-              const isActive = v === activeTab;
-              const count = templates?.packs_by_vertical[v]?.length || 0;
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => onTabChange(v)}
-                  style={{
-                    padding: "7px 14px",
-                    borderRadius: 999,
-                    fontSize: 12.5,
-                    fontWeight: 500,
-                    whiteSpace: "nowrap",
-                    cursor: "pointer",
-                    border: "1px solid var(--border-color)",
-                    background: isActive ? "var(--text-primary)" : "transparent",
-                    color: isActive ? "var(--bg-primary)" : "var(--text-secondary)",
-                    transition: "background 120ms, color 120ms",
-                  }}
-                >
-                  {VERTICAL_LABEL_BY_KEY[v] || v} <span style={{ opacity: 0.6 }}>· {count}</span>
-                </button>
-              );
-            })}
+            <div
+              className="tab-group-pill"
+              style={{ flexWrap: "wrap", justifyContent: "center" }}
+            >
+              {verticals.map((v) => {
+                const isActive = v === activeTab;
+                const count = templates?.packs_by_vertical[v]?.length || 0;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => onTabChange(v)}
+                    aria-pressed={isActive}
+                    className={
+                      "flex items-center gap-2 rounded-full " +
+                      (isActive ? "btn-premium-as" : "tab-pill-rest")
+                    }
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      border: isActive ? undefined : "1px solid transparent",
+                    }}
+                  >
+                    {VERTICAL_LABEL_BY_KEY[v] || v}
+                    <span style={{ fontSize: 10.5, opacity: 0.7, fontWeight: 500 }}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
