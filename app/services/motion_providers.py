@@ -164,11 +164,20 @@ async def _poll_replicate(prediction, provider_name: str, max_attempts: int = 36
 
 async def _download_clip(video_url: str, out_path: str) -> None:
     """Shared download step — every provider returns an MP4 URL we need
-    to fetch and write to disk."""
+    to fetch and write to disk.
+
+    NOTE: `follow_redirects=True` is critical here. Google's
+    generativelanguage.googleapis.com (used by Veo) returns a 302 to
+    the actual download URL, and `httpx` ships with redirects DISABLED
+    by default (unlike `requests`). Without this flag every Veo job
+    fails the download step with a generic "Redirect response 302"
+    error. Replicate URLs go via signed S3 / CloudFront and don't
+    redirect, so this only mattered once we added Veo. */"""
     import httpx
 
     async with httpx.AsyncClient(
-        timeout=httpx.Timeout(120.0, connect=10.0)
+        timeout=httpx.Timeout(120.0, connect=10.0),
+        follow_redirects=True,
     ) as client:
         r = await client.get(video_url)
         r.raise_for_status()
@@ -347,8 +356,11 @@ async def _animate_veo_fast(
             if getattr(video_obj, "uri", None):
                 import httpx
                 headers = {"x-goog-api-key": os.getenv("GEMINI_API_KEY") or ""}
+                # follow_redirects=True is critical: Google returns a 302
+                # to a CDN URL and httpx-by-default raises on it.
                 async with httpx.AsyncClient(
-                    timeout=httpx.Timeout(120.0, connect=10.0)
+                    timeout=httpx.Timeout(120.0, connect=10.0),
+                    follow_redirects=True,
                 ) as hclient:
                     r = await hclient.get(video_obj.uri, headers=headers)
                     r.raise_for_status()
@@ -428,7 +440,10 @@ async def _animate_grok(
         "n": 1,
     }
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=10.0)) as client:
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(180.0, connect=10.0),
+        follow_redirects=True,
+    ) as client:
         try:
             resp = await client.post(url, headers=headers, json=payload)
         except Exception as e:
