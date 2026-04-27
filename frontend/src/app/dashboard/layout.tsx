@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { isAuthenticated } from "@/lib/auth";
+import { useLayout } from "@/lib/layout";
 
 /**
  * Dashboard layout.
@@ -21,6 +22,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // Layout mode — sidebar (vertical rail, default) vs header (rail
+  // hidden so the canvas takes the full width). User can toggle from
+  // the user menu. When `header`, we collapse `--sidebar-width` to 0px
+  // so the main region reclaims the entire viewport, and the
+  // <Sidebar /> renders with `display: none` driven by the same flag.
+  const { layout, toggleLayout } = useLayout();
+  const isHeaderMode = layout === "header";
 
   // Load persisted collapsed preference on mount (client-only).
   useEffect(() => {
@@ -65,28 +73,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       style={
         {
           background: "var(--bg-primary)",
-          // When collapsed, the fixed sidebar narrows to 64px and the main
-          // region reclaims the freed space via its `md:ml-[var(--sidebar-width)]`.
-          ["--sidebar-width" as string]: collapsed ? "64px" : "260px",
+          // Header mode collapses the sidebar to 0px so the main panel
+          // takes the whole viewport. Otherwise it's 64px collapsed
+          // (icon-only) or 260px expanded.
+          ["--sidebar-width" as string]: isHeaderMode
+            ? "0px"
+            : collapsed ? "64px" : "260px",
         } as React.CSSProperties
       }
     >
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        collapsed={collapsed}
-        onToggleCollapsed={handleToggleCollapsed}
-      />
+      <div style={{ display: isHeaderMode ? "none" : undefined }}>
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          collapsed={collapsed}
+          onToggleCollapsed={handleToggleCollapsed}
+        />
+      </div>
 
-      {/* Mobile hamburger */}
+      {/* Mobile hamburger — also serves as the "open sidebar" affordance
+          when the user is in header mode and wants to switch back. */}
       <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 z-30 p-2 rounded-lg md:hidden transition-colors"
+        onClick={() => {
+          if (isHeaderMode) {
+            // In header mode the rail is hidden — clicking the burger
+            // returns to sidebar mode rather than just opening a mobile
+            // drawer that leads nowhere.
+            toggleLayout();
+          } else {
+            setSidebarOpen(true);
+          }
+        }}
+        className={
+          "fixed top-3 left-3 z-30 p-2 rounded-lg transition-colors " +
+          (isHeaderMode ? "" : "md:hidden")
+        }
         style={{
           background: "var(--bg-secondary)",
           border: "1px solid var(--border-color)",
           color: "var(--text-primary)",
         }}
+        title={isHeaderMode ? "Switch to sidebar mode" : "Open sidebar"}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="3" y1="6" x2="21" y2="6" />

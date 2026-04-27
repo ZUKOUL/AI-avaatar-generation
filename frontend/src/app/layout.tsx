@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
+import { LayoutProvider } from "@/lib/layout";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -47,7 +48,9 @@ export default function RootLayout({
           letterSpacing: "-0.011em",
         }}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <LayoutProvider>{children}</LayoutProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -37,6 +37,7 @@ import {
 import { clearAuth, getStoredUser } from "@/lib/auth";
 import { creditsAPI } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
+import { useLayout } from "@/lib/layout";
 
 type SectionKey =
   | "account"
@@ -890,6 +891,7 @@ export function UserMenuPopover({
   const user = typeof window !== "undefined" ? getStoredUser() : null;
   const displayName = user?.email?.split("@")[0] || "Utilisateur";
   const { theme, toggleTheme } = useTheme();
+  const { layout, toggleLayout } = useLayout();
 
   useEffect(() => {
     if (!open) return;
@@ -1017,6 +1019,91 @@ export function UserMenuPopover({
               }}
             >
               {theme === "dark" ? <Moon size={11} /> : <Sun size={11} />}
+            </span>
+          </button>
+        </div>
+
+        {/* Layout toggle — sidebar (rail) ↔ header (top bar). When the
+            user picks "header" the sidebar disappears so the main canvas
+            takes the whole viewport; the burger button in the top-left
+            switches them back. Same toggle ergonomics as the theme. */}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}
+        >
+          <div
+            className="flex items-center gap-3"
+            style={{
+              fontSize: 13.5,
+              fontWeight: 500,
+              color: "var(--text-secondary, #6b7280)",
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              {layout === "sidebar" ? (
+                <>
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                </>
+              ) : (
+                <>
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                </>
+              )}
+            </svg>
+            <span>{layout === "sidebar" ? "Sidebar mode" : "Header mode"}</span>
+          </div>
+          <button
+            type="button"
+            onClick={toggleLayout}
+            aria-label={
+              layout === "sidebar"
+                ? "Switch to header mode"
+                : "Switch to sidebar mode"
+            }
+            style={{
+              position: "relative",
+              width: 44,
+              height: 24,
+              borderRadius: 999,
+              border: "1px solid var(--border-color, #ececec)",
+              background: "var(--bg-secondary, #1f1f1f)",
+              cursor: "pointer",
+              padding: 2,
+              transition: "background 0.18s ease",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: 2,
+                left: layout === "header" ? 22 : 2,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "var(--text-primary, #0a0a0a)",
+                color: "var(--bg-primary, #ffffff)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "left 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+                fontSize: 9,
+                fontWeight: 700,
+              }}
+            >
+              {layout === "header" ? "▬" : "│"}
             </span>
           </button>
         </div>
