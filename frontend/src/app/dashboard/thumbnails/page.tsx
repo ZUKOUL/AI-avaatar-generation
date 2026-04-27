@@ -31,6 +31,7 @@ import {
   EyeSlash,
   LinkIcon,
   MagicWand,
+  Maximize,
   PlaySquare,
   Pencil,
   Plus,
@@ -280,6 +281,11 @@ export default function ThumbnailStudio() {
   const [gallerySubTab, setGallerySubTab] = useState<"gallery" | "templates">(
     "gallery",
   );
+  // Aspect ratio popover open state. The toolbar shows a single
+  // ratio icon (Pikzels pattern); clicking it opens a small menu
+  // with all the options instead of stretching them across the row.
+  const [aspectMenuOpen, setAspectMenuOpen] = useState(false);
+  const aspectMenuRef = useRef<HTMLDivElement>(null);
 
   /* ─── Avatars library + @mentions ─── */
   const [avatars, setAvatars] = useState<Avatar[]>([]);
@@ -528,6 +534,24 @@ export default function ThumbnailStudio() {
       document.removeEventListener("mousedown", handler);
     };
   }, [charPickerOpen]);
+
+  /* ─── Close aspect menu on outside click ─── */
+  useEffect(() => {
+    if (!aspectMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        aspectMenuRef.current &&
+        !aspectMenuRef.current.contains(e.target as Node)
+      ) {
+        setAspectMenuOpen(false);
+      }
+    };
+    const t = window.setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [aspectMenuOpen]);
 
   /* ─── Close chip dropdown on outside click ─── */
   useEffect(() => {
@@ -3815,94 +3839,27 @@ export default function ThumbnailStudio() {
               )}
             </div>
 
-            {/* Controls row */}
+            {/* Controls row — Pikzels-style icon-only toolbar.
+                Bottom-LEFT holds the main affordances (Add character,
+                Refs upload, Aspect ratio). Each is a 34px circular
+                button with a native tooltip on hover (`title` attr) —
+                no inline labels. Bottom-right stays open for the
+                future mic / detect / etc. additions. */}
             <div
-              className="flex flex-wrap items-center gap-4 px-5 py-3"
-              style={{ borderTop: "1px solid var(--border-color)" }}
+              className="flex items-center gap-2 px-4 py-3"
+              style={{ borderTop: "1px solid var(--composer-border, var(--border-color))" }}
             >
-              {/* Aspect ratio with animated sliding pill */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-                  Aspect
-                </span>
-                <SegmentToggle
-                  size="sm"
-                  selected={aspectRatio}
-                  onSelect={(k) => setAspectRatio(k as AspectChoice)}
-                  items={ASPECT_ITEMS}
-                />
-              </div>
-
-              {/* Reference images (manual upload, still supported) */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-                  Refs
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {refPreviews.map((src, i) => (
-                    <div
-                      key={i}
-                      className="relative w-8 h-8 rounded-md overflow-hidden group"
-                      style={{ border: "1px solid var(--border-color)" }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => removeRef(i)}
-                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                        style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
-                        aria-label="Remove reference"
-                      >
-                        <XIcon size={10} />
-                      </button>
-                    </div>
-                  ))}
-                  {refs.length < 5 && (
-                    <button
-                      type="button"
-                      onClick={() => refInputRef.current?.click()}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={onDropRefs}
-                      className="w-8 h-8 rounded-md flex items-center justify-center"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px dashed var(--border-color)",
-                        color: "var(--text-muted)",
-                      }}
-                      aria-label="Add reference image"
-                    >
-                      <Upload size={12} />
-                    </button>
-                  )}
-                </div>
-                <input
-                  ref={refInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  hidden
-                  onChange={(e) => {
-                    if (e.target.files) handleRefFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-
-              {/* "Add character" button — bottom-right */}
-              <div className="relative ml-auto" ref={pickerRef}>
+              {/* Add character — bottom-LEFT (was bottom-right) */}
+              <div className="relative" ref={pickerRef}>
                 <button
                   type="button"
                   onClick={() => setCharPickerOpen((v) => !v)}
-                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12.5px] font-medium"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
+                  title="Add a character — mention with @"
+                  aria-label="Add a character"
+                  aria-pressed={charPickerOpen}
+                  className={"composer-tool " + (mentionedAvatarIds.length > 0 ? "is-active" : "")}
                 >
-                  <UserCircle size={14} />
-                  Add character
-                  <Plus size={13} />
+                  <UserCircle size={16} />
                 </button>
 
                 {charPickerOpen && (
@@ -4145,6 +4102,138 @@ export default function ThumbnailStudio() {
                   </div>
                 )}
               </div>
+
+              {/* Refs upload — icon-only, tooltip on hover. Click
+                  triggers the same hidden file input that already
+                  powers drag-and-drop. */}
+              <button
+                type="button"
+                onClick={() => refInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={onDropRefs}
+                title={
+                  refs.length > 0
+                    ? `${refs.length} reference image${refs.length === 1 ? "" : "s"} attached`
+                    : "Add reference images (drag & drop or click)"
+                }
+                aria-label="Add reference image"
+                className={"composer-tool " + (refs.length > 0 ? "is-active" : "")}
+              >
+                <Upload size={16} />
+              </button>
+              <input
+                ref={refInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => {
+                  if (e.target.files) handleRefFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+
+              {/* Aspect ratio — icon-only, opens a popover with the
+                  full ratio choices. Pikzels pattern: don't stretch
+                  5 ratio chips across the row when a single icon does
+                  the job. */}
+              <div className="relative" ref={aspectMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setAspectMenuOpen((v) => !v)}
+                  title={`Aspect ratio: ${aspectRatio}`}
+                  aria-label="Choose aspect ratio"
+                  aria-pressed={aspectMenuOpen}
+                  className={
+                    "composer-tool " + (aspectMenuOpen ? "is-active" : "")
+                  }
+                >
+                  <Maximize size={16} />
+                </button>
+                {aspectMenuOpen && (
+                  <div
+                    className="absolute left-0 bottom-full mb-2 rounded-xl p-2 flex items-center gap-1"
+                    style={{
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
+                      boxShadow: "0 12px 32px rgba(0,0,0,0.30)",
+                      zIndex: 50,
+                    }}
+                  >
+                    {ASPECT_ITEMS.map((item) => {
+                      const active = aspectRatio === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => {
+                            setAspectRatio(item.key);
+                            setAspectMenuOpen(false);
+                          }}
+                          title={item.key === "auto" ? "Auto (matches source)" : item.key}
+                          aria-label={item.key}
+                          aria-pressed={active}
+                          className="rounded-lg flex items-center justify-center"
+                          style={{
+                            width: 38,
+                            height: 38,
+                            background: active
+                              ? "var(--text-primary)"
+                              : "var(--bg-primary)",
+                            color: active
+                              ? "var(--bg-primary)"
+                              : "var(--text-secondary)",
+                            border: `1px solid ${
+                              active ? "var(--text-primary)" : "var(--border-color)"
+                            }`,
+                            cursor: "pointer",
+                            transition:
+                              "background 120ms, color 120ms, border-color 120ms",
+                          }}
+                        >
+                          {item.icon}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Inline ref previews — small thumbnails right after
+                  the toolbar icons. Hover shows the remove "x". */}
+              {refPreviews.length > 0 && (
+                <div className="flex items-center gap-1.5 ml-1">
+                  {refPreviews.map((src, i) => (
+                    <div
+                      key={i}
+                      className="relative w-7 h-7 rounded-md overflow-hidden group"
+                      style={{ border: "1px solid var(--border-color)" }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        onClick={() => removeRef(i)}
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                        style={{
+                          background: "rgba(0,0,0,0.55)",
+                          color: "#fff",
+                        }}
+                        aria-label="Remove reference"
+                      >
+                        <XIcon size={9} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Spacer pushes any future right-side tools (mic, etc.)
+                  to the bottom-right corner. Empty for now. */}
+              <div style={{ flex: 1 }} />
             </div>
           </div>
 
