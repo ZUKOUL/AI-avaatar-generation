@@ -245,3 +245,98 @@ input:focus, textarea:focus, select:focus {
 aside, header, main, div, button, a, input, textarea {
   transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
+
+/* ===== Studio backgrounds — Pikzels / Higgsfield reference =====
+   Used by the Thumbnail / Bento / App Store studio shells to give
+   the canvas a distinct "creative tool" identity instead of the flat
+   dashboard background. Two layers stacked:
+
+     1. studio-dot-grid — subtle radial-gradient dot pattern that
+                          reads as "creative / generative" without
+                          stealing focus from the composer.
+     2. studio-mint-glow — a fixed-position aurora at the bottom of
+                          the viewport. Mint/teal because it pairs
+                          well with the dark surface and is
+                          distinctive vs the AI-default purple. */
+
+.studio-dot-grid {
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(
+    circle,
+    var(--studio-dot-color) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  background-position: 0 0;
+  position: relative;
+  isolation: isolate;
+}
+
+.studio-mint-glow::before {
+  content: "";
+  position: fixed;
+  bottom: -180px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, 110vw);
+  height: 520px;
+  background: radial-gradient(
+    ellipse at center,
+    var(--studio-glow-color) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(32px);
+  opacity: 0.85;
+}
+
+:root,
+[data-theme="dark"] {
+  --studio-dot-color: rgba(255, 255, 255, 0.06);
+  --studio-glow-color: rgba(57, 220, 180, 0.16);
+}
+
+[data-theme="light"] {
+  --studio-dot-color: rgba(0, 0, 0, 0.07);
+  --studio-glow-color: rgba(57, 220, 180, 0.10);
+}
+
+.studio-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Templates strip — horizontally-scrolling tray that lives at the
+   bottom of the studio shell. Scrollbar hidden, momentum scrolling
+   on touch, fades on the edges so the row feels endless. */
+.studio-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 4px 2px 12px 2px;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+}
+.studio-strip::-webkit-scrollbar {
+  display: none;
+}
+.studio-strip > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}

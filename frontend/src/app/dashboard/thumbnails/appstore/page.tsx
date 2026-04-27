@@ -353,8 +353,8 @@ export default function AppStoreScreenshotStudio() {
         title="Thumbs"
         subtitle="Visuels qui font cliquer — YouTube + App Store"
       />
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-10">
+      <div className="flex-1 overflow-y-auto studio-dot-grid studio-mint-glow">
+        <div className="studio-content max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-10">
           <ThumbsModeTabs />
 
           {/* Hero */}
