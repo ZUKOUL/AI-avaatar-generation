@@ -29,6 +29,7 @@ import {
   Download,
   Eye,
   EyeSlash,
+  ImageSquare,
   LinkIcon,
   MagicWand,
   Maximize,
@@ -3840,14 +3841,13 @@ export default function ThumbnailStudio() {
             </div>
 
             {/* Controls row — Pikzels-style icon-only toolbar.
-                Bottom-LEFT holds the main affordances (Add character,
-                Refs upload, Aspect ratio). Each is a 34px circular
-                button with a native tooltip on hover (`title` attr) —
-                no inline labels. Bottom-right stays open for the
-                future mic / detect / etc. additions. */}
+                Sits flush with the textarea (no separator border) so
+                the icons feel like they belong INSIDE the same input
+                surface. Bottom-LEFT holds the main affordances (Add
+                character, Refs, Aspect). Each is 34px circular with
+                a native tooltip on hover (`title` attr) — no labels. */}
             <div
-              className="flex items-center gap-2 px-4 py-3"
-              style={{ borderTop: "1px solid var(--composer-border, var(--border-color))" }}
+              className="flex items-center gap-2 px-4 pt-1 pb-3"
             >
               {/* Add character — bottom-LEFT (was bottom-right) */}
               <div className="relative" ref={pickerRef}>
@@ -4119,7 +4119,7 @@ export default function ThumbnailStudio() {
                 aria-label="Add reference image"
                 className={"composer-tool " + (refs.length > 0 ? "is-active" : "")}
               >
-                <Upload size={16} />
+                <ImageSquare size={16} />
               </button>
               <input
                 ref={refInputRef}
