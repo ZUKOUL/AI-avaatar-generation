@@ -464,6 +464,138 @@ aside, header, main, div, button, a, input, textarea {
   z-index: 1;
 }
 
+/* ===== Composer panel — Pikzels reference =====================
+   Single dark rounded panel containing the textarea + a tools row.
+   The Generate CTA lives BELOW the panel as a separate pill. The
+   panel acquires a soft mint glow on focus-within so the user
+   feels the "AI is listening" state. */
+
+.composer-panel {
+  position: relative;
+  background: var(--composer-bg);
+  border: 1px solid var(--composer-border);
+  border-radius: 24px;
+  padding: 14px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 40px rgba(0, 0, 0, 0.30);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.composer-panel:focus-within {
+  border-color: var(--composer-border-focus);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 40px rgba(0, 0, 0, 0.32),
+    0 0 0 4px var(--composer-glow);
+}
+
+:root,
+[data-theme="dark"] {
+  --composer-bg: #0E1110;
+  --composer-border: rgba(255, 255, 255, 0.10);
+  --composer-border-focus: rgba(57, 220, 180, 0.55);
+  --composer-glow: rgba(57, 220, 180, 0.10);
+}
+
+[data-theme="light"] {
+  --composer-bg: #FAFAFA;
+  --composer-border: rgba(0, 0, 0, 0.10);
+  --composer-border-focus: rgba(31, 190, 146, 0.55);
+  --composer-glow: rgba(31, 190, 146, 0.12);
+}
+
+.composer-textarea {
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  min-height: 72px;
+  padding: 6px 4px;
+}
+.composer-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--composer-border);
+}
+
+.composer-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Icon-only tool button — minimal at rest, depth on hover, mint
+   accent when active (Lock-style, Pinned, etc.). Native tooltip
+   shows the label / hint on hover via the `title` attribute. */
+.composer-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease, transform 0.12s ease;
+}
+.composer-tool:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.composer-tool.is-active {
+  background: linear-gradient(180deg, #5DE5BD 0%, #1FBE92 100%);
+  color: #052B22;
+  border-color: #0E8868;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.30),
+    0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+/* Generate CTA pill — sits below the panel, centred. Inherits the
+   bento-tinted kargul-spec depth from `.btn-premium-bento` (mint
+   gradient, ground reflection). */
+.composer-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* `.btn-premium-bento` adds the kargul stack — we just provide
+     the geometry + spacing. */
+}
+.composer-submit:disabled {
+  /* Override the kargul gradient when disabled so the user feels
+     the affordance is off. */
+  background: var(--bg-secondary) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 /* Templates strip — horizontally-scrolling tray that lives at the
    bottom of the studio shell. Scrollbar hidden, momentum scrolling
    on touch, fades on the edges so the row feels endless. */

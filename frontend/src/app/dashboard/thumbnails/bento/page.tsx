@@ -490,7 +490,8 @@ export default function BentoCardStudio() {
           )}
 
           {/* Composer dock — sticky to the bottom of the viewport so
-              the CTA is always reachable without scrolling. */}
+              the CTA is always reachable without scrolling. Pikzels
+              pattern: panel + Generate CTA below as a separate pill. */}
           <div style={{ position: "sticky", bottom: 16, zIndex: 5 }}>
             <Composer
               value={productDescription}
@@ -499,11 +500,12 @@ export default function BentoCardStudio() {
               placeholder="Décris ton produit. Ex : « Outil de scheduling pour devs solo qui en ont marre de jongler entre Linear, Calendar et Slack. Une seule timeline, drag-and-drop, focus mode auto le matin. »"
               submitting={submitting}
               canSubmit={canSubmit}
-              kicker={
-                lockedStyleUrl ? "STYLE VERROUILLÉ — sister card" : "DÉCRIS TON PRODUIT"
-              }
-              tools={composerTools}
+              // Main affordances on the left (templates, lock, variants),
+              // passive control on the right (advanced settings).
+              leftTools={composerTools.slice(0, 3)}
+              rightTools={composerTools.slice(3)}
               maxLength={800}
+              countLabel={`${numVariants}×`}
             />
           </div>
         </div>
