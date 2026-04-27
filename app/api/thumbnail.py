@@ -2589,6 +2589,66 @@ _MINIATURE_TEMPLATES_DIR = (
     / "miniatures"
 )
 
+# Sister of the miniatures library — the user's curated App Store
+# screenshot inspiration set, structured as flat per-style buckets
+# (vs the existing `appstore/` library which is per-pack). 280 files
+# across 7 buckets after the curation pipeline. Served at
+# `/niche-assets/appstore_inspo/<bucket>/<slug>.jpg`.
+_APPSTORE_INSPO_TEMPLATES_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "services"
+    / "niche_assets"
+    / "appstore_inspo"
+)
+
+
+def _auto_pick_appstore_inspo_template_bytes(n: int = 2) -> list[bytes]:
+    """
+    Sample N random screenshots from the curated `appstore_inspo`
+    library to feed Gemini 3 Pro Image as house-style anchors when
+    the user generates a new App Store screenshot.
+
+    Same shape + behaviour as `_auto_pick_miniature_template_bytes`:
+    flat pool across all buckets (we don't try to match the user's
+    description to a specific style — the goal is just to expose
+    the model to the curated visual language). Returns `[]` when
+    the library hasn't been seeded yet, so callers can early-skip
+    silently.
+    """
+    index_path = _APPSTORE_INSPO_TEMPLATES_DIR / "index.json"
+    if not index_path.exists():
+        return []
+    try:
+        data = json.loads(index_path.read_text())
+    except Exception as e:
+        logger.warning(f"appstore_inspo auto-pick: index parse failed: {e}")
+        return []
+    buckets = data.get("buckets") or {}
+    if not buckets:
+        return []
+
+    pool: list[dict] = []
+    for items in buckets.values():
+        pool.extend(items)
+    if not pool:
+        return []
+
+    import random
+    sampled = random.sample(pool, min(n, len(pool)))
+    out: list[bytes] = []
+    for item in sampled:
+        rel = item.get("path")
+        if not rel:
+            continue
+        try:
+            local = _APPSTORE_INSPO_TEMPLATES_DIR / rel
+            if local.exists():
+                out.append(local.read_bytes())
+        except Exception as e:
+            logger.warning(f"appstore_inspo auto-pick: read failed for {rel}: {e}")
+            continue
+    return out
+
 
 def _auto_pick_miniature_template_bytes(n: int = 2) -> list[bytes]:
     """
@@ -2657,6 +2717,32 @@ async def youtube_templates():
 
     def _abs(rel: str) -> str:
         return f"/niche-assets/miniatures/{rel}"
+
+    out_buckets = {}
+    for style, items in (data.get("buckets") or {}).items():
+        out_buckets[style] = [
+            {**it, "url": _abs(it["path"])} for it in items
+        ]
+    return {
+        **data,
+        "buckets": out_buckets,
+    }
+
+
+@router.get("/appstore-inspo-templates")
+async def appstore_inspo_templates():
+    """Return the curated App Store screenshot inspirations grouped by style."""
+    index_path = _APPSTORE_INSPO_TEMPLATES_DIR / "index.json"
+    if not index_path.exists():
+        return {"version": 0, "styles": {}, "counts": {}, "total": 0, "buckets": {}}
+    try:
+        data = json.loads(index_path.read_text())
+    except Exception as e:
+        logger.warning(f"appstore_inspo index parse failed: {e}")
+        return {"version": 0, "styles": {}, "counts": {}, "total": 0, "buckets": {}}
+
+    def _abs(rel: str) -> str:
+        return f"/niche-assets/appstore_inspo/{rel}"
 
     out_buckets = {}
     for style, items in (data.get("buckets") or {}).items():
@@ -2805,7 +2891,37 @@ async def generate_appstore_direct(
     ]
     prompt = "\n".join(prompt_parts)
 
+    # Auto-inject 1-2 references from the curated `appstore_inspo`
+    # library so Gemini 3 Pro Image sees the user's "house style" on
+    # every text-to-screenshot generation. Same trick as the YouTube
+    # miniature flow — when the library hasn't been seeded, this is a
+    # no-op. Skipped when the user already pinned a specific anchor
+    # pack (`template_pack_slug`) — that pack is the dominant style
+    # signal and inspo refs would muddle it.
+    inspo_refs: list[bytes] = []
+    if not template_pack_slug:
+        inspo_refs = _auto_pick_appstore_inspo_template_bytes(n=2)
+        if inspo_refs:
+            logger.info(
+                f"appstore-direct {screen_id}: auto-injected {len(inspo_refs)} "
+                f"inspo references (house-style anchors)"
+            )
+            prompt = (
+                "STYLE REFERENCE (the first images above): these are "
+                "curated App Store screenshot designs from the user's "
+                "house library. Match their FORMAT — composition density, "
+                "palette saturation, typography weight, mockup tilt, "
+                "headline hierarchy — but ignore their specific app "
+                "subjects (write the user's app below into a fresh "
+                "screenshot). Do NOT copy their text content.\n\n"
+            ) + prompt
+
     contents: list = []
+    # Inspo refs first (when present) — they're STYLE anchors, primary
+    # visual context. Then the niche/pack anchors, then user refs, then
+    # the prompt text.
+    for ref in inspo_refs:
+        contents.append(types.Part.from_bytes(data=ref, mime_type="image/jpeg"))
     for ref in anchor_ref_bytes:
         contents.append(types.Part.from_bytes(data=ref, mime_type="image/jpeg"))
     for data, mime in user_refs:

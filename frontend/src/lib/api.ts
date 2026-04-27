@@ -251,6 +251,15 @@ export const thumbnailAPI = {
    */
   youtubeTemplates: () => api.get("/thumbnail/youtube-templates"),
   /**
+   * Curated App Store screenshot inspirations — ~280 high-quality
+   * screenshot designs grouped by style (headline_first, phone_mockup,
+   * lifestyle_photo, illustration_led, feature_callout, social_proof,
+   * before_after, minimal_text). Used by the "Inspirations" sub-tab
+   * on the App Store page; also auto-injected as house-style anchors
+   * into every `generate-appstore-direct` call.
+   */
+  appstoreInspoTemplates: () => api.get("/thumbnail/appstore-inspo-templates"),
+  /**
    * Curated bento templates gallery — a couple hundred reference cards
    * grouped by visual style (minimal_light / dark_tech / illustration /
    * dashboard_mockup / split / colorful_playful / editorial_text /

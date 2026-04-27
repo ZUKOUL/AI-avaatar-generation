@@ -18,6 +18,7 @@ import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import { ArrowRight, MagicWand, Upload, XIcon } from "@/components/Icons";
 import { thumbnailAPI } from "@/lib/api";
+import AppstoreInspoGallery from "@/components/studio/AppstoreInspoGallery";
 
 type Vertical =
   | "utility"
@@ -157,7 +158,7 @@ export default function AppStoreScreenshotStudio() {
   // archive ("Galerie") and the curated reference packs ("Templates").
   // Mirrors the same pattern on the YouTube page so the three studios
   // share a unified design.
-  const [bottomSubTab, setBottomSubTab] = useState<"gallery" | "templates">(
+  const [bottomSubTab, setBottomSubTab] = useState<"gallery" | "templates" | "inspirations">(
     "gallery",
   );
 
@@ -1078,8 +1079,37 @@ export default function AppStoreScreenshotStudio() {
               >
                 Packs
               </button>
+              <button
+                type="button"
+                onClick={() => setBottomSubTab("inspirations")}
+                aria-pressed={bottomSubTab === "inspirations"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (bottomSubTab === "inspirations" ? "btn-premium-as" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border:
+                    bottomSubTab === "inspirations" ? undefined : "1px solid transparent",
+                }}
+              >
+                Inspirations
+              </button>
             </div>
           </div>
+
+          {/* INSPIRATIONS VIEW — curated screenshot library that the
+              backend auto-injects on every Generate call as house-style
+              anchors. Frontend shows the catalogue so the user knows
+              what reference set is shaping the AI output. */}
+          {bottomSubTab === "inspirations" && (
+            <div className="mb-8">
+              <AppstoreInspoGallery />
+            </div>
+          )}
 
           {/* TEMPLATES VIEW — opens the gallery picker inline so the
               user can browse the 5 curated reference packs (avatar_pro,
