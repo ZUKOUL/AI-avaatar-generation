@@ -12,6 +12,10 @@
   --text-primary: #ececec;
   --text-secondary: #a1a1a1;
   --text-muted: #6e6e6e;
+  /* Kargul ground reflection — solid pale-grey under buttons. On
+     dark surfaces it reads as a moche white smudge, so we collapse
+     it to a transparent soft-black drop instead. */
+  --kargul-ground: rgba(0, 0, 0, 0.45);
   --accent: #ececec;
   --accent-hover: #ffffff;
   --accent-soft: rgba(255, 255, 255, 0.06);
@@ -59,6 +63,9 @@
   --text-primary: #1a1a1a;
   --text-secondary: #6b6b6b;
   --text-muted: #999999;
+  /* Kargul ground reflection — original kargul.studio spec, pale grey
+     solid for the bounce-light feel on white surfaces. */
+  --kargul-ground: rgba(180, 178, 189, 1);
   --accent: #1a1a1a;
   --accent-hover: #000000;
   --accent-soft: rgba(0, 0, 0, 0.04);
@@ -130,11 +137,17 @@ body {
      boxShadow inline (with bespoke colour-tinted stacks) plus
      onMouseEnter/onMouseLeave handlers that overwrite inline boxShadow
      on hover. To unify all primary CTAs to the kargul-spec depth without
-     editing every call site, we override at the cascade level. */
+     editing every call site, we override at the cascade level.
+
+     Ground reflection (the third shadow, light-grey under the button)
+     is theme-aware via --kargul-ground. On dark surfaces a solid
+     pale-grey reflection reads as a smudge ("effet lumineux blanc
+     moche" per the user); we swap it for a transparent-black soft
+     shadow there. */
   box-shadow:
     inset 0 4px 4px rgba(255, 255, 255, 0.18),
     0 2px 4px rgba(1, 1, 1, 0.15),
-    0 4px 4px -3px rgba(180, 178, 189, 1) !important;
+    0 4px 4px -3px var(--kargul-ground) !important;
   transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.15s ease;
   cursor: pointer;
 }
@@ -142,7 +155,7 @@ body {
   box-shadow:
     inset 0 4px 4px rgba(255, 255, 255, 0.25),
     0 4px 10px rgba(1, 1, 1, 0.2),
-    0 6px 8px -3px rgba(180, 178, 189, 1) !important;
+    0 6px 8px -3px var(--kargul-ground) !important;
   transform: translateY(-1px) !important;
 }
 .btn-premium:active:not(:disabled) {
@@ -167,7 +180,7 @@ body {
   box-shadow:
     inset 0 4px 4px rgba(255, 255, 255, 0.15),
     0 2px 4px rgba(1, 1, 1, 0.15),
-    0 4px 4px -3px rgba(180, 178, 189, 1);
+    0 4px 4px -3px var(--kargul-ground);
   transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.15s ease;
   cursor: pointer;
 }
@@ -175,7 +188,7 @@ body {
   box-shadow:
     inset 0 4px 4px rgba(255, 255, 255, 0.22),
     0 4px 10px rgba(1, 1, 1, 0.2),
-    0 6px 8px -3px rgba(180, 178, 189, 1);
+    0 6px 8px -3px var(--kargul-ground);
   transform: translateY(-1px);
 }
 .btn-premium-dark:active:not(:disabled) {
@@ -217,7 +230,7 @@ body {
   box-shadow:
     inset 0 4px 4px rgba(255, 255, 255, 0.18),
     0 2px 4px rgba(1, 1, 1, 0.15),
-    0 4px 4px -3px rgba(180, 178, 189, 1) !important;
+    0 4px 4px -3px var(--kargul-ground) !important;
   /* Simple, cheap-free transition: only properties that actually
      change between states (background, colour, shadow, transform on
      hover) are animated. No entrance keyframe — the user found the
@@ -232,7 +245,7 @@ body {
   box-shadow:
     inset 0 4px 4px rgba(255, 255, 255, 0.25),
     0 4px 10px rgba(1, 1, 1, 0.20),
-    0 6px 8px -3px rgba(180, 178, 189, 1) !important;
+    0 6px 8px -3px var(--kargul-ground) !important;
   transform: translateY(-1px) !important;
 }
 .btn-premium-yt:active:not(:disabled),
