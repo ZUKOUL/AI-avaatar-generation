@@ -761,9 +761,50 @@ async def animate_scene_motion(
             f"(missing API key). Switch models or set the key."
         )
 
-    return await provider.animate(
-        keyframe_path, motion_prompt, duration_seconds, out_path
-    )
+    try:
+        return await provider.animate(
+            keyframe_path, motion_prompt, duration_seconds, out_path
+        )
+    except Exception as e:
+        # Auto-fallback to Kling when Veo fails with a gating error.
+        # Veo's preview models (veo-3.1-fast-generate-preview etc.) are
+        # not enabled on every Google account by default — Google
+        # answers `400 INVALID_ARGUMENT — Your use case is currently
+        # not supported`. Without this fallback the user has to know
+        # to switch the dropdown to "kling" themselves; with it the
+        # pipeline silently degrades to a working provider.
+        msg = str(e)
+        looks_gated = (
+            ("veo" in slug.lower())
+            and (
+                "INVALID_ARGUMENT" in msg
+                or "use case is currently not supported" in msg.lower()
+                or "not supported" in msg.lower()
+                or "permission_denied" in msg.lower()
+            )
+        )
+        if not looks_gated:
+            raise
+
+        # Try Kling as the well-tested Replicate fallback.
+        import logging
+        log = logging.getLogger(__name__)
+        log.warning(
+            f"animate_scene_motion: '{slug}' rejected by upstream "
+            f"({msg[:200]}). Falling back to 'kling'."
+        )
+
+        kling = get_motion_provider("kling")
+        if kling is None or not kling.is_configured():
+            raise RuntimeError(
+                f"{slug} unavailable on this account "
+                f"(\"{msg[:160]}\"). Kling fallback is not configured "
+                f"either — set REPLICATE_API_TOKEN or pick a different "
+                f"motion model."
+            ) from e
+        return await kling.animate(
+            keyframe_path, motion_prompt, duration_seconds, out_path
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────
