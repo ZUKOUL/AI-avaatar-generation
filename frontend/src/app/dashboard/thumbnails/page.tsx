@@ -23,6 +23,7 @@ import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import SegmentToggle from "@/components/SegmentToggle";
 import MediaDetailView, { MediaDetailItem } from "@/components/MediaDetailView";
+import InspirationGallery from "@/components/studio/InspirationGallery";
 import { avatarAPI, thumbnailAPI } from "@/lib/api";
 import {
   Download,
@@ -3051,29 +3052,10 @@ export default function ThumbnailStudio() {
             </div>
           </div>
 
-          {/* Inspiration link */}
-          <div className="flex justify-end mb-3">
-            <Link
-              href="/dashboard/thumbnails/inspiration"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all"
-              style={{
-                background: "var(--bg-secondary)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--border-color)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--text-primary)";
-                e.currentTarget.style.background = "var(--bg-hover)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--text-secondary)";
-                e.currentTarget.style.background = "var(--bg-secondary)";
-              }}
-            >
-              <SparkleIcon size={13} />
-              <span>Inspiration</span>
-            </Link>
-          </div>
+          {/* Inspiration link removed — its content is now reachable via
+              the "Templates" sub-tab below the composer (no extra
+              navigation needed). The standalone /inspiration route
+              still exists for back-compat. */}
 
           {/* Mode tabs */}
           <div className="flex justify-center mb-6">
@@ -4256,46 +4238,14 @@ export default function ThumbnailStudio() {
             </div>
           </div>
 
-          {/* TEMPLATES VIEW — placeholder while we curate a real
-              YouTube-thumbnail library. For now we show an empty state
-              with a clear "coming soon" message so the affordance
-              works end-to-end and the user understands what's there. */}
-          {gallerySubTab === "templates" && (
-            <div
-              className="rounded-2xl px-6 py-14 text-center flex flex-col items-center gap-3"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px dashed var(--border-color)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  background: "var(--bg-primary)",
-                  border: "1px solid var(--border-color)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <PlaySquare size={20} />
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                Bibliothèque de templates miniatures
-              </div>
-              <div style={{ fontSize: 12.5, maxWidth: 480, lineHeight: 1.5 }}>
-                Bientôt — une centaine de miniatures curées de top créateurs
-                que tu pourras pinner comme style anchor en un clic, comme
-                pour les bento cards. En attendant tu peux remixer une
-                miniature existante via le mode <strong>Recreate</strong> en
-                collant une URL YouTube.
-              </div>
-            </div>
-          )}
+          {/* TEMPLATES VIEW — embeds the full Inspiration gallery
+              (top-performing YouTube thumbnails by niche, fetched from
+              YouTube Data API v3). Click a thumbnail → modal with
+              "Recreate from prompt" / "Edit this image" CTAs that
+              redirect back to the composer with the source pre-loaded.
+              Replaces the standalone /dashboard/thumbnails/inspiration
+              page so users no longer have to leave Thumbsy. */}
+          {gallerySubTab === "templates" && <InspirationGallery />}
 
           {/* History — also visible during generation so the skeleton has a
               home to land in. The skeleton occupies the top-left slot (where
