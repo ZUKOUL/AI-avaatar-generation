@@ -19,6 +19,8 @@ import {
   Check,
   Copy,
   Mail,
+  Moon,
+  Sun,
   User,
   CreditCard,
   Shield,
@@ -34,6 +36,7 @@ import {
 } from "@/components/Icons";
 import { clearAuth, getStoredUser } from "@/lib/auth";
 import { creditsAPI } from "@/lib/api";
+import { useTheme } from "@/lib/theme";
 
 type SectionKey =
   | "account"
@@ -886,6 +889,7 @@ export function UserMenuPopover({
 }) {
   const user = typeof window !== "undefined" ? getStoredUser() : null;
   const displayName = user?.email?.split("@")[0] || "Utilisateur";
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!open) return;
@@ -957,6 +961,64 @@ export function UserMenuPopover({
           >
             {displayName}
           </div>
+        </div>
+
+        {/* Theme toggle — sun ↔ moon. Lives at the top of the menu so
+            it's reachable in one move from anywhere in the app. The
+            toggle hits the global ThemeProvider, which sets
+            `data-theme` on <html>, so every page (sidebar AND main
+            panel) rebinds its CSS variables in one go. */}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "1px solid var(--border-color, #ececec)" }}
+        >
+          <div
+            className="flex items-center gap-3"
+            style={{
+              fontSize: 13.5,
+              fontWeight: 500,
+              color: "var(--text-secondary, #6b7280)",
+            }}
+          >
+            {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
+            <span>Theme</span>
+          </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            style={{
+              position: "relative",
+              width: 44,
+              height: 24,
+              borderRadius: 999,
+              border: "1px solid var(--border-color, #ececec)",
+              background: theme === "dark" ? "var(--bg-secondary, #1f1f1f)" : "var(--bg-secondary, #f5f5f5)",
+              cursor: "pointer",
+              padding: 2,
+              transition: "background 0.18s ease",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: 2,
+                left: theme === "dark" ? 22 : 2,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "var(--text-primary, #0a0a0a)",
+                color: "var(--bg-primary, #ffffff)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "left 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              {theme === "dark" ? <Moon size={11} /> : <Sun size={11} />}
+            </span>
+          </button>
         </div>
 
         {/* Primary menu */}
