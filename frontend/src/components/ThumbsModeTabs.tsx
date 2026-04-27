@@ -80,10 +80,11 @@ function pickActiveHref(pathname: string | null): string | null {
   return best?.href ?? null;
 }
 
-// Each mode tab maps to one of the tinted kargul-spec premium classes
-// when active. Inactive tabs share the neutral `tab-pill-rest` look.
-// All three deliver the same depth treatment (inner top highlight +
-// drop + ground reflection), only the brand colour changes.
+// Each mode tab maps to a tinted kargul-spec class. The depth stack
+// (inset highlight + drop shadow + ground reflection) is shared with
+// `.btn-premium` — only the gradient + border colour changes per
+// brand. Result: tabs feel like siblings of the existing Credits /
+// Generate / Upgrade CTAs, not a different design system.
 const ACTIVE_CLASS_BY_HREF: Record<string, string> = {
   "/dashboard/thumbnails": "btn-premium-yt",
   "/dashboard/thumbnails/appstore": "btn-premium-as",
@@ -94,27 +95,28 @@ export default function ThumbsModeTabs() {
   const pathname = usePathname();
   const activeHref = pickActiveHref(pathname);
   return (
-    <div className="flex items-center gap-2 mb-6 flex-wrap" style={{ rowGap: 8 }}>
-      {MODES.map((m) => {
-        const active = m.href === activeHref;
-        const activeClass = ACTIVE_CLASS_BY_HREF[m.href] || "btn-premium-bento";
-        return (
-          <Link
-            key={m.href}
-            href={m.href}
-            aria-current={active ? "page" : undefined}
-            className={
-              "flex items-center gap-2 rounded-full " +
-              (active ? activeClass : "tab-pill-rest")
-            }
-            style={{
-              padding: "8px 16px 8px 8px",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
+    <div className="flex justify-center mb-6">
+      <div className="tab-group-pill">
+        {MODES.map((m) => {
+          const active = m.href === activeHref;
+          const activeClass = ACTIVE_CLASS_BY_HREF[m.href] || "btn-premium-bento";
+          return (
+            <Link
+              key={m.href}
+              href={m.href}
+              aria-current={active ? "page" : undefined}
+              className={
+                "flex items-center gap-2 rounded-full " +
+                (active ? activeClass : "tab-pill-rest")
+              }
+              style={{
+                padding: "8px 16px 8px 8px",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
             <span
               style={{
                 width: 26,
@@ -125,16 +127,17 @@ export default function ThumbsModeTabs() {
                   : "var(--bg-primary)",
                 border:
                   "1px solid " +
-                  (active ? "rgba(255,255,255,0.18)" : "var(--border-color)"),
+                  (active ? "rgba(255,255,255,0.20)" : "var(--border-color)"),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 color: "currentColor",
                 flexShrink: 0,
                 // Inner shadow on the icon recess so the glyph reads as
-                // pressed-into the pill rather than floating on top.
+                // pressed-into the pill rather than floating on top —
+                // mirrors the Credits button's bolt icon recess.
                 boxShadow: active
-                  ? "inset 0 2px 3px rgba(0,0,0,0.18)"
+                  ? "inset 0 2px 3px rgba(0,0,0,0.22)"
                   : "none",
               }}
             >
@@ -152,7 +155,7 @@ export default function ThumbsModeTabs() {
                     padding: "2px 6px",
                     borderRadius: 4,
                     background: active
-                      ? "rgba(0,0,0,0.18)"
+                      ? "rgba(0,0,0,0.22)"
                       : "rgba(255,255,255,0.08)",
                     color: "currentColor",
                   }}
@@ -162,8 +165,9 @@ export default function ThumbsModeTabs() {
               )}
             </span>
           </Link>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
