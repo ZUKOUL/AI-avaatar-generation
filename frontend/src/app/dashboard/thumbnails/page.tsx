@@ -3624,11 +3624,26 @@ export default function ThumbnailStudio() {
                     alignItems: "center",
                     gap: 6,
                     zIndex: 4,
-                    height: 34, // lock the row height to the button size
-                                // so wrapped + bare buttons share the
-                                // same baseline (no vertical drift).
                   }}
                 >
+                  {/* Tools cluster — wraps the three icon buttons in a
+                      single rounded capsule (Pikzels reference). The
+                      slightly darker bg + soft border groups them as
+                      one segmented control instead of three loose
+                      buttons floating over the textarea. */}
+                  <div
+                    className="composer-tool-cluster"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: 3,
+                      borderRadius: 999,
+                      background:
+                        "color-mix(in srgb, var(--text-primary) 6%, transparent)",
+                      border: "1px solid var(--composer-border, var(--border-color))",
+                    }}
+                  >
                   {/* Add character — bottom-LEFT. Wrapper is inline-flex
                       so its bounding box matches the 34px button height. */}
                   <div
@@ -3738,6 +3753,7 @@ export default function ThumbnailStudio() {
                       </div>
                     )}
                   </div>
+                  </div>{/* end .composer-tool-cluster */}
 
                   {/* Inline ref previews */}
                   {refPreviews.length > 0 && (
