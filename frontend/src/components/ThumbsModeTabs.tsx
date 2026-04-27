@@ -80,27 +80,14 @@ function pickActiveHref(pathname: string | null): string | null {
   return best?.href ?? null;
 }
 
-// Per-mode accent colour used for the active pill — matches the page's
-// bottom-glow tint so the user always feels which sub-tool they're in.
-const TINT_BY_HREF: Record<string, { bg: string; border: string; text: string; glow: string }> = {
-  "/dashboard/thumbnails": {
-    bg: "linear-gradient(180deg, rgba(255,140,120,0.18) 0%, rgba(255,90,80,0.12) 100%)",
-    border: "rgba(255, 90, 80, 0.55)",
-    text: "#FFB3A8",
-    glow: "rgba(255, 90, 80, 0.35)",
-  },
-  "/dashboard/thumbnails/appstore": {
-    bg: "linear-gradient(180deg, rgba(110,170,255,0.18) 0%, rgba(56,138,255,0.12) 100%)",
-    border: "rgba(56, 138, 255, 0.55)",
-    text: "#9CC2FF",
-    glow: "rgba(56, 138, 255, 0.35)",
-  },
-  "/dashboard/thumbnails/bento": {
-    bg: "linear-gradient(180deg, rgba(110,235,200,0.18) 0%, rgba(57,220,180,0.12) 100%)",
-    border: "rgba(57, 220, 180, 0.55)",
-    text: "#9CECCC",
-    glow: "rgba(57, 220, 180, 0.35)",
-  },
+// Each mode tab maps to one of the tinted kargul-spec premium classes
+// when active. Inactive tabs share the neutral `tab-pill-rest` look.
+// All three deliver the same depth treatment (inner top highlight +
+// drop + ground reflection), only the brand colour changes.
+const ACTIVE_CLASS_BY_HREF: Record<string, string> = {
+  "/dashboard/thumbnails": "btn-premium-yt",
+  "/dashboard/thumbnails/appstore": "btn-premium-as",
+  "/dashboard/thumbnails/bento": "btn-premium-bento",
 };
 
 export default function ThumbsModeTabs() {
@@ -110,33 +97,20 @@ export default function ThumbsModeTabs() {
     <div className="flex items-center gap-2 mb-6 flex-wrap" style={{ rowGap: 8 }}>
       {MODES.map((m) => {
         const active = m.href === activeHref;
-        const tint = TINT_BY_HREF[m.href];
+        const activeClass = ACTIVE_CLASS_BY_HREF[m.href] || "btn-premium-bento";
         return (
           <Link
             key={m.href}
             href={m.href}
-            className="transition-all flex items-center gap-2 rounded-full"
             aria-current={active ? "page" : undefined}
+            className={
+              "flex items-center gap-2 rounded-full " +
+              (active ? activeClass : "tab-pill-rest")
+            }
             style={{
               padding: "8px 16px 8px 8px",
-              background: active
-                ? tint?.bg || "var(--bg-secondary)"
-                : "var(--bg-secondary)",
-              border:
-                "1px solid " +
-                (active ? tint?.border || "var(--border-color)" : "var(--border-color)"),
-              color: active
-                ? tint?.text || "var(--text-primary)"
-                : "var(--text-secondary)",
-              // The "3D pill" — inset highlight + soft outer glow when
-              // active. Matches the Pikzels capsule treatment the user
-              // referenced. Inactive pills stay flat for contrast.
-              boxShadow: active
-                ? `inset 0 1px 0 rgba(255,255,255,0.10), 0 0 0 1px ${tint?.glow || "transparent"}, 0 8px 24px -6px ${tint?.glow || "transparent"}`
-                : "inset 0 1px 0 rgba(255,255,255,0.04)",
               fontSize: 13,
               fontWeight: 600,
-              cursor: "pointer",
               textDecoration: "none",
               whiteSpace: "nowrap",
             }}
@@ -147,16 +121,21 @@ export default function ThumbsModeTabs() {
                 height: 26,
                 borderRadius: 999,
                 background: active
-                  ? "rgba(0,0,0,0.25)"
+                  ? "rgba(0,0,0,0.18)"
                   : "var(--bg-primary)",
                 border:
                   "1px solid " +
-                  (active ? "rgba(255,255,255,0.15)" : "var(--border-color)"),
+                  (active ? "rgba(255,255,255,0.18)" : "var(--border-color)"),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: active ? tint?.text || "var(--text-primary)" : "var(--text-primary)",
+                color: "currentColor",
                 flexShrink: 0,
+                // Inner shadow on the icon recess so the glyph reads as
+                // pressed-into the pill rather than floating on top.
+                boxShadow: active
+                  ? "inset 0 2px 3px rgba(0,0,0,0.18)"
+                  : "none",
               }}
             >
               {m.icon}
@@ -172,7 +151,9 @@ export default function ThumbsModeTabs() {
                     textTransform: "uppercase",
                     padding: "2px 6px",
                     borderRadius: 4,
-                    background: "rgba(255,255,255,0.08)",
+                    background: active
+                      ? "rgba(0,0,0,0.18)"
+                      : "rgba(255,255,255,0.08)",
                     color: "currentColor",
                   }}
                 >

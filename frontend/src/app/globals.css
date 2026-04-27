@@ -190,6 +190,119 @@ body {
   transform: none;
 }
 
+/* ===== Tinted premium CTAs — same kargul.studio "Button Breakdown" spec
+   as `.btn-premium-dark`, but with a coloured gradient + matching border
+   for each Thumbs sub-mode. Use on the ACTIVE state of the mode tabs so
+   the user feels the depth and the brand colour together.
+
+   Each variant follows the same recipe:
+     • Gradient: bright top → mid bottom of the brand colour
+     • Border: a darker shade of the same hue
+     • Inset highlight + drop shadow + ground reflection inherited
+       from the kargul base (we re-state them so the variant works
+       standalone without `.btn-premium` also being applied).
+     • Hover lifts the button by 1px and brightens the inset highlight,
+       same as the dark variant.
+*/
+
+.btn-premium-yt {
+  background: linear-gradient(180deg, #FF7A6B 0%, #E04030 100%);
+  color: #FFFFFF;
+  border: 1px solid #B42514 !important;
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.28),
+    0 2px 4px rgba(1, 1, 1, 0.20),
+    0 4px 6px -3px rgba(255, 90, 80, 0.55);
+  transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.15s ease;
+  cursor: pointer;
+}
+.btn-premium-yt:hover:not(:disabled) {
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.36),
+    0 4px 10px rgba(1, 1, 1, 0.22),
+    0 8px 14px -4px rgba(255, 90, 80, 0.65);
+  transform: translateY(-1px);
+}
+.btn-premium-yt:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.30),
+    0 1px 2px rgba(1, 1, 1, 0.15);
+}
+
+.btn-premium-as {
+  background: linear-gradient(180deg, #6BA8FF 0%, #2774E0 100%);
+  color: #FFFFFF;
+  border: 1px solid #135BC2 !important;
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.28),
+    0 2px 4px rgba(1, 1, 1, 0.20),
+    0 4px 6px -3px rgba(56, 138, 255, 0.55);
+  transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.15s ease;
+  cursor: pointer;
+}
+.btn-premium-as:hover:not(:disabled) {
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.36),
+    0 4px 10px rgba(1, 1, 1, 0.22),
+    0 8px 14px -4px rgba(56, 138, 255, 0.65);
+  transform: translateY(-1px);
+}
+.btn-premium-as:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.30),
+    0 1px 2px rgba(1, 1, 1, 0.15);
+}
+
+.btn-premium-bento {
+  background: linear-gradient(180deg, #5DE5BD 0%, #1FBE92 100%);
+  color: #052B22;
+  border: 1px solid #0E8868 !important;
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.36),
+    0 2px 4px rgba(1, 1, 1, 0.18),
+    0 4px 6px -3px rgba(57, 220, 180, 0.55);
+  transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.15s ease;
+  cursor: pointer;
+}
+.btn-premium-bento:hover:not(:disabled) {
+  box-shadow:
+    inset 0 4px 4px rgba(255, 255, 255, 0.45),
+    0 4px 10px rgba(1, 1, 1, 0.22),
+    0 8px 14px -4px rgba(57, 220, 180, 0.65);
+  transform: translateY(-1px);
+}
+.btn-premium-bento:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(1, 1, 1, 0.15);
+}
+
+/* Inactive tab: keep just enough depth to feel clickable (subtle inset
+   highlight + a 1px ground reflection) without competing with the
+   active pill. Lift on hover so the affordance reads. */
+.tab-pill-rest {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.10);
+  transition: box-shadow 0.18s ease, transform 0.12s ease, color 0.15s ease,
+    background 0.15s ease;
+  cursor: pointer;
+}
+.tab-pill-rest:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
