@@ -3404,10 +3404,11 @@ export default function ThumbnailStudio() {
                 </div>
               </div>
               <div
-                className="relative rounded-xl overflow-hidden"
+                className="relative rounded-xl"
                 style={{
                   background: "var(--bg-primary)",
                   border: "1px solid var(--border-color)",
+                  paddingBottom: 48,
                 }}
                 // Drop a screenshot from Finder / browser onto the
                 // prompt area and the backend describes it for you.
@@ -3606,6 +3607,166 @@ export default function ThumbnailStudio() {
                     })}
                   </div>
                 )}
+
+                {/* Inline icon toolbar — Pikzels pattern: lives INSIDE
+                    the textarea wrapper, absolutely positioned at the
+                    bottom-left, so the icons read as part of the input
+                    surface rather than a row underneath. The wrapper's
+                    paddingBottom (48px) keeps the textarea text from
+                    sliding under the icons. */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 8,
+                    left: 8,
+                    right: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    zIndex: 4,
+                  }}
+                >
+                  {/* Add character — bottom-LEFT */}
+                  <div className="relative" ref={pickerRef}>
+                    <button
+                      type="button"
+                      onClick={() => setCharPickerOpen((v) => !v)}
+                      title="Add a character — mention with @"
+                      aria-label="Add a character"
+                      aria-pressed={charPickerOpen}
+                      className={
+                        "composer-tool " +
+                        (mentionedAvatarIds.length > 0 ? "is-active" : "")
+                      }
+                    >
+                      <UserCircle size={16} />
+                    </button>
+                  </div>
+
+                  {/* Refs upload — image icon (NOT generic upload). */}
+                  <button
+                    type="button"
+                    onClick={() => refInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={onDropRefs}
+                    title={
+                      refs.length > 0
+                        ? `${refs.length} reference image${refs.length === 1 ? "" : "s"} attached`
+                        : "Add reference images (drag & drop or click)"
+                    }
+                    aria-label="Add reference image"
+                    className={
+                      "composer-tool " + (refs.length > 0 ? "is-active" : "")
+                    }
+                  >
+                    <ImageSquare size={16} />
+                  </button>
+
+                  {/* Aspect ratio — opens a popover above the icon. */}
+                  <div className="relative" ref={aspectMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setAspectMenuOpen((v) => !v)}
+                      title={`Aspect ratio: ${aspectRatio}`}
+                      aria-label="Choose aspect ratio"
+                      aria-pressed={aspectMenuOpen}
+                      className={
+                        "composer-tool " + (aspectMenuOpen ? "is-active" : "")
+                      }
+                    >
+                      <Maximize size={16} />
+                    </button>
+                    {aspectMenuOpen && (
+                      <div
+                        className="absolute left-0 bottom-full mb-2 rounded-xl p-2 flex items-center gap-1"
+                        style={{
+                          background: "var(--bg-secondary)",
+                          border: "1px solid var(--border-color)",
+                          boxShadow: "0 12px 32px rgba(0,0,0,0.30)",
+                          zIndex: 50,
+                        }}
+                      >
+                        {ASPECT_ITEMS.map((item) => {
+                          const active = aspectRatio === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => {
+                                setAspectRatio(item.key);
+                                setAspectMenuOpen(false);
+                              }}
+                              title={
+                                item.key === "auto" ? "Auto (matches source)" : item.key
+                              }
+                              aria-label={item.key}
+                              aria-pressed={active}
+                              className="rounded-lg flex items-center justify-center"
+                              style={{
+                                width: 38,
+                                height: 38,
+                                background: active
+                                  ? "var(--text-primary)"
+                                  : "var(--bg-primary)",
+                                color: active
+                                  ? "var(--bg-primary)"
+                                  : "var(--text-secondary)",
+                                border: `1px solid ${
+                                  active ? "var(--text-primary)" : "var(--border-color)"
+                                }`,
+                                cursor: "pointer",
+                                transition:
+                                  "background 120ms, color 120ms, border-color 120ms",
+                              }}
+                            >
+                              {item.icon}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inline ref previews */}
+                  {refPreviews.length > 0 && (
+                    <div className="flex items-center gap-1.5 ml-1">
+                      {refPreviews.map((src, i) => (
+                        <div
+                          key={i}
+                          className="relative w-7 h-7 rounded-md overflow-hidden group"
+                          style={{ border: "1px solid var(--border-color)" }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removeRef(i)}
+                            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                            style={{
+                              background: "rgba(0,0,0,0.55)",
+                              color: "#fff",
+                            }}
+                            aria-label="Remove reference"
+                          >
+                            <XIcon size={9} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Hidden file input drives the Refs button + drag-n-drop. */}
+                  <input
+                    ref={refInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={(e) => {
+                      if (e.target.files) handleRefFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Chip switch dropdown — click an @name chip to swap it */}
@@ -3840,401 +4001,6 @@ export default function ThumbnailStudio() {
               )}
             </div>
 
-            {/* Controls row — Pikzels-style icon-only toolbar.
-                Sits flush with the textarea (no separator border) so
-                the icons feel like they belong INSIDE the same input
-                surface. Bottom-LEFT holds the main affordances (Add
-                character, Refs, Aspect). Each is 34px circular with
-                a native tooltip on hover (`title` attr) — no labels. */}
-            <div
-              className="flex items-center gap-2 px-4 pt-1 pb-3"
-            >
-              {/* Add character — bottom-LEFT (was bottom-right) */}
-              <div className="relative" ref={pickerRef}>
-                <button
-                  type="button"
-                  onClick={() => setCharPickerOpen((v) => !v)}
-                  title="Add a character — mention with @"
-                  aria-label="Add a character"
-                  aria-pressed={charPickerOpen}
-                  className={"composer-tool " + (mentionedAvatarIds.length > 0 ? "is-active" : "")}
-                >
-                  <UserCircle size={16} />
-                </button>
-
-                {charPickerOpen && (
-                  <div
-                    className="absolute right-0 bottom-full mb-2 w-[340px] rounded-xl overflow-hidden"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                      boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
-                      zIndex: 50,
-                    }}
-                  >
-                    {/* Picker tabs */}
-                    <div
-                      className="flex p-1 gap-1"
-                      style={{ borderBottom: "1px solid var(--border-color)" }}
-                    >
-                      <SegmentToggle
-                        size="sm"
-                        className="w-full"
-                        selected={pickerTab}
-                        onSelect={(k) => setPickerTab(k as "library" | "upload")}
-                        items={[
-                          { key: "library", label: "My library" },
-                          { key: "upload", label: "Upload new" },
-                        ]}
-                      />
-                    </div>
-
-                    {pickerTab === "library" && (
-                      <div className="p-3">
-                        <div
-                          className="flex items-center gap-2 rounded-lg px-2.5 mb-2.5"
-                          style={{
-                            background: "var(--bg-secondary)",
-                            border: "1px solid var(--border-color)",
-                          }}
-                        >
-                          <Search size={13} />
-                          <input
-                            type="text"
-                            placeholder="Search characters…"
-                            value={librarySearch}
-                            onChange={(e) => setLibrarySearch(e.target.value)}
-                            className="flex-1 bg-transparent outline-none py-2 text-[12.5px]"
-                            style={{ color: "var(--text-primary)" }}
-                          />
-                        </div>
-                        <div className="max-h-[260px] overflow-y-auto">
-                          {filteredLibrary.length === 0 ? (
-                            <p
-                              className="text-[12px] text-center py-6"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {avatars.length === 0
-                                ? "No characters yet — upload one on the right."
-                                : "No matches."}
-                            </p>
-                          ) : (
-                            <div className="grid grid-cols-3 gap-2">
-                              {filteredLibrary.map((a) => {
-                                const selected = mentionedAvatarIds.includes(a.avatar_id);
-                                return (
-                                  <button
-                                    key={a.avatar_id}
-                                    type="button"
-                                    onClick={() => pickFromLibrary(a)}
-                                    className="group relative rounded-lg overflow-hidden"
-                                    style={{
-                                      border: selected
-                                        ? "2px solid #3b82f6"
-                                        : "1px solid var(--border-color)",
-                                      aspectRatio: "1 / 1",
-                                      background: "var(--bg-secondary)",
-                                    }}
-                                  >
-                                    {a.thumbnail ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={a.thumbnail}
-                                        alt={a.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div
-                                        className="w-full h-full flex items-center justify-center text-[16px] font-semibold"
-                                        style={{
-                                          background: "var(--bg-tertiary)",
-                                          color: "var(--text-muted)",
-                                        }}
-                                      >
-                                        {a.name.charAt(0).toUpperCase()}
-                                      </div>
-                                    )}
-                                    <div
-                                      className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10.5px] font-medium truncate"
-                                      style={{
-                                        background:
-                                          "linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0))",
-                                        color: "#fff",
-                                      }}
-                                    >
-                                      {a.name}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {pickerTab === "upload" && (
-                      <div className="p-3">
-                        <label
-                          className="text-[11px] font-medium mb-1.5 block"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          Name
-                        </label>
-                        <input
-                          type="text"
-                          value={newCharName}
-                          onChange={(e) => setNewCharName(e.target.value)}
-                          placeholder="e.g. Nathan"
-                          maxLength={40}
-                          className="w-full rounded-lg px-3 py-2 text-[12.5px] outline-none mb-3"
-                          style={{
-                            background: "var(--bg-secondary)",
-                            border: "1px solid var(--border-color)",
-                            color: "var(--text-primary)",
-                          }}
-                        />
-
-                        <label
-                          className="text-[11px] font-medium mb-1.5 block"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          Photos <span style={{ color: "var(--text-muted)" }}>(1–4)</span>
-                        </label>
-                        <div className="grid grid-cols-4 gap-1.5 mb-3">
-                          {newCharPreviews.map((src, i) => (
-                            <div
-                              key={i}
-                              className="relative rounded-md overflow-hidden"
-                              style={{
-                                aspectRatio: "1 / 1",
-                                border: "1px solid var(--border-color)",
-                              }}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={src} alt="" className="w-full h-full object-cover" />
-                              <button
-                                onClick={() => {
-                                  const url = newCharPreviews[i];
-                                  if (url) URL.revokeObjectURL(url);
-                                  setNewCharFiles((fs) => fs.filter((_, idx) => idx !== i));
-                                  setNewCharPreviews((ps) => ps.filter((_, idx) => idx !== i));
-                                }}
-                                className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                                style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
-                                aria-label="Remove"
-                              >
-                                <XIcon size={10} />
-                              </button>
-                            </div>
-                          ))}
-                          {newCharFiles.length < 4 && (
-                            <button
-                              type="button"
-                              onClick={() => newCharInputRef.current?.click()}
-                              className="rounded-md flex items-center justify-center"
-                              style={{
-                                aspectRatio: "1 / 1",
-                                background: "var(--bg-secondary)",
-                                border: "1px dashed var(--border-color)",
-                                color: "var(--text-muted)",
-                              }}
-                              aria-label="Add photo"
-                            >
-                              <Upload size={13} />
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          ref={newCharInputRef}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          hidden
-                          onChange={(e) => {
-                            handleNewCharFiles(e.target.files);
-                            e.target.value = "";
-                          }}
-                        />
-
-                        <button
-                          type="button"
-                          disabled={
-                            !newCharName.trim() || newCharFiles.length === 0 || creatingChar
-                          }
-                          onClick={createCharacter}
-                          className="w-full py-2 rounded-lg text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:cursor-not-allowed"
-                          style={{
-                            background:
-                              newCharName.trim() && newCharFiles.length > 0 && !creatingChar
-                                ? "var(--text-primary)"
-                                : "var(--bg-tertiary)",
-                            color:
-                              newCharName.trim() && newCharFiles.length > 0 && !creatingChar
-                                ? "var(--bg-primary)"
-                                : "var(--text-muted)",
-                            opacity:
-                              newCharName.trim() && newCharFiles.length > 0 && !creatingChar
-                                ? 1
-                                : 0.6,
-                          }}
-                        >
-                          {creatingChar ? (
-                            <>
-                              <Spinner size={13} />
-                              Creating…
-                            </>
-                          ) : (
-                            <>
-                              <Plus size={13} />
-                              Create & add
-                            </>
-                          )}
-                        </button>
-                        <p
-                          className="text-[10.5px] mt-2 leading-snug"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          New character will be saved to your library and inserted into the prompt.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Refs upload — icon-only, tooltip on hover. Click
-                  triggers the same hidden file input that already
-                  powers drag-and-drop. */}
-              <button
-                type="button"
-                onClick={() => refInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={onDropRefs}
-                title={
-                  refs.length > 0
-                    ? `${refs.length} reference image${refs.length === 1 ? "" : "s"} attached`
-                    : "Add reference images (drag & drop or click)"
-                }
-                aria-label="Add reference image"
-                className={"composer-tool " + (refs.length > 0 ? "is-active" : "")}
-              >
-                <ImageSquare size={16} />
-              </button>
-              <input
-                ref={refInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                hidden
-                onChange={(e) => {
-                  if (e.target.files) handleRefFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-
-              {/* Aspect ratio — icon-only, opens a popover with the
-                  full ratio choices. Pikzels pattern: don't stretch
-                  5 ratio chips across the row when a single icon does
-                  the job. */}
-              <div className="relative" ref={aspectMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setAspectMenuOpen((v) => !v)}
-                  title={`Aspect ratio: ${aspectRatio}`}
-                  aria-label="Choose aspect ratio"
-                  aria-pressed={aspectMenuOpen}
-                  className={
-                    "composer-tool " + (aspectMenuOpen ? "is-active" : "")
-                  }
-                >
-                  <Maximize size={16} />
-                </button>
-                {aspectMenuOpen && (
-                  <div
-                    className="absolute left-0 bottom-full mb-2 rounded-xl p-2 flex items-center gap-1"
-                    style={{
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      boxShadow: "0 12px 32px rgba(0,0,0,0.30)",
-                      zIndex: 50,
-                    }}
-                  >
-                    {ASPECT_ITEMS.map((item) => {
-                      const active = aspectRatio === item.key;
-                      return (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => {
-                            setAspectRatio(item.key);
-                            setAspectMenuOpen(false);
-                          }}
-                          title={item.key === "auto" ? "Auto (matches source)" : item.key}
-                          aria-label={item.key}
-                          aria-pressed={active}
-                          className="rounded-lg flex items-center justify-center"
-                          style={{
-                            width: 38,
-                            height: 38,
-                            background: active
-                              ? "var(--text-primary)"
-                              : "var(--bg-primary)",
-                            color: active
-                              ? "var(--bg-primary)"
-                              : "var(--text-secondary)",
-                            border: `1px solid ${
-                              active ? "var(--text-primary)" : "var(--border-color)"
-                            }`,
-                            cursor: "pointer",
-                            transition:
-                              "background 120ms, color 120ms, border-color 120ms",
-                          }}
-                        >
-                          {item.icon}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Inline ref previews — small thumbnails right after
-                  the toolbar icons. Hover shows the remove "x". */}
-              {refPreviews.length > 0 && (
-                <div className="flex items-center gap-1.5 ml-1">
-                  {refPreviews.map((src, i) => (
-                    <div
-                      key={i}
-                      className="relative w-7 h-7 rounded-md overflow-hidden group"
-                      style={{ border: "1px solid var(--border-color)" }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={() => removeRef(i)}
-                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                        style={{
-                          background: "rgba(0,0,0,0.55)",
-                          color: "#fff",
-                        }}
-                        aria-label="Remove reference"
-                      >
-                        <XIcon size={9} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Spacer pushes any future right-side tools (mic, etc.)
-                  to the bottom-right corner. Empty for now. */}
-              <div style={{ flex: 1 }} />
-            </div>
           </div>
 
           {/* Error banner */}
