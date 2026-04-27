@@ -2650,6 +2650,59 @@ def _auto_pick_appstore_inspo_template_bytes(n: int = 2) -> list[bytes]:
     return out
 
 
+def _resolve_inspo_url_bytes(url: str) -> Optional[bytes]:
+    """
+    Resolve a frontend-supplied inspiration URL to local bytes from the
+    curated `appstore_inspo` library.
+
+    Accepts both absolute URLs (`http://localhost:8000/niche-assets/
+    appstore_inspo/<bucket>/<slug>.jpg`) and relative paths
+    (`/niche-assets/appstore_inspo/...`) — the frontend prefixes
+    `NEXT_PUBLIC_API_URL`, which differs by environment, so we collapse
+    to the path component before mapping. Anything outside the inspo
+    dir or with a path-traversal segment is rejected and returns None
+    so the caller falls back to the heuristic anchor pick.
+    """
+    if not url:
+        return None
+    try:
+        from urllib.parse import urlparse, unquote
+        parsed = urlparse(url)
+        path = unquote(parsed.path or "")
+    except Exception:
+        return None
+
+    prefix = "/niche-assets/appstore_inspo/"
+    if not path.startswith(prefix):
+        logger.info(f"inspo URL rejected (wrong prefix): {url}")
+        return None
+
+    rel = path[len(prefix):].lstrip("/")
+    if not rel or ".." in rel.split("/"):
+        logger.info(f"inspo URL rejected (path traversal): {url}")
+        return None
+
+    base = _APPSTORE_INSPO_TEMPLATES_DIR.resolve()
+    try:
+        local = (_APPSTORE_INSPO_TEMPLATES_DIR / rel).resolve()
+        local.relative_to(base)  # guards against symlink-escape
+    except ValueError:
+        logger.info(f"inspo URL rejected (escapes inspo dir): {url}")
+        return None
+    except Exception as e:
+        logger.warning(f"inspo URL resolve failed for {url}: {e}")
+        return None
+
+    if not local.exists() or not local.is_file():
+        logger.info(f"inspo URL not found on disk: {local}")
+        return None
+    try:
+        return local.read_bytes()
+    except Exception as e:
+        logger.warning(f"inspo URL read failed for {local}: {e}")
+        return None
+
+
 def _auto_pick_miniature_template_bytes(n: int = 2) -> list[bytes]:
     """
     Sample N random thumbnails from the curated miniature library
@@ -3131,6 +3184,7 @@ async def generate_appstore_pack_smart(
     headline_hint: Optional[str] = Form(None, description="Optional rough idea — the strategist may use it as inspiration but always polishes the wording"),
     vertical: Optional[str] = Form(None),
     template_pack_slug: Optional[str] = Form(None, description="When set, pins this exact reference pack as the style anchor instead of the heuristic vertical match"),
+    inspo_template_url: Optional[str] = Form(None, description="When set, pins this exact App Store inspiration screenshot (from the curated /niche-assets/appstore_inspo library) as the dominant style anchor — overrides both `template_pack_slug` and the heuristic vertical match. Single-image anchor."),
     color_primary: Optional[str] = Form(None),
     color_secondary: Optional[str] = Form(None),
     social_proof: Optional[str] = Form(None, description="Comma-separated, e.g. '★ 4.8, 100k users'"),
@@ -3199,12 +3253,27 @@ async def generate_appstore_pack_smart(
     proof_list = (
         [s.strip() for s in social_proof.split(",") if s.strip()] if social_proof else None
     )
-    # User-pinned template pack always wins over the heuristic match,
-    # so the picker UX is reliable: pick a style → get that style.
-    style_anchor = _resolve_template_pack(template_pack_slug) or niche_loader.pick_pack_for(
-        vertical=vertical,
-        description=f"{app_name} {app_description} {headline_hint or ''}",
+    # Inspo-URL anchor wins over everything: when the user clicked a
+    # specific screenshot in the Packs tab gallery, that single image
+    # IS the style reference we hand to Gemini 3 Pro Image — no pack
+    # lookup, no heuristic vertical match. We resolve it to bytes
+    # eagerly so a bad/forged URL falls back to the normal pipeline
+    # silently rather than 4xx-ing on a UI tile click.
+    inspo_anchor_bytes: Optional[bytes] = (
+        _resolve_inspo_url_bytes(inspo_template_url) if inspo_template_url else None
     )
+    if inspo_anchor_bytes:
+        logger.info(
+            f"appstore-pack {pack_id}: user-pinned inspo URL → {len(inspo_anchor_bytes)} bytes"
+        )
+        style_anchor = None
+    else:
+        # User-pinned template pack always wins over the heuristic match,
+        # so the picker UX is reliable: pick a style → get that style.
+        style_anchor = _resolve_template_pack(template_pack_slug) or niche_loader.pick_pack_for(
+            vertical=vertical,
+            description=f"{app_name} {app_description} {headline_hint or ''}",
+        )
     # If the user gave a headline hint, append it as additional context for
     # the strategist — it'll polish, never copy verbatim.
     enriched_description = app_description.strip()
@@ -3243,13 +3312,29 @@ async def generate_appstore_pack_smart(
         raise HTTPException(status_code=502, detail="Strategist returned no usable screens.")
 
     # Anchor refs for visual consistency — load once, reuse across calls.
-    anchor_summary = niche_loader.style_profile_summary(style_anchor) if style_anchor else None
-    anchor_ref_bytes: list[bytes] = []
-    if style_anchor:
-        for path in style_anchor["screen_paths"][:2]:
-            data = niche_loader.read_reference_bytes(path)
-            if data:
-                anchor_ref_bytes.append(data)
+    # When the user pinned an inspo URL, that image IS the reference (we
+    # bypass the pack-bytes loader and hand the renderer a single-element
+    # list). We also synthesise an explicit anchor summary so the prompt
+    # composer's existing "Style anchor: …" preamble fires — without it,
+    # Gemini might treat the bytes as "another asset to embed" rather
+    # than "the format I should mirror".
+    if inspo_anchor_bytes:
+        anchor_summary = (
+            "Match the FIRST attached reference image — copy its composition "
+            "rhythm, palette saturation, typography weight, mockup tilt and "
+            "headline hierarchy. NEVER reuse its text content — render the "
+            "user's app's polished headlines (provided below) into a fresh "
+            "screenshot in this same visual language."
+        )
+        anchor_ref_bytes: list[bytes] = [inspo_anchor_bytes]
+    else:
+        anchor_summary = niche_loader.style_profile_summary(style_anchor) if style_anchor else None
+        anchor_ref_bytes = []
+        if style_anchor:
+            for path in style_anchor["screen_paths"][:2]:
+                data = niche_loader.read_reference_bytes(path)
+                if data:
+                    anchor_ref_bytes.append(data)
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 

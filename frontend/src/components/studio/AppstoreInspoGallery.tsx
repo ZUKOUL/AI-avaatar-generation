@@ -1,16 +1,21 @@
 "use client";
 
 /**
- * AppstoreInspoGallery — embeddable "Inspirations" view for the
- * App Store Studio.
+ * AppstoreInspoGallery — embeddable inspirations grid for the
+ * App Store Studio. Lives inside the "Packs" sub-tab beside the 5
+ * curated reference packs.
  *
- * Sister of `MiniatureTemplatesGallery`. Reads
- * `/thumbnail/appstore-inspo-templates` (the curated, deduped, Gemini-
- * Flash-categorised library at `app/services/niche_assets/appstore_inspo/`)
- * and renders a tabbed grid: pick a style bucket on top, click a
- * screenshot card to scroll the form back into view (the inspo refs
- * are auto-injected on every Generate call already, so clicking is
- * an "OK I've seen the style, generate now" cue).
+ * Reads `/thumbnail/appstore-inspo-templates` (the curated, deduped,
+ * Gemini-Flash-categorised library at
+ * `app/services/niche_assets/appstore_inspo/`) and renders the entries
+ * grouped by visual style. Click a card → fires the parent's
+ * `onPickAnchor(url)` so the next Generate call uses the picked image
+ * as the dominant style anchor (overrides the random auto-inject).
+ *
+ * Aspect ratio is 4:3 (the native source format) — these are mosaics
+ * of multiple App Store screens stitched into a landscape row, NOT
+ * single portrait phones. Forcing 9:19.5 portrait was cropping the
+ * mosaics so users could only see one of the three screens at a time.
  */
 
 import { useEffect, useState } from "react";
@@ -46,11 +51,22 @@ const STYLE_LABELS: Record<string, string> = {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export default function AppstoreInspoGallery() {
+interface AppstoreInspoGalleryProps {
+  /** Called with the absolute URL of the picked inspo so the parent
+   *  can pin it as the template anchor for the next generation. When
+   *  not provided the gallery is read-only (lightbox-only). */
+  onPickAnchor?: (url: string) => void;
+  /** Currently pinned anchor URL — drives the "is-active" highlight. */
+  pinnedAnchorUrl?: string | null;
+}
+
+export default function AppstoreInspoGallery({
+  onPickAnchor,
+  pinnedAnchorUrl,
+}: AppstoreInspoGalleryProps = {}) {
   const [data, setData] = useState<InspoResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeStyle, setActiveStyle] = useState<string>("");
-  const [lightbox, setLightbox] = useState<InspoItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,25 +92,15 @@ export default function AppstoreInspoGallery() {
     };
   }, []);
 
-  // Esc → close the lightbox
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightbox(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox]);
-
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {Array.from({ length: 15 }).map((_, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
             className="rounded-xl animate-pulse"
             style={{
-              aspectRatio: "9 / 19.5",
+              aspectRatio: "4 / 3",
               background: "var(--bg-secondary)",
               border: "1px solid var(--border-color)",
             }}
@@ -168,8 +174,7 @@ export default function AppstoreInspoGallery() {
         </div>
       </div>
 
-      {/* Hint banner — explain that inspos are auto-injected, no need
-          to click anything to "use" them. */}
+      {/* Hint banner — explain the click-to-pin behaviour. */}
       <div
         className="rounded-lg px-3 py-2 text-center"
         style={{
@@ -179,81 +184,77 @@ export default function AppstoreInspoGallery() {
           fontSize: 11.5,
         }}
       >
-        ✨ L&apos;IA s&apos;inspire automatiquement de cette bibliothèque sur chaque
-        génération — clique sur une image pour la voir en grand.
+        ✨ Clique sur une image pour l&apos;utiliser comme template — l&apos;IA
+        reproduira son format sur la prochaine génération.
       </div>
 
-      {/* Portrait grid — 9:19.5 aspect for App Store screens. */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {items.map((it) => (
-          <button
-            key={it.slug}
-            type="button"
-            onClick={() => setLightbox(it)}
-            className="rounded-xl overflow-hidden text-left transition-all"
-            style={{
-              aspectRatio: "9 / 19.5",
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-color)",
-              cursor: "pointer",
-              padding: 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.borderColor = "var(--text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.borderColor = "var(--border-color)";
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${API_BASE}${it.url}`}
-              alt={it.slug}
-              loading="lazy"
+      {/* 4:3 grid — native source aspect (the images are landscape
+          mosaics of 3 App Store screens, forcing portrait was cropping
+          them down to a single screen). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((it) => {
+          const fullUrl = `${API_BASE}${it.url}`;
+          const isPinned = pinnedAnchorUrl === fullUrl;
+          return (
+            <button
+              key={it.slug}
+              type="button"
+              onClick={() => onPickAnchor?.(fullUrl)}
+              aria-pressed={isPinned}
+              className="rounded-xl overflow-hidden text-left transition-all relative"
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
+                aspectRatio: "4 / 3",
+                background: "var(--bg-secondary)",
+                border: isPinned
+                  ? "2px solid var(--text-primary)"
+                  : "1px solid var(--border-color)",
+                cursor: onPickAnchor ? "pointer" : "default",
+                padding: 0,
+                boxShadow: isPinned
+                  ? "0 0 0 4px rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.18)"
+                  : "none",
               }}
-            />
-          </button>
-        ))}
+              onMouseEnter={(e) => {
+                if (!onPickAnchor) return;
+                e.currentTarget.style.transform = "translateY(-2px)";
+                if (!isPinned) {
+                  e.currentTarget.style.borderColor = "var(--text-primary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                if (!isPinned) {
+                  e.currentTarget.style.borderColor = "var(--border-color)";
+                }
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fullUrl}
+                alt={it.slug}
+                loading="lazy"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+              {isPinned && (
+                <span
+                  className="absolute top-2 left-2 rounded-full px-2 py-1 text-[10.5px] font-semibold"
+                  style={{
+                    background: "var(--text-primary)",
+                    color: "var(--bg-primary)",
+                  }}
+                >
+                  ✓ Template ancré
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
-
-      {/* Lightbox — full-size view of the picked screenshot. */}
-      {lightbox && (
-        <div
-          onClick={() => setLightbox(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(8px)",
-            zIndex: 100,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 24,
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`${API_BASE}${lightbox.url}`}
-            alt={lightbox.slug}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxHeight: "90vh",
-              maxWidth: "min(420px, 80vw)",
-              borderRadius: 16,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-              cursor: "default",
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }

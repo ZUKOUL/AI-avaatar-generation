@@ -154,13 +154,19 @@ export default function AppStoreScreenshotStudio() {
   const [activeVerticalTab, setActiveVerticalTab] = useState<string | null>(null);
   const [selectedPack, setSelectedPack] = useState<TemplatePack | null>(null);
 
+  // User-pinned inspiration screenshot — a single image from the curated
+  // ~230-screenshot library. Acts as a stronger anchor than the heuristic
+  // vertical match: when set, the backend uses this exact image as the
+  // primary visual reference and skips the random auto-injection. Only
+  // one anchor source is active at a time — picking an inspo clears
+  // `selectedPack` and vice-versa so the chip in the form is unambiguous.
+  const [selectedInspoUrl, setSelectedInspoUrl] = useState<string | null>(null);
+
   // Sub-tabs that switch the bottom section between the user's project
-  // archive ("Galerie") and the curated reference packs ("Templates").
-  // Mirrors the same pattern on the YouTube page so the three studios
-  // share a unified design.
-  const [bottomSubTab, setBottomSubTab] = useState<"gallery" | "templates" | "inspirations">(
-    "gallery",
-  );
+  // archive ("Galerie") and the curated reference packs ("Packs"). The
+  // ~230-screenshot inspirations library lives inside the Packs tab too
+  // — same place the user goes to pick a style anchor.
+  const [bottomSubTab, setBottomSubTab] = useState<"gallery" | "templates">("gallery");
 
   const format = FORMAT_PRESETS.find((f) => f.key === formatKey)!;
 
@@ -271,6 +277,7 @@ export default function AppStoreScreenshotStudio() {
     setCurrentIdx(0);
     setError(null);
     setSelectedPack(null);
+    setSelectedInspoUrl(null);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -318,6 +325,12 @@ export default function AppStoreScreenshotStudio() {
       // User-pinned style anchor pack always wins over the heuristic
       // vertical match on the backend. No-op when nothing is selected.
       if (selectedPack) fd.append("template_pack_slug", selectedPack.slug);
+      // User-pinned inspiration screenshot — single absolute URL. The
+      // backend resolves it to local bytes and uses it as the primary
+      // anchor (overrides both the heuristic vertical match and the
+      // random auto-inject). Mutually exclusive with `template_pack_slug`
+      // in the UI, so at most one of these is sent on any given call.
+      if (selectedInspoUrl) fd.append("inspo_template_url", selectedInspoUrl);
       fd.append("color_primary", accent);
       fd.append("format", formatKey);
       fd.append("num_variants", String(numVariants));
@@ -464,6 +477,65 @@ export default function AppStoreScreenshotStudio() {
                       type="button"
                       onClick={() => setSelectedPack(null)}
                       aria-label="Retirer le template"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-secondary)",
+                        padding: 4,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <XIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : selectedInspoUrl ? (
+                  // Inspo chip — same shape as the pack chip but for a
+                  // single-image anchor picked from the curated library
+                  // inside the Packs tab. We use a wider 64×48 thumb
+                  // (4:3) since these are landscape mosaics, not phones.
+                  <div
+                    className="flex items-center gap-3 p-2 pr-3 rounded-lg"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <img
+                      src={selectedInspoUrl}
+                      alt="Inspiration épinglée"
+                      style={{
+                        width: 64,
+                        height: 48,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        Inspiration épinglée
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        L&apos;IA reproduit ce format sur la prochaine génération
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInspoUrl(null)}
+                      aria-label="Retirer l'inspiration"
                       style={{
                         background: "transparent",
                         border: "none",
@@ -1079,44 +1151,20 @@ export default function AppStoreScreenshotStudio() {
               >
                 Packs
               </button>
-              <button
-                type="button"
-                onClick={() => setBottomSubTab("inspirations")}
-                aria-pressed={bottomSubTab === "inspirations"}
-                className={
-                  "flex items-center gap-2 rounded-full " +
-                  (bottomSubTab === "inspirations" ? "btn-premium-as" : "tab-pill-rest")
-                }
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
-                  border:
-                    bottomSubTab === "inspirations" ? undefined : "1px solid transparent",
-                }}
-              >
-                Inspirations
-              </button>
             </div>
           </div>
 
-          {/* INSPIRATIONS VIEW — curated screenshot library that the
-              backend auto-injects on every Generate call as house-style
-              anchors. Frontend shows the catalogue so the user knows
-              what reference set is shaping the AI output. */}
-          {bottomSubTab === "inspirations" && (
-            <div className="mb-8">
-              <AppstoreInspoGallery />
-            </div>
-          )}
-
-          {/* TEMPLATES VIEW — opens the gallery picker inline so the
-              user can browse the 5 curated reference packs (avatar_pro,
+          {/* PACKS VIEW — two anchor sources stacked in one tab:
+              (1) the 5 curated reference packs (avatar_pro,
               smart_reminders, faith_assistant, clip_to_pay, chef_ai)
-              without going through the modal. Click → pin as anchor. */}
+              opened via a modal picker, and
+              (2) the curated ~230-screenshot inspirations library
+              served grid-style at native 4:3 aspect.
+              Click any tile in either source → pin as the style anchor
+              for the next generation. The two sources are mutually
+              exclusive — picking one clears the other. */}
           {bottomSubTab === "templates" && (
-            <div className="mb-8">
+            <div className="mb-8 flex flex-col gap-8">
               <button
                 type="button"
                 onClick={openGallery}
@@ -1168,6 +1216,45 @@ export default function AppStoreScreenshotStudio() {
                   la cohérence visuelle du pack pinné.
                 </div>
               </button>
+
+              {/* Section header — visually separates the two sources. */}
+              <div className="flex flex-col gap-1.5">
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "var(--text-tertiary, #9ca3af)",
+                  }}
+                >
+                  Bibliothèque d&apos;inspirations
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  ~230 screenshots curés et catégorisés par style — clique sur
+                  un visuel pour l&apos;épingler comme template anchor.
+                </div>
+              </div>
+
+              <AppstoreInspoGallery
+                onPickAnchor={(url) => {
+                  // Picking an inspo replaces any previously-pinned pack
+                  // — the form chip + backend can only honour one anchor
+                  // source at a time.
+                  setSelectedInspoUrl(url);
+                  setSelectedPack(null);
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+                pinnedAnchorUrl={selectedInspoUrl}
+              />
             </div>
           )}
 
@@ -1337,7 +1424,10 @@ export default function AppStoreScreenshotStudio() {
           activeTab={activeVerticalTab}
           onTabChange={setActiveVerticalTab}
           onPick={(pack) => {
+            // Picking a pack clears any pinned inspo — same rule as the
+            // inverse direction above (only one anchor source at a time).
             setSelectedPack(pack);
+            setSelectedInspoUrl(null);
             setGalleryOpen(false);
           }}
           onClose={() => setGalleryOpen(false)}
