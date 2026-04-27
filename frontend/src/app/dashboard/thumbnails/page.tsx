@@ -3074,13 +3074,16 @@ export default function ThumbnailStudio() {
             />
           </div>
 
-          {/* Input card */}
+          {/* Input card — wrapped in the Pikzels-style composer panel
+              so the YouTube studio matches the Bento composer's
+              identity (dark surface, rounded-3xl, mint focus halo).
+              All the existing mode-specific UI (recreate URL field,
+              edit upload, title input, prompt textarea, refs, aspect
+              ratio, character picker) lives inside without any logic
+              change — only the outer chrome is updated. */}
           <div
-            className="rounded-2xl mb-5 relative"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-color)",
-            }}
+            className="composer-panel mb-5 relative"
+            style={{ padding: 0 }}
           >
             {mode === "recreate" && (
               <div className="p-5 pb-0">
@@ -4165,14 +4168,19 @@ export default function ThumbnailStudio() {
               onClick={handleGenerate}
               disabled={!canSubmit()}
               className={
-                (canSubmit() ? "btn-premium " : "") +
-                "flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-semibold disabled:cursor-not-allowed"
+                (canSubmit() ? "btn-premium-yt " : "") +
+                "flex items-center gap-2 px-6 py-3 rounded-full text-[14px] font-semibold disabled:cursor-not-allowed"
               }
               style={{
-                background: canSubmit() ? "var(--text-primary)" : "var(--bg-tertiary)",
-                color: canSubmit() ? "var(--bg-primary)" : "var(--text-muted)",
-                opacity: canSubmit() ? 1 : 0.6,
-                minWidth: 200,
+                ...(canSubmit()
+                  ? {}
+                  : {
+                      background: "var(--bg-tertiary)",
+                      color: "var(--text-muted)",
+                      border: "1px solid var(--border-color)",
+                      opacity: 0.6,
+                    }),
+                minWidth: 220,
                 justifyContent: "center",
               }}
             >

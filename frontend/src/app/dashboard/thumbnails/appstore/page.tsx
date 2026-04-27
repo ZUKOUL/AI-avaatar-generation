@@ -393,16 +393,13 @@ export default function AppStoreScreenshotStudio() {
             </div>
           </div>
 
-          {/* Two-column layout : form left, preview right */}
+          {/* Two-column layout : form left, preview right. Form panel
+              uses the Pikzels-style `composer-panel` shell — same dark
+              surface + soft mint focus halo as the Bento composer, so
+              the three studios feel like the same app. */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
             {/* ── Form ── */}
-            <div
-              className="rounded-2xl p-6 flex flex-col gap-5"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
-              }}
-            >
+            <div className="composer-panel flex flex-col gap-5" style={{ padding: 22 }}>
               <Field label="Style anchor (optionnel — l'IA reproduit la cohérence visuelle de cet app)">
                 {selectedPack ? (
                   <div
@@ -741,23 +738,30 @@ export default function AppStoreScreenshotStudio() {
                 </div>
               )}
 
+              {/* Generate CTA — styled to match the Bento `.composer-submit`
+                  pattern: kargul-spec blue depth on active, flat neutral
+                  on disabled. The pill stays full-width inside the form
+                  so the user can hit it without hunting the cursor. */}
               <button
                 onClick={handleGenerate}
                 disabled={submitting || !appName.trim() || !appDescription.trim()}
                 className={
-                  (submitting || !appName.trim() || !appDescription.trim() ? "" : "btn-premium ") +
+                  (submitting || !appName.trim() || !appDescription.trim()
+                    ? ""
+                    : "btn-premium-as ") +
                   "rounded-full px-5 py-3 inline-flex items-center justify-center gap-2 font-semibold"
                 }
                 style={{
-                  background:
-                    submitting || !appName.trim() || !appDescription.trim()
-                      ? "var(--bg-tertiary, #f3f4f6)"
-                      : accent,
-                  color:
-                    submitting || !appName.trim() || !appDescription.trim()
-                      ? "var(--text-tertiary, #9ca3af)"
-                      : "#ffffff",
                   fontSize: 14,
+                  ...(submitting || !appName.trim() || !appDescription.trim()
+                    ? {
+                        background: "var(--bg-tertiary, #f3f4f6)",
+                        color: "var(--text-tertiary, #9ca3af)",
+                        border: "1px solid var(--border-color)",
+                        boxShadow: "none",
+                        cursor: "not-allowed",
+                      }
+                    : {}),
                 }}
               >
                 {submitting
