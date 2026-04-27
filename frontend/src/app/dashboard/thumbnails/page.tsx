@@ -671,6 +671,34 @@ export default function ThumbnailStudio() {
     setSourcePreview(URL.createObjectURL(file));
     setSourceNaturalSize(null);
   };
+
+  /* ─── Click-a-template-thumbnail → drop into Edit mode ───
+   * The MiniatureTemplatesGallery lives on the same route as the
+   * studio composer, so the prior `router.push('?ref=…')` strategy
+   * was a no-op (Next.js soft-navigates same-route pushes without
+   * re-mounting, and the URL-hydration `useEffect` has empty deps).
+   * Now we hand the gallery a callback: switch to Edit mode, pull
+   * the bytes, drop them in the source slot, then pop back to the
+   * gallery sub-tab + scroll up so the loaded thumbnail is visible
+   * in the composer immediately. */
+  const loadTemplateAsEditSource = async (url: string) => {
+    setMode("edit");
+    setGallerySubTab("gallery");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    try {
+      const blob = await fetch(url).then((r) => r.blob());
+      const f = new File([blob], "template-source.png", {
+        type: blob.type || "image/png",
+      });
+      handleSourceFile(f);
+    } catch (err) {
+      console.warn("template fetch failed", err);
+      // Silent fallback: user lands in Edit mode with an empty source
+      // slot — they can re-pick or upload manually.
+    }
+  };
   const clearSource = () => {
     if (sourcePreview) URL.revokeObjectURL(sourcePreview);
     setSourceFile(null);
@@ -4357,7 +4385,9 @@ export default function ThumbnailStudio() {
               redirect back to the composer with the source pre-loaded.
               Replaces the standalone /dashboard/thumbnails/inspiration
               page so users no longer have to leave Thumbsy. */}
-          {gallerySubTab === "templates" && <MiniatureTemplatesGallery />}
+          {gallerySubTab === "templates" && (
+            <MiniatureTemplatesGallery onPick={loadTemplateAsEditSource} />
+          )}
 
           {/* History — also visible during generation so the skeleton has a
               home to land in. The skeleton occupies the top-left slot (where

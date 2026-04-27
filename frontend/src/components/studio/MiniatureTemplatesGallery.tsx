@@ -50,7 +50,25 @@ const STYLE_LABELS: Record<string, string> = {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export default function MiniatureTemplatesGallery() {
+interface MiniatureTemplatesGalleryProps {
+  /** Called with the absolute image URL when the user clicks a card.
+   *  When provided, the gallery short-circuits the router.push fallback
+   *  — the parent decides what to do (typically: switch the studio to
+   *  Edit mode and load the URL bytes as the source image). When
+   *  omitted, the gallery navigates to `/dashboard/thumbnails?ref=<url>`
+   *  which only matters for cross-page entries; in-page clicks need
+   *  the callback because Next.js won't re-mount the same route and
+   *  the hydration `useEffect` has empty deps. */
+  onPick?: (url: string) => void;
+  /** Active anchor URL — drives the highlighted "is-pinned" border on
+   *  the matching card. Optional: if absent, no visual pin state. */
+  pinnedAnchorUrl?: string | null;
+}
+
+export default function MiniatureTemplatesGallery({
+  onPick,
+  pinnedAnchorUrl,
+}: MiniatureTemplatesGalleryProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<TemplatesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,11 +102,18 @@ export default function MiniatureTemplatesGallery() {
 
   const handlePick = (item: TemplateItem) => {
     // Drop the user back into the composer with the picked template
-    // pre-loaded as the style anchor. Same `?ref=` query-param the
-    // existing inspiration flow uses, so receiving handlers in the
-    // main page already know how to load it.
+    // pre-loaded as the style anchor. When the parent gave us an
+    // onPick prop we hand off the URL directly — the parent owns
+    // the "load as edit source + scroll up + switch sub-tab" flow.
+    // Otherwise we fall back to the URL-param hand-off, which works
+    // for cross-page entries (a future "Open in Studio" button on a
+    // different route).
     const fullUrl = `${API_BASE}${item.url}`;
-    router.push(`/dashboard/thumbnails?ref=${encodeURIComponent(fullUrl)}`);
+    if (onPick) {
+      onPick(fullUrl);
+    } else {
+      router.push(`/dashboard/thumbnails?ref=${encodeURIComponent(fullUrl)}`);
+    }
   };
 
   if (loading) {
@@ -175,45 +200,85 @@ export default function MiniatureTemplatesGallery() {
         </div>
       </div>
 
-      {/* Thumbnail grid — 16:9 cards. Click → pins as style anchor in
-          Edit mode (?ref=...) so the existing handler picks it up. */}
+      {/* Hint banner — explain the click-to-edit behaviour so the
+          gallery isn't a passive moodboard. */}
+      <div
+        className="rounded-lg px-3 py-2 text-center"
+        style={{
+          background: "color-mix(in srgb, var(--text-primary) 4%, transparent)",
+          border: "1px solid var(--composer-border, var(--border-color))",
+          color: "var(--text-secondary)",
+          fontSize: 11.5,
+        }}
+      >
+        ✨ Clique sur une miniature pour l&apos;ouvrir en mode Edit — tu
+        pourras remplacer le personnage, le texte, tout.
+      </div>
+
+      {/* Thumbnail grid — 16:9 cards. Click → fires `onPick(url)` which
+          the parent wires to the Edit-mode source loader. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {items.map((it) => (
-          <button
-            key={it.slug}
-            type="button"
-            onClick={() => handlePick(it)}
-            className="rounded-xl overflow-hidden text-left transition-all"
-            style={{
-              aspectRatio: "16 / 9",
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-color)",
-              cursor: "pointer",
-              padding: 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.borderColor = "var(--text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.borderColor = "var(--border-color)";
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${API_BASE}${it.url}`}
-              alt={it.slug}
-              loading="lazy"
+        {items.map((it) => {
+          const fullUrl = `${API_BASE}${it.url}`;
+          const isPinned = pinnedAnchorUrl === fullUrl;
+          return (
+            <button
+              key={it.slug}
+              type="button"
+              onClick={() => handlePick(it)}
+              aria-pressed={isPinned}
+              className="rounded-xl overflow-hidden text-left transition-all relative"
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
+                aspectRatio: "16 / 9",
+                background: "var(--bg-secondary)",
+                border: isPinned
+                  ? "2px solid var(--text-primary)"
+                  : "1px solid var(--border-color)",
+                cursor: "pointer",
+                padding: 0,
+                boxShadow: isPinned
+                  ? "0 0 0 4px rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.18)"
+                  : "none",
               }}
-            />
-          </button>
-        ))}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                if (!isPinned) {
+                  e.currentTarget.style.borderColor = "var(--text-primary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                if (!isPinned) {
+                  e.currentTarget.style.borderColor = "var(--border-color)";
+                }
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fullUrl}
+                alt={it.slug}
+                loading="lazy"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+              {isPinned && (
+                <span
+                  className="absolute top-2 left-2 rounded-full px-2 py-1 text-[10.5px] font-semibold"
+                  style={{
+                    background: "var(--text-primary)",
+                    color: "var(--bg-primary)",
+                  }}
+                >
+                  ✓ Source chargée
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
