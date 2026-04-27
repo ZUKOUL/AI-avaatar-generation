@@ -1,0 +1,2887 @@
+{
+  "version": 1,
+  "styles": {
+    "face_reaction": "Single human (or character) face dominates with an expressive / shocked / exaggerated emotion. Usually a close-up filling 40-60% of the frame.",
+    "dual_split": "Two-panel composition — split / before-after / vs / left-vs-right comparison. Often a vertical line or contrast separates the halves.",
+    "text_dominant": "Bold oversized text or title is the primary visual element, taking up most of the frame. Background is supporting.",
+    "mockup_focus": "A product, device, screen, software UI, or branded object is the hero. Person (if any) is secondary.",
+    "dark_dramatic": "Dark / near-black background with a single strong light source or neon accent. High contrast, premium tech / mystery / cinematic feel.",
+    "bright_colorful": "Bright saturated colours, neon palette, candy / pop / playful energy. Multiple competing colours.",
+    "tutorial_callout": "Arrows, circles, hand-drawn highlights, numbered steps, red/yellow markers. Tutorial / how-to / educational visual language.",
+    "mascot_3d": "3D-rendered character, mascot, plastic / claymation / Pixar-style figure. Stylised non-photorealistic hero."
+  },
+  "counts": {
+    "face_reaction": 1,
+    "dual_split": 32,
+    "text_dominant": 180,
+    "mockup_focus": 121,
+    "dark_dramatic": 41,
+    "bright_colorful": 22,
+    "tutorial_callout": 67,
+    "mascot_3d": 105
+  },
+  "total": 569,
+  "buckets": {
+    "face_reaction": [
+      {
+        "slug": "thumbsy00120",
+        "path": "face_reaction/thumbsy00120.jpg",
+        "bytes": 64757
+      }
+    ],
+    "dual_split": [
+      {
+        "slug": "thumbsy00103",
+        "path": "dual_split/thumbsy00103.jpg",
+        "bytes": 84980
+      },
+      {
+        "slug": "thumbsy00170",
+        "path": "dual_split/thumbsy00170.jpg",
+        "bytes": 75281
+      },
+      {
+        "slug": "thumbsy00105",
+        "path": "dual_split/thumbsy00105.jpg",
+        "bytes": 73170
+      },
+      {
+        "slug": "thumbsy00374",
+        "path": "dual_split/thumbsy00374.jpg",
+        "bytes": 67355
+      },
+      {
+        "slug": "thumbsy00581",
+        "path": "dual_split/thumbsy00581.jpg",
+        "bytes": 65553
+      },
+      {
+        "slug": "thumbsy00086",
+        "path": "dual_split/thumbsy00086.jpg",
+        "bytes": 61145
+      },
+      {
+        "slug": "thumbsy00276",
+        "path": "dual_split/thumbsy00276.jpg",
+        "bytes": 55517
+      },
+      {
+        "slug": "thumbsy00472",
+        "path": "dual_split/thumbsy00472.jpg",
+        "bytes": 54606
+      },
+      {
+        "slug": "thumbsy00561",
+        "path": "dual_split/thumbsy00561.jpg",
+        "bytes": 54001
+      },
+      {
+        "slug": "thumbsy00312",
+        "path": "dual_split/thumbsy00312.jpg",
+        "bytes": 53765
+      },
+      {
+        "slug": "thumbsy00230",
+        "path": "dual_split/thumbsy00230.jpg",
+        "bytes": 53620
+      },
+      {
+        "slug": "thumbsy00386",
+        "path": "dual_split/thumbsy00386.jpg",
+        "bytes": 51940
+      },
+      {
+        "slug": "thumbsy00040",
+        "path": "dual_split/thumbsy00040.jpg",
+        "bytes": 51691
+      },
+      {
+        "slug": "thumbsy00130",
+        "path": "dual_split/thumbsy00130.jpg",
+        "bytes": 51211
+      },
+      {
+        "slug": "thumbsy00497",
+        "path": "dual_split/thumbsy00497.jpg",
+        "bytes": 50475
+      },
+      {
+        "slug": "thumbsy00288",
+        "path": "dual_split/thumbsy00288.jpg",
+        "bytes": 48968
+      },
+      {
+        "slug": "thumbsy00334",
+        "path": "dual_split/thumbsy00334.jpg",
+        "bytes": 48268
+      },
+      {
+        "slug": "thumbsy00249",
+        "path": "dual_split/thumbsy00249.jpg",
+        "bytes": 47250
+      },
+      {
+        "slug": "thumbsy00362",
+        "path": "dual_split/thumbsy00362.jpg",
+        "bytes": 47022
+      },
+      {
+        "slug": "thumbsy00152",
+        "path": "dual_split/thumbsy00152.jpg",
+        "bytes": 44571
+      },
+      {
+        "slug": "thumbsy00143",
+        "path": "dual_split/thumbsy00143.jpg",
+        "bytes": 43368
+      },
+      {
+        "slug": "thumbsy00464",
+        "path": "dual_split/thumbsy00464.jpg",
+        "bytes": 42254
+      },
+      {
+        "slug": "thumbsy00095",
+        "path": "dual_split/thumbsy00095.jpg",
+        "bytes": 41069
+      },
+      {
+        "slug": "thumbsy00450",
+        "path": "dual_split/thumbsy00450.jpg",
+        "bytes": 41066
+      },
+      {
+        "slug": "thumbsy00556",
+        "path": "dual_split/thumbsy00556.jpg",
+        "bytes": 39929
+      },
+      {
+        "slug": "thumbsy00134",
+        "path": "dual_split/thumbsy00134.jpg",
+        "bytes": 37601
+      },
+      {
+        "slug": "thumbsy00395",
+        "path": "dual_split/thumbsy00395.jpg",
+        "bytes": 36497
+      },
+      {
+        "slug": "thumbsy00484",
+        "path": "dual_split/thumbsy00484.jpg",
+        "bytes": 36171
+      },
+      {
+        "slug": "thumbsy00064",
+        "path": "dual_split/thumbsy00064.jpg",
+        "bytes": 35000
+      },
+      {
+        "slug": "thumbsy00099",
+        "path": "dual_split/thumbsy00099.jpg",
+        "bytes": 32748
+      },
+      {
+        "slug": "thumbsy00047",
+        "path": "dual_split/thumbsy00047.jpg",
+        "bytes": 29970
+      },
+      {
+        "slug": "thumbsy00137",
+        "path": "dual_split/thumbsy00137.jpg",
+        "bytes": 28743
+      }
+    ],
+    "text_dominant": [
+      {
+        "slug": "thumbsy00535",
+        "path": "text_dominant/thumbsy00535.jpg",
+        "bytes": 78918
+      },
+      {
+        "slug": "thumbsy00481",
+        "path": "text_dominant/thumbsy00481.jpg",
+        "bytes": 70971
+      },
+      {
+        "slug": "thumbsy00231",
+        "path": "text_dominant/thumbsy00231.jpg",
+        "bytes": 68949
+      },
+      {
+        "slug": "thumbsy00091",
+        "path": "text_dominant/thumbsy00091.jpg",
+        "bytes": 68327
+      },
+      {
+        "slug": "thumbsy00169",
+        "path": "text_dominant/thumbsy00169.jpg",
+        "bytes": 67845
+      },
+      {
+        "slug": "thumbsy00311",
+        "path": "text_dominant/thumbsy00311.jpg",
+        "bytes": 66749
+      },
+      {
+        "slug": "thumbsy00263",
+        "path": "text_dominant/thumbsy00263.jpg",
+        "bytes": 66314
+      },
+      {
+        "slug": "thumbsy00569",
+        "path": "text_dominant/thumbsy00569.jpg",
+        "bytes": 64839
+      },
+      {
+        "slug": "thumbsy00411",
+        "path": "text_dominant/thumbsy00411.jpg",
+        "bytes": 64327
+      },
+      {
+        "slug": "thumbsy00478",
+        "path": "text_dominant/thumbsy00478.jpg",
+        "bytes": 64134
+      },
+      {
+        "slug": "thumbsy00427",
+        "path": "text_dominant/thumbsy00427.jpg",
+        "bytes": 64092
+      },
+      {
+        "slug": "thumbsy00439",
+        "path": "text_dominant/thumbsy00439.jpg",
+        "bytes": 62990
+      },
+      {
+        "slug": "thumbsy00545",
+        "path": "text_dominant/thumbsy00545.jpg",
+        "bytes": 62942
+      },
+      {
+        "slug": "thumbsy00493",
+        "path": "text_dominant/thumbsy00493.jpg",
+        "bytes": 62889
+      },
+      {
+        "slug": "thumbsy00420",
+        "path": "text_dominant/thumbsy00420.jpg",
+        "bytes": 62534
+      },
+      {
+        "slug": "thumbsy00151",
+        "path": "text_dominant/thumbsy00151.jpg",
+        "bytes": 62454
+      },
+      {
+        "slug": "thumbsy00418",
+        "path": "text_dominant/thumbsy00418.jpg",
+        "bytes": 62327
+      },
+      {
+        "slug": "thumbsy00252",
+        "path": "text_dominant/thumbsy00252.jpg",
+        "bytes": 62250
+      },
+      {
+        "slug": "thumbsy00271",
+        "path": "text_dominant/thumbsy00271.jpg",
+        "bytes": 61675
+      },
+      {
+        "slug": "thumbsy00536",
+        "path": "text_dominant/thumbsy00536.jpg",
+        "bytes": 61473
+      },
+      {
+        "slug": "thumbsy00528",
+        "path": "text_dominant/thumbsy00528.jpg",
+        "bytes": 61111
+      },
+      {
+        "slug": "thumbsy00571",
+        "path": "text_dominant/thumbsy00571.jpg",
+        "bytes": 61076
+      },
+      {
+        "slug": "thumbsy00106",
+        "path": "text_dominant/thumbsy00106.jpg",
+        "bytes": 60369
+      },
+      {
+        "slug": "thumbsy00057",
+        "path": "text_dominant/thumbsy00057.jpg",
+        "bytes": 60255
+      },
+      {
+        "slug": "thumbsy00223",
+        "path": "text_dominant/thumbsy00223.jpg",
+        "bytes": 60174
+      },
+      {
+        "slug": "thumbsy00539",
+        "path": "text_dominant/thumbsy00539.jpg",
+        "bytes": 59408
+      },
+      {
+        "slug": "thumbsy00349",
+        "path": "text_dominant/thumbsy00349.jpg",
+        "bytes": 58902
+      },
+      {
+        "slug": "thumbsy00237",
+        "path": "text_dominant/thumbsy00237.jpg",
+        "bytes": 58783
+      },
+      {
+        "slug": "thumbsy00178",
+        "path": "text_dominant/thumbsy00178.jpg",
+        "bytes": 58168
+      },
+      {
+        "slug": "thumbsy00375",
+        "path": "text_dominant/thumbsy00375.jpg",
+        "bytes": 57868
+      },
+      {
+        "slug": "thumbsy00555",
+        "path": "text_dominant/thumbsy00555.jpg",
+        "bytes": 57452
+      },
+      {
+        "slug": "thumbsy00387",
+        "path": "text_dominant/thumbsy00387.jpg",
+        "bytes": 57215
+      },
+      {
+        "slug": "thumbsy00060",
+        "path": "text_dominant/thumbsy00060.jpg",
+        "bytes": 56824
+      },
+      {
+        "slug": "thumbsy00364",
+        "path": "text_dominant/thumbsy00364.jpg",
+        "bytes": 56605
+      },
+      {
+        "slug": "thumbsy00322",
+        "path": "text_dominant/thumbsy00322.jpg",
+        "bytes": 56379
+      },
+      {
+        "slug": "thumbsy00156",
+        "path": "text_dominant/thumbsy00156.jpg",
+        "bytes": 55801
+      },
+      {
+        "slug": "thumbsy00133",
+        "path": "text_dominant/thumbsy00133.jpg",
+        "bytes": 55503
+      },
+      {
+        "slug": "thumbsy00335",
+        "path": "text_dominant/thumbsy00335.jpg",
+        "bytes": 55164
+      },
+      {
+        "slug": "thumbsy00205",
+        "path": "text_dominant/thumbsy00205.jpg",
+        "bytes": 54726
+      },
+      {
+        "slug": "thumbsy00174",
+        "path": "text_dominant/thumbsy00174.jpg",
+        "bytes": 54670
+      },
+      {
+        "slug": "thumbsy00073",
+        "path": "text_dominant/thumbsy00073.jpg",
+        "bytes": 54452
+      },
+      {
+        "slug": "thumbsy00242",
+        "path": "text_dominant/thumbsy00242.jpg",
+        "bytes": 54450
+      },
+      {
+        "slug": "thumbsy00488",
+        "path": "text_dominant/thumbsy00488.jpg",
+        "bytes": 54159
+      },
+      {
+        "slug": "thumbsy00331",
+        "path": "text_dominant/thumbsy00331.jpg",
+        "bytes": 54093
+      },
+      {
+        "slug": "thumbsy00269",
+        "path": "text_dominant/thumbsy00269.jpg",
+        "bytes": 53909
+      },
+      {
+        "slug": "thumbsy00088",
+        "path": "text_dominant/thumbsy00088.jpg",
+        "bytes": 53652
+      },
+      {
+        "slug": "thumbsy00299",
+        "path": "text_dominant/thumbsy00299.jpg",
+        "bytes": 53560
+      },
+      {
+        "slug": "thumbsy00564",
+        "path": "text_dominant/thumbsy00564.jpg",
+        "bytes": 52852
+      },
+      {
+        "slug": "thumbsy00241",
+        "path": "text_dominant/thumbsy00241.jpg",
+        "bytes": 52842
+      },
+      {
+        "slug": "thumbsy00041",
+        "path": "text_dominant/thumbsy00041.jpg",
+        "bytes": 52550
+      },
+      {
+        "slug": "thumbsy00100",
+        "path": "text_dominant/thumbsy00100.jpg",
+        "bytes": 52055
+      },
+      {
+        "slug": "thumbsy00246",
+        "path": "text_dominant/thumbsy00246.jpg",
+        "bytes": 51677
+      },
+      {
+        "slug": "thumbsy00344",
+        "path": "text_dominant/thumbsy00344.jpg",
+        "bytes": 51642
+      },
+      {
+        "slug": "thumbsy00289",
+        "path": "text_dominant/thumbsy00289.jpg",
+        "bytes": 51470
+      },
+      {
+        "slug": "thumbsy00547",
+        "path": "text_dominant/thumbsy00547.jpg",
+        "bytes": 51361
+      },
+      {
+        "slug": "thumbsy00471",
+        "path": "text_dominant/thumbsy00471.jpg",
+        "bytes": 50986
+      },
+      {
+        "slug": "thumbsy00018",
+        "path": "text_dominant/thumbsy00018.jpg",
+        "bytes": 50664
+      },
+      {
+        "slug": "thumbsy00181",
+        "path": "text_dominant/thumbsy00181.jpg",
+        "bytes": 50635
+      },
+      {
+        "slug": "thumbsy00116",
+        "path": "text_dominant/thumbsy00116.jpg",
+        "bytes": 50476
+      },
+      {
+        "slug": "thumbsy00282",
+        "path": "text_dominant/thumbsy00282.jpg",
+        "bytes": 50280
+      },
+      {
+        "slug": "thumbsy00404",
+        "path": "text_dominant/thumbsy00404.jpg",
+        "bytes": 50193
+      },
+      {
+        "slug": "thumbsy00409",
+        "path": "text_dominant/thumbsy00409.jpg",
+        "bytes": 50150
+      },
+      {
+        "slug": "thumbsy00244",
+        "path": "text_dominant/thumbsy00244.jpg",
+        "bytes": 50102
+      },
+      {
+        "slug": "thumbsy00182",
+        "path": "text_dominant/thumbsy00182.jpg",
+        "bytes": 50036
+      },
+      {
+        "slug": "thumbsy00457",
+        "path": "text_dominant/thumbsy00457.jpg",
+        "bytes": 50018
+      },
+      {
+        "slug": "thumbsy00020",
+        "path": "text_dominant/thumbsy00020.jpg",
+        "bytes": 49881
+      },
+      {
+        "slug": "thumbsy00216",
+        "path": "text_dominant/thumbsy00216.jpg",
+        "bytes": 49854
+      },
+      {
+        "slug": "thumbsy00115",
+        "path": "text_dominant/thumbsy00115.jpg",
+        "bytes": 49659
+      },
+      {
+        "slug": "thumbsy00301",
+        "path": "text_dominant/thumbsy00301.jpg",
+        "bytes": 49626
+      },
+      {
+        "slug": "thumbsy00446",
+        "path": "text_dominant/thumbsy00446.jpg",
+        "bytes": 49335
+      },
+      {
+        "slug": "thumbsy00563",
+        "path": "text_dominant/thumbsy00563.jpg",
+        "bytes": 49062
+      },
+      {
+        "slug": "thumbsy00332",
+        "path": "text_dominant/thumbsy00332.jpg",
+        "bytes": 49030
+      },
+      {
+        "slug": "thumbsy00568",
+        "path": "text_dominant/thumbsy00568.jpg",
+        "bytes": 48810
+      },
+      {
+        "slug": "thumbsy00007",
+        "path": "text_dominant/thumbsy00007.jpg",
+        "bytes": 48690
+      },
+      {
+        "slug": "thumbsy00492",
+        "path": "text_dominant/thumbsy00492.jpg",
+        "bytes": 48528
+      },
+      {
+        "slug": "thumbsy00557",
+        "path": "text_dominant/thumbsy00557.jpg",
+        "bytes": 48432
+      },
+      {
+        "slug": "thumbsy00056",
+        "path": "text_dominant/thumbsy00056.jpg",
+        "bytes": 48414
+      },
+      {
+        "slug": "thumbsy00410",
+        "path": "text_dominant/thumbsy00410.jpg",
+        "bytes": 48070
+      },
+      {
+        "slug": "thumbsy00580",
+        "path": "text_dominant/thumbsy00580.jpg",
+        "bytes": 48054
+      },
+      {
+        "slug": "thumbsy00122",
+        "path": "text_dominant/thumbsy00122.jpg",
+        "bytes": 47960
+      },
+      {
+        "slug": "thumbsy00195",
+        "path": "text_dominant/thumbsy00195.jpg",
+        "bytes": 47911
+      },
+      {
+        "slug": "thumbsy00408",
+        "path": "text_dominant/thumbsy00408.jpg",
+        "bytes": 47584
+      },
+      {
+        "slug": "thumbsy00142",
+        "path": "text_dominant/thumbsy00142.jpg",
+        "bytes": 47240
+      },
+      {
+        "slug": "thumbsy00514",
+        "path": "text_dominant/thumbsy00514.jpg",
+        "bytes": 46933
+      },
+      {
+        "slug": "thumbsy00323",
+        "path": "text_dominant/thumbsy00323.jpg",
+        "bytes": 46909
+      },
+      {
+        "slug": "thumbsy00368",
+        "path": "text_dominant/thumbsy00368.jpg",
+        "bytes": 46653
+      },
+      {
+        "slug": "thumbsy00192",
+        "path": "text_dominant/thumbsy00192.jpg",
+        "bytes": 46052
+      },
+      {
+        "slug": "thumbsy00352",
+        "path": "text_dominant/thumbsy00352.jpg",
+        "bytes": 46045
+      },
+      {
+        "slug": "thumbsy00467",
+        "path": "text_dominant/thumbsy00467.jpg",
+        "bytes": 45946
+      },
+      {
+        "slug": "thumbsy00110",
+        "path": "text_dominant/thumbsy00110.jpg",
+        "bytes": 45781
+      },
+      {
+        "slug": "thumbsy00211",
+        "path": "text_dominant/thumbsy00211.jpg",
+        "bytes": 45777
+      },
+      {
+        "slug": "thumbsy00168",
+        "path": "text_dominant/thumbsy00168.jpg",
+        "bytes": 45536
+      },
+      {
+        "slug": "thumbsy00272",
+        "path": "text_dominant/thumbsy00272.jpg",
+        "bytes": 45514
+      },
+      {
+        "slug": "thumbsy00491",
+        "path": "text_dominant/thumbsy00491.jpg",
+        "bytes": 45404
+      },
+      {
+        "slug": "thumbsy00021",
+        "path": "text_dominant/thumbsy00021.jpg",
+        "bytes": 45346
+      },
+      {
+        "slug": "thumbsy00190",
+        "path": "text_dominant/thumbsy00190.jpg",
+        "bytes": 45240
+      },
+      {
+        "slug": "thumbsy00193",
+        "path": "text_dominant/thumbsy00193.jpg",
+        "bytes": 45104
+      },
+      {
+        "slug": "thumbsy00422",
+        "path": "text_dominant/thumbsy00422.jpg",
+        "bytes": 44843
+      },
+      {
+        "slug": "thumbsy00293",
+        "path": "text_dominant/thumbsy00293.jpg",
+        "bytes": 44714
+      },
+      {
+        "slug": "thumbsy00519",
+        "path": "text_dominant/thumbsy00519.jpg",
+        "bytes": 44674
+      },
+      {
+        "slug": "thumbsy00183",
+        "path": "text_dominant/thumbsy00183.jpg",
+        "bytes": 44598
+      },
+      {
+        "slug": "thumbsy00498",
+        "path": "text_dominant/thumbsy00498.jpg",
+        "bytes": 44524
+      },
+      {
+        "slug": "thumbsy00075",
+        "path": "text_dominant/thumbsy00075.jpg",
+        "bytes": 44445
+      },
+      {
+        "slug": "thumbsy00333",
+        "path": "text_dominant/thumbsy00333.jpg",
+        "bytes": 44383
+      },
+      {
+        "slug": "thumbsy00146",
+        "path": "text_dominant/thumbsy00146.jpg",
+        "bytes": 44015
+      },
+      {
+        "slug": "thumbsy00566",
+        "path": "text_dominant/thumbsy00566.jpg",
+        "bytes": 43817
+      },
+      {
+        "slug": "thumbsy00159",
+        "path": "text_dominant/thumbsy00159.jpg",
+        "bytes": 43732
+      },
+      {
+        "slug": "thumbsy00309",
+        "path": "text_dominant/thumbsy00309.jpg",
+        "bytes": 43206
+      },
+      {
+        "slug": "thumbsy00233",
+        "path": "text_dominant/thumbsy00233.jpg",
+        "bytes": 42941
+      },
+      {
+        "slug": "thumbsy00061",
+        "path": "text_dominant/thumbsy00061.jpg",
+        "bytes": 42720
+      },
+      {
+        "slug": "thumbsy00518",
+        "path": "text_dominant/thumbsy00518.jpg",
+        "bytes": 42704
+      },
+      {
+        "slug": "thumbsy00526",
+        "path": "text_dominant/thumbsy00526.jpg",
+        "bytes": 42523
+      },
+      {
+        "slug": "thumbsy00315",
+        "path": "text_dominant/thumbsy00315.jpg",
+        "bytes": 42513
+      },
+      {
+        "slug": "thumbsy00189",
+        "path": "text_dominant/thumbsy00189.jpg",
+        "bytes": 42413
+      },
+      {
+        "slug": "thumbsy00232",
+        "path": "text_dominant/thumbsy00232.jpg",
+        "bytes": 42324
+      },
+      {
+        "slug": "thumbsy00538",
+        "path": "text_dominant/thumbsy00538.jpg",
+        "bytes": 42233
+      },
+      {
+        "slug": "thumbsy00010",
+        "path": "text_dominant/thumbsy00010.jpg",
+        "bytes": 42065
+      },
+      {
+        "slug": "thumbsy00501",
+        "path": "text_dominant/thumbsy00501.jpg",
+        "bytes": 41827
+      },
+      {
+        "slug": "thumbsy00412",
+        "path": "text_dominant/thumbsy00412.jpg",
+        "bytes": 41741
+      },
+      {
+        "slug": "thumbsy00089",
+        "path": "text_dominant/thumbsy00089.jpg",
+        "bytes": 41712
+      },
+      {
+        "slug": "thumbsy00049",
+        "path": "text_dominant/thumbsy00049.jpg",
+        "bytes": 41626
+      },
+      {
+        "slug": "thumbsy00548",
+        "path": "text_dominant/thumbsy00548.jpg",
+        "bytes": 41581
+      },
+      {
+        "slug": "thumbsy00329",
+        "path": "text_dominant/thumbsy00329.jpg",
+        "bytes": 41257
+      },
+      {
+        "slug": "thumbsy00507",
+        "path": "text_dominant/thumbsy00507.jpg",
+        "bytes": 41241
+      },
+      {
+        "slug": "thumbsy00027",
+        "path": "text_dominant/thumbsy00027.jpg",
+        "bytes": 41191
+      },
+      {
+        "slug": "thumbsy00485",
+        "path": "text_dominant/thumbsy00485.jpg",
+        "bytes": 41168
+      },
+      {
+        "slug": "thumbsy00475",
+        "path": "text_dominant/thumbsy00475.jpg",
+        "bytes": 41110
+      },
+      {
+        "slug": "thumbsy00054",
+        "path": "text_dominant/thumbsy00054.jpg",
+        "bytes": 41012
+      },
+      {
+        "slug": "thumbsy00055",
+        "path": "text_dominant/thumbsy00055.jpg",
+        "bytes": 40907
+      },
+      {
+        "slug": "thumbsy00062",
+        "path": "text_dominant/thumbsy00062.jpg",
+        "bytes": 40906
+      },
+      {
+        "slug": "thumbsy00016",
+        "path": "text_dominant/thumbsy00016.jpg",
+        "bytes": 40901
+      },
+      {
+        "slug": "thumbsy00448",
+        "path": "text_dominant/thumbsy00448.jpg",
+        "bytes": 40712
+      },
+      {
+        "slug": "thumbsy00520",
+        "path": "text_dominant/thumbsy00520.jpg",
+        "bytes": 40564
+      },
+      {
+        "slug": "thumbsy00255",
+        "path": "text_dominant/thumbsy00255.jpg",
+        "bytes": 40498
+      },
+      {
+        "slug": "thumbsy00540",
+        "path": "text_dominant/thumbsy00540.jpg",
+        "bytes": 40158
+      },
+      {
+        "slug": "thumbsy00310",
+        "path": "text_dominant/thumbsy00310.jpg",
+        "bytes": 40056
+      },
+      {
+        "slug": "thumbsy00286",
+        "path": "text_dominant/thumbsy00286.jpg",
+        "bytes": 39821
+      },
+      {
+        "slug": "thumbsy00127",
+        "path": "text_dominant/thumbsy00127.jpg",
+        "bytes": 39361
+      },
+      {
+        "slug": "thumbsy00319",
+        "path": "text_dominant/thumbsy00319.jpg",
+        "bytes": 39175
+      },
+      {
+        "slug": "thumbsy00229",
+        "path": "text_dominant/thumbsy00229.jpg",
+        "bytes": 38835
+      },
+      {
+        "slug": "thumbsy00582",
+        "path": "text_dominant/thumbsy00582.jpg",
+        "bytes": 38825
+      },
+      {
+        "slug": "thumbsy00390",
+        "path": "text_dominant/thumbsy00390.jpg",
+        "bytes": 38818
+      },
+      {
+        "slug": "thumbsy00541",
+        "path": "text_dominant/thumbsy00541.jpg",
+        "bytes": 38748
+      },
+      {
+        "slug": "thumbsy00017",
+        "path": "text_dominant/thumbsy00017.jpg",
+        "bytes": 38636
+      },
+      {
+        "slug": "thumbsy00015",
+        "path": "text_dominant/thumbsy00015.jpg",
+        "bytes": 38254
+      },
+      {
+        "slug": "thumbsy00111",
+        "path": "text_dominant/thumbsy00111.jpg",
+        "bytes": 37923
+      },
+      {
+        "slug": "thumbsy00135",
+        "path": "text_dominant/thumbsy00135.jpg",
+        "bytes": 37906
+      },
+      {
+        "slug": "thumbsy00357",
+        "path": "text_dominant/thumbsy00357.jpg",
+        "bytes": 37880
+      },
+      {
+        "slug": "thumbsy00157",
+        "path": "text_dominant/thumbsy00157.jpg",
+        "bytes": 37658
+      },
+      {
+        "slug": "thumbsy00552",
+        "path": "text_dominant/thumbsy00552.jpg",
+        "bytes": 37647
+      },
+      {
+        "slug": "thumbsy00377",
+        "path": "text_dominant/thumbsy00377.jpg",
+        "bytes": 37406
+      },
+      {
+        "slug": "thumbsy00373",
+        "path": "text_dominant/thumbsy00373.jpg",
+        "bytes": 37132
+      },
+      {
+        "slug": "thumbsy00202",
+        "path": "text_dominant/thumbsy00202.jpg",
+        "bytes": 36909
+      },
+      {
+        "slug": "thumbsy00512",
+        "path": "text_dominant/thumbsy00512.jpg",
+        "bytes": 36719
+      },
+      {
+        "slug": "thumbsy00265",
+        "path": "text_dominant/thumbsy00265.jpg",
+        "bytes": 36612
+      },
+      {
+        "slug": "thumbsy00138",
+        "path": "text_dominant/thumbsy00138.jpg",
+        "bytes": 36581
+      },
+      {
+        "slug": "thumbsy00366",
+        "path": "text_dominant/thumbsy00366.jpg",
+        "bytes": 36542
+      },
+      {
+        "slug": "thumbsy00087",
+        "path": "text_dominant/thumbsy00087.jpg",
+        "bytes": 36365
+      },
+      {
+        "slug": "thumbsy00059",
+        "path": "text_dominant/thumbsy00059.jpg",
+        "bytes": 36301
+      },
+      {
+        "slug": "thumbsy00068",
+        "path": "text_dominant/thumbsy00068.jpg",
+        "bytes": 36231
+      },
+      {
+        "slug": "thumbsy00163",
+        "path": "text_dominant/thumbsy00163.jpg",
+        "bytes": 36222
+      },
+      {
+        "slug": "thumbsy00441",
+        "path": "text_dominant/thumbsy00441.jpg",
+        "bytes": 36012
+      },
+      {
+        "slug": "thumbsy00050",
+        "path": "text_dominant/thumbsy00050.jpg",
+        "bytes": 35880
+      },
+      {
+        "slug": "thumbsy00045",
+        "path": "text_dominant/thumbsy00045.jpg",
+        "bytes": 35303
+      },
+      {
+        "slug": "thumbsy00026",
+        "path": "text_dominant/thumbsy00026.jpg",
+        "bytes": 35090
+      },
+      {
+        "slug": "thumbsy00421",
+        "path": "text_dominant/thumbsy00421.jpg",
+        "bytes": 35078
+      },
+      {
+        "slug": "thumbsy00394",
+        "path": "text_dominant/thumbsy00394.jpg",
+        "bytes": 35013
+      },
+      {
+        "slug": "thumbsy00083",
+        "path": "text_dominant/thumbsy00083.jpg",
+        "bytes": 34979
+      },
+      {
+        "slug": "thumbsy00107",
+        "path": "text_dominant/thumbsy00107.jpg",
+        "bytes": 34517
+      },
+      {
+        "slug": "thumbsy00363",
+        "path": "text_dominant/thumbsy00363.jpg",
+        "bytes": 34476
+      },
+      {
+        "slug": "thumbsy00204",
+        "path": "text_dominant/thumbsy00204.jpg",
+        "bytes": 34298
+      },
+      {
+        "slug": "thumbsy00432",
+        "path": "text_dominant/thumbsy00432.jpg",
+        "bytes": 34130
+      },
+      {
+        "slug": "thumbsy00126",
+        "path": "text_dominant/thumbsy00126.jpg",
+        "bytes": 33789
+      },
+      {
+        "slug": "thumbsy00080",
+        "path": "text_dominant/thumbsy00080.jpg",
+        "bytes": 32278
+      },
+      {
+        "slug": "thumbsy00209",
+        "path": "text_dominant/thumbsy00209.jpg",
+        "bytes": 31749
+      },
+      {
+        "slug": "thumbsy00071",
+        "path": "text_dominant/thumbsy00071.jpg",
+        "bytes": 30791
+      },
+      {
+        "slug": "thumbsy00028",
+        "path": "text_dominant/thumbsy00028.jpg",
+        "bytes": 30540
+      },
+      {
+        "slug": "thumbsy00330",
+        "path": "text_dominant/thumbsy00330.jpg",
+        "bytes": 30515
+      },
+      {
+        "slug": "thumbsy00188",
+        "path": "text_dominant/thumbsy00188.jpg",
+        "bytes": 29386
+      },
+      {
+        "slug": "thumbsy00277",
+        "path": "text_dominant/thumbsy00277.jpg",
+        "bytes": 24725
+      }
+    ],
+    "mockup_focus": [
+      {
+        "slug": "thumbsy00217",
+        "path": "mockup_focus/thumbsy00217.jpg",
+        "bytes": 63536
+      },
+      {
+        "slug": "thumbsy00025",
+        "path": "mockup_focus/thumbsy00025.jpg",
+        "bytes": 62719
+      },
+      {
+        "slug": "thumbsy00339",
+        "path": "mockup_focus/thumbsy00339.jpg",
+        "bytes": 61331
+      },
+      {
+        "slug": "thumbsy00164",
+        "path": "mockup_focus/thumbsy00164.jpg",
+        "bytes": 60711
+      },
+      {
+        "slug": "thumbsy00162",
+        "path": "mockup_focus/thumbsy00162.jpg",
+        "bytes": 59925
+      },
+      {
+        "slug": "thumbsy00280",
+        "path": "mockup_focus/thumbsy00280.jpg",
+        "bytes": 58791
+      },
+      {
+        "slug": "thumbsy00392",
+        "path": "mockup_focus/thumbsy00392.jpg",
+        "bytes": 58429
+      },
+      {
+        "slug": "thumbsy00085",
+        "path": "mockup_focus/thumbsy00085.jpg",
+        "bytes": 58421
+      },
+      {
+        "slug": "thumbsy00320",
+        "path": "mockup_focus/thumbsy00320.jpg",
+        "bytes": 58113
+      },
+      {
+        "slug": "thumbsy00328",
+        "path": "mockup_focus/thumbsy00328.jpg",
+        "bytes": 57914
+      },
+      {
+        "slug": "thumbsy00187",
+        "path": "mockup_focus/thumbsy00187.jpg",
+        "bytes": 57678
+      },
+      {
+        "slug": "thumbsy00278",
+        "path": "mockup_focus/thumbsy00278.jpg",
+        "bytes": 57610
+      },
+      {
+        "slug": "thumbsy00065",
+        "path": "mockup_focus/thumbsy00065.jpg",
+        "bytes": 57514
+      },
+      {
+        "slug": "thumbsy00503",
+        "path": "mockup_focus/thumbsy00503.jpg",
+        "bytes": 57265
+      },
+      {
+        "slug": "thumbsy00396",
+        "path": "mockup_focus/thumbsy00396.jpg",
+        "bytes": 57121
+      },
+      {
+        "slug": "thumbsy00113",
+        "path": "mockup_focus/thumbsy00113.jpg",
+        "bytes": 54994
+      },
+      {
+        "slug": "thumbsy00369",
+        "path": "mockup_focus/thumbsy00369.jpg",
+        "bytes": 54683
+      },
+      {
+        "slug": "thumbsy00033",
+        "path": "mockup_focus/thumbsy00033.jpg",
+        "bytes": 54495
+      },
+      {
+        "slug": "thumbsy00235",
+        "path": "mockup_focus/thumbsy00235.jpg",
+        "bytes": 54214
+      },
+      {
+        "slug": "thumbsy00035",
+        "path": "mockup_focus/thumbsy00035.jpg",
+        "bytes": 53554
+      },
+      {
+        "slug": "thumbsy00048",
+        "path": "mockup_focus/thumbsy00048.jpg",
+        "bytes": 53511
+      },
+      {
+        "slug": "thumbsy00469",
+        "path": "mockup_focus/thumbsy00469.jpg",
+        "bytes": 53122
+      },
+      {
+        "slug": "thumbsy00517",
+        "path": "mockup_focus/thumbsy00517.jpg",
+        "bytes": 52991
+      },
+      {
+        "slug": "thumbsy00337",
+        "path": "mockup_focus/thumbsy00337.jpg",
+        "bytes": 52217
+      },
+      {
+        "slug": "thumbsy00290",
+        "path": "mockup_focus/thumbsy00290.jpg",
+        "bytes": 52207
+      },
+      {
+        "slug": "thumbsy00022",
+        "path": "mockup_focus/thumbsy00022.jpg",
+        "bytes": 52095
+      },
+      {
+        "slug": "thumbsy00542",
+        "path": "mockup_focus/thumbsy00542.jpg",
+        "bytes": 51961
+      },
+      {
+        "slug": "thumbsy00005",
+        "path": "mockup_focus/thumbsy00005.jpg",
+        "bytes": 51489
+      },
+      {
+        "slug": "thumbsy00102",
+        "path": "mockup_focus/thumbsy00102.jpg",
+        "bytes": 51067
+      },
+      {
+        "slug": "thumbsy00228",
+        "path": "mockup_focus/thumbsy00228.jpg",
+        "bytes": 51026
+      },
+      {
+        "slug": "thumbsy00260",
+        "path": "mockup_focus/thumbsy00260.jpg",
+        "bytes": 49947
+      },
+      {
+        "slug": "thumbsy00036",
+        "path": "mockup_focus/thumbsy00036.jpg",
+        "bytes": 49902
+      },
+      {
+        "slug": "thumbsy00385",
+        "path": "mockup_focus/thumbsy00385.jpg",
+        "bytes": 49863
+      },
+      {
+        "slug": "thumbsy00495",
+        "path": "mockup_focus/thumbsy00495.jpg",
+        "bytes": 49833
+      },
+      {
+        "slug": "thumbsy00267",
+        "path": "mockup_focus/thumbsy00267.jpg",
+        "bytes": 49646
+      },
+      {
+        "slug": "thumbsy00384",
+        "path": "mockup_focus/thumbsy00384.jpg",
+        "bytes": 49627
+      },
+      {
+        "slug": "thumbsy00012",
+        "path": "mockup_focus/thumbsy00012.jpg",
+        "bytes": 49618
+      },
+      {
+        "slug": "thumbsy00482",
+        "path": "mockup_focus/thumbsy00482.jpg",
+        "bytes": 49579
+      },
+      {
+        "slug": "thumbsy00298",
+        "path": "mockup_focus/thumbsy00298.jpg",
+        "bytes": 49502
+      },
+      {
+        "slug": "thumbsy00399",
+        "path": "mockup_focus/thumbsy00399.jpg",
+        "bytes": 49306
+      },
+      {
+        "slug": "thumbsy00165",
+        "path": "mockup_focus/thumbsy00165.jpg",
+        "bytes": 49224
+      },
+      {
+        "slug": "thumbsy00489",
+        "path": "mockup_focus/thumbsy00489.jpg",
+        "bytes": 49127
+      },
+      {
+        "slug": "thumbsy00551",
+        "path": "mockup_focus/thumbsy00551.jpg",
+        "bytes": 49007
+      },
+      {
+        "slug": "thumbsy00292",
+        "path": "mockup_focus/thumbsy00292.jpg",
+        "bytes": 48731
+      },
+      {
+        "slug": "thumbsy00513",
+        "path": "mockup_focus/thumbsy00513.jpg",
+        "bytes": 48533
+      },
+      {
+        "slug": "thumbsy00218",
+        "path": "mockup_focus/thumbsy00218.jpg",
+        "bytes": 48414
+      },
+      {
+        "slug": "thumbsy00398",
+        "path": "mockup_focus/thumbsy00398.jpg",
+        "bytes": 47901
+      },
+      {
+        "slug": "thumbsy00544",
+        "path": "mockup_focus/thumbsy00544.jpg",
+        "bytes": 47625
+      },
+      {
+        "slug": "thumbsy00084",
+        "path": "mockup_focus/thumbsy00084.jpg",
+        "bytes": 47607
+      },
+      {
+        "slug": "thumbsy00256",
+        "path": "mockup_focus/thumbsy00256.jpg",
+        "bytes": 47561
+      },
+      {
+        "slug": "thumbsy00101",
+        "path": "mockup_focus/thumbsy00101.jpg",
+        "bytes": 47439
+      },
+      {
+        "slug": "thumbsy00221",
+        "path": "mockup_focus/thumbsy00221.jpg",
+        "bytes": 47401
+      },
+      {
+        "slug": "thumbsy00348",
+        "path": "mockup_focus/thumbsy00348.jpg",
+        "bytes": 47257
+      },
+      {
+        "slug": "thumbsy00214",
+        "path": "mockup_focus/thumbsy00214.jpg",
+        "bytes": 47133
+      },
+      {
+        "slug": "thumbsy00318",
+        "path": "mockup_focus/thumbsy00318.jpg",
+        "bytes": 46934
+      },
+      {
+        "slug": "thumbsy00440",
+        "path": "mockup_focus/thumbsy00440.jpg",
+        "bytes": 46750
+      },
+      {
+        "slug": "thumbsy00302",
+        "path": "mockup_focus/thumbsy00302.jpg",
+        "bytes": 46502
+      },
+      {
+        "slug": "thumbsy00393",
+        "path": "mockup_focus/thumbsy00393.jpg",
+        "bytes": 46449
+      },
+      {
+        "slug": "thumbsy00224",
+        "path": "mockup_focus/thumbsy00224.jpg",
+        "bytes": 46321
+      },
+      {
+        "slug": "thumbsy00222",
+        "path": "mockup_focus/thumbsy00222.jpg",
+        "bytes": 46227
+      },
+      {
+        "slug": "thumbsy00114",
+        "path": "mockup_focus/thumbsy00114.jpg",
+        "bytes": 46142
+      },
+      {
+        "slug": "thumbsy00279",
+        "path": "mockup_focus/thumbsy00279.jpg",
+        "bytes": 46073
+      },
+      {
+        "slug": "thumbsy00359",
+        "path": "mockup_focus/thumbsy00359.jpg",
+        "bytes": 46025
+      },
+      {
+        "slug": "thumbsy00529",
+        "path": "mockup_focus/thumbsy00529.jpg",
+        "bytes": 45986
+      },
+      {
+        "slug": "thumbsy00184",
+        "path": "mockup_focus/thumbsy00184.jpg",
+        "bytes": 45384
+      },
+      {
+        "slug": "thumbsy00121",
+        "path": "mockup_focus/thumbsy00121.jpg",
+        "bytes": 45319
+      },
+      {
+        "slug": "thumbsy00424",
+        "path": "mockup_focus/thumbsy00424.jpg",
+        "bytes": 45130
+      },
+      {
+        "slug": "thumbsy00145",
+        "path": "mockup_focus/thumbsy00145.jpg",
+        "bytes": 44894
+      },
+      {
+        "slug": "thumbsy00543",
+        "path": "mockup_focus/thumbsy00543.jpg",
+        "bytes": 44833
+      },
+      {
+        "slug": "thumbsy00123",
+        "path": "mockup_focus/thumbsy00123.jpg",
+        "bytes": 44764
+      },
+      {
+        "slug": "thumbsy00291",
+        "path": "mockup_focus/thumbsy00291.jpg",
+        "bytes": 44707
+      },
+      {
+        "slug": "thumbsy00521",
+        "path": "mockup_focus/thumbsy00521.jpg",
+        "bytes": 44497
+      },
+      {
+        "slug": "thumbsy00198",
+        "path": "mockup_focus/thumbsy00198.jpg",
+        "bytes": 44452
+      },
+      {
+        "slug": "thumbsy00382",
+        "path": "mockup_focus/thumbsy00382.jpg",
+        "bytes": 44319
+      },
+      {
+        "slug": "thumbsy00434",
+        "path": "mockup_focus/thumbsy00434.jpg",
+        "bytes": 44144
+      },
+      {
+        "slug": "thumbsy00435",
+        "path": "mockup_focus/thumbsy00435.jpg",
+        "bytes": 44141
+      },
+      {
+        "slug": "thumbsy00515",
+        "path": "mockup_focus/thumbsy00515.jpg",
+        "bytes": 43800
+      },
+      {
+        "slug": "thumbsy00445",
+        "path": "mockup_focus/thumbsy00445.jpg",
+        "bytes": 43670
+      },
+      {
+        "slug": "thumbsy00307",
+        "path": "mockup_focus/thumbsy00307.jpg",
+        "bytes": 42916
+      },
+      {
+        "slug": "thumbsy00466",
+        "path": "mockup_focus/thumbsy00466.jpg",
+        "bytes": 42738
+      },
+      {
+        "slug": "thumbsy00317",
+        "path": "mockup_focus/thumbsy00317.jpg",
+        "bytes": 42728
+      },
+      {
+        "slug": "thumbsy00052",
+        "path": "mockup_focus/thumbsy00052.jpg",
+        "bytes": 42416
+      },
+      {
+        "slug": "thumbsy00259",
+        "path": "mockup_focus/thumbsy00259.jpg",
+        "bytes": 42412
+      },
+      {
+        "slug": "thumbsy00243",
+        "path": "mockup_focus/thumbsy00243.jpg",
+        "bytes": 42349
+      },
+      {
+        "slug": "thumbsy00006",
+        "path": "mockup_focus/thumbsy00006.jpg",
+        "bytes": 41840
+      },
+      {
+        "slug": "thumbsy00414",
+        "path": "mockup_focus/thumbsy00414.jpg",
+        "bytes": 41814
+      },
+      {
+        "slug": "thumbsy00379",
+        "path": "mockup_focus/thumbsy00379.jpg",
+        "bytes": 41469
+      },
+      {
+        "slug": "thumbsy00129",
+        "path": "mockup_focus/thumbsy00129.jpg",
+        "bytes": 41457
+      },
+      {
+        "slug": "thumbsy00361",
+        "path": "mockup_focus/thumbsy00361.jpg",
+        "bytes": 41284
+      },
+      {
+        "slug": "thumbsy00124",
+        "path": "mockup_focus/thumbsy00124.jpg",
+        "bytes": 41043
+      },
+      {
+        "slug": "thumbsy00285",
+        "path": "mockup_focus/thumbsy00285.jpg",
+        "bytes": 40986
+      },
+      {
+        "slug": "thumbsy00287",
+        "path": "mockup_focus/thumbsy00287.jpg",
+        "bytes": 40974
+      },
+      {
+        "slug": "thumbsy00119",
+        "path": "mockup_focus/thumbsy00119.jpg",
+        "bytes": 40927
+      },
+      {
+        "slug": "thumbsy00153",
+        "path": "mockup_focus/thumbsy00153.jpg",
+        "bytes": 40890
+      },
+      {
+        "slug": "thumbsy00264",
+        "path": "mockup_focus/thumbsy00264.jpg",
+        "bytes": 40574
+      },
+      {
+        "slug": "thumbsy00262",
+        "path": "mockup_focus/thumbsy00262.jpg",
+        "bytes": 40562
+      },
+      {
+        "slug": "thumbsy00240",
+        "path": "mockup_focus/thumbsy00240.jpg",
+        "bytes": 40401
+      },
+      {
+        "slug": "thumbsy00031",
+        "path": "mockup_focus/thumbsy00031.jpg",
+        "bytes": 39047
+      },
+      {
+        "slug": "thumbsy00186",
+        "path": "mockup_focus/thumbsy00186.jpg",
+        "bytes": 38768
+      },
+      {
+        "slug": "thumbsy00308",
+        "path": "mockup_focus/thumbsy00308.jpg",
+        "bytes": 38742
+      },
+      {
+        "slug": "thumbsy00576",
+        "path": "mockup_focus/thumbsy00576.jpg",
+        "bytes": 38535
+      },
+      {
+        "slug": "thumbsy00067",
+        "path": "mockup_focus/thumbsy00067.jpg",
+        "bytes": 38185
+      },
+      {
+        "slug": "thumbsy00405",
+        "path": "mockup_focus/thumbsy00405.jpg",
+        "bytes": 37983
+      },
+      {
+        "slug": "thumbsy00573",
+        "path": "mockup_focus/thumbsy00573.jpg",
+        "bytes": 37975
+      },
+      {
+        "slug": "thumbsy00305",
+        "path": "mockup_focus/thumbsy00305.jpg",
+        "bytes": 37264
+      },
+      {
+        "slug": "thumbsy00444",
+        "path": "mockup_focus/thumbsy00444.jpg",
+        "bytes": 37121
+      },
+      {
+        "slug": "thumbsy00572",
+        "path": "mockup_focus/thumbsy00572.jpg",
+        "bytes": 36708
+      },
+      {
+        "slug": "thumbsy00144",
+        "path": "mockup_focus/thumbsy00144.jpg",
+        "bytes": 36471
+      },
+      {
+        "slug": "thumbsy00108",
+        "path": "mockup_focus/thumbsy00108.jpg",
+        "bytes": 35333
+      },
+      {
+        "slug": "thumbsy00097",
+        "path": "mockup_focus/thumbsy00097.jpg",
+        "bytes": 34901
+      },
+      {
+        "slug": "thumbsy00506",
+        "path": "mockup_focus/thumbsy00506.jpg",
+        "bytes": 34212
+      },
+      {
+        "slug": "thumbsy00112",
+        "path": "mockup_focus/thumbsy00112.jpg",
+        "bytes": 33656
+      },
+      {
+        "slug": "thumbsy00462",
+        "path": "mockup_focus/thumbsy00462.jpg",
+        "bytes": 32458
+      },
+      {
+        "slug": "thumbsy00296",
+        "path": "mockup_focus/thumbsy00296.jpg",
+        "bytes": 32273
+      },
+      {
+        "slug": "thumbsy00303",
+        "path": "mockup_focus/thumbsy00303.jpg",
+        "bytes": 32050
+      },
+      {
+        "slug": "thumbsy00554",
+        "path": "mockup_focus/thumbsy00554.jpg",
+        "bytes": 31646
+      },
+      {
+        "slug": "thumbsy00579",
+        "path": "mockup_focus/thumbsy00579.jpg",
+        "bytes": 31638
+      },
+      {
+        "slug": "thumbsy00179",
+        "path": "mockup_focus/thumbsy00179.jpg",
+        "bytes": 30650
+      },
+      {
+        "slug": "thumbsy00522",
+        "path": "mockup_focus/thumbsy00522.jpg",
+        "bytes": 30443
+      },
+      {
+        "slug": "thumbsy00430",
+        "path": "mockup_focus/thumbsy00430.jpg",
+        "bytes": 29650
+      },
+      {
+        "slug": "thumbsy00371",
+        "path": "mockup_focus/thumbsy00371.jpg",
+        "bytes": 28725
+      }
+    ],
+    "dark_dramatic": [
+      {
+        "slug": "thumbsy00078",
+        "path": "dark_dramatic/thumbsy00078.jpg",
+        "bytes": 72195
+      },
+      {
+        "slug": "thumbsy00565",
+        "path": "dark_dramatic/thumbsy00565.jpg",
+        "bytes": 62777
+      },
+      {
+        "slug": "thumbsy00023",
+        "path": "dark_dramatic/thumbsy00023.jpg",
+        "bytes": 62339
+      },
+      {
+        "slug": "thumbsy00176",
+        "path": "dark_dramatic/thumbsy00176.jpg",
+        "bytes": 59330
+      },
+      {
+        "slug": "thumbsy00474",
+        "path": "dark_dramatic/thumbsy00474.jpg",
+        "bytes": 58356
+      },
+      {
+        "slug": "thumbsy00537",
+        "path": "dark_dramatic/thumbsy00537.jpg",
+        "bytes": 55937
+      },
+      {
+        "slug": "thumbsy00417",
+        "path": "dark_dramatic/thumbsy00417.jpg",
+        "bytes": 55458
+      },
+      {
+        "slug": "thumbsy00094",
+        "path": "dark_dramatic/thumbsy00094.jpg",
+        "bytes": 54974
+      },
+      {
+        "slug": "thumbsy00415",
+        "path": "dark_dramatic/thumbsy00415.jpg",
+        "bytes": 54974
+      },
+      {
+        "slug": "thumbsy00341",
+        "path": "dark_dramatic/thumbsy00341.jpg",
+        "bytes": 52045
+      },
+      {
+        "slug": "thumbsy00226",
+        "path": "dark_dramatic/thumbsy00226.jpg",
+        "bytes": 52023
+      },
+      {
+        "slug": "thumbsy00294",
+        "path": "dark_dramatic/thumbsy00294.jpg",
+        "bytes": 51935
+      },
+      {
+        "slug": "thumbsy00525",
+        "path": "dark_dramatic/thumbsy00525.jpg",
+        "bytes": 51138
+      },
+      {
+        "slug": "thumbsy00258",
+        "path": "dark_dramatic/thumbsy00258.jpg",
+        "bytes": 50409
+      },
+      {
+        "slug": "thumbsy00477",
+        "path": "dark_dramatic/thumbsy00477.jpg",
+        "bytes": 49756
+      },
+      {
+        "slug": "thumbsy00340",
+        "path": "dark_dramatic/thumbsy00340.jpg",
+        "bytes": 49127
+      },
+      {
+        "slug": "thumbsy00196",
+        "path": "dark_dramatic/thumbsy00196.jpg",
+        "bytes": 49075
+      },
+      {
+        "slug": "thumbsy00208",
+        "path": "dark_dramatic/thumbsy00208.jpg",
+        "bytes": 48844
+      },
+      {
+        "slug": "thumbsy00029",
+        "path": "dark_dramatic/thumbsy00029.jpg",
+        "bytes": 48830
+      },
+      {
+        "slug": "thumbsy00433",
+        "path": "dark_dramatic/thumbsy00433.jpg",
+        "bytes": 47651
+      },
+      {
+        "slug": "thumbsy00431",
+        "path": "dark_dramatic/thumbsy00431.jpg",
+        "bytes": 47297
+      },
+      {
+        "slug": "thumbsy00141",
+        "path": "dark_dramatic/thumbsy00141.jpg",
+        "bytes": 46256
+      },
+      {
+        "slug": "thumbsy00413",
+        "path": "dark_dramatic/thumbsy00413.jpg",
+        "bytes": 45896
+      },
+      {
+        "slug": "thumbsy00510",
+        "path": "dark_dramatic/thumbsy00510.jpg",
+        "bytes": 44700
+      },
+      {
+        "slug": "thumbsy00194",
+        "path": "dark_dramatic/thumbsy00194.jpg",
+        "bytes": 43825
+      },
+      {
+        "slug": "thumbsy00039",
+        "path": "dark_dramatic/thumbsy00039.jpg",
+        "bytes": 43515
+      },
+      {
+        "slug": "thumbsy00066",
+        "path": "dark_dramatic/thumbsy00066.jpg",
+        "bytes": 43186
+      },
+      {
+        "slug": "thumbsy00167",
+        "path": "dark_dramatic/thumbsy00167.jpg",
+        "bytes": 42457
+      },
+      {
+        "slug": "thumbsy00132",
+        "path": "dark_dramatic/thumbsy00132.jpg",
+        "bytes": 42456
+      },
+      {
+        "slug": "thumbsy00042",
+        "path": "dark_dramatic/thumbsy00042.jpg",
+        "bytes": 41807
+      },
+      {
+        "slug": "thumbsy00046",
+        "path": "dark_dramatic/thumbsy00046.jpg",
+        "bytes": 41594
+      },
+      {
+        "slug": "thumbsy00479",
+        "path": "dark_dramatic/thumbsy00479.jpg",
+        "bytes": 40466
+      },
+      {
+        "slug": "thumbsy00388",
+        "path": "dark_dramatic/thumbsy00388.jpg",
+        "bytes": 40423
+      },
+      {
+        "slug": "thumbsy00201",
+        "path": "dark_dramatic/thumbsy00201.jpg",
+        "bytes": 39828
+      },
+      {
+        "slug": "thumbsy00155",
+        "path": "dark_dramatic/thumbsy00155.jpg",
+        "bytes": 39128
+      },
+      {
+        "slug": "thumbsy00191",
+        "path": "dark_dramatic/thumbsy00191.jpg",
+        "bytes": 38910
+      },
+      {
+        "slug": "thumbsy00327",
+        "path": "dark_dramatic/thumbsy00327.jpg",
+        "bytes": 32919
+      },
+      {
+        "slug": "thumbsy00147",
+        "path": "dark_dramatic/thumbsy00147.jpg",
+        "bytes": 32771
+      },
+      {
+        "slug": "thumbsy00283",
+        "path": "dark_dramatic/thumbsy00283.jpg",
+        "bytes": 32448
+      },
+      {
+        "slug": "thumbsy00442",
+        "path": "dark_dramatic/thumbsy00442.jpg",
+        "bytes": 28091
+      },
+      {
+        "slug": "thumbsy00076",
+        "path": "dark_dramatic/thumbsy00076.jpg",
+        "bytes": 27284
+      }
+    ],
+    "bright_colorful": [
+      {
+        "slug": "thumbsy00423",
+        "path": "bright_colorful/thumbsy00423.jpg",
+        "bytes": 75814
+      },
+      {
+        "slug": "thumbsy00281",
+        "path": "bright_colorful/thumbsy00281.jpg",
+        "bytes": 75117
+      },
+      {
+        "slug": "thumbsy00505",
+        "path": "bright_colorful/thumbsy00505.jpg",
+        "bytes": 71004
+      },
+      {
+        "slug": "thumbsy00295",
+        "path": "bright_colorful/thumbsy00295.jpg",
+        "bytes": 70731
+      },
+      {
+        "slug": "thumbsy00443",
+        "path": "bright_colorful/thumbsy00443.jpg",
+        "bytes": 67845
+      },
+      {
+        "slug": "thumbsy00460",
+        "path": "bright_colorful/thumbsy00460.jpg",
+        "bytes": 66370
+      },
+      {
+        "slug": "thumbsy00150",
+        "path": "bright_colorful/thumbsy00150.jpg",
+        "bytes": 63240
+      },
+      {
+        "slug": "thumbsy00351",
+        "path": "bright_colorful/thumbsy00351.jpg",
+        "bytes": 63186
+      },
+      {
+        "slug": "thumbsy00400",
+        "path": "bright_colorful/thumbsy00400.jpg",
+        "bytes": 62371
+      },
+      {
+        "slug": "thumbsy00487",
+        "path": "bright_colorful/thumbsy00487.jpg",
+        "bytes": 62071
+      },
+      {
+        "slug": "thumbsy00531",
+        "path": "bright_colorful/thumbsy00531.jpg",
+        "bytes": 59486
+      },
+      {
+        "slug": "thumbsy00304",
+        "path": "bright_colorful/thumbsy00304.jpg",
+        "bytes": 58849
+      },
+      {
+        "slug": "thumbsy00360",
+        "path": "bright_colorful/thumbsy00360.jpg",
+        "bytes": 58476
+      },
+      {
+        "slug": "thumbsy00454",
+        "path": "bright_colorful/thumbsy00454.jpg",
+        "bytes": 57236
+      },
+      {
+        "slug": "thumbsy00275",
+        "path": "bright_colorful/thumbsy00275.jpg",
+        "bytes": 56331
+      },
+      {
+        "slug": "thumbsy00253",
+        "path": "bright_colorful/thumbsy00253.jpg",
+        "bytes": 52779
+      },
+      {
+        "slug": "thumbsy00550",
+        "path": "bright_colorful/thumbsy00550.jpg",
+        "bytes": 49477
+      },
+      {
+        "slug": "thumbsy00406",
+        "path": "bright_colorful/thumbsy00406.jpg",
+        "bytes": 49463
+      },
+      {
+        "slug": "thumbsy00203",
+        "path": "bright_colorful/thumbsy00203.jpg",
+        "bytes": 47646
+      },
+      {
+        "slug": "thumbsy00367",
+        "path": "bright_colorful/thumbsy00367.jpg",
+        "bytes": 46962
+      },
+      {
+        "slug": "thumbsy00403",
+        "path": "bright_colorful/thumbsy00403.jpg",
+        "bytes": 40293
+      },
+      {
+        "slug": "thumbsy00314",
+        "path": "bright_colorful/thumbsy00314.jpg",
+        "bytes": 30665
+      }
+    ],
+    "tutorial_callout": [
+      {
+        "slug": "thumbsy00465",
+        "path": "tutorial_callout/thumbsy00465.jpg",
+        "bytes": 94731
+      },
+      {
+        "slug": "thumbsy00383",
+        "path": "tutorial_callout/thumbsy00383.jpg",
+        "bytes": 81884
+      },
+      {
+        "slug": "thumbsy00074",
+        "path": "tutorial_callout/thumbsy00074.jpg",
+        "bytes": 73038
+      },
+      {
+        "slug": "thumbsy00577",
+        "path": "tutorial_callout/thumbsy00577.jpg",
+        "bytes": 68391
+      },
+      {
+        "slug": "thumbsy00553",
+        "path": "tutorial_callout/thumbsy00553.jpg",
+        "bytes": 67983
+      },
+      {
+        "slug": "thumbsy00429",
+        "path": "tutorial_callout/thumbsy00429.jpg",
+        "bytes": 64697
+      },
+      {
+        "slug": "thumbsy00584",
+        "path": "tutorial_callout/thumbsy00584.jpg",
+        "bytes": 61244
+      },
+      {
+        "slug": "thumbsy00358",
+        "path": "tutorial_callout/thumbsy00358.jpg",
+        "bytes": 59769
+      },
+      {
+        "slug": "thumbsy00092",
+        "path": "tutorial_callout/thumbsy00092.jpg",
+        "bytes": 59346
+      },
+      {
+        "slug": "thumbsy00254",
+        "path": "tutorial_callout/thumbsy00254.jpg",
+        "bytes": 59310
+      },
+      {
+        "slug": "thumbsy00562",
+        "path": "tutorial_callout/thumbsy00562.jpg",
+        "bytes": 58677
+      },
+      {
+        "slug": "thumbsy00166",
+        "path": "tutorial_callout/thumbsy00166.jpg",
+        "bytes": 58563
+      },
+      {
+        "slug": "thumbsy00236",
+        "path": "tutorial_callout/thumbsy00236.jpg",
+        "bytes": 58260
+      },
+      {
+        "slug": "thumbsy00502",
+        "path": "tutorial_callout/thumbsy00502.jpg",
+        "bytes": 58209
+      },
+      {
+        "slug": "thumbsy00578",
+        "path": "tutorial_callout/thumbsy00578.jpg",
+        "bytes": 57619
+      },
+      {
+        "slug": "thumbsy00024",
+        "path": "tutorial_callout/thumbsy00024.jpg",
+        "bytes": 55901
+      },
+      {
+        "slug": "thumbsy00300",
+        "path": "tutorial_callout/thumbsy00300.jpg",
+        "bytes": 54164
+      },
+      {
+        "slug": "thumbsy00342",
+        "path": "tutorial_callout/thumbsy00342.jpg",
+        "bytes": 53526
+      },
+      {
+        "slug": "thumbsy00494",
+        "path": "tutorial_callout/thumbsy00494.jpg",
+        "bytes": 53396
+      },
+      {
+        "slug": "thumbsy00397",
+        "path": "tutorial_callout/thumbsy00397.jpg",
+        "bytes": 52937
+      },
+      {
+        "slug": "thumbsy00508",
+        "path": "tutorial_callout/thumbsy00508.jpg",
+        "bytes": 52351
+      },
+      {
+        "slug": "thumbsy00419",
+        "path": "tutorial_callout/thumbsy00419.jpg",
+        "bytes": 52202
+      },
+      {
+        "slug": "thumbsy00225",
+        "path": "tutorial_callout/thumbsy00225.jpg",
+        "bytes": 51815
+      },
+      {
+        "slug": "thumbsy00426",
+        "path": "tutorial_callout/thumbsy00426.jpg",
+        "bytes": 51271
+      },
+      {
+        "slug": "thumbsy00013",
+        "path": "tutorial_callout/thumbsy00013.jpg",
+        "bytes": 51137
+      },
+      {
+        "slug": "thumbsy00268",
+        "path": "tutorial_callout/thumbsy00268.jpg",
+        "bytes": 50666
+      },
+      {
+        "slug": "thumbsy00257",
+        "path": "tutorial_callout/thumbsy00257.jpg",
+        "bytes": 50620
+      },
+      {
+        "slug": "thumbsy00425",
+        "path": "tutorial_callout/thumbsy00425.jpg",
+        "bytes": 50613
+      },
+      {
+        "slug": "thumbsy00207",
+        "path": "tutorial_callout/thumbsy00207.jpg",
+        "bytes": 50121
+      },
+      {
+        "slug": "thumbsy00504",
+        "path": "tutorial_callout/thumbsy00504.jpg",
+        "bytes": 49322
+      },
+      {
+        "slug": "thumbsy00346",
+        "path": "tutorial_callout/thumbsy00346.jpg",
+        "bytes": 48609
+      },
+      {
+        "slug": "thumbsy00161",
+        "path": "tutorial_callout/thumbsy00161.jpg",
+        "bytes": 48125
+      },
+      {
+        "slug": "thumbsy00117",
+        "path": "tutorial_callout/thumbsy00117.jpg",
+        "bytes": 48079
+      },
+      {
+        "slug": "thumbsy00463",
+        "path": "tutorial_callout/thumbsy00463.jpg",
+        "bytes": 47469
+      },
+      {
+        "slug": "thumbsy00077",
+        "path": "tutorial_callout/thumbsy00077.jpg",
+        "bytes": 46995
+      },
+      {
+        "slug": "thumbsy00148",
+        "path": "tutorial_callout/thumbsy00148.jpg",
+        "bytes": 46690
+      },
+      {
+        "slug": "thumbsy00245",
+        "path": "tutorial_callout/thumbsy00245.jpg",
+        "bytes": 46639
+      },
+      {
+        "slug": "thumbsy00297",
+        "path": "tutorial_callout/thumbsy00297.jpg",
+        "bytes": 46507
+      },
+      {
+        "slug": "thumbsy00345",
+        "path": "tutorial_callout/thumbsy00345.jpg",
+        "bytes": 46360
+      },
+      {
+        "slug": "thumbsy00149",
+        "path": "tutorial_callout/thumbsy00149.jpg",
+        "bytes": 45918
+      },
+      {
+        "slug": "thumbsy00175",
+        "path": "tutorial_callout/thumbsy00175.jpg",
+        "bytes": 45828
+      },
+      {
+        "slug": "thumbsy00139",
+        "path": "tutorial_callout/thumbsy00139.jpg",
+        "bytes": 45155
+      },
+      {
+        "slug": "thumbsy00365",
+        "path": "tutorial_callout/thumbsy00365.jpg",
+        "bytes": 44795
+      },
+      {
+        "slug": "thumbsy00270",
+        "path": "tutorial_callout/thumbsy00270.jpg",
+        "bytes": 44082
+      },
+      {
+        "slug": "thumbsy00213",
+        "path": "tutorial_callout/thumbsy00213.jpg",
+        "bytes": 44005
+      },
+      {
+        "slug": "thumbsy00171",
+        "path": "tutorial_callout/thumbsy00171.jpg",
+        "bytes": 43994
+      },
+      {
+        "slug": "thumbsy00389",
+        "path": "tutorial_callout/thumbsy00389.jpg",
+        "bytes": 43625
+      },
+      {
+        "slug": "thumbsy00456",
+        "path": "tutorial_callout/thumbsy00456.jpg",
+        "bytes": 43493
+      },
+      {
+        "slug": "thumbsy00032",
+        "path": "tutorial_callout/thumbsy00032.jpg",
+        "bytes": 42895
+      },
+      {
+        "slug": "thumbsy00416",
+        "path": "tutorial_callout/thumbsy00416.jpg",
+        "bytes": 42835
+      },
+      {
+        "slug": "thumbsy00325",
+        "path": "tutorial_callout/thumbsy00325.jpg",
+        "bytes": 42664
+      },
+      {
+        "slug": "thumbsy00220",
+        "path": "tutorial_callout/thumbsy00220.jpg",
+        "bytes": 42501
+      },
+      {
+        "slug": "thumbsy00313",
+        "path": "tutorial_callout/thumbsy00313.jpg",
+        "bytes": 41774
+      },
+      {
+        "slug": "thumbsy00490",
+        "path": "tutorial_callout/thumbsy00490.jpg",
+        "bytes": 41686
+      },
+      {
+        "slug": "thumbsy00212",
+        "path": "tutorial_callout/thumbsy00212.jpg",
+        "bytes": 40883
+      },
+      {
+        "slug": "thumbsy00438",
+        "path": "tutorial_callout/thumbsy00438.jpg",
+        "bytes": 40865
+      },
+      {
+        "slug": "thumbsy00248",
+        "path": "tutorial_callout/thumbsy00248.jpg",
+        "bytes": 40771
+      },
+      {
+        "slug": "thumbsy00436",
+        "path": "tutorial_callout/thumbsy00436.jpg",
+        "bytes": 40059
+      },
+      {
+        "slug": "thumbsy00003",
+        "path": "tutorial_callout/thumbsy00003.jpg",
+        "bytes": 39611
+      },
+      {
+        "slug": "thumbsy00523",
+        "path": "tutorial_callout/thumbsy00523.jpg",
+        "bytes": 38591
+      },
+      {
+        "slug": "thumbsy00090",
+        "path": "tutorial_callout/thumbsy00090.jpg",
+        "bytes": 38036
+      },
+      {
+        "slug": "thumbsy00509",
+        "path": "tutorial_callout/thumbsy00509.jpg",
+        "bytes": 36797
+      },
+      {
+        "slug": "thumbsy00343",
+        "path": "tutorial_callout/thumbsy00343.jpg",
+        "bytes": 35808
+      },
+      {
+        "slug": "thumbsy00274",
+        "path": "tutorial_callout/thumbsy00274.jpg",
+        "bytes": 33590
+      },
+      {
+        "slug": "thumbsy00019",
+        "path": "tutorial_callout/thumbsy00019.jpg",
+        "bytes": 33435
+      },
+      {
+        "slug": "thumbsy00558",
+        "path": "tutorial_callout/thumbsy00558.jpg",
+        "bytes": 29281
+      },
+      {
+        "slug": "thumbsy00468",
+        "path": "tutorial_callout/thumbsy00468.jpg",
+        "bytes": 28289
+      }
+    ],
+    "mascot_3d": [
+      {
+        "slug": "thumbsy00001",
+        "path": "mascot_3d/thumbsy00001.jpg",
+        "bytes": 134954
+      },
+      {
+        "slug": "thumbsy00336",
+        "path": "mascot_3d/thumbsy00336.jpg",
+        "bytes": 74193
+      },
+      {
+        "slug": "thumbsy00251",
+        "path": "mascot_3d/thumbsy00251.jpg",
+        "bytes": 72445
+      },
+      {
+        "slug": "thumbsy00206",
+        "path": "mascot_3d/thumbsy00206.jpg",
+        "bytes": 72143
+      },
+      {
+        "slug": "thumbsy00172",
+        "path": "mascot_3d/thumbsy00172.jpg",
+        "bytes": 72097
+      },
+      {
+        "slug": "thumbsy00452",
+        "path": "mascot_3d/thumbsy00452.jpg",
+        "bytes": 68103
+      },
+      {
+        "slug": "thumbsy00125",
+        "path": "mascot_3d/thumbsy00125.jpg",
+        "bytes": 67708
+      },
+      {
+        "slug": "thumbsy00093",
+        "path": "mascot_3d/thumbsy00093.jpg",
+        "bytes": 67042
+      },
+      {
+        "slug": "thumbsy00451",
+        "path": "mascot_3d/thumbsy00451.jpg",
+        "bytes": 66085
+      },
+      {
+        "slug": "thumbsy00266",
+        "path": "mascot_3d/thumbsy00266.jpg",
+        "bytes": 65954
+      },
+      {
+        "slug": "thumbsy00376",
+        "path": "mascot_3d/thumbsy00376.jpg",
+        "bytes": 65076
+      },
+      {
+        "slug": "thumbsy00402",
+        "path": "mascot_3d/thumbsy00402.jpg",
+        "bytes": 64736
+      },
+      {
+        "slug": "thumbsy00197",
+        "path": "mascot_3d/thumbsy00197.jpg",
+        "bytes": 62846
+      },
+      {
+        "slug": "thumbsy00030",
+        "path": "mascot_3d/thumbsy00030.jpg",
+        "bytes": 62044
+      },
+      {
+        "slug": "thumbsy00063",
+        "path": "mascot_3d/thumbsy00063.jpg",
+        "bytes": 61808
+      },
+      {
+        "slug": "thumbsy00380",
+        "path": "mascot_3d/thumbsy00380.jpg",
+        "bytes": 61141
+      },
+      {
+        "slug": "thumbsy00098",
+        "path": "mascot_3d/thumbsy00098.jpg",
+        "bytes": 60494
+      },
+      {
+        "slug": "thumbsy00354",
+        "path": "mascot_3d/thumbsy00354.jpg",
+        "bytes": 59656
+      },
+      {
+        "slug": "thumbsy00234",
+        "path": "mascot_3d/thumbsy00234.jpg",
+        "bytes": 59298
+      },
+      {
+        "slug": "thumbsy00575",
+        "path": "mascot_3d/thumbsy00575.jpg",
+        "bytes": 59203
+      },
+      {
+        "slug": "thumbsy00247",
+        "path": "mascot_3d/thumbsy00247.jpg",
+        "bytes": 58412
+      },
+      {
+        "slug": "thumbsy00034",
+        "path": "mascot_3d/thumbsy00034.jpg",
+        "bytes": 58103
+      },
+      {
+        "slug": "thumbsy00008",
+        "path": "mascot_3d/thumbsy00008.jpg",
+        "bytes": 57859
+      },
+      {
+        "slug": "thumbsy00261",
+        "path": "mascot_3d/thumbsy00261.jpg",
+        "bytes": 57284
+      },
+      {
+        "slug": "thumbsy00527",
+        "path": "mascot_3d/thumbsy00527.jpg",
+        "bytes": 56761
+      },
+      {
+        "slug": "thumbsy00037",
+        "path": "mascot_3d/thumbsy00037.jpg",
+        "bytes": 56255
+      },
+      {
+        "slug": "thumbsy00199",
+        "path": "mascot_3d/thumbsy00199.jpg",
+        "bytes": 55985
+      },
+      {
+        "slug": "thumbsy00131",
+        "path": "mascot_3d/thumbsy00131.jpg",
+        "bytes": 55861
+      },
+      {
+        "slug": "thumbsy00534",
+        "path": "mascot_3d/thumbsy00534.jpg",
+        "bytes": 55827
+      },
+      {
+        "slug": "thumbsy00378",
+        "path": "mascot_3d/thumbsy00378.jpg",
+        "bytes": 55315
+      },
+      {
+        "slug": "thumbsy00500",
+        "path": "mascot_3d/thumbsy00500.jpg",
+        "bytes": 55229
+      },
+      {
+        "slug": "thumbsy00532",
+        "path": "mascot_3d/thumbsy00532.jpg",
+        "bytes": 54255
+      },
+      {
+        "slug": "thumbsy00511",
+        "path": "mascot_3d/thumbsy00511.jpg",
+        "bytes": 53777
+      },
+      {
+        "slug": "thumbsy00407",
+        "path": "mascot_3d/thumbsy00407.jpg",
+        "bytes": 52594
+      },
+      {
+        "slug": "thumbsy00338",
+        "path": "mascot_3d/thumbsy00338.jpg",
+        "bytes": 51801
+      },
+      {
+        "slug": "thumbsy00316",
+        "path": "mascot_3d/thumbsy00316.jpg",
+        "bytes": 51781
+      },
+      {
+        "slug": "thumbsy00128",
+        "path": "mascot_3d/thumbsy00128.jpg",
+        "bytes": 51739
+      },
+      {
+        "slug": "thumbsy00038",
+        "path": "mascot_3d/thumbsy00038.jpg",
+        "bytes": 51366
+      },
+      {
+        "slug": "thumbsy00470",
+        "path": "mascot_3d/thumbsy00470.jpg",
+        "bytes": 51338
+      },
+      {
+        "slug": "thumbsy00273",
+        "path": "mascot_3d/thumbsy00273.jpg",
+        "bytes": 50920
+      },
+      {
+        "slug": "thumbsy00284",
+        "path": "mascot_3d/thumbsy00284.jpg",
+        "bytes": 50754
+      },
+      {
+        "slug": "thumbsy00219",
+        "path": "mascot_3d/thumbsy00219.jpg",
+        "bytes": 50709
+      },
+      {
+        "slug": "thumbsy00549",
+        "path": "mascot_3d/thumbsy00549.jpg",
+        "bytes": 50454
+      },
+      {
+        "slug": "thumbsy00051",
+        "path": "mascot_3d/thumbsy00051.jpg",
+        "bytes": 50378
+      },
+      {
+        "slug": "thumbsy00004",
+        "path": "mascot_3d/thumbsy00004.jpg",
+        "bytes": 50049
+      },
+      {
+        "slug": "thumbsy00530",
+        "path": "mascot_3d/thumbsy00530.jpg",
+        "bytes": 49842
+      },
+      {
+        "slug": "thumbsy00372",
+        "path": "mascot_3d/thumbsy00372.jpg",
+        "bytes": 49824
+      },
+      {
+        "slug": "thumbsy00560",
+        "path": "mascot_3d/thumbsy00560.jpg",
+        "bytes": 49801
+      },
+      {
+        "slug": "thumbsy00081",
+        "path": "mascot_3d/thumbsy00081.jpg",
+        "bytes": 49788
+      },
+      {
+        "slug": "thumbsy00044",
+        "path": "mascot_3d/thumbsy00044.jpg",
+        "bytes": 49656
+      },
+      {
+        "slug": "thumbsy00496",
+        "path": "mascot_3d/thumbsy00496.jpg",
+        "bytes": 49447
+      },
+      {
+        "slug": "thumbsy00200",
+        "path": "mascot_3d/thumbsy00200.jpg",
+        "bytes": 49375
+      },
+      {
+        "slug": "thumbsy00356",
+        "path": "mascot_3d/thumbsy00356.jpg",
+        "bytes": 49362
+      },
+      {
+        "slug": "thumbsy00321",
+        "path": "mascot_3d/thumbsy00321.jpg",
+        "bytes": 49311
+      },
+      {
+        "slug": "thumbsy00079",
+        "path": "mascot_3d/thumbsy00079.jpg",
+        "bytes": 49270
+      },
+      {
+        "slug": "thumbsy00082",
+        "path": "mascot_3d/thumbsy00082.jpg",
+        "bytes": 49244
+      },
+      {
+        "slug": "thumbsy00009",
+        "path": "mascot_3d/thumbsy00009.jpg",
+        "bytes": 48246
+      },
+      {
+        "slug": "thumbsy00104",
+        "path": "mascot_3d/thumbsy00104.jpg",
+        "bytes": 48089
+      },
+      {
+        "slug": "thumbsy00238",
+        "path": "mascot_3d/thumbsy00238.jpg",
+        "bytes": 47487
+      },
+      {
+        "slug": "thumbsy00355",
+        "path": "mascot_3d/thumbsy00355.jpg",
+        "bytes": 47439
+      },
+      {
+        "slug": "thumbsy00324",
+        "path": "mascot_3d/thumbsy00324.jpg",
+        "bytes": 47272
+      },
+      {
+        "slug": "thumbsy00486",
+        "path": "mascot_3d/thumbsy00486.jpg",
+        "bytes": 47244
+      },
+      {
+        "slug": "thumbsy00306",
+        "path": "mascot_3d/thumbsy00306.jpg",
+        "bytes": 47121
+      },
+      {
+        "slug": "thumbsy00570",
+        "path": "mascot_3d/thumbsy00570.jpg",
+        "bytes": 46734
+      },
+      {
+        "slug": "thumbsy00370",
+        "path": "mascot_3d/thumbsy00370.jpg",
+        "bytes": 46696
+      },
+      {
+        "slug": "thumbsy00347",
+        "path": "mascot_3d/thumbsy00347.jpg",
+        "bytes": 46664
+      },
+      {
+        "slug": "thumbsy00533",
+        "path": "mascot_3d/thumbsy00533.jpg",
+        "bytes": 46608
+      },
+      {
+        "slug": "thumbsy00158",
+        "path": "mascot_3d/thumbsy00158.jpg",
+        "bytes": 46573
+      },
+      {
+        "slug": "thumbsy00136",
+        "path": "mascot_3d/thumbsy00136.jpg",
+        "bytes": 46211
+      },
+      {
+        "slug": "thumbsy00072",
+        "path": "mascot_3d/thumbsy00072.jpg",
+        "bytes": 46054
+      },
+      {
+        "slug": "thumbsy00401",
+        "path": "mascot_3d/thumbsy00401.jpg",
+        "bytes": 45535
+      },
+      {
+        "slug": "thumbsy00154",
+        "path": "mascot_3d/thumbsy00154.jpg",
+        "bytes": 45304
+      },
+      {
+        "slug": "thumbsy00180",
+        "path": "mascot_3d/thumbsy00180.jpg",
+        "bytes": 45215
+      },
+      {
+        "slug": "thumbsy00449",
+        "path": "mascot_3d/thumbsy00449.jpg",
+        "bytes": 44963
+      },
+      {
+        "slug": "thumbsy00250",
+        "path": "mascot_3d/thumbsy00250.jpg",
+        "bytes": 44765
+      },
+      {
+        "slug": "thumbsy00476",
+        "path": "mascot_3d/thumbsy00476.jpg",
+        "bytes": 44193
+      },
+      {
+        "slug": "thumbsy00567",
+        "path": "mascot_3d/thumbsy00567.jpg",
+        "bytes": 43902
+      },
+      {
+        "slug": "thumbsy00140",
+        "path": "mascot_3d/thumbsy00140.jpg",
+        "bytes": 43317
+      },
+      {
+        "slug": "thumbsy00583",
+        "path": "mascot_3d/thumbsy00583.jpg",
+        "bytes": 43143
+      },
+      {
+        "slug": "thumbsy00210",
+        "path": "mascot_3d/thumbsy00210.jpg",
+        "bytes": 42957
+      },
+      {
+        "slug": "thumbsy00173",
+        "path": "mascot_3d/thumbsy00173.jpg",
+        "bytes": 42693
+      },
+      {
+        "slug": "thumbsy00058",
+        "path": "mascot_3d/thumbsy00058.jpg",
+        "bytes": 42164
+      },
+      {
+        "slug": "thumbsy00447",
+        "path": "mascot_3d/thumbsy00447.jpg",
+        "bytes": 41905
+      },
+      {
+        "slug": "thumbsy00096",
+        "path": "mascot_3d/thumbsy00096.jpg",
+        "bytes": 41859
+      },
+      {
+        "slug": "thumbsy00239",
+        "path": "mascot_3d/thumbsy00239.jpg",
+        "bytes": 41857
+      },
+      {
+        "slug": "thumbsy00480",
+        "path": "mascot_3d/thumbsy00480.jpg",
+        "bytes": 41842
+      },
+      {
+        "slug": "thumbsy00391",
+        "path": "mascot_3d/thumbsy00391.jpg",
+        "bytes": 41472
+      },
+      {
+        "slug": "thumbsy00227",
+        "path": "mascot_3d/thumbsy00227.jpg",
+        "bytes": 41080
+      },
+      {
+        "slug": "thumbsy00353",
+        "path": "mascot_3d/thumbsy00353.jpg",
+        "bytes": 40869
+      },
+      {
+        "slug": "thumbsy00516",
+        "path": "mascot_3d/thumbsy00516.jpg",
+        "bytes": 40574
+      },
+      {
+        "slug": "thumbsy00069",
+        "path": "mascot_3d/thumbsy00069.jpg",
+        "bytes": 39885
+      },
+      {
+        "slug": "thumbsy00458",
+        "path": "mascot_3d/thumbsy00458.jpg",
+        "bytes": 39155
+      },
+      {
+        "slug": "thumbsy00499",
+        "path": "mascot_3d/thumbsy00499.jpg",
+        "bytes": 39154
+      },
+      {
+        "slug": "thumbsy00459",
+        "path": "mascot_3d/thumbsy00459.jpg",
+        "bytes": 39088
+      },
+      {
+        "slug": "thumbsy00070",
+        "path": "mascot_3d/thumbsy00070.jpg",
+        "bytes": 38985
+      },
+      {
+        "slug": "thumbsy00109",
+        "path": "mascot_3d/thumbsy00109.jpg",
+        "bytes": 38776
+      },
+      {
+        "slug": "thumbsy00524",
+        "path": "mascot_3d/thumbsy00524.jpg",
+        "bytes": 38673
+      },
+      {
+        "slug": "thumbsy00546",
+        "path": "mascot_3d/thumbsy00546.jpg",
+        "bytes": 37976
+      },
+      {
+        "slug": "thumbsy00437",
+        "path": "mascot_3d/thumbsy00437.jpg",
+        "bytes": 37617
+      },
+      {
+        "slug": "thumbsy00428",
+        "path": "mascot_3d/thumbsy00428.jpg",
+        "bytes": 37096
+      },
+      {
+        "slug": "thumbsy00118",
+        "path": "mascot_3d/thumbsy00118.jpg",
+        "bytes": 36613
+      },
+      {
+        "slug": "thumbsy00381",
+        "path": "mascot_3d/thumbsy00381.jpg",
+        "bytes": 36033
+      },
+      {
+        "slug": "thumbsy00483",
+        "path": "mascot_3d/thumbsy00483.jpg",
+        "bytes": 31744
+      },
+      {
+        "slug": "thumbsy00559",
+        "path": "mascot_3d/thumbsy00559.jpg",
+        "bytes": 29450
+      },
+      {
+        "slug": "thumbsy00453",
+        "path": "mascot_3d/thumbsy00453.jpg",
+        "bytes": 28458
+      }
+    ]
+  }
+}
