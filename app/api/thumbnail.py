@@ -3203,3 +3203,254 @@ async def describe_image_upload(
         "image_size_bytes": len(img_bytes),
         "image_mime": mime,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Bento Card Studio — third Thumbsy mode.
+#
+# Generates a single bento-style landing-page cell (Linear / Vercel / Apple
+# style — soft typography, generous whitespace, rounded corners, optional
+# UI mockup or illustration). Same single-shot pattern as
+# /generate-appstore-direct so users iterate cheaply.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Gemini 3 Pro Image accepts a fixed set of aspects. The bento UI offers
+# 1:1 / 4:3 / 16:9 / 3:4 — all native.
+_BENTO_GEMINI_RATIOS = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"}
+
+# Per-layout art direction blocks. Each gets prepended to the prompt
+# based on the user's pick — they encode the actual visual differences
+# between the layouts shown in the form.
+_BENTO_LAYOUT_DIRECTIVES: dict[str, str] = {
+    "icon-led": (
+        "ICON-LED layout: a single oversized 3D-rendered icon or app-style "
+        "rounded square sits in the upper-left or upper-center of the card. "
+        "The icon uses the brand accent colour. The headline appears below or "
+        "beside it. Apple iCloud / Things 3 / Linear feature cards are the "
+        "visual reference."
+    ),
+    "text-led": (
+        "TEXT-LED layout: oversized headline carries 70-80% of the card's "
+        "visual weight. No icon, no mockup — just confident typography on "
+        "a clean background. Linear, Vercel, Stripe Press feature cards are "
+        "the visual reference."
+    ),
+    "split": (
+        "SPLIT layout: text on the left half (headline + supporting copy), "
+        "visual element on the right half (a small product mockup, abstract "
+        "illustration, or product photo). Vertical divider implied by the "
+        "two columns of content rather than a literal line."
+    ),
+    "ui-mockup": (
+        "UI MOCKUP layout: the card features a small product UI screenshot "
+        "or interface preview rendered with a subtle drop shadow and rounded "
+        "corners, occupying the bottom or right half of the card. Headline "
+        "sits in the upper-left or top. Notion / Loom / Vercel landing pages "
+        "are the reference."
+    ),
+    "illustration": (
+        "ILLUSTRATION layout: a 3D-rendered or painterly illustration sits "
+        "in one corner (typically lower-right), the headline anchors the "
+        "opposite side. Loom hero cards / Linear's home illustrations are "
+        "the reference. The illustration uses the brand accent."
+    ),
+}
+
+# Variant angle cycle — same trick as /generate-appstore-direct: each
+# call increments variant_index so successive renders explore different
+# compositions instead of re-rolling the same layout.
+_BENTO_VARIANT_ANGLES = [
+    "Strong vertical hierarchy — headline anchored top, supporting visual at the bottom",
+    "Typography breaks across two lines with deliberate ragged-right break, accent on the second line",
+    "Generous whitespace, content takes only ~60% of the card, edge breathing room intentional",
+    "Off-balance composition — content shifted to one side, the other side carries colour or texture",
+    "Diagonal energy — slight tilt or subtle motion in the supporting visual",
+    "Centered hero composition with symmetrical padding all around",
+    "Foreground/background split — subtle gradient depth behind the headline",
+    "Editorial style — supporting copy nested under headline like a magazine pull-quote",
+]
+
+
+@router.post("/generate-bento-direct")
+async def generate_bento_direct(
+    current_user: Annotated[User, Depends(get_current_user)],
+    product_name: str = Form(..., description="Brand / product / feature name shown as a small overline"),
+    headline: str = Form(..., description="The card's main message — rendered exactly as written"),
+    supporting: Optional[str] = Form(None, description="Optional smaller caption beneath the headline"),
+    layout: str = Form("icon-led", description="icon-led | text-led | split | ui-mockup | illustration"),
+    accent: Optional[str] = Form(None, description="Hex accent colour, e.g. #1A1A1A"),
+    bg_tone: str = Form("light", description="light | dark"),
+    aspect_ratio: str = Form("4:3"),
+    variant_index: int = Form(0, description="0..N — explores a different composition angle each call"),
+    files: List[UploadFile] = File(default=[], description="Optional refs: product UI screenshot, brand assets, illustration"),
+):
+    """
+    Render ONE bento landing-page card (Linear / Vercel / Apple style).
+
+    Same lightweight pattern as the App Store direct endpoint — a single
+    Gemini 3 Pro Image call, no strategist hop. Each call charges
+    CREDIT_COST_APPSTORE_PER_SCREEN (= 6 credits).
+    """
+    if not product_name.strip() or not headline.strip():
+        raise HTTPException(status_code=400, detail="product_name and headline are required.")
+    if aspect_ratio not in _BENTO_GEMINI_RATIOS:
+        aspect_ratio = "4:3"
+    if layout not in _BENTO_LAYOUT_DIRECTIVES:
+        layout = "icon-led"
+    if bg_tone not in {"light", "dark"}:
+        bg_tone = "light"
+
+    cost = CREDIT_COST_APPSTORE_PER_SCREEN
+    if not is_admin(current_user):
+        balance = get_balance(current_user["id"])
+        if balance < cost:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "INSUFFICIENT_CREDITS",
+                    "message": f"You need {cost} credit(s). Current balance: {balance}",
+                },
+            )
+
+    card_id = str(uuid.uuid4())
+    logger.info(f"Bento card {card_id} for user {current_user['id']} ({layout}, {aspect_ratio})")
+
+    # Read user uploads (UI mockups, brand assets) to anchor the visual.
+    user_refs: list[tuple[bytes, str]] = []
+    for f in files[:5]:
+        data = await f.read()
+        if data:
+            user_refs.append((data, f.content_type or "image/png"))
+
+    angle = _BENTO_VARIANT_ANGLES[variant_index % len(_BENTO_VARIANT_ANGLES)]
+    layout_block = _BENTO_LAYOUT_DIRECTIVES[layout]
+    bg_directive = (
+        "Background: pure white #FFFFFF or off-white #F4F4F6, or a very subtle light gradient. Text in deep neutral #0A0A0C or #1A1A1A. "
+        if bg_tone == "light"
+        else "Background: deep near-black #0A0A0C or #16161A, or a very subtle dark gradient. Text in pure white #FFFFFF, supporting copy in 55-60% white. "
+    )
+
+    parts: list[str] = [
+        f"Design ONE single bento landing-page card (a single cell of a bento grid — NOT a full grid). "
+        f"Card belongs to a feature page for the product \"{product_name}\".",
+        f"Aspect ratio: {aspect_ratio}. Output is one self-contained card image.",
+        "",
+        f"OVERLINE TEXT (small caps, top of the card, render exactly): \"{product_name.strip()}\"",
+        f"HEADLINE (the dominant typographic element, render exactly, premium humanist sans-serif similar to Inter, Söhne, or General Sans): \"{headline.strip()}\"",
+    ]
+    if supporting and supporting.strip():
+        parts.append(f"SUPPORTING TEXT (smaller, muted weight, beneath the headline): \"{supporting.strip()}\"")
+    parts += [
+        "",
+        f"LAYOUT — {layout_block}",
+        f"BACKGROUND — {bg_directive}",
+        f"ACCENT COLOUR (use it confidently — for the icon, illustration, or a single highlight word): {accent or '(infer from a tasteful neutral palette)'}.",
+        "",
+        f"COMPOSITION ANGLE: {angle}",
+        "",
+        "TYPOGRAPHY RULES",
+        "- Generous letter spacing on the OVERLINE (~0.18em).",
+        "- Tight tracking on the HEADLINE (-0.02em). Sentence case, not all caps unless the brand calls for it.",
+        "- Strong vertical rhythm — pad the card with ~28-40px of breathing room from the edges.",
+        "- Rounded corners on the card itself: ~24-32px radius (the renderer will export as a single image; the corner radius is part of the composition).",
+        "",
+        "MOOD & QUALITY BAR",
+        "- Modern SaaS landing-page aesthetic. Apple, Linear, Vercel, Stripe, Notion, Loom are the reference points.",
+        "- Premium feel. No clipart, no generic icons, no early-2010s gradients.",
+        "- If a UI mockup appears, it must look like a real product interface — clean, minimal, no 'lorem ipsum'.",
+    ]
+    if user_refs:
+        parts += [
+            "",
+            "USER REFERENCES",
+            "The user uploaded reference images (product UI screenshots, brand assets, or illustration moodboard). "
+            "If your composition includes a UI mockup or product photo, reflect what's in the user's references — "
+            "do NOT invent unrelated UI. If the references are abstract / illustration moodboards, match their style "
+            "for any decorative element you draw."
+        ]
+    parts += [
+        "",
+        "HARD RULES",
+        f"- Render the OVERLINE exactly as: \"{product_name.strip()}\".",
+        f"- Render the HEADLINE exactly as: \"{headline.strip()}\". No paraphrasing, no abbreviation, accents preserved.",
+    ]
+    if supporting and supporting.strip():
+        parts.append(f"- Render the SUPPORTING TEXT exactly as: \"{supporting.strip()}\".")
+    parts += [
+        "- Output is a SINGLE bento card. Never a multi-card grid, never a storyboard.",
+        "- No watermarks, no brand logos that aren't in the references, no decorative noise.",
+        f"- Final image at {aspect_ratio}, ready to be dropped into a landing page bento grid.",
+    ]
+    prompt = "\n".join(parts)
+
+    contents: list = []
+    for data, mime in user_refs:
+        contents.append(types.Part.from_bytes(data=data, mime_type=mime))
+    contents.append(prompt)
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    try:
+        response = client.models.generate_content(
+            model="gemini-3-pro-image-preview",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
+                image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size="2K"),
+            ),
+        )
+    except APIError as api_err:
+        logger.error(f"Gemini API error on bento {card_id}: {api_err}")
+        raise HTTPException(status_code=400, detail=f"AI provider error: {api_err}")
+    except Exception as e:
+        logger.error(f"Gemini call failed on bento {card_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"AI provider error: {e}")
+
+    if not response.candidates or not response.candidates[0].content:
+        raise HTTPException(status_code=502, detail="Gemini returned no candidates.")
+    img_bytes: Optional[bytes] = None
+    for part in response.candidates[0].content.parts or []:
+        if part.inline_data:
+            img_bytes = part.inline_data.data
+            break
+    if not img_bytes:
+        raise HTTPException(status_code=502, detail="Gemini returned no image.")
+
+    storage_path = f"thumbnails/{current_user['id']}/{card_id}.png"
+    supabase.storage.from_("avatars").upload(
+        path=storage_path,
+        file=img_bytes,
+        file_options={"content-type": "image/png", "x-upsert": "true"},
+    )
+    image_url = supabase.storage.from_("avatars").get_public_url(storage_path)
+
+    try:
+        prefix = encode_thumbnail_prefix(f"bento-{layout}", aspect_ratio)
+        supabase.table("generated_images").insert({
+            "id": card_id,
+            "user_id": current_user["id"],
+            "avatar_id": None,
+            "prompt": f"{prefix} [v{variant_index}] {headline.strip()[:80]}",
+            "image_url": image_url,
+            "storage_path": storage_path,
+        }).execute()
+    except Exception as db_err:
+        logger.error(f"history insert failed for bento {card_id}: {db_err}")
+
+    if not is_admin(current_user):
+        deduct_credits(
+            current_user["id"],
+            cost,
+            "bento_card",
+            f"Bento card {variant_index + 1}: {headline[:40]}",
+        )
+
+    return {
+        "status": "ok",
+        "card_id": card_id,
+        "image_url": image_url,
+        "variant_index": variant_index,
+        "layout": layout,
+        "aspect_ratio": aspect_ratio,
+        "credits_charged": 0 if is_admin(current_user) else cost,
+        "engine": "gemini-3-pro-image-preview",
+    }

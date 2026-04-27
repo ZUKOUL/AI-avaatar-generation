@@ -202,6 +202,15 @@ export const thumbnailAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   /**
+   * Single-shot Bento card generation — the third Thumbsy mode. Picks
+   * a different visual angle per `variant_index` so calling N times
+   * gives N distinct cards.
+   */
+  bentoGenerateDirect: (formData: FormData) =>
+    api.post("/thumbnail/generate-bento-direct", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  /**
    * Smart pack: hand over context, get N polished screenshots back. The
    * strategist writes the headlines, the image model renders. All five
    * frames in the conversion arc come back distinct — never N reskins
