@@ -66,6 +66,13 @@ interface Props {
    * mode to open (recreate vs. edit).
    */
   onReuseSource?: () => void;
+  /**
+   * Override the primary CTA's label. Defaults to "Use image" — the
+   * historical label for re-using the prompt of a generated thumbnail.
+   * Templates and curated inspirations override this to "Recréer" since
+   * there's no past prompt to "use", just a style to rebuild against.
+   */
+  primaryActionLabel?: string;
 }
 
 /**
@@ -120,6 +127,7 @@ export default function MediaDetailView({
   onEdit,
   onCreateVideo,
   onReuseSource,
+  primaryActionLabel,
 }: Props) {
   const [tab, setTab] = useState<"details" | "comments">("details");
   const [copied, setCopied] = useState(false);
@@ -533,7 +541,7 @@ export default function MediaDetailView({
               <PrimaryBtn onClick={onReusePrompt}>
                 <span className="flex items-center gap-2">
                   <CaretRight size={16} />
-                  Use image
+                  {primaryActionLabel || "Use image"}
                 </span>
                 <ChevronDown size={16} style={{ opacity: 0.6 }} />
               </PrimaryBtn>

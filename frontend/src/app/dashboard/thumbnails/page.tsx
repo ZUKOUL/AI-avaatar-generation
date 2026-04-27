@@ -672,18 +672,20 @@ export default function ThumbnailStudio() {
     setSourceNaturalSize(null);
   };
 
-  /* ─── Click-a-template-thumbnail → drop into Edit mode ───
-   * The MiniatureTemplatesGallery lives on the same route as the
-   * studio composer, so the prior `router.push('?ref=…')` strategy
-   * was a no-op (Next.js soft-navigates same-route pushes without
-   * re-mounting, and the URL-hydration `useEffect` has empty deps).
-   * Now we hand the gallery a callback: switch to Edit mode, pull
-   * the bytes, drop them in the source slot, then pop back to the
-   * gallery sub-tab + scroll up so the loaded thumbnail is visible
-   * in the composer immediately. */
+  /* ─── Click-a-template-thumbnail → preview drawer ───
+   * The gallery now opens the standard MediaDetailView slide-bar so
+   * the user can inspect the template before committing. The actual
+   * load-as-edit-source step happens when they click "Recréer" inside
+   * the drawer. Same UX shell as the history-item click flow on this
+   * page, ads, images, videos — one consistent "click an image →
+   * drawer" pattern across the app. */
+  const [previewedTemplate, setPreviewedTemplate] =
+    useState<{ url: string; slug: string } | null>(null);
+
   const loadTemplateAsEditSource = async (url: string) => {
     setMode("edit");
     setGallerySubTab("gallery");
+    setPreviewedTemplate(null);
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -4386,7 +4388,18 @@ export default function ThumbnailStudio() {
               Replaces the standalone /dashboard/thumbnails/inspiration
               page so users no longer have to leave Thumbsy. */}
           {gallerySubTab === "templates" && (
-            <MiniatureTemplatesGallery onPick={loadTemplateAsEditSource} />
+            <MiniatureTemplatesGallery
+              onPick={(url) => {
+                // Open the preview drawer instead of triggering the
+                // load directly — same "click an image → slide bar"
+                // pattern used everywhere else on the page (history,
+                // gallery, etc.). The `Recréer` action inside the
+                // drawer fires the actual loadTemplateAsEditSource.
+                const slug = url.split("/").pop()?.replace(/\.[^.]+$/, "") || "template";
+                setPreviewedTemplate({ url, slug });
+              }}
+              pinnedAnchorUrl={previewedTemplate?.url || null}
+            />
           )}
 
           {/* History — also visible during generation so the skeleton has a
@@ -4913,6 +4926,38 @@ export default function ThumbnailStudio() {
           />
         );
       })()}
+
+      {/* Template preview drawer — opens when the user clicks a card
+          in the MiniatureTemplatesGallery. Reuses the standard
+          MediaDetailView so the "click an image" UX is consistent
+          everywhere. The "Recréer" primary CTA fires the actual
+          load-as-Edit-source step. */}
+      {previewedTemplate && (
+        <MediaDetailView
+          item={{
+            id: previewedTemplate.slug,
+            type: "image",
+            url: previewedTemplate.url,
+            prompt: "",
+            created_at: "",
+            source_label: "Template miniature",
+          }}
+          primaryActionLabel="Recréer"
+          onClose={() => setPreviewedTemplate(null)}
+          onDownload={() => {
+            const a = document.createElement("a");
+            a.href = previewedTemplate.url;
+            a.download = `${previewedTemplate.slug}.jpg`;
+            a.click();
+          }}
+          onReusePrompt={() => {
+            // Primary CTA wired to the recreate flow: load the template
+            // as the Edit-mode source, scroll up to the composer, close
+            // the drawer.
+            void loadTemplateAsEditSource(previewedTemplate.url);
+          }}
+        />
+      )}
     </>
   );
 }

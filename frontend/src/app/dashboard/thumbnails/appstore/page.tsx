@@ -19,6 +19,7 @@ import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import { ArrowRight, ImageSquare, XIcon } from "@/components/Icons";
 import { thumbnailAPI } from "@/lib/api";
 import AppstoreInspoGallery from "@/components/studio/AppstoreInspoGallery";
+import MediaDetailView from "@/components/MediaDetailView";
 
 type Vertical =
   | "utility"
@@ -126,6 +127,11 @@ export default function AppStoreScreenshotStudio() {
   // random auto-injection. Hidden form chip when null — the gallery's
   // own click-to-pin hint banner does the framing.
   const [selectedInspoUrl, setSelectedInspoUrl] = useState<string | null>(null);
+
+  // Inspiration preview drawer — click on a card opens the standard
+  // MediaDetailView slide-bar, same as everywhere else in the app.
+  // The drawer's "Recréer" primary CTA pins the inspo as the anchor.
+  const [previewedInspoUrl, setPreviewedInspoUrl] = useState<string | null>(null);
 
   // Drag-overlay flag for the screenshot upload hero block. Toggled by
   // the dropzone's onDragEnter/Leave so we can paint the "drop to add"
@@ -1150,10 +1156,11 @@ export default function AppStoreScreenshotStudio() {
             <div className="mb-8">
               <AppstoreInspoGallery
                 onPickAnchor={(url) => {
-                  setSelectedInspoUrl(url);
-                  if (typeof window !== "undefined") {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }
+                  // Open the standard preview drawer instead of pinning
+                  // immediately — same "click an image → slide bar"
+                  // pattern as the rest of the app. Pinning happens
+                  // when the user clicks "Recréer" inside the drawer.
+                  setPreviewedInspoUrl(url);
                 }}
                 pinnedAnchorUrl={selectedInspoUrl}
               />
@@ -1319,6 +1326,36 @@ export default function AppStoreScreenshotStudio() {
         </div>
       </div>
 
+      {/* Inspiration preview drawer — universal "click an image →
+          slide bar" pattern. The "Recréer" primary CTA pins this
+          inspo as the dominant style anchor for the next generation. */}
+      {previewedInspoUrl && (
+        <MediaDetailView
+          item={{
+            id: previewedInspoUrl,
+            type: "image",
+            url: previewedInspoUrl,
+            prompt: "",
+            created_at: "",
+            source_label: "Inspiration App Store",
+          }}
+          primaryActionLabel="Recréer"
+          onClose={() => setPreviewedInspoUrl(null)}
+          onDownload={() => {
+            const a = document.createElement("a");
+            a.href = previewedInspoUrl;
+            a.download = "inspiration.jpg";
+            a.click();
+          }}
+          onReusePrompt={() => {
+            setSelectedInspoUrl(previewedInspoUrl);
+            setPreviewedInspoUrl(null);
+            if (typeof window !== "undefined") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+        />
+      )}
     </>
   );
 }

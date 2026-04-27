@@ -28,6 +28,7 @@ import { thumbnailAPI } from "@/lib/api";
 import Composer, { ComposerTool } from "@/components/studio/Composer";
 import HeroExamples, { ExampleCard } from "@/components/studio/HeroExamples";
 import ResultsGrid from "@/components/studio/ResultsGrid";
+import MediaDetailView from "@/components/MediaDetailView";
 
 // Same env-var fallback chain as `lib/api.ts` so static template paths
 // resolve identically across dev / preview / prod.
@@ -124,6 +125,15 @@ export default function BentoCardStudio() {
   const [heroExamples, setHeroExamples] = useState<ExampleCard[]>([]);
   const [heroLoading, setHeroLoading] = useState(true);
 
+  // History — every bento card the user has generated in the past,
+  // fetched from `/thumbnail/history` and filtered by the bento mode
+  // prefix. Lives in a strip below the composer so the user can scroll
+  // through their previous work without leaving the studio.
+  const [bentoHistory, setBentoHistory] = useState<
+    { id: string; url: string; prompt?: string }[]
+  >([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<Generated[]>([]);
@@ -137,6 +147,13 @@ export default function BentoCardStudio() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [activeStyleTab, setActiveStyleTab] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
+
+  // Template preview drawer — opens when the user clicks a card in the
+  // gallery modal. Same "click an image → MediaDetailView slide-bar"
+  // pattern as YouTube + App Store. The drawer's "Recréer" CTA is what
+  // pins the template as the style anchor.
+  const [previewedBentoTemplate, setPreviewedBentoTemplate] =
+    useState<TemplateItem | null>(null);
 
   const aspect = ASPECT_PRESETS.find((a) => a.key === aspectKey)!;
 
@@ -545,10 +562,50 @@ export default function BentoCardStudio() {
           activeStyleTab={activeStyleTab}
           onTabChange={setActiveStyleTab}
           onPick={(t) => {
-            setSelectedTemplate(t);
-            setGalleryOpen(false);
+            // Open the standard preview drawer instead of pinning
+            // immediately — same "click an image → slide bar" pattern
+            // as everywhere else on the app. The actual pin happens
+            // when the user clicks "Recréer" inside the drawer.
+            setPreviewedBentoTemplate(t);
           }}
           onClose={() => setGalleryOpen(false)}
+        />
+      )}
+
+      {/* Bento template preview drawer — universal MediaDetailView. */}
+      {previewedBentoTemplate && (
+        <MediaDetailView
+          item={{
+            id: previewedBentoTemplate.slug,
+            type: "image",
+            url: previewedBentoTemplate.url.startsWith("http")
+              ? previewedBentoTemplate.url
+              : `${API_BASE}${previewedBentoTemplate.url}`,
+            prompt: "",
+            created_at: "",
+            source_label: "Template bento",
+          }}
+          primaryActionLabel="Recréer"
+          onClose={() => setPreviewedBentoTemplate(null)}
+          onDownload={() => {
+            const a = document.createElement("a");
+            a.href = previewedBentoTemplate.url.startsWith("http")
+              ? previewedBentoTemplate.url
+              : `${API_BASE}${previewedBentoTemplate.url}`;
+            a.download = `${previewedBentoTemplate.slug}.jpg`;
+            a.click();
+          }}
+          onReusePrompt={() => {
+            // Pin as style anchor + close both drawer and gallery
+            // modal so the user lands back in the composer with the
+            // chip visible at the top.
+            setSelectedTemplate(previewedBentoTemplate);
+            setPreviewedBentoTemplate(null);
+            setGalleryOpen(false);
+            if (typeof window !== "undefined") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
         />
       )}
     </>
