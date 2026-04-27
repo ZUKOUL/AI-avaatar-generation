@@ -454,10 +454,26 @@ aside, header, main, div, button, a, input, textarea {
   --glow-bento: rgba(57, 220, 180, 0.12);
 }
 
-/* Variants — apply alongside `studio-mint-glow` to override the tint. */
-.studio-mint-glow.glow-thumb { --studio-glow-color: var(--glow-thumb); }
-.studio-mint-glow.glow-appstore { --studio-glow-color: var(--glow-appstore); }
-.studio-mint-glow.glow-bento { --studio-glow-color: var(--glow-bento); }
+/* Variants — apply alongside `studio-mint-glow` to override the tint.
+   Each variant ALSO sets the composer's focus colour so the focused
+   border + halo match the page's bottom-glow tint. Cascade: these
+   classes live on the page wrapper, the .composer-panel below
+   inherits via CSS variable. */
+.studio-mint-glow.glow-thumb {
+  --studio-glow-color: var(--glow-thumb);
+  --composer-border-focus: rgba(255, 90, 80, 0.55);
+  --composer-glow: rgba(255, 90, 80, 0.18);
+}
+.studio-mint-glow.glow-appstore {
+  --studio-glow-color: var(--glow-appstore);
+  --composer-border-focus: rgba(56, 138, 255, 0.55);
+  --composer-glow: rgba(56, 138, 255, 0.16);
+}
+.studio-mint-glow.glow-bento {
+  --studio-glow-color: var(--glow-bento);
+  --composer-border-focus: rgba(57, 220, 180, 0.55);
+  --composer-glow: rgba(57, 220, 180, 0.14);
+}
 
 .studio-content {
   position: relative;
