@@ -3020,7 +3020,7 @@ export default function ThumbnailStudio() {
           the bottom of the viewport. Both classes wrap the entire content
           area so every page (Prompt / Recreate / Edit / Title) shares the
           identity. studio-content sits above the glow. */}
-      <div className="flex-1 overflow-y-auto studio-dot-grid studio-mint-glow">
+      <div className="flex-1 overflow-y-auto studio-dot-grid studio-mint-glow glow-thumb">
         <div className="studio-content max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-10">
           <ThumbsModeTabs />
           {/* Title */}

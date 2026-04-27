@@ -379,7 +379,7 @@ export default function BentoCardStudio() {
   return (
     <>
       <Header title="Thumbs" subtitle="Bento cards qui convertissent — Linear / Vercel / Notion DNA" />
-      <div className="flex-1 overflow-y-auto studio-dot-grid studio-mint-glow">
+      <div className="flex-1 overflow-y-auto studio-dot-grid studio-mint-glow glow-bento">
         <div
           className="studio-content max-w-[1100px] mx-auto px-4 md:px-6 py-6 md:py-10 flex flex-col"
           style={{ minHeight: "calc(100vh - 56px)" }}

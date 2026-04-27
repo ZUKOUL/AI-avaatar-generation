@@ -80,83 +80,106 @@ function pickActiveHref(pathname: string | null): string | null {
   return best?.href ?? null;
 }
 
+// Per-mode accent colour used for the active pill — matches the page's
+// bottom-glow tint so the user always feels which sub-tool they're in.
+const TINT_BY_HREF: Record<string, { bg: string; border: string; text: string; glow: string }> = {
+  "/dashboard/thumbnails": {
+    bg: "linear-gradient(180deg, rgba(255,140,120,0.18) 0%, rgba(255,90,80,0.12) 100%)",
+    border: "rgba(255, 90, 80, 0.55)",
+    text: "#FFB3A8",
+    glow: "rgba(255, 90, 80, 0.35)",
+  },
+  "/dashboard/thumbnails/appstore": {
+    bg: "linear-gradient(180deg, rgba(110,170,255,0.18) 0%, rgba(56,138,255,0.12) 100%)",
+    border: "rgba(56, 138, 255, 0.55)",
+    text: "#9CC2FF",
+    glow: "rgba(56, 138, 255, 0.35)",
+  },
+  "/dashboard/thumbnails/bento": {
+    bg: "linear-gradient(180deg, rgba(110,235,200,0.18) 0%, rgba(57,220,180,0.12) 100%)",
+    border: "rgba(57, 220, 180, 0.55)",
+    text: "#9CECCC",
+    glow: "rgba(57, 220, 180, 0.35)",
+  },
+};
+
 export default function ThumbsModeTabs() {
   const pathname = usePathname();
   const activeHref = pickActiveHref(pathname);
   return (
-    <div
-      className="flex items-stretch gap-2 mb-6 flex-wrap"
-      style={{ rowGap: 8 }}
-    >
+    <div className="flex items-center gap-2 mb-6 flex-wrap" style={{ rowGap: 8 }}>
       {MODES.map((m) => {
         const active = m.href === activeHref;
+        const tint = TINT_BY_HREF[m.href];
         return (
           <Link
             key={m.href}
             href={m.href}
-            className="rounded-xl px-4 py-3 transition-all flex items-center gap-3 min-w-[260px]"
+            className="transition-all flex items-center gap-2 rounded-full"
+            aria-current={active ? "page" : undefined}
             style={{
+              padding: "8px 16px 8px 8px",
               background: active
-                ? "var(--bg-secondary)"
-                : "transparent",
-              border: active
-                ? "1px solid var(--border-color)"
-                : "1px solid transparent",
-              color: active ? "var(--text-primary)" : "var(--text-secondary)",
-              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
-              flex: "1 1 260px",
+                ? tint?.bg || "var(--bg-secondary)"
+                : "var(--bg-secondary)",
+              border:
+                "1px solid " +
+                (active ? tint?.border || "var(--border-color)" : "var(--border-color)"),
+              color: active
+                ? tint?.text || "var(--text-primary)"
+                : "var(--text-secondary)",
+              // The "3D pill" — inset highlight + soft outer glow when
+              // active. Matches the Pikzels capsule treatment the user
+              // referenced. Inactive pills stay flat for contrast.
+              boxShadow: active
+                ? `inset 0 1px 0 rgba(255,255,255,0.10), 0 0 0 1px ${tint?.glow || "transparent"}, 0 8px 24px -6px ${tint?.glow || "transparent"}`
+                : "inset 0 1px 0 rgba(255,255,255,0.04)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
             }}
           >
-            <div
+            <span
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: active ? "var(--bg-tertiary, #f3f4f6)" : "transparent",
-                border: "1px solid var(--border-color)",
+                width: 26,
+                height: 26,
+                borderRadius: 999,
+                background: active
+                  ? "rgba(0,0,0,0.25)"
+                  : "var(--bg-primary)",
+                border:
+                  "1px solid " +
+                  (active ? "rgba(255,255,255,0.15)" : "var(--border-color)"),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "var(--text-primary)",
+                color: active ? tint?.text || "var(--text-primary)" : "var(--text-primary)",
                 flexShrink: 0,
               }}
             >
               {m.icon}
-            </div>
-            <div className="min-w-0 text-left">
-              <div className="flex items-center gap-2">
-                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{m.label}</span>
-                {m.badge && (
-                  <span
-                    style={{
-                      fontSize: 9.5,
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: "rgba(59,130,246,0.15)",
-                      color: "#3b82f6",
-                      border: "1px solid rgba(59,130,246,0.3)",
-                    }}
-                  >
-                    {m.badge}
-                  </span>
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-tertiary, #9ca3af)",
-                  marginTop: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {m.caption}
-              </div>
-            </div>
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {m.label}
+              {m.badge && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "currentColor",
+                  }}
+                >
+                  {m.badge}
+                </span>
+              )}
+            </span>
           </Link>
         );
       })}

@@ -295,12 +295,29 @@ aside, header, main, div, button, a, input, textarea {
 [data-theme="dark"] {
   --studio-dot-color: rgba(255, 255, 255, 0.06);
   --studio-glow-color: rgba(57, 220, 180, 0.16);
+  /* Per-tool glow tints — each Thumbs sub-mode gets its own brand
+     colour at the bottom-glow so the user feels which mode they're
+     in even at a glance. Adapted from real product palettes:
+       - thumb (YouTube) → warm coral/orange (YouTube energy)
+       - appstore (iOS)  → cool electric blue (App Store badge)
+       - bento           → mint (default — the brand) */
+  --glow-thumb: rgba(255, 90, 80, 0.22);   /* YouTube coral */
+  --glow-appstore: rgba(56, 138, 255, 0.20); /* iOS electric blue */
+  --glow-bento: rgba(57, 220, 180, 0.18);  /* Mint */
 }
 
 [data-theme="light"] {
   --studio-dot-color: rgba(0, 0, 0, 0.07);
   --studio-glow-color: rgba(57, 220, 180, 0.10);
+  --glow-thumb: rgba(255, 90, 80, 0.14);
+  --glow-appstore: rgba(56, 138, 255, 0.12);
+  --glow-bento: rgba(57, 220, 180, 0.12);
 }
+
+/* Variants — apply alongside `studio-mint-glow` to override the tint. */
+.studio-mint-glow.glow-thumb { --studio-glow-color: var(--glow-thumb); }
+.studio-mint-glow.glow-appstore { --studio-glow-color: var(--glow-appstore); }
+.studio-mint-glow.glow-bento { --studio-glow-color: var(--glow-bento); }
 
 .studio-content {
   position: relative;
