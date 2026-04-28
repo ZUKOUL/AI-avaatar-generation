@@ -29,6 +29,7 @@ import Composer, { ComposerTool } from "@/components/studio/Composer";
 import HeroExamples, { ExampleCard } from "@/components/studio/HeroExamples";
 import ResultsGrid from "@/components/studio/ResultsGrid";
 import MediaDetailView from "@/components/MediaDetailView";
+import BentoTemplatesGallery from "@/components/studio/BentoTemplatesGallery";
 
 // Same env-var fallback chain as `lib/api.ts` so static template paths
 // resolve identically across dev / preview / prod.
@@ -125,14 +126,13 @@ export default function BentoCardStudio() {
   const [heroExamples, setHeroExamples] = useState<ExampleCard[]>([]);
   const [heroLoading, setHeroLoading] = useState(true);
 
-  // History — every bento card the user has generated in the past,
-  // fetched from `/thumbnail/history` and filtered by the bento mode
-  // prefix. Lives in a strip below the composer so the user can scroll
-  // through their previous work without leaving the studio.
-  const [bentoHistory, setBentoHistory] = useState<
-    { id: string; url: string; prompt?: string }[]
-  >([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
+  // Bottom sub-tab — same Galerie / Templates capsule pattern as the
+  // YouTube + App Store studios. Lives below the composer; scrolling
+  // down past the sticky composer reveals it. Default "templates" so
+  // the curated bento library is immediately discoverable on entry.
+  const [bottomSubTab, setBottomSubTab] = useState<"gallery" | "templates">(
+    "templates",
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -525,6 +525,99 @@ export default function BentoCardStudio() {
               countLabel={`${numVariants}×`}
             />
           </div>
+
+          {/* Bottom sub-tabs — same Galerie / Templates capsule as the
+              YouTube + App Store studios. The page extends past 100vh
+              so this section is reached by scrolling down past the
+              sticky composer. */}
+          <div className="flex justify-center mt-12 mb-4">
+            <div className="tab-group-pill">
+              <button
+                type="button"
+                onClick={() => setBottomSubTab("gallery")}
+                aria-pressed={bottomSubTab === "gallery"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (bottomSubTab === "gallery" ? "btn-premium-bento" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border: bottomSubTab === "gallery" ? undefined : "1px solid transparent",
+                }}
+              >
+                Galerie
+              </button>
+              <button
+                type="button"
+                onClick={() => setBottomSubTab("templates")}
+                aria-pressed={bottomSubTab === "templates"}
+                className={
+                  "flex items-center gap-2 rounded-full " +
+                  (bottomSubTab === "templates" ? "btn-premium-bento" : "tab-pill-rest")
+                }
+                style={{
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  border: bottomSubTab === "templates" ? undefined : "1px solid transparent",
+                }}
+              >
+                Templates
+              </button>
+            </div>
+          </div>
+
+          {bottomSubTab === "templates" && (
+            <div className="mb-8">
+              <BentoTemplatesGallery
+                onPick={(url) => {
+                  // Same drawer pattern as everywhere else: the click
+                  // opens the standard MediaDetailView, "Recréer" pins.
+                  // We rebuild a TemplateItem from the URL so the
+                  // existing previewedBentoTemplate plumbing works
+                  // unchanged (the slug is just an identifier — we
+                  // recover it from the URL's filename).
+                  const slug = url.split("/").pop()?.replace(/\.[^.]+$/, "") || "template";
+                  setPreviewedBentoTemplate({
+                    slug,
+                    path: url,
+                    url,
+                  });
+                }}
+                pinnedAnchorUrl={
+                  selectedTemplate
+                    ? selectedTemplate.url.startsWith("http")
+                      ? selectedTemplate.url
+                      : `${API_BASE}${selectedTemplate.url}`
+                    : null
+                }
+              />
+            </div>
+          )}
+
+          {bottomSubTab === "gallery" && (
+            <div
+              className="mb-8 rounded-2xl px-6 py-14 text-center flex flex-col items-center gap-3"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px dashed var(--border-color)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                Tes cards générées apparaîtront ici
+              </div>
+              <div style={{ fontSize: 12.5, maxWidth: 480, lineHeight: 1.5 }}>
+                Décris ton produit dans le composer ci-dessus pour
+                générer ta première bento card. L&apos;historique
+                complet s&apos;archive automatiquement.
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
