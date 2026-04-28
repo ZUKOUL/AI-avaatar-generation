@@ -2091,6 +2091,7 @@ def _compose_appstore_screen_prompt(
     has_real_ui: bool,
     has_brand_logo: bool,
     style_anchor_summary: Optional[str],
+    template_strict_mode: bool = False,
 ) -> str:
     """
     Build the Gemini Image text prompt for one screenshot.
@@ -2104,11 +2105,103 @@ def _compose_appstore_screen_prompt(
 
     Falls back to the older synthesised prompt if the strategist didn't
     return a render_prompt for backwards compatibility.
+
+    `template_strict_mode` swaps to a much more directive prompt that
+    treats the FIRST attached image as a near-pixel-faithful template
+    rather than a vague style hint. Used when the user pinned a
+    specific inspiration screenshot — they want THAT layout, not
+    "something inspired by it". The strategist's render_prompt is
+    bypassed in this mode because it might conflict with the template
+    (e.g. strategist says "abstract gradient" while template has a
+    concrete photo). Only the headlines + colours + UI ref survive.
     """
     headline = screen["headline"]
     sub = screen.get("subheadline") or ""
     render_body = (screen.get("render_prompt") or "").strip()
 
+    # ── TEMPLATE STRICT MODE ──────────────────────────────────────────
+    # User pinned a specific inspiration screenshot → treat it as a
+    # template to swap content into, not a style hint. Build a short,
+    # directive prompt that maps explicitly to the swap operation.
+    if template_strict_mode:
+        sub_swap = (
+            f'\n- The SUBHEADLINE → render exactly: "{sub}"' if sub else ""
+        )
+        ui_swap = (
+            "\n- The phone mockup’s screen content → reflect the user’s "
+            "real app UI (uploaded as additional refs), keep it on-brand"
+            if has_real_ui
+            else "\n- The phone mockup’s screen content → keep abstract "
+            "(gradient or single iconic illustration), never invent fake UI"
+        )
+        accent = (
+            f"\n- The brand accent colour → {color_primary}"
+            if color_primary
+            else ""
+        )
+        icon_note = (
+            "\n- If an icon element appears, reproduce the user’s app icon "
+            "(uploaded as a square ref) faithfully — do NOT redesign it."
+            if has_brand_logo
+            else ""
+        )
+
+        prompt_parts = [
+            f'App Store screenshot for the app "{app_name}".',
+            f"Funnel role: {screen['purpose'].upper().replace('_', ' ')}.",
+            "",
+            "TEMPLATE EDITING MODE — the FIRST attached image is your "
+            "design template. It is typically a triptych mosaic of 3 App "
+            "Store screenshots stitched horizontally. Pick the most "
+            "visually prominent phone in that mosaic (usually the centre "
+            "one, or whichever has the cleanest headline) and reproduce "
+            "its visual language IN A SINGLE PORTRAIT CANVAS.",
+            "",
+            "REPRODUCE PIXEL-CLOSE from the template:",
+            "- Background palette and gradient direction",
+            "- Typography weight, size hierarchy, and overall feel",
+            "- Mockup framing (perspective tilt, shadow, rotation, where "
+            "  the phone sits inside the canvas)",
+            "- Composition layout (headline position vs mockup position, "
+            "  ratio of text area to mockup area)",
+            "- Iconography style (3D vs flat, illustrative accents, "
+            "  decorative shapes around the headline)",
+            "",
+            "ONLY CHANGE THESE ELEMENTS:",
+            f'- The HEADLINE TEXT → render exactly: "{headline}"'
+            + sub_swap
+            + ui_swap
+            + accent
+            + icon_note,
+            "",
+            "Do NOT generate from scratch. Treat the template as an "
+            "authoritative layout — your output should immediately read "
+            "as “the same designer made this, just with the user’s app "
+            "swapped in”. Do NOT output the full triptych — output a "
+            "SINGLE portrait composition matching the chosen phone’s style.",
+        ]
+        prompt_parts += [
+            "",
+            "HARD RULES (override anything above if conflicting):",
+            f'- Render the HEADLINE exactly as: "{headline}". No paraphrase, '
+            "no abbreviation, no capitalisation change, no added punctuation. "
+            "Keep accents and special characters as-is.",
+        ]
+        if sub:
+            prompt_parts.append(f'- Render the SUBHEADLINE exactly as: "{sub}".')
+        prompt_parts += [
+            "- The headline is the dominant typographic element. Highest "
+            "  contrast. Sharp, kerned tightly, premium typography quality.",
+            "- No App Store / Play Store badge, no Apple/Google logos, no "
+            "  rating stars unless the template clearly shows them.",
+            "- No mock OS-level clock / battery / wifi indicators OUTSIDE "
+            "  the actual rendered phone status bar.",
+            "- Output a single 9:16 vertical image, full bleed, ready for "
+            "  App Store / Play Store screenshot upload.",
+        ]
+        return "\n".join(prompt_parts)
+
+    # ── DEFAULT MODE (heuristic pack anchor or no anchor) ────────────
     preamble = [
         f"App Store screenshot {screen['screen']} for the app \"{app_name}\".",
         f"Funnel role: {screen['purpose'].upper().replace('_', ' ')}.",
@@ -3087,6 +3180,7 @@ async def _render_pack_screen(
     user_id: str,
     pack_id: str,
     workspace_id: Optional[str] = None,
+    template_strict_mode: bool = False,
 ) -> Optional[dict]:
     """Render one screen in a thread pool. Returns {url, headline, purpose, screen_index} or None on error."""
     try:
@@ -3098,6 +3192,7 @@ async def _render_pack_screen(
             has_real_ui=has_real_ui,
             has_brand_logo=has_brand_logo,
             style_anchor_summary=style_anchor_summary,
+            template_strict_mode=template_strict_mode,
         )
         contents: list = []
         for ref in anchor_ref_bytes:
@@ -3341,6 +3436,11 @@ async def generate_appstore_pack_smart(
     # Fire all image generations in parallel — ~3-4× faster than sequential
     # for 5 variants. asyncio.to_thread inside _render_pack_screen wraps
     # the blocking SDK calls so they don't block the event loop.
+    # Template-strict mode: when the user pinned a specific inspo URL,
+    # the renderer treats that image as a near-pixel-faithful template
+    # to swap content into, not a vague style hint. Driven by whether
+    # we resolved any inspo bytes earlier in this handler.
+    template_strict = bool(inspo_anchor_bytes)
     tasks = [
         _render_pack_screen(
             client=client,
@@ -3358,6 +3458,7 @@ async def generate_appstore_pack_smart(
             user_id=current_user["id"],
             pack_id=pack_id,
             workspace_id=workspace_id,
+            template_strict_mode=template_strict,
         )
         for s in screens_to_render
     ]
