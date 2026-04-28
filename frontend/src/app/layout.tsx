@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import { LayoutProvider } from "@/lib/layout";
 
-const manrope = Manrope({
+// Plus Jakarta Sans — closest free Google Fonts alternative to Codec
+// Pro (the Zetafonts geometric sans used by reference designs like
+// clickway.fr). Same modern feel: humanist proportions, rounded
+// terminals, very assertive at Bold/ExtraBold for landing-page
+// headlines. We keep the CSS variable name `--font-manrope` for
+// backwards-compat with any existing CSS that already references it
+// — only the loaded family changes.
+const display = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-manrope",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -21,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`h-full ${manrope.variable}`} data-theme="dark" suppressHydrationWarning>
+    <html lang="en" className={`h-full ${display.variable}`} data-theme="dark" suppressHydrationWarning>
       <head>
         {/* Prevent flash: set theme before React hydrates */}
         <script
