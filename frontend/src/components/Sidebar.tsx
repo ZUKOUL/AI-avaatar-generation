@@ -1174,18 +1174,17 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* ── Studios : single-column vertical stack of icon-only
-            tiles, exactly like the leftmost rail in Taskk. The
-            tiles are square (40×40), centred, with a tooltip on
-            hover so the user gets the studio name without giving
-            up the rail's compactness. Active tile gets a brand-
-            colour ring + faint glow so the current studio is
-            visible at a glance even at icon-size. ── */}
+      {/* ── Studios : pill rows full-width, left-aligned, exactly
+            comme la première itération qui marchait bien. Chaque
+            row = [tile embossé avec logo coloré][nom du studio].
+            Active state lifte tout le pill via .sidebar-pill[data-
+            active="true"] et ajoute un ring brand-colored sur la
+            tuile interne. Pas de stack centré flottant. ── */}
       {!collapsed && (
         <div className="sidebar-section-label">Studios</div>
       )}
       <nav className={collapsed ? "px-2 pb-2" : "px-3 pb-2"}>
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col gap-0.5">
           {PRODUCTS.map((p) => {
             const routes = PRODUCT_APP_ROUTES[p.slug];
             const isActive = routes.paths.some(
@@ -1200,25 +1199,30 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHovered(p.slug)}
                 onMouseLeave={() => setHovered(null)}
-                className="sidebar-rail-tile"
+                className="sidebar-pill"
                 data-active={isActive ? "true" : "false"}
-                style={
-                  isActive
-                    ? {
-                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1.5px ${p.color}99, 0 2px 6px ${p.color}33, 0 1px 2px rgba(0,0,0,0.25)`,
-                      }
-                    : undefined
-                }
+                data-collapsed={collapsed ? "true" : "false"}
               >
-                <Product3DLogo product={p} size={20} glow={false} />
+                <span
+                  className="sidebar-tile"
+                  style={
+                    isActive
+                      ? {
+                          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1.5px ${p.color}99, 0 2px 6px ${p.color}33, 0 1px 2px rgba(0,0,0,0.25)`,
+                        }
+                      : undefined
+                  }
+                >
+                  <Product3DLogo product={p} size={18} glow={false} />
+                </span>
+                <span className="sidebar-pill-label">{p.name}</span>
               </Link>
             );
           })}
         </div>
       </nav>
 
-      {/* Soft horizontal divider — same Taskk treatment between the
-          studios stack and the system nav block below. */}
+      {/* Soft horizontal divider entre studios et le bloc nav système. */}
       <div className="sidebar-rail-divider" />
 
       {/* ── Main nav ── */}
