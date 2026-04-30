@@ -1238,21 +1238,16 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* ── Product tiles : single horizontal row in expanded mode,
-            stacked vertically when collapsed. Empty space between tiles
-            intentionally lets clicks bubble up so the collapsed
-            sidebar can reopen — interactive children stop propagation
-            individually. ── */}
-      <div className={collapsed ? "px-2 pb-3" : "px-4 pb-1"}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: collapsed ? "column" : "row",
-            alignItems: "center",
-            gap: collapsed ? 8 : 6,
-            flexWrap: collapsed ? "nowrap" : "nowrap",
-          }}
-        >
+      {/* ── Studios : vertical list of rows. Each row = a colored
+            mini-app logo (icon-size, 18px) sitting inside a small
+            embossed tile, plus the studio name. Active state lifts
+            the whole row via the .sidebar-pill embossed treatment.
+            Collapsed rail strips the label and centres the tile. ── */}
+      {!collapsed && (
+        <div className="sidebar-section-label">Studios</div>
+      )}
+      <nav className={collapsed ? "px-2 pb-2" : "px-3 pb-2"}>
+        <div className="flex flex-col gap-0.5">
           {PRODUCTS.map((p) => {
             const routes = PRODUCT_APP_ROUTES[p.slug];
             const isActive = routes.paths.some(
@@ -1266,69 +1261,32 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHovered(p.slug)}
                 onMouseLeave={() => setHovered(null)}
-                className="relative flex items-center justify-center rounded-xl transition-all"
-                style={{
-                  width: collapsed ? 40 : "100%",
-                  aspectRatio: "1",
-                  flex: collapsed ? undefined : "1 1 0",
-                  background: isActive
-                    ? `linear-gradient(145deg, ${p.color}30, ${p.color}10)`
-                    : "rgba(255,255,255,0.02)",
-                  border: isActive
-                    ? `1.5px solid ${p.color}aa`
-                    : "1px solid rgba(255,255,255,0.05)",
-                  // Bigger colored halo — the chip below is gone so the
-                  // glow is now the ONLY "you are here" indicator.
-                  boxShadow: isActive
-                    ? `0 0 28px 2px ${p.color}66, 0 0 10px ${p.color}80, inset 0 1px 0 rgba(255,255,255,0.12)`
-                    : "none",
-                }}
-                onMouseDown={(e) => {
-                  e.currentTarget.style.transform = "scale(0.96)";
-                }}
-                onMouseUp={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
+                className="sidebar-pill"
+                data-active={isActive ? "true" : "false"}
+                data-collapsed={collapsed ? "true" : "false"}
               >
-                <Product3DLogo
-                  product={p}
-                  size={collapsed ? 28 : 30}
-                  glow={false}
-                />
+                <span
+                  className="sidebar-tile"
+                  style={
+                    isActive
+                      ? {
+                          // Subtle accent ring tinted by the studio's
+                          // brand colour when the row is active. Keeps
+                          // the row clearly identifiable beyond just
+                          // the embossed pill state.
+                          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px ${p.color}55, 0 1px 2px rgba(0,0,0,0.25)`,
+                        }
+                      : undefined
+                  }
+                >
+                  <Product3DLogo product={p} size={18} glow={false} />
+                </span>
+                <span className="sidebar-pill-label">{p.name}</span>
               </Link>
             );
           })}
         </div>
-
-        {/* Hovered-only chip — when a product is actually ACTIVE
-            (user is on its page) we rely on the colored glow around
-            the tile, no chip needed. The chip only surfaces on hover
-            so unfamiliar logos stay discoverable. */}
-        {!collapsed && hoveredProduct && (
-          <div
-            key={hoveredProduct.slug /* re-render per product to restart fade */}
-            className="mt-3 mx-auto inline-flex items-center px-2.5 py-1.5 rounded-lg"
-            style={{
-              background: "rgba(15,15,20,0.85)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
-              backdropFilter: "blur(6px)",
-              animation: "sidebar-chip-in 0.25s ease-out forwards",
-            }}
-          >
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
-              {hoveredProduct.name}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <style jsx global>{`
-        @keyframes sidebar-chip-in {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      </nav>
 
       {/* ── Main nav ── */}
       <nav
@@ -1339,6 +1297,11 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             const Icon = item.icon;
             const isActive = pathname === item.href;
             const isSearchRow = item.label === "Search…";
+            // Same .sidebar-pill embossed treatment as the studio rows
+            // above. Renders an icon-sized tile around the lucide
+            // glyph so the nav is visually homogeneous: every row is
+            // [tile][label], regardless of whether the tile holds a
+            // colored Product3DLogo or a monochrome system icon.
             const rowLink = (
               <Link
                 href={item.href}
@@ -1349,29 +1312,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                     item.action();
                   }
                 }}
-                className="flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors flex-1 min-w-0"
-                style={{
-                  color: isActive ? "#f3f4f6" : "#9ca3af",
-                  background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
-                  justifyContent: collapsed ? "center" : "flex-start",
-                  fontSize: 13.5,
-                  fontWeight: isActive ? 600 : 500,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                    e.currentTarget.style.color = "#e5e7eb";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "#9ca3af";
-                  }
-                }}
+                className="sidebar-pill"
+                data-active={isActive ? "true" : "false"}
+                data-collapsed={collapsed ? "true" : "false"}
+                style={{ flex: "1 1 auto" }}
               >
-                <Icon size={16} />
-                {!collapsed && <span className="flex-1">{item.label}</span>}
+                <span className="sidebar-tile">
+                  <Icon size={14} />
+                </span>
+                <span className="sidebar-pill-label">{item.label}</span>
               </Link>
             );
 
@@ -2177,14 +2126,19 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     </>
   );
 
-  // Dark theme + radial tint driven by the active / hovered product.
+  // Theme-aware rail background. The radial halo at the top is tinted
+  // by the active/hovered product's brand colour (so the sidebar feels
+  // alive when the user navigates between studios), then we layer it
+  // over `--bg-secondary` so light + dark both inherit cleanly. The
+  // previous implementation was hardcoded dark (#0a0b14 → #040510) and
+  // the user asked for the new visual to apply in light mode too.
   const darkBg: React.CSSProperties = {
     background: `
       radial-gradient(140% 45% at 50% 0%, ${tintColor}1c 0%, transparent 55%),
-      linear-gradient(180deg, #0a0b14 0%, #070810 50%, #040510 100%)
+      var(--bg-secondary)
     `,
-    color: "#e5e7eb",
-    borderRight: "1px solid rgba(255,255,255,0.06)",
+    color: "var(--text-primary)",
+    borderRight: "1px solid var(--border-color)",
     transition: "background 0.5s ease, width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   };
 

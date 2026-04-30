@@ -48,6 +48,28 @@
   --skeleton-fill-mid: rgba(59, 130, 246, 0.08);
   --skeleton-fill-end: rgba(59, 130, 246, 0.02);
   --skeleton-wave: rgba(59, 130, 246, 0.12);
+
+  /* Sidebar embossed pill — Taskk-style 3D rows. The active state
+     gets a top-edge white highlight + a soft inset bottom shadow so
+     each row sits "raised" off the rail. The tile around brand
+     icons gets the same treatment in miniature. */
+  --pill-rest-bg: transparent;
+  --pill-hover-bg: rgba(255, 255, 255, 0.04);
+  --pill-active-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
+  --pill-active-border: rgba(255, 255, 255, 0.10);
+  --pill-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.30),
+    0 1px 2px rgba(0, 0, 0, 0.30);
+  --tile-rest-bg: rgba(255, 255, 255, 0.03);
+  --tile-rest-border: rgba(255, 255, 255, 0.06);
+  --tile-rest-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --tile-active-bg: rgba(255, 255, 255, 0.07);
+  --tile-active-border: rgba(255, 255, 255, 0.12);
+  --tile-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 /* ===== LIGHT THEME ===== */
@@ -96,6 +118,29 @@
   --skeleton-fill-mid: rgba(59, 130, 246, 0.06);
   --skeleton-fill-end: rgba(59, 130, 246, 0.01);
   --skeleton-wave: rgba(59, 130, 246, 0.1);
+
+  /* Sidebar embossed pill — light theme. Same depth recipe as dark
+     but flipped (white-paper top highlight + faint dark drop) so the
+     active row reads as a raised "card" on the off-white rail. */
+  --pill-rest-bg: transparent;
+  --pill-hover-bg: rgba(0, 0, 0, 0.04);
+  --pill-active-bg:
+    linear-gradient(180deg, #ffffff 0%, #f3f3f5 100%);
+  --pill-active-border: rgba(0, 0, 0, 0.08);
+  --pill-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  --tile-rest-bg: #ffffff;
+  --tile-rest-border: rgba(0, 0, 0, 0.06);
+  --tile-rest-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  --tile-active-bg: #ffffff;
+  --tile-active-border: rgba(0, 0, 0, 0.10);
+  --tile-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 @theme inline {
@@ -118,6 +163,98 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 100px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ===== Sidebar embossed pill — Taskk-inspired nav rows =====
+   Single class drives idle / hover / active states via [data-active]
+   so the parent component just toggles one attribute. The active
+   variant carries the embossed look (top highlight + bottom shadow
+   + thin border) that reads as "this row is raised off the rail".
+   Both themes resolve via tokens so light + dark inherit cleanly. */
+.sidebar-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--pill-rest-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  width: 100%;
+  min-width: 0;
+}
+.sidebar-pill:hover {
+  background: var(--pill-hover-bg);
+  color: var(--text-primary);
+}
+.sidebar-pill[data-active="true"],
+.sidebar-pill.is-active {
+  background: var(--pill-active-bg);
+  border-color: var(--pill-active-border);
+  box-shadow: var(--pill-active-shadow);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.sidebar-pill > .sidebar-pill-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Square brand-icon container — sits inside a sidebar-pill, holds a
+   colored Product3DLogo at icon-size (18-20px). The container itself
+   is 30×30, rounded, with the same embossed treatment as the pill so
+   the colored logo reads as a "physical chip" planted on the rail. */
+.sidebar-tile {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--tile-rest-bg);
+  border: 1px solid var(--tile-rest-border);
+  box-shadow: var(--tile-rest-shadow);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sidebar-pill[data-active="true"] > .sidebar-tile,
+.sidebar-pill.is-active > .sidebar-tile,
+.sidebar-pill:hover > .sidebar-tile {
+  background: var(--tile-active-bg);
+  border-color: var(--tile-active-border);
+  box-shadow: var(--tile-active-shadow);
+}
+
+/* Compact-rail variant — when the sidebar is collapsed to icon-only
+   width, the pills shrink to just the tile and centre it. */
+.sidebar-pill[data-collapsed="true"] {
+  justify-content: center;
+  padding: 5px;
+  gap: 0;
+}
+.sidebar-pill[data-collapsed="true"] > .sidebar-pill-label {
+  display: none;
+}
+
+/* Section label above pill groups — uppercase tracked caption, used
+   to delimit STUDIOS / NAVIGATION / FOLDERS. Hidden in collapsed
+   mode (the icons themselves provide the grouping). */
+.sidebar-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 12px 4px;
+}
 
 /* ===== Premium CTA — kargul.studio "Button Breakdown" spec =====
    The depth treatment (inner top highlight + soft drop + tight light-gray
