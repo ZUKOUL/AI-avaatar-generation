@@ -29,7 +29,6 @@ import NewAppWizard from "@/components/NewAppWizard";
 import {
   workspacesAPI,
   miniAppsAPI,
-  avatarAPI,
   WORKSPACE_STORAGE_KEY,
   type Workspace,
   type MiniApp,
@@ -92,27 +91,6 @@ interface SidebarFolder {
   id: string;
   name: string;
   items: FolderItem[];
-}
-
-/** Short "2m / 4h / 3d" style relative time for the Recent feed. */
-function timeAgo(iso: string): string {
-  try {
-    const diff = Date.now() - new Date(iso).getTime();
-    if (diff < 0) return "now";
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "à l'instant";
-    if (mins < 60) return `${mins} min`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} h`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} j`;
-    const weeks = Math.floor(days / 7);
-    if (weeks < 5) return `${weeks} sem`;
-    const months = Math.floor(days / 30);
-    return `${months} mois`;
-  } catch {
-    return "";
-  }
 }
 
 function extractDomain(url: string): string {
@@ -785,68 +763,22 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
    *  could accept input — that was the "création de dossier bug". */
   const [folderNameModalOpen, setFolderNameModalOpen] = useState(false);
 
-  /** Recent creations — the last few images / avatars the user made
-   *  in the active workspace. Auto-populated from the backend so the
-   *  sidebar fills with real content instead of static links. */
-  type RecentItem = {
-    id: string;
-    kind: "image" | "avatar";
-    thumbnail?: string;
-    label: string;
-    created_at: string;
-    href: string;
-  };
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-
-  /* Hydrate workspaces + mini-apps + recents from backend on mount. */
+  /* Hydrate workspaces + mini-apps from backend on mount. The recents
+     feed (last images + avatars) used to live here, but the user
+     dropped that section from the sidebar — so we no longer fetch it
+     on mount. Saves two API calls per page load. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [wsRes, appsRes, imagesRes, avatarsRes] = await Promise.all([
+        const [wsRes, appsRes] = await Promise.all([
           workspacesAPI.list(),
           miniAppsAPI.list().catch(() => ({ data: [] as MiniApp[] })),
-          // Recent sidebar feed intentionally bypasses the workspace
-          // filter — it's a cross-workspace "jump back to your last
-          // work" shortcut so the sidebar has real content even on a
-          // freshly-created empty workspace.
-          avatarAPI
-            .getImages(undefined, 5, { allWorkspaces: true })
-            .catch(() => ({ data: { images: [] } })),
-          avatarAPI
-            .list({ allWorkspaces: true })
-            .catch(() => ({ data: { avatars: [] } })),
         ]);
         if (cancelled) return;
         const ws = wsRes.data || [];
         setWorkspaces(ws);
         setMiniApps(appsRes.data || []);
-
-        // Merge recent creations from both image + avatar endpoints
-        // and sort by date desc so the sidebar always shows what the
-        // user just made.
-        const images = (imagesRes.data as { images?: { image_id: string; image_url: string; prompt?: string; created_at: string }[] })?.images || [];
-        const avatars = (avatarsRes.data as { avatars?: { avatar_id: string; name: string; thumbnail?: string; created_at: string }[] })?.avatars || [];
-        const merged: RecentItem[] = [
-          ...images.slice(0, 5).map((i) => ({
-            id: i.image_id,
-            kind: "image" as const,
-            thumbnail: i.image_url,
-            label: (i.prompt || "Image").slice(0, 32),
-            created_at: i.created_at,
-            href: "/dashboard/images",
-          })),
-          ...avatars.slice(0, 5).map((a) => ({
-            id: a.avatar_id,
-            kind: "avatar" as const,
-            thumbnail: a.thumbnail,
-            label: a.name || "Avatar",
-            created_at: a.created_at,
-            href: "/dashboard/avatars",
-          })),
-        ];
-        merged.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        setRecentItems(merged.slice(0, 6));
 
         const storedActive = localStorage.getItem(WORKSPACE_STORAGE_KEY);
         const resolved =
@@ -1687,83 +1619,6 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             })}
         </div>
       </nav>
-
-      {/* ── Récents : auto-populated feed of the last creations made
-            in the active workspace. Each row has a real thumbnail so
-            the sidebar has texture even on a fresh account. ── */}
-      {!collapsed && recentItems.length > 0 && (
-        <div className="px-2 pb-3">
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              color: "#6b7280",
-              padding: "6px 10px 8px",
-            }}
-          >
-            Récent
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {recentItems.map((item) => (
-              <Link
-                key={`${item.kind}-${item.id}`}
-                href={item.href}
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors"
-                style={{ color: "#e5e7eb" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                title={item.label}
-              >
-                {item.thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.thumbnail}
-                    alt=""
-                    width={28}
-                    height={28}
-                    style={{
-                      borderRadius: 6,
-                      objectFit: "cover",
-                      flexShrink: 0,
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 6,
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {item.label}
-                  </div>
-                  <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 1 }}>
-                    {item.kind === "avatar" ? "Avatar" : "Image"} · {timeAgo(item.created_at)}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Mes apps : user-created mini apps (New App wizard).
             Card-style rows so each app feels like a real shortcut
