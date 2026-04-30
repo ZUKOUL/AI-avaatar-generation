@@ -541,17 +541,9 @@ export default function AIVideosPage() {
               choices paint in that signature. */}
           {niches.length > 0 && (
             <div className="mb-6">
-              <div
-                className="flex items-center justify-between mb-3"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <div className="text-xs font-medium tracking-wide uppercase">
-                  Styles TikTok — applique à la vidéo suivante
-                </div>
-                <div className="text-[10px] opacity-80">
-                  Clique un style → le formulaire ci-dessous l&apos;applique auto.
-                </div>
-              </div>
+              {/* Captions "Styles TikTok — applique…" + baseline ont
+                  sauté — les cards parlent d'elles-mêmes, le pictogramme
+                  Sparkle dans chaque card communique déjà l'intention. */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {niches.map((n) => (
                   <NicheCard
@@ -581,74 +573,53 @@ export default function AIVideosPage() {
                 actual screenshots instead of relying on text alone. */}
             {activeNiche && (
               <div
-                className="rounded-lg p-3 mb-4"
+                className="rounded-lg px-3 py-2 mb-4 flex items-center gap-3"
                 style={{
                   background: activeNiche.card_gradient,
                   border: "1px solid var(--border-color)",
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <SparkleIcon size={16} color={activeNiche.accent_color} />
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="text-[10px] font-semibold tracking-widest uppercase"
-                      style={{ color: activeNiche.accent_color }}
-                    >
-                      Style appliqué
-                    </div>
-                    <div className="text-sm font-semibold text-white truncate">
-                      {activeNiche.name}{" "}
-                      <span className="text-white/60 font-normal">
-                        · {activeNiche.handle}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleClearNiche}
-                    className="p-1.5 rounded-md"
-                    style={{
-                      background: "rgba(255,255,255,0.12)",
-                      color: "#fff",
-                    }}
-                    aria-label="Remove niche style"
-                    title="Retirer ce style"
-                  >
-                    <XIcon size={12} color="currentColor" />
-                  </button>
+                <SparkleIcon size={14} color={activeNiche.accent_color} />
+                <div className="min-w-0 flex-1 text-sm font-semibold text-white truncate">
+                  {activeNiche.name}
+                  <span className="text-white/55 font-normal">
+                    {" "}· {activeNiche.handle}
+                  </span>
                 </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div className="text-[11px] text-white/70">
-                    L&apos;IA se base sur des images de référence pour générer
-                    toujours le même style.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReferencesNiche(activeNiche)}
-                    className="text-[11px] rounded-full px-3 py-1 transition flex items-center gap-1"
-                    style={{
-                      background: "rgba(255,255,255,0.15)",
-                      color: "#fff",
-                    }}
-                  >
-                    <ImageSquare size={11} color="currentColor" />
-                    Gérer les images
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setReferencesNiche(activeNiche)}
+                  className="text-[11px] rounded-full px-2.5 py-1 inline-flex items-center gap-1"
+                  style={{
+                    background: "rgba(255,255,255,0.15)",
+                    color: "#fff",
+                  }}
+                  title="Gérer les images de référence"
+                >
+                  <ImageSquare size={11} color="currentColor" />
+                  Refs
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearNiche}
+                  className="p-1 rounded-md"
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    color: "#fff",
+                  }}
+                  aria-label="Retirer ce style"
+                  title="Retirer ce style"
+                >
+                  <XIcon size={12} color="currentColor" />
+                </button>
               </div>
             )}
 
-            <div className="flex items-center justify-between mb-2">
-              <label
-                className="text-xs font-medium tracking-wide uppercase"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Describe the video you want
-              </label>
-              {/* "Inspire-moi" — only shown when a niche is active, since
-                  topic suggestions are niche-specific. Free call, user
-                  hasn't paid credits yet. */}
-              {activeNiche && (
+            {/* "Inspire-moi" CTA flotte au-dessus à droite quand une
+                niche est active. Pas de label "Describe the video" :
+                la textarea + son placeholder portent le sens. */}
+            {activeNiche && (
+              <div className="flex justify-end mb-2">
                 <button
                   type="button"
                   onClick={handleSuggestTopics}
@@ -667,16 +638,16 @@ export default function AIVideosPage() {
                   )}
                   Inspire-moi
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             <textarea
               ref={promptRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
                 activeNiche
-                  ? `ex. "l'énergie masculine", "la procrastination nocturne"… ou clique "Inspire-moi" pour 6 idées dans le style ${activeNiche.name}.`
-                  : `e.g. "Un ananas qui explique les vitamines aux enfants" — or "Timelapse d&apos;une maison qui se construit sur un terrain vide"`
+                  ? `Décris un sujet — ou clique "Inspire-moi"`
+                  : `Décris ta vidéo — ex. "ananas qui explique les vitamines aux enfants"`
               }
               rows={2}
               className="w-full bg-transparent border-none outline-none text-base resize-y min-h-[56px]"
@@ -754,12 +725,6 @@ export default function AIVideosPage() {
                         )}
                         <div className="text-sm font-semibold">{m.label}</div>
                       </div>
-                      {/* High-contrast tag chip that stays readable in BOTH
-                          states. Previously in active state the tag bg was
-                          translucent dark + inherited dark text → invisible
-                          on the light accent button. Now active = solid
-                          dark pill with accent-coloured text (flashy +
-                          readable), inactive = soft neutral pill. */}
                       <div
                         className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                         style={{
@@ -774,11 +739,10 @@ export default function AIVideosPage() {
                         {m.tag}
                       </div>
                     </div>
-                    {/* No more opacity on the description — it was compounding
-                        with low-contrast text in certain themes and making the
-                        sub-copy unreadable in active state. */}
-                    <div className="text-xs mt-1">{m.description}</div>
-                    <div className="text-xs mt-1 font-semibold">{m.price}</div>
+                    {/* Description sub-ligne supprimée. Le label + le
+                        tag + le prix portent l'info — la description
+                        détaillée vit dans le tooltip si jamais. */}
+                    <div className="text-xs mt-1 font-semibold opacity-90">{m.price}</div>
                   </button>
                 );
               })}
@@ -852,97 +816,96 @@ export default function AIVideosPage() {
               </div>
             )}
 
-            {/* Secondary controls */}
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              <Field label="Duration">
-                <select
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  className={selectCls}
-                  style={selectStyle}
-                >
-                  {DURATIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}s
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Aspect">
-                <select
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value)}
-                  className={selectCls}
-                  style={selectStyle}
-                >
-                  {ASPECTS.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Language">
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className={selectCls}
-                  style={selectStyle}
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Subtitles">
-                <select
-                  value={subtitleStyle}
-                  onChange={(e) => setSubtitleStyle(e.target.value)}
-                  className={selectCls}
-                  style={selectStyle}
-                >
-                  {SUB_STYLES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Voice-over">
-                <select
-                  value={voiceEnabled ? "on" : "off"}
-                  onChange={(e) => setVoiceEnabled(e.target.value === "on")}
-                  className={selectCls}
-                  style={selectStyle}
-                >
-                  <option value="on">Enabled</option>
-                  <option value="off">Silent</option>
-                </select>
-              </Field>
+            {/* Réglages secondaires — selects compacts inline.
+                Plus de Field labels uppercase ("DURATION / ASPECT /
+                LANGUAGE / SUBTITLES / VOICE-OVER") empilés dessus :
+                la valeur affichée par chaque select est déjà
+                self-describing ("30s", "9:16 Shorts", "FR — French",
+                "Karaoke", "Enabled"). Hover-tooltip pour les rares
+                cas ambigus. */}
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <select
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className={selectCls}
+                style={selectStyle}
+                title="Durée"
+              >
+                {DURATIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}s
+                  </option>
+                ))}
+              </select>
+              <select
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value)}
+                className={selectCls}
+                style={selectStyle}
+                title="Aspect"
+              >
+                {ASPECTS.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className={selectCls}
+                style={selectStyle}
+                title="Langue"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={subtitleStyle}
+                onChange={(e) => setSubtitleStyle(e.target.value)}
+                className={selectCls}
+                style={selectStyle}
+                title="Sous-titres"
+              >
+                {SUB_STYLES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    Subs · {s.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={voiceEnabled ? "on" : "off"}
+                onChange={(e) => setVoiceEnabled(e.target.value === "on")}
+                className={selectCls}
+                style={selectStyle}
+                title="Voix off"
+              >
+                <option value="on">🎙 Voix on</option>
+                <option value="off">🔇 Silence</option>
+              </select>
             </div>
 
-            {/* Tone + voice picker (optional, collapsible vibe) */}
+            {/* Tone (optionnel) + voice picker côte à côte. Le label
+                "(optional)" disparaît — l'input vide indique l'option
+                par lui-même, et le placeholder court reste. */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Tone (optional)">
-                <input
-                  type="text"
-                  value={tone}
-                  onChange={(e) => setTone(e.target.value)}
-                  placeholder="energetic · storytelling · educational · dramatic · playful …"
-                  className={selectCls}
-                  style={selectStyle}
-                />
-              </Field>
+              <input
+                type="text"
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                placeholder="Ton (optionnel) — ex. dramatic, playful…"
+                className={selectCls}
+                style={selectStyle}
+              />
               {voiceEnabled && voices.length > 0 && (
-                <Field label="Voice">
-                  <VoicePicker
-                    voices={voices}
-                    value={voiceId}
-                    onChange={setVoiceId}
-                  />
-                </Field>
+                <VoicePicker
+                  voices={voices}
+                  value={voiceId}
+                  onChange={setVoiceId}
+                />
               )}
             </div>
 
@@ -1054,24 +1017,13 @@ const selectStyle: React.CSSProperties = {
   border: "1px solid var(--border-color)",
 };
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div
-        className="text-xs font-medium mb-1 tracking-wide uppercase"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
+// `Field` helper supprimé — plus aucun consommateur depuis qu'on a
+// décollé les labels uppercase au-dessus des selects.
 
 function EmptyState() {
   return (
     <div
-      className="rounded-xl p-10 text-center"
+      className="rounded-xl p-10 text-center flex flex-col items-center gap-3"
       style={{
         background: "var(--bg-secondary)",
         border: "1px dashed var(--border-color)",
@@ -1079,13 +1031,7 @@ function EmptyState() {
       }}
     >
       <SparkleIcon size={28} color="currentColor" />
-      <p className="mt-3 text-sm">
-        Describe any scene, character, or story and get back a finished
-        vertical video with images, animation, voice-over and subtitles.
-      </p>
-      <p className="mt-1 text-xs opacity-80">
-        Slideshow mode renders in ~1 min, Full Motion in 2-3 min.
-      </p>
+      <p className="text-sm">Aucune vidéo — décris ton sujet ci-dessus.</p>
     </div>
   );
 }
