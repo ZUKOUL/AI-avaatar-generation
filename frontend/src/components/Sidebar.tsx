@@ -1170,23 +1170,18 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* ── Studios : compact icon-only grid à la Taskk. 6 studios in
-            a 3×2 grid (or 1-col when the rail is collapsed) — saves
-            ~200px of vertical space vs the previous stacked-pill
-            treatment, lets the brand logos breathe without the
-            wall-of-text feel. Tooltip on hover supplies the studio
-            name. Active studios get a brand-coloured ring around
-            their tile so the user keeps instant recognition. ── */}
+      {/* ── Studios : single-column vertical stack of icon-only
+            tiles, exactly like the leftmost rail in Taskk. The
+            tiles are square (40×40), centred, with a tooltip on
+            hover so the user gets the studio name without giving
+            up the rail's compactness. Active tile gets a brand-
+            colour ring + faint glow so the current studio is
+            visible at a glance even at icon-size. ── */}
       {!collapsed && (
         <div className="sidebar-section-label">Studios</div>
       )}
       <nav className={collapsed ? "px-2 pb-2" : "px-3 pb-2"}>
-        <div
-          className="grid gap-1.5"
-          style={{
-            gridTemplateColumns: collapsed ? "1fr" : "repeat(3, 1fr)",
-          }}
-        >
+        <div className="flex flex-col items-center gap-1.5">
           {PRODUCTS.map((p) => {
             const routes = PRODUCT_APP_ROUTES[p.slug];
             const isActive = routes.paths.some(
@@ -1201,29 +1196,26 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHovered(p.slug)}
                 onMouseLeave={() => setHovered(null)}
-                className="sidebar-studio-tile"
+                className="sidebar-rail-tile"
                 data-active={isActive ? "true" : "false"}
                 style={
                   isActive
                     ? {
-                        // Brand-colour accent ring around the active
-                        // tile so the user can spot the current studio
-                        // at a glance without reading any label.
                         boxShadow: `inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1.5px ${p.color}99, 0 2px 6px ${p.color}33, 0 1px 2px rgba(0,0,0,0.25)`,
                       }
                     : undefined
                 }
               >
-                <Product3DLogo
-                  product={p}
-                  size={collapsed ? 22 : 24}
-                  glow={false}
-                />
+                <Product3DLogo product={p} size={20} glow={false} />
               </Link>
             );
           })}
         </div>
       </nav>
+
+      {/* Soft horizontal divider — same Taskk treatment between the
+          studios stack and the system nav block below. */}
+      <div className="sidebar-rail-divider" />
 
       {/* ── Main nav ── */}
       <nav

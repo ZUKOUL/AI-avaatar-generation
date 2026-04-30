@@ -258,19 +258,13 @@ body {
   padding: 8px 12px 4px;
 }
 
-/* Studio tile — icon-only square tile used in the compact studios
-   grid at the top of the sidebar. Same embossed treatment as
-   .sidebar-tile but stretched to fill its grid cell, so 6 studios
-   fit in a 3×2 grid taking ~80px instead of ~280px in stacked
-   pill-row form. Tooltip on hover supplies the studio name. */
-.sidebar-studio-tile {
-  width: 100%;
-  /* Explicit height instead of `aspect-ratio: 1/1` — the latter
-     interacts unpredictably with grid sizing in some browsers and
-     produced floating-icon layouts where the tile box wasn't
-     rendering reliably. 56px square is the right size for a 24px
-     logo with comfortable padding. */
-  height: 56px;
+/* Rail tile — fixed-square icon-only tile used in the leftmost
+   sidebar rail à la Taskk. 40×40, centred, embossed background,
+   hover lifts +1px. Active state gets brand-colour ring + faint
+   glow drawn inline by the parent. */
+.sidebar-rail-tile {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -279,18 +273,29 @@ body {
   border: 1px solid var(--tile-rest-border);
   box-shadow: var(--tile-rest-shadow);
   cursor: pointer;
+  flex-shrink: 0;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
 }
-.sidebar-studio-tile:hover {
+.sidebar-rail-tile:hover {
   background: var(--tile-active-bg);
   border-color: var(--tile-active-border);
   box-shadow: var(--tile-active-shadow);
   transform: translateY(-1px);
 }
-.sidebar-studio-tile[data-active="true"] {
+.sidebar-rail-tile[data-active="true"] {
   background: var(--tile-active-bg);
   border-color: var(--tile-active-border);
   box-shadow: var(--tile-active-shadow);
+}
+
+/* Section divider in the rail — soft hairline between the studios
+   stack and the system nav block. Matches Taskk's subtle separator
+   between groups of icons. */
+.sidebar-rail-divider {
+  height: 1px;
+  margin: 8px 14px;
+  background: var(--border-color);
+  opacity: 0.5;
 }
 
 /* ===== Premium CTA — kargul.studio "Button Breakdown" spec =====
