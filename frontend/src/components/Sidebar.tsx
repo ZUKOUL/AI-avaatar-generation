@@ -754,6 +754,10 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
   /** Folder UI state : which ones are expanded. Per-workspace so
    *  switching doesn't carry over the wrong open state. */
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  /** Mes Apps section expand/collapse — Taskk-style collapsible
+   *  header (`> Apps  +  ⋮`). Defaults expanded so existing users
+   *  don't lose their apps the first time the new layout ships. */
+  const [appsExpanded, setAppsExpanded] = useState(true);
   const [navPlusOpen, setNavPlusOpen] = useState(false);
   /** When set, the NewTabModal will write its selection into this
    *  folder instead of the workspace-level pinned tabs. */
@@ -1617,158 +1621,155 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </div>
       </nav>
 
-      {/* ── Mes apps : user-created mini apps (New App wizard).
-            Card-style rows so each app feels like a real shortcut
-            instead of a plain nav link. ── */}
+      {/* ── Apps : Taskk-style collapsible section. Header is a row
+            with a chevron (rotates when expanded), the section name,
+            and an inline `+` to create a new mini-app. Rows inside
+            are simple flat list items — no more accent stripes or
+            colored glows; the embossed pill treatment from the rest
+            of the sidebar carries over for visual coherence. ── */}
       {!collapsed && (
         <div className="px-2 pb-2">
-          <div className="flex items-center justify-between px-2 py-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAppsExpanded((v) => !v);
+            }}
+            className="group flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors"
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--text-secondary)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--pill-hover-bg)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transform: appsExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.15s ease",
+                flexShrink: 0,
+              }}
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
             <span
               style={{
-                fontSize: 10,
+                flex: 1,
+                fontSize: 12,
                 fontWeight: 600,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                color: "#6b7280",
+                textAlign: "left",
+                letterSpacing: "0.02em",
               }}
             >
-              Mes Apps
+              Apps
             </span>
-            <button
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
                 setNewAppOpen(true);
               }}
-              className="p-1 rounded-md transition-colors"
-              style={{ color: "#9ca3af", background: "transparent", border: "none", cursor: "pointer" }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  setNewAppOpen(true);
+                }
+              }}
               title="Créer une nouvelle app"
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#e5e7eb")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
-            >
-              <Plus size={13} />
-            </button>
-          </div>
-          <div className="flex flex-col gap-1">
-            {miniApps.map((app) => (
-              <Link
-                key={app.id}
-                href={`/dashboard/apps/${app.slug}`}
-                onClick={(e) => e.stopPropagation()}
-                className="group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all"
-                style={{
-                  color: "#e5e7eb",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  overflow: "hidden",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = `linear-gradient(135deg, ${app.accent}18, ${app.accent}06)`;
-                  e.currentTarget.style.borderColor = `${app.accent}60`;
-                  e.currentTarget.style.boxShadow = `0 0 16px ${app.accent}25`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.02)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-                title={app.description ?? app.name}
-              >
-                {/* Accent color stripe on the left */}
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 2,
-                    background: app.accent,
-                    opacity: 0.8,
-                  }}
-                />
-                {app.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={app.logo_url}
-                    alt=""
-                    width={26}
-                    height={26}
-                    style={{
-                      borderRadius: 7,
-                      flexShrink: 0,
-                      objectFit: "cover",
-                      boxShadow: `0 2px 8px ${app.accent}50`,
-                    }}
-                  />
-                ) : (
-                  <span
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 7,
-                      background: `linear-gradient(135deg, ${app.accent}, ${app.accent}55)`,
-                      border: `1px solid ${app.accent}aa`,
-                      flexShrink: 0,
-                      boxShadow: `0 2px 8px ${app.accent}50`,
-                    }}
-                  />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: "#ffffff",
-                    }}
-                  >
-                    {app.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10.5,
-                      color: "#9ca3af",
-                      marginTop: 1,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {app.tool}
-                  </div>
-                </div>
-              </Link>
-            ))}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setNewAppOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg transition-colors w-full"
+              className="opacity-60 hover:opacity-100 transition-opacity"
               style={{
-                color: "#6b7280",
-                fontSize: 12.5,
-                fontWeight: 500,
-                background: "transparent",
-                border: "1px dashed rgba(255,255,255,0.12)",
+                padding: 2,
+                display: "inline-flex",
                 cursor: "pointer",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                e.currentTarget.style.color = "#e5e7eb";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#6b7280";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-              }}
             >
               <Plus size={13} />
-              <span>Créer une app</span>
-            </button>
-          </div>
+            </span>
+          </button>
+
+          {appsExpanded && (
+            <div className="flex flex-col gap-0.5 mt-1">
+              {miniApps.map((app) => (
+                <Link
+                  key={app.id}
+                  href={`/dashboard/apps/${app.slug}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="sidebar-pill"
+                  data-active="false"
+                  title={app.description ?? app.name}
+                  style={{ paddingLeft: 18 /* indent to align under chevron */ }}
+                >
+                  {app.logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={app.logo_url}
+                      alt=""
+                      width={20}
+                      height={20}
+                      style={{
+                        borderRadius: 5,
+                        flexShrink: 0,
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 5,
+                        background: app.accent,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  <span className="sidebar-pill-label">{app.name}</span>
+                </Link>
+              ))}
+              {miniApps.length === 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNewAppOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors w-full"
+                  style={{
+                    color: "var(--text-muted)",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    background: "transparent",
+                    border: "1px dashed var(--border-color)",
+                    cursor: "pointer",
+                    marginLeft: 18,
+                    width: "calc(100% - 18px)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--pill-hover-bg)";
+                    e.currentTarget.style.color = "var(--text-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
+                >
+                  <Plus size={12} />
+                  <span>Créer une app</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
