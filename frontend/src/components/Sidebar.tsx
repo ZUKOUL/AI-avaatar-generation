@@ -1170,16 +1170,23 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* ── Studios : vertical list of rows. Each row = a colored
-            mini-app logo (icon-size, 18px) sitting inside a small
-            embossed tile, plus the studio name. Active state lifts
-            the whole row via the .sidebar-pill embossed treatment.
-            Collapsed rail strips the label and centres the tile. ── */}
+      {/* ── Studios : compact icon-only grid à la Taskk. 6 studios in
+            a 3×2 grid (or 1-col when the rail is collapsed) — saves
+            ~200px of vertical space vs the previous stacked-pill
+            treatment, lets the brand logos breathe without the
+            wall-of-text feel. Tooltip on hover supplies the studio
+            name. Active studios get a brand-coloured ring around
+            their tile so the user keeps instant recognition. ── */}
       {!collapsed && (
         <div className="sidebar-section-label">Studios</div>
       )}
       <nav className={collapsed ? "px-2 pb-2" : "px-3 pb-2"}>
-        <div className="flex flex-col gap-0.5">
+        <div
+          className="grid gap-1.5"
+          style={{
+            gridTemplateColumns: collapsed ? "1fr" : "repeat(3, 1fr)",
+          }}
+        >
           {PRODUCTS.map((p) => {
             const routes = PRODUCT_APP_ROUTES[p.slug];
             const isActive = routes.paths.some(
@@ -1190,30 +1197,28 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 key={p.slug}
                 href={routes.href}
                 title={p.name}
+                aria-label={p.name}
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHovered(p.slug)}
                 onMouseLeave={() => setHovered(null)}
-                className="sidebar-pill"
+                className="sidebar-studio-tile"
                 data-active={isActive ? "true" : "false"}
-                data-collapsed={collapsed ? "true" : "false"}
+                style={
+                  isActive
+                    ? {
+                        // Brand-colour accent ring around the active
+                        // tile so the user can spot the current studio
+                        // at a glance without reading any label.
+                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1.5px ${p.color}99, 0 2px 6px ${p.color}33, 0 1px 2px rgba(0,0,0,0.25)`,
+                      }
+                    : undefined
+                }
               >
-                <span
-                  className="sidebar-tile"
-                  style={
-                    isActive
-                      ? {
-                          // Subtle accent ring tinted by the studio's
-                          // brand colour when the row is active. Keeps
-                          // the row clearly identifiable beyond just
-                          // the embossed pill state.
-                          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px ${p.color}55, 0 1px 2px rgba(0,0,0,0.25)`,
-                        }
-                      : undefined
-                  }
-                >
-                  <Product3DLogo product={p} size={18} glow={false} />
-                </span>
-                <span className="sidebar-pill-label">{p.name}</span>
+                <Product3DLogo
+                  product={p}
+                  size={collapsed ? 22 : 24}
+                  glow={false}
+                />
               </Link>
             );
           })}
