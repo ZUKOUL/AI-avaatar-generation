@@ -653,31 +653,64 @@ function PresetCard({
         }
       }}
     >
-      {/* Mini visual preview — a faux-button + a paragraph rendered
-          IN the preset's font + accent so the card shows what the
-          app will look like before the user clicks. */}
+      {/* Visual preview — montre les VRAIES différences entre presets :
+          radius scale (chip 1 = sm, chip 2 = md, chip 3 = lg) + shadow
+          profile + font appliqués en live. Chaque preset rendu avec
+          ses propres tokens, pas seulement l'accent color. */}
       <div
         style={{
-          padding: "16px 16px 12px",
+          padding: "16px 16px 14px",
           background: `linear-gradient(135deg, ${preset.accent}15 0%, transparent 60%)`,
-          // Force the preset's font on the preview itself — independent
-          // of the global app font so each card shows its own typography.
           fontFamily: preset.fontVar,
         }}
       >
-        <span
-          className="inline-flex items-center gap-1 px-2.5 py-1 mb-3"
-          style={{
-            background: preset.accent,
-            color: "#ffffff",
-            borderRadius: preset.radius,
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {preset.fontLabel}
-        </span>
+        {/* Trio de chips qui montre les 3 niveaux de radius : tu vois
+            d'un coup d'œil que Linear est sharp, Apple gros, Spotify
+            full-pill, Vercel mono noir, etc. */}
+        <div className="flex items-center gap-1.5 mb-3">
+          <span
+            style={{
+              background: preset.accent,
+              color: "#ffffff",
+              borderRadius: preset.radiusSm,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "3px 7px",
+              boxShadow: preset.shadowElev,
+            }}
+          >
+            sm
+          </span>
+          <span
+            style={{
+              background: preset.accentSoft,
+              color: preset.accent,
+              borderRadius: preset.radiusMd,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "3px 7px",
+            }}
+          >
+            md
+          </span>
+          <span
+            style={{
+              background: "transparent",
+              color: "var(--text-secondary, #6b7280)",
+              border: `1px solid ${preset.accent}40`,
+              borderRadius: preset.radiusLg,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "3px 7px",
+            }}
+          >
+            lg
+          </span>
+        </div>
+
+        {/* Pangram dans la font du preset, taille assez grande pour
+            voir les terminals/proportions, en text-primary pour
+            répondre au light/dark mode. */}
         <div
           style={{
             fontSize: 15,
@@ -697,7 +730,7 @@ function PresetCard({
             lineHeight: 1.45,
           }}
         >
-          jumps over the lazy dog.
+          {preset.fontLabel}
         </div>
       </div>
 

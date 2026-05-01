@@ -71,18 +71,26 @@ export default function RootLayout({
                   var p = localStorage.getItem('horpen-theme-preset');
                   if (p) {
                     document.documentElement.setAttribute('data-preset', p);
-                    // Token hardcode mirrors themePresets.ts. Kept tiny
-                    // on purpose so it stays inlined in the HTML head
-                    // and runs before paint.
+                    // Token bundle mirrors themePresets.ts. Order :
+                    // [accent, accentSoft, font, radius (pill+md),
+                    //  radiusSm, radiusLg, shadowElev]
+                    var SHARP = '0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)';
+                    var SOFT  = '0 2px 6px rgba(0,0,0,0.08)';
+                    var FLAT  = '0 0 0 1px rgba(0,0,0,0.08)';
+                    var APPLE_SH = '0 8px 32px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)';
+                    var STRIPE_SH = '0 6px 20px rgba(99,91,255,0.10), 0 1px 3px rgba(0,0,0,0.08)';
+                    var SPOTIFY_SH = '0 12px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)';
+                    var DEFAULT_SH = '0 4px 16px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)';
+                    var MIN_SH = '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)';
                     var presets = {
-                      horpen:  ['#3b82f6', 'rgba(59,130,246,0.10)', 'var(--font-jakarta)', '10px'],
-                      linear:  ['#5e6ad2', 'rgba(94,106,210,0.10)', 'var(--font-inter)', '6px'],
-                      notion:  ['#2383e2', 'rgba(35,131,226,0.10)', 'var(--font-inter)', '8px'],
-                      vercel:  ['#000000', 'rgba(0,0,0,0.06)',      'var(--font-inter)', '6px'],
-                      apple:   ['#0066cc', 'rgba(0,102,204,0.10)',  "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", '14px'],
-                      stripe:  ['#635bff', 'rgba(99,91,255,0.10)',  'var(--font-jakarta)', '8px'],
-                      spotify: ['#1db954', 'rgba(29,185,84,0.10)',  'var(--font-inter)', '999px'],
-                      chatgpt: ['#10a37f', 'rgba(16,163,127,0.10)', 'var(--font-inter)', '10px']
+                      horpen:  ['#3b82f6', 'rgba(59,130,246,0.10)', 'var(--font-jakarta)', '10px', '8px',  '14px', DEFAULT_SH],
+                      linear:  ['#5e6ad2', 'rgba(94,106,210,0.10)', 'var(--font-inter)',   '6px',  '4px',  '8px',  SHARP],
+                      notion:  ['#2383e2', 'rgba(35,131,226,0.10)', 'var(--font-inter)',   '8px',  '6px',  '10px', SOFT],
+                      vercel:  ['#000000', 'rgba(0,0,0,0.06)',      'var(--font-inter)',   '6px',  '4px',  '8px',  FLAT],
+                      apple:   ['#0066cc', 'rgba(0,102,204,0.10)',  "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", '14px', '10px', '20px', APPLE_SH],
+                      stripe:  ['#635bff', 'rgba(99,91,255,0.10)',  'var(--font-jakarta)', '8px',  '6px',  '12px', STRIPE_SH],
+                      spotify: ['#1db954', 'rgba(29,185,84,0.10)',  'var(--font-inter)',   '999px','999px','16px', SPOTIFY_SH],
+                      chatgpt: ['#10a37f', 'rgba(16,163,127,0.10)', 'var(--font-inter)',   '10px', '8px',  '12px', MIN_SH]
                     };
                     var v = presets[p];
                     if (v) {
@@ -91,6 +99,10 @@ export default function RootLayout({
                       s.setProperty('--accent-soft', v[1]);
                       s.setProperty('--font-theme', v[2]);
                       s.setProperty('--radius-pill', v[3]);
+                      s.setProperty('--radius-md', v[3]);
+                      s.setProperty('--radius-sm', v[4]);
+                      s.setProperty('--radius-lg', v[5]);
+                      s.setProperty('--shadow-elev', v[6]);
                     }
                   }
                 } catch(e) {}

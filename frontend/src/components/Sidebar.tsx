@@ -144,7 +144,7 @@ function TabRow({ tab, onRemove }: { tab: SidebarTab; onRemove: () => void }) {
         style={{
           flex: 1,
           fontSize: 13,
-          color: "#e5e7eb",
+          color: "var(--text-primary)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -161,7 +161,7 @@ function TabRow({ tab, onRemove }: { tab: SidebarTab; onRemove: () => void }) {
           }}
           title="Retirer cet onglet"
           style={{
-            color: "#6b7280",
+            color: "var(--text-muted)",
             padding: 2,
             borderRadius: 4,
             background: "transparent",
@@ -175,7 +175,7 @@ function TabRow({ tab, onRemove }: { tab: SidebarTab; onRemove: () => void }) {
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#6b7280";
+            e.currentTarget.style.color = "var(--text-muted)";
           }}
         >
           <XIcon size={11} />
@@ -279,7 +279,7 @@ function FolderNameModal({
             fontWeight: 600,
             letterSpacing: "0.22em",
             textTransform: "uppercase",
-            color: "#9ca3af",
+            color: "var(--text-secondary)",
             padding: "14px 18px 6px",
           }}
         >
@@ -320,7 +320,7 @@ function FolderNameModal({
               padding: "7px 14px",
               borderRadius: 8,
               background: "transparent",
-              color: "#9ca3af",
+              color: "var(--text-secondary)",
               fontSize: 12.5,
               fontWeight: 500,
               border: "1px solid rgba(255,255,255,0.1)",
@@ -502,7 +502,7 @@ function NewTabModal({
             fontWeight: 600,
             letterSpacing: "0.22em",
             textTransform: "uppercase",
-            color: "#9ca3af",
+            color: "var(--text-secondary)",
             padding: "14px 20px 6px",
           }}
         >
@@ -551,7 +551,7 @@ function NewTabModal({
                 background: "transparent",
                 border: "none",
                 borderBottom: "1px solid rgba(255,255,255,0.06)",
-                color: "#e5e7eb",
+                color: "var(--text-primary)",
                 textAlign: "left",
                 cursor: "pointer",
               }}
@@ -575,7 +575,7 @@ function NewTabModal({
                 <div
                   style={{
                     fontSize: 11,
-                    color: "#6b7280",
+                    color: "var(--text-muted)",
                     marginTop: 2,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -590,7 +590,7 @@ function NewTabModal({
                   fontSize: 10,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color: "#6b7280",
+                  color: "var(--text-muted)",
                   flexShrink: 0,
                 }}
               >
@@ -608,7 +608,7 @@ function NewTabModal({
                   fontWeight: 600,
                   letterSpacing: "0.22em",
                   textTransform: "uppercase",
-                  color: "#6b7280",
+                  color: "var(--text-muted)",
                   padding: "4px 12px 10px",
                 }}
               >
@@ -623,7 +623,7 @@ function NewTabModal({
                     style={{
                       background: "transparent",
                       border: "1px solid rgba(255,255,255,0.04)",
-                      color: "#e5e7eb",
+                      color: "var(--text-primary)",
                       cursor: "pointer",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
@@ -667,7 +667,7 @@ function NewTabModal({
                       <div
                         style={{
                           fontSize: 11,
-                          color: "#6b7280",
+                          color: "var(--text-muted)",
                           marginTop: 1,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -693,7 +693,7 @@ function NewTabModal({
               style={{
                 padding: "28px 20px",
                 textAlign: "center",
-                color: "#6b7280",
+                color: "var(--text-muted)",
                 fontSize: 13,
               }}
             >
@@ -707,7 +707,7 @@ function NewTabModal({
             padding: "10px 20px",
             borderTop: "1px solid rgba(255,255,255,0.06)",
             fontSize: 11,
-            color: "#6b7280",
+            color: "var(--text-muted)",
           }}
         >
           Entrée pour ajouter le premier résultat · Échap pour annuler
@@ -1082,7 +1082,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           <>
             <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" onClick={(e) => e.stopPropagation()}>
               <Logo size={26} />
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#f3f4f6", letterSpacing: "-0.01em" }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
                 Horpen
               </span>
             </Link>
@@ -1093,15 +1093,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                   onToggleCollapsed();
                 }}
                 className="p-1.5 rounded-md transition-colors"
-                style={{ color: "#6b7280" }}
+                style={{ color: "var(--text-muted)" }}
                 title="Collapse sidebar"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                  e.currentTarget.style.color = "#e5e7eb";
+                  e.currentTarget.style.color = "var(--text-primary)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "#6b7280";
+                  e.currentTarget.style.color = "var(--text-muted)";
                 }}
               >
                 <PanelToggleIcon />
@@ -1114,7 +1114,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                   onClose();
                 }}
                 className="p-1.5 rounded-md"
-                style={{ color: "#6b7280" }}
+                style={{ color: "var(--text-muted)" }}
               >
                 <XIcon size={16} />
               </button>
@@ -1160,7 +1160,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                   justifyContent: "center",
                   borderRadius: 8,
                   background: "rgba(255,255,255,0.06)",
-                  color: "#e5e7eb",
+                  color: "var(--text-primary)",
                   opacity: logoHover ? 1 : 0,
                   transition: "opacity 0.18s ease",
                   pointerEvents: logoHover ? "auto" : "none",
@@ -1285,18 +1285,18 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                       justifyContent: "center",
                       background: navPlusOpen ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.06)",
-                      color: "#9ca3af",
+                      color: "var(--text-secondary)",
                       cursor: "pointer",
                       flexShrink: 0,
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-                      e.currentTarget.style.color = "#e5e7eb";
+                      e.currentTarget.style.color = "var(--text-primary)";
                     }}
                     onMouseLeave={(e) => {
                       if (!navPlusOpen) {
                         e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                        e.currentTarget.style.color = "#9ca3af";
+                        e.currentTarget.style.color = "var(--text-secondary)";
                       }
                     }}
                   >
@@ -1343,7 +1343,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                           padding: "8px 12px",
                           borderRadius: 6,
                           background: "transparent",
-                          color: "#e5e7eb",
+                          color: "var(--text-primary)",
                           fontSize: 13,
                           textAlign: "left",
                           border: "none",
@@ -1373,7 +1373,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                           padding: "8px 12px",
                           borderRadius: 6,
                           background: "transparent",
-                          color: "#e5e7eb",
+                          color: "var(--text-primary)",
                           fontSize: 13,
                           textAlign: "left",
                           border: "none",
@@ -1399,7 +1399,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                           padding: "8px 12px",
                           borderRadius: 6,
                           background: "transparent",
-                          color: "#e5e7eb",
+                          color: "var(--text-primary)",
                           fontSize: 13,
                           textAlign: "left",
                           border: "none",
@@ -1471,7 +1471,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                       strokeWidth="1.8"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      style={{ color: "#9ca3af", flexShrink: 0 }}
+                      style={{ color: "var(--text-secondary)", flexShrink: 0 }}
                     >
                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                     </svg>
@@ -1480,7 +1480,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                         flex: 1,
                         fontSize: 13.5,
                         fontWeight: 500,
-                        color: "#e5e7eb",
+                        color: "var(--text-primary)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -1500,7 +1500,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                         padding: 2,
                         borderRadius: 4,
                         background: "transparent",
-                        color: "#6b7280",
+                        color: "var(--text-muted)",
                         border: "none",
                         cursor: "pointer",
                       }}
@@ -1518,7 +1518,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                         padding: 2,
                         borderRadius: 4,
                         background: "transparent",
-                        color: "#6b7280",
+                        color: "var(--text-muted)",
                         border: "none",
                         cursor: "pointer",
                       }}
@@ -1534,7 +1534,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                         <div
                           style={{
                             fontSize: 11.5,
-                            color: "#6b7280",
+                            color: "var(--text-muted)",
                             fontStyle: "italic",
                             padding: "4px 12px 6px",
                           }}
@@ -1550,13 +1550,13 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                           <div
                             key={it.id}
                             className="group/item flex items-center gap-2 rounded-lg"
-                            style={{ color: "#e5e7eb" }}
+                            style={{ color: "var(--text-primary)" }}
                           >
                             <Link
                               href={it.url}
                               onClick={(e) => e.stopPropagation()}
                               className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-lg transition-colors"
-                              style={{ color: "#e5e7eb" }}
+                              style={{ color: "var(--text-primary)" }}
                               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
                               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                               title={it.label}
@@ -1607,7 +1607,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                                 marginRight: 4,
                                 borderRadius: 4,
                                 background: "transparent",
-                                color: "#6b7280",
+                                color: "var(--text-muted)",
                                 border: "none",
                                 cursor: "pointer",
                               }}
@@ -1799,10 +1799,10 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
               border: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#f3f4f6", marginBottom: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
               Passe au plan supérieur
             </div>
-            <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.45, marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.45, marginBottom: 12 }}>
               Plus de crédits, 4K, A/B tests illimités, toute la suite.
             </div>
             <Link
@@ -1883,7 +1883,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                   style={{
                     fontSize: 12.5,
                     fontWeight: 600,
-                    color: "#f3f4f6",
+                    color: "var(--text-primary)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -1894,7 +1894,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 <div
                   style={{
                     fontSize: 11,
-                    color: "#6b7280",
+                    color: "var(--text-muted)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -1904,7 +1904,7 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 </div>
               </div>
             </div>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "#6b7280", flexShrink: 0 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
