@@ -33,14 +33,17 @@ import {
   Users,
   Bell,
   Plus,
+  Palette,
 } from "@/components/Icons";
 import { clearAuth, getStoredUser } from "@/lib/auth";
 import { creditsAPI } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { useLayout } from "@/lib/layout";
+import { THEME_PRESETS, type ThemePreset } from "@/lib/themePresets";
 
 type SectionKey =
   | "account"
+  | "appearance"
   | "plan"
   | "billing"
   | "referral"
@@ -59,6 +62,7 @@ interface SectionMeta {
 
 const SECTIONS: SectionMeta[] = [
   { key: "account", label: "My Account", group: "account", icon: User },
+  { key: "appearance", label: "Appearance", group: "account", icon: Palette },
   { key: "plan", label: "Plan", group: "account", icon: Package },
   { key: "billing", label: "Billing", group: "account", icon: CreditCard },
   { key: "referral", label: "Referral", group: "account", icon: Globe },
@@ -247,6 +251,7 @@ export function SettingsModal({
 
           <div className="p-8 md:p-10">
             {section === "account" && <AccountSection />}
+            {section === "appearance" && <AppearanceSection />}
             {section === "plan" && <PlanSection />}
             {section === "billing" && <BillingSection />}
             {section === "referral" && <ReferralSection />}
@@ -455,6 +460,290 @@ function AccountSection() {
         </button>
       </div>
     </SectionShell>
+  );
+}
+
+/* ─── Appearance — theme picker ──────────────────────────────────
+ * Grid of preset cards. Click a card to re-skin the entire app
+ * (accent color + font family + corner radius). Active preset has
+ * a checkmark badge + thicker border. Persists via the ThemeProvider's
+ * setPreset() which writes to localStorage.
+ *
+ * Light/dark mode toggle stays in this section too — it's the most
+ * obvious "appearance" affordance and orthogonal to the preset.
+ */
+function AppearanceSection() {
+  const { theme, toggleTheme, preset, setPreset } = useTheme();
+  return (
+    <SectionShell
+      title="Appearance"
+      subtitle="Pick a vibe. The whole app re-skins instantly — couleurs, typo, et la pâte des composants."
+    >
+      <div className="flex flex-col gap-7">
+        {/* Mode toggle */}
+        <div>
+          <FieldHeader
+            label="Mode"
+            desc="Light ou dark — orthogonal au preset choisi en dessous."
+          />
+          <div
+            role="group"
+            aria-label="Theme mode"
+            className="inline-flex rounded-lg overflow-hidden"
+            style={{
+              border: "1px solid var(--border-color, #e0e0e0)",
+              background: "var(--bg-secondary, #fafafa)",
+            }}
+          >
+            <ModeChip
+              active={theme === "light"}
+              icon={<Sun size={14} />}
+              label="Light"
+              onClick={() => {
+                if (theme !== "light") toggleTheme();
+              }}
+            />
+            <ModeChip
+              active={theme === "dark"}
+              icon={<Moon size={14} />}
+              label="Dark"
+              onClick={() => {
+                if (theme !== "dark") toggleTheme();
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Presets grid */}
+        <div>
+          <FieldHeader
+            label="Style"
+            desc="Skin Horpen comme l'app dans laquelle tu es le plus à l'aise."
+          />
+          <div
+            className="grid gap-3"
+            style={{
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+            }}
+          >
+            {THEME_PRESETS.map((p) => (
+              <PresetCard
+                key={p.id}
+                preset={p}
+                active={preset === p.id}
+                onClick={() => setPreset(p.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </SectionShell>
+  );
+}
+
+/** Field header — label + optional desc, used above grouped controls
+ *  in the Appearance section (different layout from `SettingRow` which
+ *  is horizontal with the control on the right). */
+function FieldHeader({ label, desc }: { label: string; desc?: string }) {
+  return (
+    <div className="mb-3">
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: "var(--text-primary, #0a0a0a)",
+        }}
+      >
+        {label}
+      </div>
+      {desc && (
+        <div
+          style={{
+            fontSize: 12.5,
+            color: "var(--text-secondary, #6b7280)",
+            marginTop: 2,
+            lineHeight: 1.4,
+          }}
+        >
+          {desc}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModeChip({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="flex items-center gap-2 px-3 py-1.5 transition-colors"
+      style={{
+        background: active ? "var(--bg-primary, #ffffff)" : "transparent",
+        color: active
+          ? "var(--text-primary, #0a0a0a)"
+          : "var(--text-secondary, #6b7280)",
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
+        border: "none",
+        cursor: "pointer",
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function PresetCard({
+  preset,
+  active,
+  onClick,
+}: {
+  preset: ThemePreset;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="relative text-left rounded-xl overflow-hidden transition-all"
+      style={{
+        background: "var(--bg-secondary, #fafafa)",
+        border: active
+          ? `2px solid ${preset.accent}`
+          : "1px solid var(--border-color, #e0e0e0)",
+        padding: 0,
+        cursor: "pointer",
+        boxShadow: active
+          ? `0 0 0 4px ${preset.accent}22, 0 4px 12px rgba(0,0,0,0.08)`
+          : "none",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = "var(--text-secondary, #6b7280)";
+          e.currentTarget.style.transform = "translateY(-2px)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = "var(--border-color, #e0e0e0)";
+          e.currentTarget.style.transform = "translateY(0)";
+        }
+      }}
+    >
+      {/* Mini visual preview — a faux-button + a paragraph rendered
+          IN the preset's font + accent so the card shows what the
+          app will look like before the user clicks. */}
+      <div
+        style={{
+          padding: "16px 16px 12px",
+          background: `linear-gradient(135deg, ${preset.accent}15 0%, transparent 60%)`,
+          // Force the preset's font on the preview itself — independent
+          // of the global app font so each card shows its own typography.
+          fontFamily: preset.fontVar,
+        }}
+      >
+        <span
+          className="inline-flex items-center gap-1 px-2.5 py-1 mb-3"
+          style={{
+            background: preset.accent,
+            color: "#ffffff",
+            borderRadius: preset.radius,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {preset.fontLabel}
+        </span>
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--text-primary, #0a0a0a)",
+            letterSpacing: "-0.015em",
+            lineHeight: 1.2,
+          }}
+        >
+          The quick brown fox
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--text-secondary, #6b7280)",
+            marginTop: 4,
+            lineHeight: 1.45,
+          }}
+        >
+          jumps over the lazy dog.
+        </div>
+      </div>
+
+      {/* Footer — preset name + description + active checkmark. */}
+      <div
+        className="flex items-center justify-between gap-2"
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border-color, #e0e0e0)",
+          background: "var(--bg-primary, #ffffff)",
+        }}
+      >
+        <div className="min-w-0">
+          <div
+            style={{
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: "var(--text-primary, #0a0a0a)",
+              lineHeight: 1.2,
+            }}
+          >
+            {preset.name}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--text-secondary, #6b7280)",
+              marginTop: 2,
+              lineHeight: 1.35,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {preset.description}
+          </div>
+        </div>
+        {active && (
+          <span
+            className="flex items-center justify-center shrink-0"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 999,
+              background: preset.accent,
+              color: "#ffffff",
+            }}
+            aria-label="Active preset"
+          >
+            <Check size={13} />
+          </span>
+        )}
+      </div>
+    </button>
   );
 }
 
