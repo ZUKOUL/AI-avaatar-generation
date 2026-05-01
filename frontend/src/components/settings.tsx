@@ -126,9 +126,14 @@ export function SettingsModal({
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {/* Modal — always two-column (rail + content) horizontally.
+          The previous `flex-col md:flex-row` was empilant la nav à
+          240px de large sur 100% de la largeur du viewport sur mobile,
+          ce qui faisait déborder le contenu Appearance dans la zone
+          du rail. On reste flex-row partout et on rétrécit le rail
+          sur les viewports étroits via min(). */}
       <div
-        className="relative w-full overflow-hidden flex flex-col md:flex-row"
+        className="relative w-full overflow-hidden flex flex-row"
         style={{
           maxWidth: 1040,
           height: "min(740px, 92vh)",
@@ -138,11 +143,14 @@ export function SettingsModal({
           boxShadow: "0 40px 80px -20px rgba(5,10,20,0.55), 0 16px 32px -8px rgba(5,10,20,0.25)",
         }}
       >
-        {/* ── Sidebar ── */}
+        {/* ── Rail ── largeur responsive : 240px sur grand écran,
+              shrink jusqu'à 180px sur viewport étroit pour laisser
+              de la place au contenu. */}
         <aside
-          className="flex flex-col shrink-0"
+          className="flex flex-col shrink-0 overflow-y-auto"
           style={{
-            width: 240,
+            width: "min(240px, 36vw)",
+            minWidth: 180,
             borderRight: "1px solid var(--border-color, #ececec)",
             background: "var(--bg-secondary, #fafafa)",
             padding: 16,
