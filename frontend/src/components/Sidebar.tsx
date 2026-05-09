@@ -1105,19 +1105,11 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
 
 
 
-  // Active product detection checks every path that counts as
-  // "belonging" to a product (Canvas = /videos + /images, Avatar =
-  // /avatars + /characters, etc. — see PRODUCT_APP_ROUTES).
-  const activeProduct = PRODUCTS.find((p) =>
-    PRODUCT_APP_ROUTES[p.slug].paths.some((path) =>
-      pathname === path || pathname?.startsWith(`${path}/`)
-    )
-  );
-  const hoveredProduct = hovered
-    ? PRODUCTS.find((p) => p.slug === hovered)
-    : null;
-  const shownProduct = hoveredProduct ?? activeProduct;
-  const tintColor = shownProduct?.color ?? activeProduct?.color ?? "#3b82f6";
+  // Les vars `activeProduct` / `hoveredProduct` / `shownProduct` /
+  // `tintColor` qui pilotaient le radial halo brand-coloré en haut
+  // du sidebar ont été supprimées avec le halo lui-même (user a
+  // demandé un rail flat, sans teinte au top). Le state `hovered`
+  // reste utilisé par les pills CREATE pour leur own active state.
 
   const handleSidebarClick = () => {
     if (collapsed && onToggleCollapsed) onToggleCollapsed();
@@ -2286,17 +2278,12 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     </>
   );
 
-  // Theme-aware rail background. The radial halo at the top is tinted
-  // by the active/hovered product's brand colour (so the sidebar feels
-  // alive when the user navigates between studios), then we layer it
-  // over `--bg-secondary` so light + dark both inherit cleanly. The
-  // previous implementation was hardcoded dark (#0a0b14 → #040510) and
-  // the user asked for the new visual to apply in light mode too.
+  // Rail background — flat solid `var(--bg-secondary)`. Le radial
+  // halo brand-coloré au top a sauté à la demande du user : il
+  // donnait une teinte bleue/violette en haut du rail qui était
+  // légèrement intrusive. Plus propre, plus neutre.
   const darkBg: React.CSSProperties = {
-    background: `
-      radial-gradient(140% 45% at 50% 0%, ${tintColor}1c 0%, transparent 55%),
-      var(--bg-secondary)
-    `,
+    background: "var(--bg-secondary)",
     color: "var(--text-primary)",
     borderRight: "1px solid var(--border-color)",
     transition: "background 0.5s ease, width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
