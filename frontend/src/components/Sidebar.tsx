@@ -54,6 +54,7 @@ import {
   Video,
   FaceSmile,
   Microphone,
+  SparkleIcon,
 } from "@/components/Icons";
 
 /* Collapse toggle glyph. */
@@ -795,6 +796,16 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     }
   }, []);
 
+  // Esc pour fermer le flyout All Tools — accessible standard.
+  useEffect(() => {
+    if (!allToolsExpanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAllToolsExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [allToolsExpanded]);
+
   const togglePin = (href: string) => {
     setPinnedTools((prev) => {
       const next = prev.includes(href)
@@ -1409,125 +1420,10 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 </svg>
               </button>
 
-              {/* Mega-menu : déploie inline, groupe par studio.
-                  Chaque outil = pill avec logo studio + label +
-                  bouton pin (étoile vide / pleine). */}
-              {allToolsExpanded && (
-                <div
-                  className="flex flex-col gap-0.5 mt-1 mb-2"
-                  style={{
-                    paddingLeft: 8,
-                    borderLeft: "2px solid var(--border-color)",
-                    marginLeft: 14,
-                  }}
-                >
-                  {PRODUCTS.map((p) => {
-                    const subs = APP_SUB_ROUTES[p.slug] || [];
-                    if (subs.length === 0) return null;
-                    return (
-                      <div key={p.slug} className="flex flex-col gap-0.5 mb-1">
-                        <div
-                          className="px-2 py-1.5 flex items-center gap-2"
-                          style={{
-                            fontSize: 10.5,
-                            fontWeight: 700,
-                            letterSpacing: "0.10em",
-                            textTransform: "uppercase",
-                            color: "var(--text-muted)",
-                          }}
-                        >
-                          <Product3DLogo
-                            product={p}
-                            size={12}
-                            glow={false}
-                          />
-                          {p.name}
-                        </div>
-                        {subs.map((sub) => {
-                          const isPinned = pinnedTools.includes(sub.href);
-                          return (
-                            <div
-                              key={sub.href}
-                              className="flex items-stretch gap-1"
-                            >
-                              <Link
-                                href={sub.href}
-                                onClick={(e) => e.stopPropagation()}
-                                className="sidebar-pill"
-                                data-active={
-                                  pathname === sub.href ? "true" : "false"
-                                }
-                                style={{ flex: 1, paddingLeft: 10 }}
-                                title={sub.description}
-                              >
-                                <span
-                                  className="sidebar-pill-label"
-                                  style={{ fontSize: 12.5 }}
-                                >
-                                  {sub.label}
-                                </span>
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  togglePin(sub.href);
-                                }}
-                                title={
-                                  isPinned
-                                    ? "Retirer des raccourcis"
-                                    : "Épingler comme raccourci"
-                                }
-                                aria-pressed={isPinned}
-                                style={{
-                                  width: 28,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  background: isPinned
-                                    ? "var(--accent-soft)"
-                                    : "transparent",
-                                  border: "1px solid transparent",
-                                  borderColor: isPinned
-                                    ? "var(--accent)"
-                                    : "transparent",
-                                  borderRadius: 8,
-                                  cursor: "pointer",
-                                  color: isPinned
-                                    ? "var(--accent)"
-                                    : "var(--text-muted)",
-                                  transition: "all 0.12s ease",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!isPinned) {
-                                    e.currentTarget.style.color =
-                                      "var(--text-primary)";
-                                    e.currentTarget.style.background =
-                                      "var(--pill-hover-bg)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!isPinned) {
-                                    e.currentTarget.style.color =
-                                      "var(--text-muted)";
-                                    e.currentTarget.style.background =
-                                      "transparent";
-                                  }
-                                }}
-                              >
-                                <Star
-                                  size={12}
-                                  fill={isPinned ? "currentColor" : "none"}
-                                />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {/* Le mega-menu n'est plus rendu inline ici — il s'ouvre
+                  comme un flyout panel à droite de la sidebar (fixed
+                  position, pattern OpenArt). Voir <AllToolsFlyout> en
+                  bas du return du composant. */}
 
               {/* Liste des pinned tools — rendus en pills standards
                   comme dans OpenArt. Order = pin chronological order. */}
@@ -2383,6 +2279,199 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     transition: "background 0.5s ease, width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   };
 
+  // ── All Tools flyout panel — pattern OpenArt
+  // Rendu en sibling de l'aside (position fixed) pour ne pas être
+  // clipé par l'overflow:hidden du rail. S'ouvre à droite de la
+  // sidebar, ferme via clic backdrop / Esc / clic sur un outil.
+  // Le panel inclut un header "All Tools" + grille 3-col (studios
+  // groupés) + chaque outil avec son bouton ★ pin.
+  const flyout = allToolsExpanded ? (
+    <>
+      {/* Backdrop transparent — capture les clics out-of-panel pour
+          fermer le flyout. Pas d'overlay sombre : on veut que le user
+          voie le contenu derrière, c'est juste un trigger de close. */}
+      <div
+        className="fixed inset-0"
+        style={{ zIndex: 45 }}
+        onClick={() => setAllToolsExpanded(false)}
+      />
+
+      {/* Panel — fixed à gauche du viewport, collé à la sidebar via
+          left = sidebar width + 8px margin. Width 640px (3 colonnes
+          par défaut), height "auto" capped à 90vh. */}
+      <div
+        className="fixed flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          left: "calc(var(--sidebar-width) + 8px)",
+          top: 16,
+          width: 640,
+          maxWidth: "calc(100vw - var(--sidebar-width) - 24px)",
+          maxHeight: "calc(100vh - 32px)",
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border-color)",
+          borderRadius: "var(--radius-lg, 14px)",
+          boxShadow: "var(--shadow-elev, 0 12px 40px rgba(0,0,0,0.25))",
+          zIndex: 46,
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{
+            borderBottom: "1px solid var(--border-color)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <LayoutGrid size={16} />
+            <span style={{ fontSize: 15, fontWeight: 700 }}>All Tools</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAllToolsExpanded(false)}
+            aria-label="Fermer"
+            className="rounded-lg p-1.5 transition-colors"
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--text-secondary)",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "var(--pill-hover-bg)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "transparent")
+            }
+          >
+            <XIcon size={16} />
+          </button>
+        </div>
+
+        {/* Body — grid 3-col des studios */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div
+            className="grid gap-x-6 gap-y-5"
+            style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
+          >
+            {PRODUCTS.map((p) => {
+              const subs = APP_SUB_ROUTES[p.slug] || [];
+              if (subs.length === 0) return null;
+              return (
+                <div key={p.slug} className="flex flex-col gap-1">
+                  {/* Studio header — logo + nom uppercase tracked,
+                      style identique aux section headers OpenArt. */}
+                  <div
+                    className="flex items-center gap-2 px-1 pb-1"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.10em",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    <Product3DLogo product={p} size={14} glow={false} />
+                    {p.name}
+                  </div>
+                  {subs.map((sub) => {
+                    const isPinned = pinnedTools.includes(sub.href);
+                    return (
+                      <div
+                        key={sub.href}
+                        className="flex items-stretch gap-1"
+                      >
+                        <Link
+                          href={sub.href}
+                          onClick={() => setAllToolsExpanded(false)}
+                          className="sidebar-pill"
+                          data-active={
+                            pathname === sub.href ? "true" : "false"
+                          }
+                          style={{ flex: 1, paddingLeft: 8 }}
+                          title={sub.description}
+                        >
+                          <SparkleIcon
+                            size={13}
+                            color={
+                              isPinned
+                                ? "var(--accent)"
+                                : "var(--text-secondary)"
+                            }
+                          />
+                          <span
+                            className="sidebar-pill-label"
+                            style={{ fontSize: 12.5 }}
+                          >
+                            {sub.label}
+                          </span>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePin(sub.href);
+                          }}
+                          title={
+                            isPinned
+                              ? "Retirer des raccourcis"
+                              : "Épingler comme raccourci"
+                          }
+                          aria-pressed={isPinned}
+                          style={{
+                            width: 28,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: isPinned
+                              ? "var(--accent-soft)"
+                              : "transparent",
+                            border: "1px solid",
+                            borderColor: isPinned
+                              ? "var(--accent)"
+                              : "transparent",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            color: isPinned
+                              ? "var(--accent)"
+                              : "var(--text-muted)",
+                            transition: "all 0.12s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isPinned) {
+                              e.currentTarget.style.color =
+                                "var(--text-primary)";
+                              e.currentTarget.style.background =
+                                "var(--pill-hover-bg)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isPinned) {
+                              e.currentTarget.style.color =
+                                "var(--text-muted)";
+                              e.currentTarget.style.background = "transparent";
+                            }
+                          }}
+                        >
+                          <Star
+                            size={12}
+                            fill={isPinned ? "currentColor" : "none"}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  ) : null;
+
   if (isMobile) {
     return (
       <>
@@ -2404,21 +2493,25 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         >
           {sidebarContent}
         </aside>
+        {flyout}
       </>
     );
   }
 
   return (
-    <aside
-      className="fixed left-0 top-0 h-full z-40 flex flex-col"
-      style={{
-        width: "var(--sidebar-width)",
-        cursor: collapsed ? "pointer" : "default",
-        ...darkBg,
-      }}
-      onClick={handleSidebarClick}
-    >
-      {sidebarContent}
-    </aside>
+    <>
+      <aside
+        className="fixed left-0 top-0 h-full z-40 flex flex-col"
+        style={{
+          width: "var(--sidebar-width)",
+          cursor: collapsed ? "pointer" : "default",
+          ...darkBg,
+        }}
+        onClick={handleSidebarClick}
+      >
+        {sidebarContent}
+      </aside>
+      {flyout}
+    </>
   );
 }
