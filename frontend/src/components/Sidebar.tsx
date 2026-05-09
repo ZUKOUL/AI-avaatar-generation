@@ -41,7 +41,7 @@ import {
   APP_SUB_ROUTES,
   type AppSubRoute,
 } from "@/components/landing/shared";
-import { House, Search, Star, XIcon, Plus } from "@/components/Icons";
+import { House, Search, Star, XIcon, Plus, LayoutGrid } from "@/components/Icons";
 
 /* Collapse toggle glyph. */
 function PanelToggleIcon() {
@@ -758,6 +758,46 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
    *  header (`> Apps  +  ⋮`). Defaults expanded so existing users
    *  don't lose their apps the first time the new layout ships. */
   const [appsExpanded, setAppsExpanded] = useState(true);
+
+  /** All Tools mega-menu — déployable inline via le bouton "All
+   *  Tools" en bas de la sidebar, contient TOUS les outils Horpen
+   *  groupés par studio. L'user pin individuellement les outils
+   *  qu'il veut voir en raccourci. */
+  const [allToolsExpanded, setAllToolsExpanded] = useState(false);
+
+  /** Liste des hrefs d'outils pinnés par l'user. Persisté en
+   *  localStorage. Order = order d'épinglage (chronologique). */
+  const [pinnedTools, setPinnedTools] = useState<string[]>([]);
+
+  // Hydrate pinned tools from localStorage on mount.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("horpen-pinned-tools-v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setPinnedTools(parsed);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const togglePin = (href: string) => {
+    setPinnedTools((prev) => {
+      const next = prev.includes(href)
+        ? prev.filter((h) => h !== href)
+        : [...prev, href];
+      try {
+        localStorage.setItem(
+          "horpen-pinned-tools-v1",
+          JSON.stringify(next),
+        );
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
   const [navPlusOpen, setNavPlusOpen] = useState(false);
   /** When set, the NewTabModal will write its selection into this
    *  folder instead of the workspace-level pinned tabs. */
@@ -1174,82 +1214,252 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* ── CREATE : grille 2-col à la OpenArt. Chaque cell =
-            [icône produit colorée 18px][nom du studio]. Active state
-            lifte la pill via .sidebar-pill[data-active="true"] avec
-            un ring var(--accent) solide (PAS de gradient multi-stop
-            — règle user). Mode collapsed bascule en 1-col pour
-            que les tuiles centrent leur icône dans le rail étroit. ── */}
+      {/* ── ALL TOOLS + PINNED TOOLS — pattern OpenArt.
+            Les studios ne sont plus surfacés directement : tout
+            vit dans le mega-menu "All Tools" déployable. L'user
+            pin les outils qu'il veut comme raccourcis dans la
+            sidebar. Persisté localStorage pour que les pins
+            tiennent entre sessions. ── */}
       {!collapsed && (
-        <div className="sidebar-section-label">Create</div>
-      )}
-      <nav className={collapsed ? "px-2 pb-2" : "px-3 pb-2"}>
-        <div
-          className="grid gap-1"
-          style={{
-            gridTemplateColumns: collapsed ? "1fr" : "repeat(2, 1fr)",
-          }}
-        >
-          {PRODUCTS.map((p) => {
-            const routes = PRODUCT_APP_ROUTES[p.slug];
-            const isActive = routes.paths.some(
-              (path) => pathname === path || pathname?.startsWith(`${path}/`)
-            );
-            return (
-              <Link
-                key={p.slug}
-                href={routes.href}
-                title={p.name}
-                aria-label={p.name}
-                onClick={(e) => e.stopPropagation()}
-                onMouseEnter={() => setHovered(p.slug)}
-                onMouseLeave={() => setHovered(null)}
-                className="sidebar-pill"
-                data-active={isActive ? "true" : "false"}
-                data-collapsed={collapsed ? "true" : "false"}
-                style={{
-                  // Override la largeur 100% du flex original pour que
-                  // les pills tiennent dans la grille 2-col sans déborder.
-                  // L'embossed pill state vient toujours de .sidebar-pill
-                  // [data-active="true"] qui gère bg + border + shadow.
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  gap: 8,
+        <>
+          <div className="sidebar-section-label">Pinned Tools</div>
+          <nav className="px-3 pb-2">
+            <div className="flex flex-col gap-0.5">
+              {/* Bouton All Tools — toggle expand/collapse du
+                  mega-menu en dessous. Chevron rotate 90° quand
+                  ouvert. */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAllToolsExpanded((v) => !v);
                 }}
+                className="sidebar-pill"
+                data-active={allToolsExpanded ? "true" : "false"}
+                style={{ width: "100%" }}
               >
-                <span
-                  className="sidebar-tile"
+                <span className="sidebar-tile">
+                  <LayoutGrid size={14} />
+                </span>
+                <span className="sidebar-pill-label">All Tools</span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   style={{
-                    width: 26,
-                    height: 26,
-                    // Active state : ring var(--accent) solide, pas de
-                    // multi-stop gradient. Le brand color du studio
-                    // reste visible via le Product3DLogo à l'intérieur,
-                    // donc on garde l'identification "le bleu = Canvas
-                    // / le vert = Thumbs" sans hardcoder de gradient.
-                    ...(isActive
-                      ? {
-                          background: "var(--accent-soft)",
-                          borderColor: "var(--accent)",
-                        }
-                      : {}),
+                    transform: allToolsExpanded
+                      ? "rotate(90deg)"
+                      : "rotate(0deg)",
+                    transition: "transform 0.15s ease",
+                    flexShrink: 0,
+                    opacity: 0.6,
                   }}
                 >
-                  <Product3DLogo product={p} size={16} glow={false} />
-                </span>
-                <span
-                  className="sidebar-pill-label"
-                  style={{ fontSize: 12.5 }}
-                >
-                  {p.name}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
 
-      {/* Soft horizontal divider entre studios et le bloc nav système. */}
+              {/* Mega-menu : déploie inline, groupe par studio.
+                  Chaque outil = pill avec logo studio + label +
+                  bouton pin (étoile vide / pleine). */}
+              {allToolsExpanded && (
+                <div
+                  className="flex flex-col gap-0.5 mt-1 mb-2"
+                  style={{
+                    paddingLeft: 8,
+                    borderLeft: "2px solid var(--border-color)",
+                    marginLeft: 14,
+                  }}
+                >
+                  {PRODUCTS.map((p) => {
+                    const subs = APP_SUB_ROUTES[p.slug] || [];
+                    if (subs.length === 0) return null;
+                    return (
+                      <div key={p.slug} className="flex flex-col gap-0.5 mb-1">
+                        <div
+                          className="px-2 py-1.5 flex items-center gap-2"
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            letterSpacing: "0.10em",
+                            textTransform: "uppercase",
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          <Product3DLogo
+                            product={p}
+                            size={12}
+                            glow={false}
+                          />
+                          {p.name}
+                        </div>
+                        {subs.map((sub) => {
+                          const isPinned = pinnedTools.includes(sub.href);
+                          return (
+                            <div
+                              key={sub.href}
+                              className="flex items-stretch gap-1"
+                            >
+                              <Link
+                                href={sub.href}
+                                onClick={(e) => e.stopPropagation()}
+                                className="sidebar-pill"
+                                data-active={
+                                  pathname === sub.href ? "true" : "false"
+                                }
+                                style={{ flex: 1, paddingLeft: 10 }}
+                                title={sub.description}
+                              >
+                                <span
+                                  className="sidebar-pill-label"
+                                  style={{ fontSize: 12.5 }}
+                                >
+                                  {sub.label}
+                                </span>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePin(sub.href);
+                                }}
+                                title={
+                                  isPinned
+                                    ? "Retirer des raccourcis"
+                                    : "Épingler comme raccourci"
+                                }
+                                aria-pressed={isPinned}
+                                style={{
+                                  width: 28,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: isPinned
+                                    ? "var(--accent-soft)"
+                                    : "transparent",
+                                  border: "1px solid transparent",
+                                  borderColor: isPinned
+                                    ? "var(--accent)"
+                                    : "transparent",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  color: isPinned
+                                    ? "var(--accent)"
+                                    : "var(--text-muted)",
+                                  transition: "all 0.12s ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isPinned) {
+                                    e.currentTarget.style.color =
+                                      "var(--text-primary)";
+                                    e.currentTarget.style.background =
+                                      "var(--pill-hover-bg)";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isPinned) {
+                                    e.currentTarget.style.color =
+                                      "var(--text-muted)";
+                                    e.currentTarget.style.background =
+                                      "transparent";
+                                  }
+                                }}
+                              >
+                                <Star
+                                  size={12}
+                                  fill={isPinned ? "currentColor" : "none"}
+                                />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Liste des pinned tools — rendus en pills standards
+                  comme dans OpenArt. Order = pin chronological order. */}
+              {pinnedTools.length > 0 && (
+                <div className="flex flex-col gap-0.5 mt-1">
+                  {pinnedTools.map((href) => {
+                    // Trouve le tool correspondant dans APP_SUB_ROUTES
+                    // pour récupérer son label + studio. On flatten
+                    // une fois ici pour pas exploser à chaque render.
+                    let foundLabel: string | null = null;
+                    let foundProduct = PRODUCTS[0];
+                    for (const p of PRODUCTS) {
+                      const sub = (APP_SUB_ROUTES[p.slug] || []).find(
+                        (s) => s.href === href,
+                      );
+                      if (sub) {
+                        foundLabel = sub.label;
+                        foundProduct = p;
+                        break;
+                      }
+                    }
+                    if (!foundLabel) return null;
+                    const isActive = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={(e) => e.stopPropagation()}
+                        className="sidebar-pill"
+                        data-active={isActive ? "true" : "false"}
+                        title={foundLabel}
+                      >
+                        <span
+                          className="sidebar-tile"
+                          style={{ width: 26, height: 26 }}
+                        >
+                          <Product3DLogo
+                            product={foundProduct}
+                            size={14}
+                            glow={false}
+                          />
+                        </span>
+                        <span
+                          className="sidebar-pill-label"
+                          style={{ fontSize: 12.5 }}
+                        >
+                          {foundLabel}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </nav>
+        </>
+      )}
+
+      {/* En mode collapsed (rail étroit), on affiche juste un
+          bouton All Tools centré qui ouvre la sidebar quand cliqué. */}
+      {collapsed && (
+        <nav className="px-2 pb-2 flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onToggleCollapsed) onToggleCollapsed();
+            }}
+            title="All Tools"
+            className="sidebar-rail-tile"
+          >
+            <LayoutGrid size={16} />
+          </button>
+        </nav>
+      )}
+
+      {/* Soft horizontal divider entre All Tools et le nav système. */}
       <div className="sidebar-rail-divider" />
 
       {/* ── Main nav ── */}
