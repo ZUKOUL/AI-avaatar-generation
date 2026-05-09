@@ -283,17 +283,7 @@ export default function DashboardHome() {
               }}
             >
               Que veux-tu{" "}
-              <span
-                style={{
-                  background:
-                    "linear-gradient(135deg, #ff7ad9 0%, #b65aff 45%, #6dd0ff 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                créer
-              </span>{" "}
+              <span style={{ color: "var(--accent)" }}>créer</span>{" "}
               aujourd&apos;hui ?{" "}
               <span
                 aria-hidden
@@ -356,11 +346,15 @@ export default function DashboardHome() {
                 overlay, comme OpenArt. Première card = upgrade promo
                 avec compteur, les 3 suivantes = highlights produit. ─── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-12 md:mb-14">
+            {/* Première card = couleur brand solide (var(--accent) du
+                preset actif). Les 3 autres = surface neutre — les
+                cover images des spaces utilisateur portent le poids
+                visuel quand elles existent, sinon background uni. */}
             <PromoCard
               href="/dashboard/settings?section=plan"
               title="Passe au plan supérieur"
               cover={spaces[0]?.thumbnail}
-              gradient="linear-gradient(135deg, #f97316 0%, #db2777 50%, #6366f1 100%)"
+              fill="var(--accent)"
               badge="OFFRE LIMITÉE"
               ctaLabel="Voir le plan"
             />
@@ -369,21 +363,21 @@ export default function DashboardHome() {
               title="App Store screenshots"
               subtitle="Triptyque iOS prêt en 30 s"
               cover={spaces[1]?.thumbnail}
-              gradient="linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)"
+              fill="var(--bg-secondary)"
             />
             <PromoCard
               href="/dashboard/ai-videos"
               title="Smart Shot — AI Video"
               subtitle="Un prompt → cinematic short"
               cover={spaces[2]?.thumbnail}
-              gradient="linear-gradient(135deg, #064e3b 0%, #047857 100%)"
+              fill="var(--bg-secondary)"
             />
             <PromoCard
               href="/dashboard/thumbnails/bento"
               title="Bento Cards"
               subtitle="Landing tiles instant"
               cover={spaces[3]?.thumbnail}
-              gradient="linear-gradient(135deg, #312e81 0%, #581c87 100%)"
+              fill="var(--bg-secondary)"
             />
           </div>
 
@@ -635,7 +629,7 @@ function PromoCard({
   title,
   subtitle,
   cover,
-  gradient,
+  fill,
   badge,
   ctaLabel,
 }: {
@@ -643,17 +637,27 @@ function PromoCard({
   title: string;
   subtitle?: string;
   cover?: string;
-  gradient: string;
+  /** Solid background color — single CSS color value, pas de gradient
+   *  multi-stop. var(--accent) pour la card brand-promo, --bg-secondary
+   *  pour les cards neutres. */
+  fill: string;
   badge?: string;
   ctaLabel?: string;
 }) {
+  // Si la card est rendue en --accent (brand), le texte par-dessus est
+  // blanc-sur-coloré. Sinon (cover image ou bg neutre) on bascule sur
+  // les tokens text-primary/secondary qui s'adaptent au theme.
+  const isBrandFill = fill === "var(--accent)";
+  const textOnFill = isBrandFill && !cover ? "#ffffff" : "var(--text-primary)";
+  const subTextOnFill =
+    isBrandFill && !cover ? "rgba(255,255,255,0.85)" : "var(--text-secondary)";
   return (
     <Link
       href={href}
       className="group relative rounded-2xl overflow-hidden block transition-all"
       style={{
         aspectRatio: "1 / 1.05",
-        background: cover ? "var(--bg-secondary)" : gradient,
+        background: cover ? "var(--bg-secondary)" : fill,
         backgroundImage: cover ? `url(${cover})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -666,28 +670,29 @@ function PromoCard({
         e.currentTarget.style.transform = "translateY(0)";
       }}
     >
-      {/* Gradient overlay always — keeps text readable when a
-          backgroundImage is set, and provides the brand color
-          identity when not. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: cover
-            ? `${gradient}, linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.65) 100%)`
-            : gradient,
-          opacity: cover ? 0.55 : 1,
-          mixBlendMode: cover ? "multiply" : "normal",
-        }}
-      />
+      {/* Cover-readable scrim — UNIQUEMENT quand il y a une image en
+          fond, pour que le texte reste lisible. Aucun effet visuel
+          quand pas de cover (la card est juste un solid fill). */}
+      {cover && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.55) 100%)",
+          }}
+        />
+      )}
       <div
         className="absolute inset-0 flex flex-col justify-end p-4"
-        style={{ color: "#fff" }}
+        style={{ color: cover ? "#ffffff" : textOnFill }}
       >
         {badge && (
           <span
             className="self-start mb-auto rounded-full px-2.5 py-1"
             style={{
-              background: "rgba(0,0,0,0.45)",
+              background: cover
+                ? "rgba(0,0,0,0.45)"
+                : "rgba(255,255,255,0.18)",
               color: "#fff",
               fontSize: 10,
               fontWeight: 700,
@@ -713,7 +718,7 @@ function PromoCard({
           <div
             style={{
               fontSize: 12,
-              color: "rgba(255,255,255,0.85)",
+              color: cover ? "rgba(255,255,255,0.85)" : subTextOnFill,
               marginTop: 4,
               lineHeight: 1.35,
             }}
