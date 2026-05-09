@@ -1123,8 +1123,11 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
     if (collapsed && onToggleCollapsed) onToggleCollapsed();
   };
 
+  // Home a été extrait en pill séparée tout en haut de la sidebar
+  // pour matcher le pattern OpenArt (Home isolé, puis CREATE en
+  // dessous). NAV_ROWS ne contient donc plus que Search + Starred,
+  // qui restent dans la zone scrollable plus bas.
   const NAV_ROWS: { href: string; label: string; icon: React.FC<{ size?: number }>; action?: () => void }[] = [
-    { href: "/dashboard", label: "Home", icon: House },
     { href: "/dashboard/search", label: "Search…", icon: Search },
     { href: "/dashboard/starred", label: "Starred", icon: Star },
   ];
@@ -1237,6 +1240,26 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           </div>
         )}
       </div>
+
+      {/* ── HOME — pill solo tout en haut, comme dans OpenArt.
+            Sortie de NAV_ROWS pour avoir un placement isolé entre
+            le brand header et la section CREATE. ── */}
+      {!collapsed && (
+        <nav className="px-3 pb-2 pt-1">
+          <Link
+            href="/dashboard"
+            onClick={(e) => e.stopPropagation()}
+            className="sidebar-pill"
+            data-active={pathname === "/dashboard" ? "true" : "false"}
+            title="Home"
+          >
+            <span className="sidebar-tile">
+              <House size={14} />
+            </span>
+            <span className="sidebar-pill-label">Home</span>
+          </Link>
+        </nav>
+      )}
 
       {/* ── CREATE — base du logiciel : 4 entrées de génération
             (Video / Image / Character / Audio) en grille 2-col.

@@ -52,8 +52,15 @@
   /* Sidebar embossed pill — Taskk-style 3D rows. The active state
      gets a top-edge white highlight + a soft inset bottom shadow so
      each row sits "raised" off the rail. The tile around brand
-     icons gets the same treatment in miniature. */
-  --pill-rest-bg: transparent;
+     icons gets the same treatment in miniature.
+
+     Rest state on dark : très subtle bg + 1px hairline border pour
+     le look "encadré" OpenArt — visible mais pas criard. La pill
+     reste lisible comme cliquable même sans hover/active. */
+  --pill-rest-bg: rgba(255, 255, 255, 0.025);
+  --pill-rest-border: rgba(255, 255, 255, 0.07);
+  --pill-rest-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --pill-hover-bg: rgba(255, 255, 255, 0.04);
   --pill-active-bg:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
@@ -123,8 +130,12 @@
 
   /* Sidebar embossed pill — light theme. Same depth recipe as dark
      but flipped (white-paper top highlight + faint dark drop) so the
-     active row reads as a raised "card" on the off-white rail. */
-  --pill-rest-bg: transparent;
+     active row reads as a raised "card" on the off-white rail.
+     Rest state : 1px hairline + bg blanc subtil pour le look encadré
+     OpenArt — match son design sur fond clair. */
+  --pill-rest-bg: #ffffff;
+  --pill-rest-border: rgba(0, 0, 0, 0.06);
+  --pill-rest-shadow: 0 1px 1px rgba(0, 0, 0, 0.02);
   --pill-hover-bg: rgba(0, 0, 0, 0.04);
   --pill-active-bg:
     linear-gradient(180deg, #ffffff 0%, #f3f3f5 100%);
@@ -178,8 +189,9 @@ body {
   gap: 10px;
   padding: 6px 10px;
   border-radius: 10px;
-  border: 1px solid transparent;
+  border: 1px solid var(--pill-rest-border, transparent);
   background: var(--pill-rest-bg);
+  box-shadow: var(--pill-rest-shadow, none);
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
