@@ -267,290 +267,185 @@ export default function DashboardHome() {
       <Header title="Home" />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 pt-10 md:pt-14 pb-12">
-          {/* ─── 1. GREETING + SEARCH ─────────────────────────── */}
-          <div className="flex flex-col items-center gap-5 mb-8">
+          {/* ─── 1. HERO — big centered title à la OpenArt.
+                Le mot "créer" est rendu avec un gradient fuchsia→
+                cyan qui matche l'énergie de la home OpenArt sans la
+                copier mot pour mot. L'emoji curseur est placé après
+                le point d'interrogation pour finir l'élan visuel. ─── */}
+          <div className="flex flex-col items-center text-center mb-10 md:mb-14 mt-4 md:mt-8">
             <h1
-              className="text-[26px] md:text-[34px] font-semibold tracking-tight flex items-center gap-3"
-              style={{ color: "var(--text-primary)", letterSpacing: "-0.025em" }}
-            >
-              {greeting.icon}
-              {greeting.text}&nbsp;!
-            </h1>
-
-            <form
-              onSubmit={onSubmitSearch}
-              className="w-full max-w-[640px] flex items-center gap-2 rounded-full px-4 py-3"
+              className="font-extrabold leading-[1.05] tracking-tight"
               style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
+                color: "var(--text-primary)",
+                fontSize: "clamp(36px, 6vw, 64px)",
+                letterSpacing: "-0.035em",
+                maxWidth: 920,
               }}
             >
-              <Search size={18} style={{ color: "var(--text-tertiary, #9ca3af)" }} />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Décris ce que tu veux créer (image, vidéo, miniature…)"
-                style={{
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: "var(--text-primary)",
-                  fontSize: 14,
-                }}
-              />
+              Que veux-tu{" "}
               <span
-                className="hidden md:inline-flex items-center gap-1 text-[11px] font-mono"
                 style={{
-                  color: "var(--text-tertiary, #9ca3af)",
-                  background: "var(--bg-primary)",
-                  border: "1px solid var(--border-color)",
-                  padding: "2px 6px",
-                  borderRadius: 4,
+                  background:
+                    "linear-gradient(135deg, #ff7ad9 0%, #b65aff 45%, #6dd0ff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
                 }}
               >
-                ⌘K
+                créer
+              </span>{" "}
+              aujourd&apos;hui ?{" "}
+              <span
+                aria-hidden
+                style={{
+                  display: "inline-block",
+                  transform: "translateY(0.06em)",
+                  marginLeft: 4,
+                }}
+              >
+                🖱️
               </span>
-            </form>
+            </h1>
           </div>
 
-          {/* ─── 2. CATEGORY ROW (6 product icons) ────────────── */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-12">
-            {PRODUCTS.map((p) => {
-              const route = PRODUCT_APP_ROUTES[p.slug];
-              return (
-                <Link
-                  key={p.slug}
-                  href={route.href}
-                  className="rounded-2xl flex flex-col items-center gap-3 p-4 transition-all"
-                  style={{
-                    background: "var(--bg-secondary)",
-                    border: "1px solid var(--border-color)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.borderColor = "var(--text-primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.borderColor = "var(--border-color)";
-                  }}
-                >
-                  <Product3DLogo product={p} size={48} glow={false} />
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {p.name}
-                    </span>
-                    <span
-                      className="text-center"
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-tertiary, #9ca3af)",
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {p.tagline}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* ─── 3. PROJECTS / SPACES / TOOLS — three columns ─── */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-10">
-            {/* Projects (left, narrow) */}
+          {/* ─── 2. MODE PILL BAR — capsule with the 6 studios.
+                Click → land in that studio. Replaces the previous
+                3×6 icon grid with a tight inline pill bar exactly
+                like OpenArt's Story / Video / Image / Character /
+                World / Audio row, but mapped to Horpen's products. ─── */}
+          <div className="flex justify-center mb-12 md:mb-14">
             <div
-              className="md:col-span-3 rounded-2xl p-4"
+              className="rounded-full inline-flex items-center gap-1 max-w-full overflow-x-auto"
               style={{
                 background: "var(--bg-secondary)",
                 border: "1px solid var(--border-color)",
+                padding: 6,
+                boxShadow: "var(--shadow-elev)",
               }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Projets
-                </span>
-                <ChevronRight size={14} style={{ color: "var(--text-tertiary, #9ca3af)" }} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <ProjectRow color="#fb923c" label="Personnel" locked />
-                <ProjectRow
-                  color="#3b82f6"
-                  label="Team project"
-                  badge="UPGRADE"
-                />
-                <ProjectRow color="#f472b6" label="Brand kit" locked />
-              </div>
-            </div>
-
-            {/* Spaces (centre, wide) */}
-            <div
-              className="md:col-span-6 rounded-2xl p-4"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Spaces
-                </span>
-                <Link
-                  href="/dashboard/images"
-                  className="rounded-full w-7 h-7 flex items-center justify-center transition-colors"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
-                  aria-label="Nouvel espace"
-                >
-                  <Plus size={14} />
-                </Link>
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {spaces.length > 0 ? (
-                  spaces.map((s) => (
-                    <Link
-                      key={s.id}
-                      href={s.href}
-                      className="shrink-0 rounded-xl overflow-hidden transition-transform"
-                      style={{
-                        width: 168,
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-color)",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                      }}
-                    >
-                      <div
-                        style={{
-                          aspectRatio: "16 / 10",
-                          background: s.thumbnail
-                            ? `var(--bg-secondary)`
-                            : "linear-gradient(135deg, #1f2937, #111827)",
-                          backgroundImage: s.thumbnail
-                            ? `url(${s.thumbnail})`
-                            : undefined,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      />
-                      <div className="px-3 py-2">
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "var(--text-primary)",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {s.title || "Untitled space"}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 10.5,
-                            color: "var(--text-tertiary, #9ca3af)",
-                            marginTop: 1,
-                          }}
-                        >
-                          il y a {s.age}
-                        </div>
-                      </div>
-                    </Link>
-                  ))
-                ) : (
-                  <EmptySpaces />
-                )}
-              </div>
-            </div>
-
-            {/* Tools (right, narrow) */}
-            <div
-              className="md:col-span-3 rounded-2xl p-4"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Outils
-                </span>
-                <ChevronRight size={14} style={{ color: "var(--text-tertiary, #9ca3af)" }} />
-              </div>
-              <div className="flex flex-col gap-1">
-                {PRODUCTS.flatMap((p) =>
-                  (APP_SUB_ROUTES[p.slug] || []).slice(0, 1).map((sub) => ({
-                    product: p,
-                    sub,
-                  })),
-                )
-                  .slice(0, 5)
-                  .map(({ product, sub }) => (
-                    <Link
-                      key={sub.href}
-                      href={sub.href}
-                      className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors"
-                      style={{ color: "var(--text-primary)" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--bg-primary)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      <Product3DLogo product={product} size={26} glow={false} />
-                      <span style={{ fontSize: 12.5, fontWeight: 500 }}>
-                        {sub.label}
-                      </span>
-                    </Link>
-                  ))}
-              </div>
+              {PRODUCTS.map((p) => {
+                const route = PRODUCT_APP_ROUTES[p.slug];
+                return (
+                  <Link
+                    key={p.slug}
+                    href={route.href}
+                    className="rounded-full inline-flex items-center gap-2 transition-colors shrink-0"
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                      whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--bg-primary)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <Product3DLogo product={p} size={20} glow={false} />
+                    <span>{p.name}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
-          {/* ─── 4. MY WORK link ──────────────────────────────── */}
-          <div className="flex justify-center mb-6">
-            <Link
-              href="/dashboard/images"
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold transition-colors"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Mon travail
-              <ChevronRight size={16} />
-            </Link>
+          {/* ─── 3. PROMO CARDS — 4 cards en row, image bg + title
+                overlay, comme OpenArt. Première card = upgrade promo
+                avec compteur, les 3 suivantes = highlights produit. ─── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-12 md:mb-14">
+            <PromoCard
+              href="/dashboard/settings?section=plan"
+              title="Passe au plan supérieur"
+              cover={spaces[0]?.thumbnail}
+              gradient="linear-gradient(135deg, #f97316 0%, #db2777 50%, #6366f1 100%)"
+              badge="OFFRE LIMITÉE"
+              ctaLabel="Voir le plan"
+            />
+            <PromoCard
+              href="/dashboard/thumbnails/appstore"
+              title="App Store screenshots"
+              subtitle="Triptyque iOS prêt en 30 s"
+              cover={spaces[1]?.thumbnail}
+              gradient="linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)"
+            />
+            <PromoCard
+              href="/dashboard/ai-videos"
+              title="Smart Shot — AI Video"
+              subtitle="Un prompt → cinematic short"
+              cover={spaces[2]?.thumbnail}
+              gradient="linear-gradient(135deg, #064e3b 0%, #047857 100%)"
+            />
+            <PromoCard
+              href="/dashboard/thumbnails/bento"
+              title="Bento Cards"
+              subtitle="Landing tiles instant"
+              cover={spaces[3]?.thumbnail}
+              gradient="linear-gradient(135deg, #312e81 0%, #581c87 100%)"
+            />
+          </div>
+
+          {/* ─── 4. HORPEN SUITE — feature cards, 3 across.
+                Mêmes proportions que la "OpenArt Suite" : titre +
+                sous-titre + image preview à droite. Click → land
+                dans l'outil. ─── */}
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-4">
+              <h2
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Horpen Suite
+              </h2>
+              <Link
+                href="/dashboard/images"
+                className="inline-flex items-center gap-1 transition-colors"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Plus
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <SuiteCard
+                href="/dashboard/thumbnails"
+                title="Thumbsy"
+                subtitle="Miniatures YouTube qui font cliquer"
+                accentBorder="#ef4444"
+                preview={
+                  templates.find((t) => t.category === "Thumbnail")?.url
+                }
+              />
+              <SuiteCard
+                href="/dashboard/thumbnails/appstore"
+                title="App Store Pack"
+                subtitle="Triptyque iOS portrait, prompt to render"
+                accentBorder="#3b82f6"
+                preview={
+                  templates.find((t) => t.category === "App Store")?.url
+                }
+              />
+              <SuiteCard
+                href="/dashboard/thumbnails/bento"
+                title="Bento Studio"
+                subtitle="Landing-page tiles signature SaaS"
+                accentBorder="#10b981"
+                preview={
+                  templates.find((t) => t.category === "Bento")?.url
+                }
+              />
+            </div>
           </div>
 
           {/* ─── 5. TEMPLATES TABS + GRID ─────────────────────── */}
@@ -729,6 +624,196 @@ export default function DashboardHome() {
 }
 
 /* ─── Helpers ─────────────────────────────────────────────────────── */
+
+/* Promotional card — image bg with title overlay, optional badge.
+   Used in the 4-row promo strip just under the pill bar. Clicks
+   land on the linked surface. Reuses the spaces[i] thumbnails so
+   each card feels live + branded with the user's own work, with
+   a tasteful gradient fallback when no thumbnail is available. */
+function PromoCard({
+  href,
+  title,
+  subtitle,
+  cover,
+  gradient,
+  badge,
+  ctaLabel,
+}: {
+  href: string;
+  title: string;
+  subtitle?: string;
+  cover?: string;
+  gradient: string;
+  badge?: string;
+  ctaLabel?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative rounded-2xl overflow-hidden block transition-all"
+      style={{
+        aspectRatio: "1 / 1.05",
+        background: cover ? "var(--bg-secondary)" : gradient,
+        backgroundImage: cover ? `url(${cover})` : undefined,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        border: "1px solid var(--border-color)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      {/* Gradient overlay always — keeps text readable when a
+          backgroundImage is set, and provides the brand color
+          identity when not. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: cover
+            ? `${gradient}, linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.65) 100%)`
+            : gradient,
+          opacity: cover ? 0.55 : 1,
+          mixBlendMode: cover ? "multiply" : "normal",
+        }}
+      />
+      <div
+        className="absolute inset-0 flex flex-col justify-end p-4"
+        style={{ color: "#fff" }}
+      >
+        {badge && (
+          <span
+            className="self-start mb-auto rounded-full px-2.5 py-1"
+            style={{
+              background: "rgba(0,0,0,0.45)",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            {badge}
+          </span>
+        )}
+        <div
+          style={{
+            fontSize: 17,
+            fontWeight: 700,
+            lineHeight: 1.2,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {title}
+        </div>
+        {subtitle && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.85)",
+              marginTop: 4,
+              lineHeight: 1.35,
+            }}
+          >
+            {subtitle}
+          </div>
+        )}
+        {ctaLabel && (
+          <span
+            className="self-start mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1"
+            style={{
+              background: "rgba(255,255,255,0.92)",
+              color: "#0a0a0c",
+              fontSize: 11.5,
+              fontWeight: 700,
+            }}
+          >
+            {ctaLabel}
+            <ArrowRight size={12} />
+          </span>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+/* Suite card — feature highlight in the "Horpen Suite" section.
+   Two-column layout : left = title + subtitle, right = image
+   preview. Accent border kicks in on hover so the card feels
+   tactile. */
+function SuiteCard({
+  href,
+  title,
+  subtitle,
+  accentBorder,
+  preview,
+}: {
+  href: string;
+  title: string;
+  subtitle: string;
+  accentBorder: string;
+  preview?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-2xl overflow-hidden flex transition-all"
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-color)",
+        minHeight: 120,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = accentBorder;
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--border-color)";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
+        <div>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {title}
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "var(--text-secondary)",
+              marginTop: 4,
+              lineHeight: 1.4,
+            }}
+          >
+            {subtitle}
+          </div>
+        </div>
+      </div>
+      {preview && (
+        <div
+          className="shrink-0"
+          style={{
+            width: 120,
+            backgroundImage: `url(${preview})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            borderLeft: "1px solid var(--border-color)",
+          }}
+        />
+      )}
+    </Link>
+  );
+}
 
 function ProjectRow({
   color,
