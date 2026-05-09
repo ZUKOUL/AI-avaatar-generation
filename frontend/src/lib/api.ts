@@ -28,14 +28,37 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 → redirect to login
+// Handle 401 → redirect to login. CRITICAL : on ignore les 401 qui
+// viennent des endpoints d'auth eux-mêmes. Sinon :
+//   - User tape un mauvais mdp sur /login
+//   - POST /auth/login renvoie 401 (rejet propre)
+//   - Cet interceptor wipe le token + force window.location = "/login"
+//   - Le hard refresh dégomme la state React (incluant le message
+//     d'erreur "Invalid email or password" que le catch du formulaire
+//     venait de set)
+//   - User voit zéro feedback, croit que "rien ne se passe"
+//
+// Idem pour /auth/signup qui peut renvoyer un 4xx en cas de doublon
+// d'email — le formulaire l'affiche, on ne refresh pas brutalement.
+//
+// On garde le wipe + redirect pour TOUTES les autres routes : un 401
+// sur /thumbnail/history ou /workspaces signifie vraiment "token
+// invalide ou expiré", et là le redirect vers /login est légitime.
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("horpen_token");
-      localStorage.removeItem("horpen_user");
-      window.location.href = "/login";
+      const url: string = err.config?.url || "";
+      const isAuthEndpoint =
+        url.includes("/auth/login") ||
+        url.includes("/auth/signup") ||
+        url.includes("/auth/forgot-password") ||
+        url.includes("/auth/reset-password");
+      if (!isAuthEndpoint) {
+        localStorage.removeItem("horpen_token");
+        localStorage.removeItem("horpen_user");
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   }
