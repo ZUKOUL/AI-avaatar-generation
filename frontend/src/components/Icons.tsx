@@ -45,6 +45,7 @@ export { Moon01 as Moon } from "@untitledui/icons/Moon01";
 export { Stars01 as SparkleIcon } from "@untitledui/icons/Stars01";
 export { Coins01 as Coins } from "@untitledui/icons/Coins01";
 export { Film01 as Video } from "@untitledui/icons/Film01";
+export { Microphone01 as Microphone } from "@untitledui/icons/Microphone01";
 export { AlertCircle as Info } from "@untitledui/icons/AlertCircle";
 export { RefreshCw01 as RefreshCw } from "@untitledui/icons/RefreshCw01";
 export { CheckSquare as CheckSquareIcon } from "@untitledui/icons/CheckSquare";

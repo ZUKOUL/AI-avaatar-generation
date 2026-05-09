@@ -51,6 +51,9 @@ import {
   ImageSquare,
   Globe,
   Pencil,
+  Video,
+  FaceSmile,
+  Microphone,
 } from "@/components/Icons";
 
 /* Collapse toggle glyph. */
@@ -1223,6 +1226,88 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           </div>
         )}
       </div>
+
+      {/* ── CREATE — base du logiciel : 4 entrées de génération
+            (Video / Image / Character / Audio) en grille 2-col.
+            Le user a explicitement viré "World" du pattern OpenArt
+            d'origine (Horpen ne fait pas de world building 3D).
+            Chaque entrée pointe vers le studio le plus naturel pour
+            ce mode de génération. ── */}
+      {!collapsed && (
+        <>
+          <div className="sidebar-section-label">Create</div>
+          <nav className="px-3 pb-2">
+            <div
+              className="grid gap-1"
+              style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
+            >
+              {[
+                {
+                  href: "/dashboard/ai-videos",
+                  label: "Video",
+                  Icon: Video,
+                  paths: ["/dashboard/ai-videos", "/dashboard/videos"],
+                },
+                {
+                  href: "/dashboard/images",
+                  label: "Image",
+                  Icon: ImageSquare,
+                  paths: ["/dashboard/images"],
+                },
+                {
+                  href: "/dashboard/avatars",
+                  label: "Character",
+                  Icon: FaceSmile,
+                  paths: ["/dashboard/avatars", "/dashboard/characters"],
+                },
+                {
+                  href: "/dashboard/audio",
+                  label: "Audio",
+                  Icon: Microphone,
+                  paths: ["/dashboard/audio"],
+                },
+              ].map(({ href, label, Icon, paths }) => {
+                const isActive = paths.some(
+                  (p) => pathname === p || pathname?.startsWith(`${p}/`),
+                );
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={(e) => e.stopPropagation()}
+                    className="sidebar-pill"
+                    data-active={isActive ? "true" : "false"}
+                    title={label}
+                    style={{ paddingLeft: 8, paddingRight: 8, gap: 8 }}
+                  >
+                    <span
+                      className="sidebar-tile"
+                      style={{
+                        width: 26,
+                        height: 26,
+                        ...(isActive
+                          ? {
+                              background: "var(--accent-soft)",
+                              borderColor: "var(--accent)",
+                            }
+                          : {}),
+                      }}
+                    >
+                      <Icon size={14} />
+                    </span>
+                    <span
+                      className="sidebar-pill-label"
+                      style={{ fontSize: 12.5 }}
+                    >
+                      {label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        </>
+      )}
 
       {/* ── INSPIRE — section qui groupe Template / Tutorials / Blog,
             exactement comme la section "Inspire" de la sidebar OpenArt.
