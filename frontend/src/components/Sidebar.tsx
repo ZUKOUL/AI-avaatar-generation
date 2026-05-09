@@ -41,7 +41,17 @@ import {
   APP_SUB_ROUTES,
   type AppSubRoute,
 } from "@/components/landing/shared";
-import { House, Search, Star, XIcon, Plus, LayoutGrid } from "@/components/Icons";
+import {
+  House,
+  Search,
+  Star,
+  XIcon,
+  Plus,
+  LayoutGrid,
+  ImageSquare,
+  Globe,
+  Pencil,
+} from "@/components/Icons";
 
 /* Collapse toggle glyph. */
 function PanelToggleIcon() {
@@ -1213,6 +1223,56 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
           </div>
         )}
       </div>
+
+      {/* ── INSPIRE — section qui groupe Template / Tutorials / Blog,
+            exactement comme la section "Inspire" de la sidebar OpenArt.
+            Template surface les bibliothèques de templates curées
+            (miniatures YouTube, App Store inspos, Bento templates).
+            Tutorials et Blog sont des placeholders pour les futures
+            pages de contenu pédagogique + actu produit. ── */}
+      {!collapsed && (
+        <>
+          <div className="sidebar-section-label">Inspire</div>
+          <nav className="px-3 pb-2">
+            <div className="flex flex-col gap-0.5">
+              {[
+                {
+                  href: "/dashboard/templates",
+                  label: "Template",
+                  Icon: ImageSquare,
+                },
+                {
+                  href: "/dashboard/tutorials",
+                  label: "Tutorials",
+                  Icon: Globe,
+                },
+                {
+                  href: "/dashboard/blog",
+                  label: "Blog",
+                  Icon: Pencil,
+                },
+              ].map(({ href, label, Icon }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={(e) => e.stopPropagation()}
+                    className="sidebar-pill"
+                    data-active={isActive ? "true" : "false"}
+                    title={label}
+                  >
+                    <span className="sidebar-tile">
+                      <Icon size={14} />
+                    </span>
+                    <span className="sidebar-pill-label">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        </>
+      )}
 
       {/* ── ALL TOOLS + PINNED TOOLS — pattern OpenArt.
             Les studios ne sont plus surfacés directement : tout
