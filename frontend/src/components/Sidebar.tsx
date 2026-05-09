@@ -1174,17 +1174,22 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         )}
       </div>
 
-      {/* ── Studios : pill rows full-width, left-aligned, exactly
-            comme la première itération qui marchait bien. Chaque
-            row = [tile embossé avec logo coloré][nom du studio].
-            Active state lifte tout le pill via .sidebar-pill[data-
-            active="true"] et ajoute un ring brand-colored sur la
-            tuile interne. Pas de stack centré flottant. ── */}
+      {/* ── CREATE : grille 2-col à la OpenArt. Chaque cell =
+            [icône produit colorée 18px][nom du studio]. Active state
+            lifte la pill via .sidebar-pill[data-active="true"] avec
+            un ring var(--accent) solide (PAS de gradient multi-stop
+            — règle user). Mode collapsed bascule en 1-col pour
+            que les tuiles centrent leur icône dans le rail étroit. ── */}
       {!collapsed && (
-        <div className="sidebar-section-label">Studios</div>
+        <div className="sidebar-section-label">Create</div>
       )}
       <nav className={collapsed ? "px-2 pb-2" : "px-3 pb-2"}>
-        <div className="flex flex-col gap-0.5">
+        <div
+          className="grid gap-1"
+          style={{
+            gridTemplateColumns: collapsed ? "1fr" : "repeat(2, 1fr)",
+          }}
+        >
           {PRODUCTS.map((p) => {
             const routes = PRODUCT_APP_ROUTES[p.slug];
             const isActive = routes.paths.some(
@@ -1202,20 +1207,42 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                 className="sidebar-pill"
                 data-active={isActive ? "true" : "false"}
                 data-collapsed={collapsed ? "true" : "false"}
+                style={{
+                  // Override la largeur 100% du flex original pour que
+                  // les pills tiennent dans la grille 2-col sans déborder.
+                  // L'embossed pill state vient toujours de .sidebar-pill
+                  // [data-active="true"] qui gère bg + border + shadow.
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  gap: 8,
+                }}
               >
                 <span
                   className="sidebar-tile"
-                  style={
-                    isActive
+                  style={{
+                    width: 26,
+                    height: 26,
+                    // Active state : ring var(--accent) solide, pas de
+                    // multi-stop gradient. Le brand color du studio
+                    // reste visible via le Product3DLogo à l'intérieur,
+                    // donc on garde l'identification "le bleu = Canvas
+                    // / le vert = Thumbs" sans hardcoder de gradient.
+                    ...(isActive
                       ? {
-                          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1.5px ${p.color}99, 0 2px 6px ${p.color}33, 0 1px 2px rgba(0,0,0,0.25)`,
+                          background: "var(--accent-soft)",
+                          borderColor: "var(--accent)",
                         }
-                      : undefined
-                  }
+                      : {}),
+                  }}
                 >
-                  <Product3DLogo product={p} size={18} glow={false} />
+                  <Product3DLogo product={p} size={16} glow={false} />
                 </span>
-                <span className="sidebar-pill-label">{p.name}</span>
+                <span
+                  className="sidebar-pill-label"
+                  style={{ fontSize: 12.5 }}
+                >
+                  {p.name}
+                </span>
               </Link>
             );
           })}
@@ -1669,13 +1696,15 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
             <span
               style={{
                 flex: 1,
-                fontSize: 12,
-                fontWeight: 600,
+                fontSize: 11,
+                fontWeight: 700,
                 textAlign: "left",
-                letterSpacing: "0.02em",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--text-muted)",
               }}
             >
-              Apps
+              Pinned Tools
             </span>
             <span
               role="button"
