@@ -13,7 +13,8 @@
  * card images. We give them one card at a time.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import {
@@ -154,6 +155,28 @@ export default function BentoCardStudio() {
   // pins the template as the style anchor.
   const [previewedBentoTemplate, setPreviewedBentoTemplate] =
     useState<TemplateItem | null>(null);
+
+  // Hydratation depuis ?ref= (entrée depuis /dashboard/templates).
+  // Le user clique "Recréer" sur un template Bento dans la page
+  // Templates → on land ici avec ?ref=<url>, on pin direct, on
+  // strip le query param pour pas re-déclencher au reload.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const hydratedRefRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRefRef.current) return;
+    const ref = searchParams.get("ref");
+    if (!ref) return;
+    hydratedRefRef.current = true;
+    // Le `ref` est une URL absolue ou relative depuis le static
+    // mount. On reconstruit un TemplateItem-like minimal pour le
+    // selectedTemplate state — slug deviné depuis le filename, url
+    // posée telle quelle (le composant gère les deux formats).
+    const slug = ref.split("/").pop()?.replace(/\.[^.]+$/, "") || "template";
+    setSelectedTemplate({ slug, path: slug, url: ref });
+    router.replace("/dashboard/thumbnails/bento");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const aspect = ASPECT_PRESETS.find((a) => a.key === aspectKey)!;
 

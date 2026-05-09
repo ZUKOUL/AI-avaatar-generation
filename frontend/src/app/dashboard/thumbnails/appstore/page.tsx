@@ -13,7 +13,8 @@
  * inputs and rendered images. No "brief", no "narrative arc" surfaced.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import ThumbsModeTabs from "@/components/ThumbsModeTabs";
 import { ArrowRight, ImageSquare, XIcon } from "@/components/Icons";
@@ -132,6 +133,24 @@ export default function AppStoreScreenshotStudio() {
   // MediaDetailView slide-bar, same as everywhere else in the app.
   // The drawer's "Recréer" primary CTA pins the inspo as the anchor.
   const [previewedInspoUrl, setPreviewedInspoUrl] = useState<string | null>(null);
+
+  // Hydratation depuis ?ref= (entrée depuis /dashboard/templates).
+  // Quand l'user pick un template App Store dans la page Templates
+  // et clique "Recréer", on land ici avec ?ref=<url> et on pin
+  // l'inspo direct, puis on strip le param pour pas re-déclencher
+  // au reload. Bind via useRef pour ne hydrater qu'une fois.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const hydratedRefRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRefRef.current) return;
+    const ref = searchParams.get("ref");
+    if (!ref) return;
+    hydratedRefRef.current = true;
+    setSelectedInspoUrl(ref);
+    router.replace("/dashboard/thumbnails/appstore");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Drag-overlay flag for the screenshot upload hero block. Toggled by
   // the dropzone's onDragEnter/Leave so we can paint the "drop to add"
