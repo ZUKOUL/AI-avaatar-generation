@@ -1253,12 +1253,14 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
         </nav>
       )}
 
-      {/* ── CREATE — base du logiciel : 4 entrées de génération
-            (Video / Image / Character / Audio) en grille 2-col.
-            Le user a explicitement viré "World" du pattern OpenArt
-            d'origine (Horpen ne fait pas de world building 3D).
+      {/* ── CREATE — 5 entrées de génération (Video / Image /
+            Character / World / Audio) qui matchent exactement la
+            section CREATE de la sidebar OpenArt. Layout :
+              row 1 : Video (full width, col-span 2)
+              row 2 : Image | Character
+              row 3 : World | Audio
             Chaque entrée pointe vers le studio le plus naturel pour
-            ce mode de génération. ── */}
+            ce mode de génération côté Horpen. ── */}
       {!collapsed && (
         <>
           <div className="sidebar-section-label">Create</div>
@@ -1273,26 +1275,37 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                   label: "Video",
                   Icon: Video,
                   paths: ["/dashboard/ai-videos", "/dashboard/videos"],
+                  span: 2 as const,
                 },
                 {
                   href: "/dashboard/images",
                   label: "Image",
                   Icon: ImageSquare,
                   paths: ["/dashboard/images"],
+                  span: 1 as const,
                 },
                 {
                   href: "/dashboard/avatars",
                   label: "Character",
                   Icon: FaceSmile,
                   paths: ["/dashboard/avatars", "/dashboard/characters"],
+                  span: 1 as const,
+                },
+                {
+                  href: "/dashboard/world",
+                  label: "World",
+                  Icon: Globe,
+                  paths: ["/dashboard/world"],
+                  span: 1 as const,
                 },
                 {
                   href: "/dashboard/audio",
                   label: "Audio",
                   Icon: Microphone,
                   paths: ["/dashboard/audio"],
+                  span: 1 as const,
                 },
-              ].map(({ href, label, Icon, paths }) => {
+              ].map(({ href, label, Icon, paths, span }) => {
                 const isActive = paths.some(
                   (p) => pathname === p || pathname?.startsWith(`${p}/`),
                 );
@@ -1304,7 +1317,12 @@ export default function Sidebar({ open, onClose, collapsed = false, onToggleColl
                     className="sidebar-pill"
                     data-active={isActive ? "true" : "false"}
                     title={label}
-                    style={{ paddingLeft: 8, paddingRight: 8, gap: 8 }}
+                    style={{
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                      gap: 8,
+                      gridColumn: span === 2 ? "span 2" : undefined,
+                    }}
                   >
                     <span
                       className="sidebar-tile"

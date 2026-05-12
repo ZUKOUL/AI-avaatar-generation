@@ -21,6 +21,7 @@ from app.api.team import router as team_router
 from app.api.workspaces import router as workspaces_router
 from app.api.mini_apps import router as mini_apps_router
 from app.api.extension import router as extension_router
+from app.api.enhancor import router as enhancor_router
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -131,6 +132,16 @@ app.include_router(
     extension_router,
     prefix="/extension",
     tags=["Browser Extension"],
+    dependencies=[Depends(get_current_user)],
+)
+
+# Enhancor multi-model AI gateway — Seedance / Kora / Nano Banana 2 /
+# Image Editor / Realistic Skin / Upscaler. JWT-gated like the rest
+# so we know which user submitted each generation job.
+app.include_router(
+    enhancor_router,
+    prefix="/enhancor",
+    tags=["Enhancor Creator"],
     dependencies=[Depends(get_current_user)],
 )
 

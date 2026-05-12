@@ -54,4 +54,16 @@ class Settings:
     # "Rachel" is the ElevenLabs stock voice that handles en/fr/es/de well.
     ELEVENLABS_DEFAULT_VOICE = os.getenv("ELEVENLABS_DEFAULT_VOICE", "21m00Tcm4TlvDq8ikWAM")
 
+    # ─── Enhancor Creator (multi-model AI gateway) ──────────────────────────
+    # Enhancor unifies 6 generation models (Seedance 2.0 video, Kora Pro
+    # image, Nano Banana 2 image+edit, Image Editor, Realistic Skin
+    # enhancement, Upscaler) behind a single `x-api-key` API. Each model
+    # has its own slug (e.g. `enhancor-ugc-full-access` for Seedance,
+    # `nano-banana-2-new` for Nano Banana 2) and the request goes to
+    # `https://apireq.enhancor.ai/api/{slug}/v1/queue`.
+    # Polling : models with `hasStatus=true` (Nano Banana etc.) use a
+    # direct `/v1/status` endpoint ; older models (Seedance) post to a
+    # webhook.site bucket we create on the fly.
+    ENHANCOR_API_KEY         = os.getenv("ENHANCOR_API_KEY", "")
+
 settings = Settings()

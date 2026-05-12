@@ -625,4 +625,89 @@ export const miniAppsAPI = {
     api.post<MiniApp>("/mini-apps", { session_id }),
 };
 
+// ── Enhancor multi-model AI gateway ─────────────────────────────────
+// Six generation models behind one API. The frontend Creator page
+// holds the per-model registry (slugs, modes, params) and posts the
+// assembled body to /enhancor/generate. Result delivery is async via
+// webhook.site (Seedance) or direct /status polling (Nano Banana).
+export interface EnhancorGenerateBody {
+  model_slug: string;
+  mode?: string;
+  webhook_field?: string;
+  has_status?: boolean;
+  prompt: string;
+  duration?: number | string;
+  resolution?: string;
+  aspect_ratio?: string;
+  // Kora
+  model?: string;
+  generation_mode?: string;
+  image_size?: string;
+  img_url?: string;
+  // Nano Banana
+  nb_resolution?: string;
+  nb_aspect_ratio?: string;
+  input_images?: string[];
+  // Seedance flags
+  fast_mode?: boolean;
+  full_access?: boolean;
+  // Media arrays
+  images?: string[];
+  videos?: string[];
+  audios?: string[];
+  products?: string[];
+  influencers?: string[];
+  // Seedance modes
+  lipsyncing_audio?: string;
+  first_frame_image?: string;
+  last_frame_image?: string;
+  multi_frame_prompts?: { prompt: string; duration: number }[];
+}
+
+export interface EnhancorGenerateResponse {
+  ok: boolean;
+  request_id: string;
+  webhook_token: string;
+  message: string;
+}
+
+export interface EnhancorStatusResponse {
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "UNKNOWN" | string;
+  result?: string | { url?: string; urls?: string[] } | null;
+  error?: string | null;
+  request_id?: string;
+  cost?: number;
+  poll_error?: string;
+}
+
+export const enhancorAPI = {
+  /** Upload a user file (image/video/audio) to tmpfiles.org via our
+   *  backend and get back a public URL. Enhancor's generate endpoint
+   *  takes URLs, not raw bytes, so this is the necessary mid-step. */
+  uploadAsset: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post<{ url: string }>("/enhancor/upload-asset", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+
+  /** Submit a generation job. The body shape varies by model — see
+   *  EnhancorGenerateBody for the union of all fields. The frontend
+   *  MODELS registry picks the right subset per model. */
+  generate: (body: EnhancorGenerateBody) =>
+    api.post<EnhancorGenerateResponse>("/enhancor/generate", body),
+
+  /** Poll for status. `method=direct` uses Enhancor's /status endpoint
+   *  (Nano Banana etc.) ; `method=webhook` reads the webhook.site
+   *  bucket we provisioned at submit time (Seedance + older models). */
+  status: (params: {
+    request_id: string;
+    method: "direct" | "webhook";
+    model_slug?: string;
+    webhook_token?: string;
+  }) =>
+    api.get<EnhancorStatusResponse>("/enhancor/status", { params }),
+};
+
 export default api;
